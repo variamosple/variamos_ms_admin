@@ -33,4 +33,11 @@ export default {
     Secret: process.env.JWT_SECRET ?? "",
     Exp: process.env.COOKIE_EXP ?? "", // exp at the same time as the cookie
   },
+  Auth: {
+    GOOGLE: {
+      CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+      CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+      REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
+    },
+  },
 } as const;

@@ -2,6 +2,7 @@ import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { UserFilter } from "@src/Domain/User/Entity/UserFilter";
 import { UsersUseCases } from "@src/Domain/User/UserUseCases";
+import { isAuthenticated } from "@variamos/variamos-security";
 import { Router } from "express";
 import logger from "jet-logger";
 
@@ -9,7 +10,7 @@ export const USERS_V1_ROUTE = "/v1/users";
 
 const usersV1Router = Router();
 
-usersV1Router.get("/", async (req, res) => {
+usersV1Router.get("/", isAuthenticated, async (req, res) => {
   const transactionId = "queryUsers";
   const { pageNumber, pageSize, name = null } = req.query;
   try {

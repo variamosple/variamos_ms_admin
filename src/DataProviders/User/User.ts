@@ -1,17 +1,17 @@
 import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
-import { Model, TEXT } from "sequelize";
+import { Model, TEXT, UUID, UUIDV4 } from "sequelize";
 
 interface UserAttributes {}
 
 interface UserAttributes {
-  id: string;
+  id?: string;
   user: string;
   name: string;
   email: string;
 }
 
 export class UserModel extends Model<UserAttributes> implements UserAttributes {
-  public id!: string;
+  public id?: string;
   public user!: string;
   public name!: string;
   public email!: string;
@@ -20,8 +20,10 @@ export class UserModel extends Model<UserAttributes> implements UserAttributes {
 UserModel.init(
   {
     id: {
-      type: TEXT,
+      type: UUID,
+      defaultValue: UUIDV4,
       primaryKey: true,
+      allowNull: false,
     },
     user: {
       type: TEXT,

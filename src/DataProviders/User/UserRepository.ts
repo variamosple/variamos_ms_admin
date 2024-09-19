@@ -69,6 +69,50 @@ export class UserRepositoryImpl {
 
     return response;
   }
+
+  async findOrCreateUser(
+    request: RequestModel<User>
+  ): Promise<ResponseModel<User>> {
+    const response = new ResponseModel<User>(request.transactionId);
+
+    try {
+      const { data } = request;
+
+      if (!data) {
+        return response.withError(404, "User information is required");
+      }
+
+      const { email, user, name } = data;
+
+      const [dbUser] = await UserModel.findOrCreate({
+        where: { email: email },
+        defaults: {
+          user,
+          email,
+          name,
+        },
+      });
+
+      response.data = new User(
+        dbUser.id,
+        dbUser.user,
+        dbUser.name,
+        dbUser.email
+      );
+
+      return response;
+    } catch (error) {
+      logger.err("Error in getUsers:");
+      logger.err(request);
+      logger.err(error);
+      response.withError(
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        "Internal server error"
+      );
+    }
+
+    return response;
+  }
 }
 
 export const UserRepositoryInstance = new UserRepositoryImpl();

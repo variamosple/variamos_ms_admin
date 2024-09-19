@@ -10,4 +10,8 @@ export class UsersUseCases {
   ): Promise<ResponseModel<User[]>> {
     return UserRepositoryInstance.queryUsers(request);
   }
+
+  findOrCreateUser(request: RequestModel<User>): Promise<ResponseModel<User>> {
+    return UserRepositoryInstance.findOrCreateUser(request);
+  }
 }
