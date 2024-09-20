@@ -89,6 +89,28 @@ export class PermissionRepositoryImpl {
 
     return response;
   }
+
+  async deletePermission(
+    request: RequestModel<number>
+  ): Promise<ResponseModel<void>> {
+    const response = new ResponseModel<void>(request.transactionId);
+
+    try {
+      const { data: id } = request;
+
+      await PermissionModel.destroy({ where: { id } });
+    } catch (error) {
+      logger.err("Error in deletePermission:");
+      logger.err(request);
+      logger.err(error);
+      response.withError(
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        "Internal server error"
+      );
+    }
+
+    return response;
+  }
 }
 
 export const PermissionRepositoryInstance = new PermissionRepositoryImpl();

@@ -85,6 +85,28 @@ export class RoleRepositoryImpl {
 
     return response;
   }
+
+  async deleteRole(
+    request: RequestModel<number>
+  ): Promise<ResponseModel<void>> {
+    const response = new ResponseModel<void>(request.transactionId);
+
+    try {
+      const { data: id } = request;
+
+      await RoleModel.destroy({ where: { id } });
+    } catch (error) {
+      logger.err("Error in deleteRole:");
+      logger.err(request);
+      logger.err(error);
+      response.withError(
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        "Internal server error"
+      );
+    }
+
+    return response;
+  }
 }
 
 export const RoleRepositoryInstance = new RoleRepositoryImpl();

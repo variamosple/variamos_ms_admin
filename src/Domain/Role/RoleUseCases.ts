@@ -14,4 +14,8 @@ export class RolesUseCases {
   createRole(request: RequestModel<Role>): Promise<ResponseModel<Role>> {
     return RoleRepositoryInstance.createRole(request);
   }
+
+  deleteRole(request: RequestModel<number>): Promise<ResponseModel<void>> {
+    return RoleRepositoryInstance.deleteRole(request);
+  }
 }

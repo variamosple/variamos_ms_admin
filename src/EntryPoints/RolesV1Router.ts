@@ -25,16 +25,16 @@ rolesV1Router.get("/", isAuthenticated, async (req, res) => {
     const request = new RequestModel<RoleFilter>(transactionId, filter);
     const response = await new RolesUseCases().queryRoles(request);
 
-    const status = response.errorCode || 200;
+    const status = response.errorCode || HttpStatusCodes.OK;
     res.status(status).json(response);
   } catch (error) {
     logger.err(error);
     const response = new ResponseModel(
       transactionId,
-      500,
+      HttpStatusCodes.INTERNAL_SERVER_ERROR,
       "Internal Server Error"
     );
-    res.status(500).json(response);
+    res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
   }
 });
 
@@ -58,16 +58,47 @@ rolesV1Router.post("/", isAuthenticated, async (req, res) => {
     const request = new RequestModel<Role>(transactionId, role);
     const response = await new RolesUseCases().createRole(request);
 
-    const status = response.errorCode || 200;
+    const status = response.errorCode || HttpStatusCodes.CREATED;
     res.status(status).json(response);
   } catch (error) {
     logger.err(error);
     const response = new ResponseModel(
       transactionId,
-      500,
+      HttpStatusCodes.INTERNAL_SERVER_ERROR,
       "Internal Server Error"
     );
-    res.status(500).json(response);
+    res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+  }
+});
+
+rolesV1Router.delete("/:roleId", isAuthenticated, async (req, res) => {
+  const transactionId = "deleteRole";
+  const roleId = req.params.roleId;
+  try {
+    if (!roleId || Number.isNaN(+roleId)) {
+      res
+        .status(HttpStatusCodes.BAD_REQUEST)
+        .json(
+          new ResponseModel<unknown>(transactionId).withError(
+            HttpStatusCodes.BAD_REQUEST,
+            "roleId is required."
+          )
+        );
+    }
+
+    const request = new RequestModel<number>(transactionId, +roleId);
+    const response = await new RolesUseCases().deleteRole(request);
+
+    const status = response.errorCode || HttpStatusCodes.OK;
+    res.status(status).json(response);
+  } catch (error) {
+    logger.err(error);
+    const response = new ResponseModel(
+      transactionId,
+      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+      "Internal Server Error"
+    );
+    res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
   }
 });
 

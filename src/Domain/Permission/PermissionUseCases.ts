@@ -16,4 +16,10 @@ export class PermissionsUseCases {
   ): Promise<ResponseModel<Permission>> {
     return PermissionRepositoryInstance.createPermission(request);
   }
+
+  deletePermission(
+    request: RequestModel<number>
+  ): Promise<ResponseModel<void>> {
+    return PermissionRepositoryInstance.deletePermission(request);
+  }
 }

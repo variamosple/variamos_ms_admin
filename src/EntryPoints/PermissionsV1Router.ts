@@ -71,4 +71,41 @@ permissionsV1Router.post("/", isAuthenticated, async (req, res) => {
   }
 });
 
+permissionsV1Router.delete(
+  "/:permissionId",
+  isAuthenticated,
+  async (req, res) => {
+    const transactionId = "deletePermission";
+    const permissionId = req.params.permissionId;
+    try {
+      if (!permissionId || Number.isNaN(+permissionId)) {
+        res
+          .status(HttpStatusCodes.BAD_REQUEST)
+          .json(
+            new ResponseModel<unknown>(transactionId).withError(
+              HttpStatusCodes.BAD_REQUEST,
+              "PermissionsUseCases is required."
+            )
+          );
+      }
+
+      const request = new RequestModel<number>(transactionId, +permissionId);
+      const response = await new PermissionsUseCases().deletePermission(
+        request
+      );
+
+      const status = response.errorCode || HttpStatusCodes.OK;
+      res.status(status).json(response);
+    } catch (error) {
+      logger.err(error);
+      const response = new ResponseModel(
+        transactionId,
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        "Internal Server Error"
+      );
+      res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+    }
+  }
+);
+
 export default permissionsV1Router;
