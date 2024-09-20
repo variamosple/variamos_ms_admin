@@ -8,6 +8,7 @@ interface UserAttributes {
   user: string;
   name: string;
   email: string;
+  password?: string;
 }
 
 export class UserModel extends Model<UserAttributes> implements UserAttributes {
@@ -15,6 +16,7 @@ export class UserModel extends Model<UserAttributes> implements UserAttributes {
   public user!: string;
   public name!: string;
   public email!: string;
+  public password?: string;
 }
 
 UserModel.init(
@@ -32,6 +34,9 @@ UserModel.init(
       type: TEXT,
     },
     email: {
+      type: TEXT,
+    },
+    password: {
       type: TEXT,
     },
   },

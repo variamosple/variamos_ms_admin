@@ -1,6 +1,10 @@
 import EnvVars from "@src/common/EnvVars";
+import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
+import { Credentials } from "@src/Domain/User/Entity/Credentials";
 import { User } from "@src/Domain/User/Entity/User";
+import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration";
 import { UsersUseCases } from "@src/Domain/User/UserUseCases";
 import {
   createJwt,
@@ -19,6 +23,108 @@ authRouter.get("/session-info", isAuthenticated, async (req: Request, res) => {
   const user = req.user;
 
   return res.status(200).json(user);
+});
+
+authRouter.post("/sign-in", async (req, res) => {
+  const transactionId = "signIn";
+  const { email, password } = req.body || {};
+
+  try {
+    if (!email || !password) {
+      res
+        .status(HttpStatusCodes.BAD_REQUEST)
+        .json(
+          new ResponseModel<unknown>(transactionId).withError(
+            HttpStatusCodes.BAD_REQUEST,
+            "Email and password are required."
+          )
+        );
+    }
+
+    const credentials = new Credentials(email, password);
+
+    const request = new RequestModel<Credentials>(transactionId, credentials);
+    const response = await new UsersUseCases().signIn(request);
+
+    if (response.errorCode) {
+      return res
+        .status(response.errorCode || HttpStatusCodes.INTERNAL_SERVER_ERROR)
+        .json(response);
+    }
+
+    const { id, name, user: username } = response.data!;
+
+    const sessionUser: SessionUser = { id: id!, name, email, user: username };
+    const token = await createJwt(sessionUser);
+
+    res.cookie("authToken", token, { httpOnly: true, secure: true });
+
+    response.data = undefined;
+    res.status(200).json(response);
+  } catch (err) {
+    logger.err(err);
+    res
+      .status(500)
+      .json(
+        new ResponseModel<unknown>(transactionId).withError(
+          HttpStatusCodes.INTERNAL_SERVER_ERROR,
+          "Sign in error. Please try again later."
+        )
+      );
+  }
+});
+
+authRouter.post("/sign-up", async (req, res) => {
+  const transactionId = "signUp";
+  const { name, email, password } = req.body || {};
+  const successfullResponse = new ResponseModel<unknown>(
+    transactionId,
+    undefined,
+    "You have successfully signed up!"
+  );
+
+  try {
+    if (!name || !email || !password) {
+      res
+        .status(HttpStatusCodes.BAD_REQUEST)
+        .json(
+          new ResponseModel<unknown>(transactionId).withError(
+            HttpStatusCodes.BAD_REQUEST,
+            "Full name, Email and password are required."
+          )
+        );
+    }
+
+    const registration = new UserRegistration(name, email, password);
+
+    const request = new RequestModel<UserRegistration>(
+      transactionId,
+      registration
+    );
+    const response = await new UsersUseCases().signUp(request);
+
+    if (HttpStatusCodes.CONFLICT.valueOf() === response.errorCode) {
+      return res.status(HttpStatusCodes.OK).json(successfullResponse);
+    }
+
+    if (response.errorCode) {
+      return res
+        .status(response.errorCode || HttpStatusCodes.INTERNAL_SERVER_ERROR)
+        .json(response);
+    }
+
+    res.status(HttpStatusCodes.OK).json(successfullResponse);
+  } catch (err) {
+    logger.err(err);
+    res
+      .status(500)
+      .json(
+        new ResponseModel<unknown>(transactionId).withError(
+          HttpStatusCodes.INTERNAL_SERVER_ERROR,
+          "Sign in error. Please try again later."
+        )
+      );
+  }
 });
 
 authRouter.post("/logout", async (_, res) => {

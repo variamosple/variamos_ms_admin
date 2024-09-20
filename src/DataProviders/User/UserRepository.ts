@@ -3,7 +3,11 @@ import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { User } from "@src/Domain/User/Entity/User";
 import { UserFilter } from "@src/Domain/User/Entity/UserFilter";
+
+import { Credentials } from "@src/Domain/User/Entity/Credentials";
+import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration";
 import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
+import bcrypt from "bcrypt";
 import logger from "jet-logger";
 import { QueryTypes } from "sequelize";
 import { UserModel } from "./User";
@@ -103,6 +107,101 @@ export class UserRepositoryImpl {
       return response;
     } catch (error) {
       logger.err("Error in getUsers:");
+      logger.err(request);
+      logger.err(error);
+      response.withError(
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        "Internal server error"
+      );
+    }
+
+    return response;
+  }
+
+  async signIn(
+    request: RequestModel<Credentials>
+  ): Promise<ResponseModel<User>> {
+    const response = new ResponseModel<User>(request.transactionId);
+
+    try {
+      const { data } = request;
+
+      const { email, password } = data!;
+
+      const dbUser = await UserModel.findOne({
+        where: { email: email },
+      });
+
+      const errorMessage = "Incorrect username or password.";
+
+      if (!dbUser || !dbUser.password) {
+        return response.withError(400, errorMessage);
+      }
+
+      const passwordMatch = await bcrypt.compare(password, dbUser.password);
+
+      if (!passwordMatch) {
+        return response.withError(400, errorMessage);
+      }
+
+      response.data = new User(
+        dbUser.id,
+        dbUser.user,
+        dbUser.name,
+        dbUser.email
+      );
+
+      return response;
+    } catch (error) {
+      logger.err("Error in signIn:");
+      logger.err(request);
+      logger.err(error);
+      response.withError(
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        "Internal server error"
+      );
+    }
+
+    return response;
+  }
+
+  async signUp(
+    request: RequestModel<UserRegistration>
+  ): Promise<ResponseModel<User>> {
+    const response = new ResponseModel<User>(request.transactionId);
+
+    try {
+      const { data } = request;
+
+      const { email, password, name } = data!;
+
+      const dbUser = await UserModel.findOne({
+        where: { email: email },
+      });
+
+      if (!!dbUser) {
+        logger.warn("User already registered");
+        return response.withError(HttpStatusCodes.CONFLICT, "");
+      }
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      const newUser = await UserModel.create({
+        user: name,
+        name,
+        email,
+        password: hashedPassword,
+      });
+
+      response.data = new User(
+        newUser.id,
+        newUser.user,
+        newUser.name,
+        newUser.email
+      );
+
+      return response;
+    } catch (error) {
+      logger.err("Error in signUp:");
       logger.err(request);
       logger.err(error);
       response.withError(
