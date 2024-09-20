@@ -61,6 +61,30 @@ export class RoleRepositoryImpl {
 
     return response;
   }
+
+  async createRole(request: RequestModel<Role>): Promise<ResponseModel<Role>> {
+    const response = new ResponseModel<Role>(request.transactionId);
+
+    try {
+      const { data } = request;
+
+      const newPermission = await RoleModel.create({
+        name: data!.name!,
+      });
+
+      response.data = new Role(newPermission.id, newPermission.name);
+    } catch (error) {
+      logger.err("Error in createRole:");
+      logger.err(request);
+      logger.err(error);
+      response.withError(
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        "Internal server error"
+      );
+    }
+
+    return response;
+  }
 }
 
 export const RoleRepositoryInstance = new RoleRepositoryImpl();

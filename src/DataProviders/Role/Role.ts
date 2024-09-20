@@ -4,12 +4,12 @@ import { Model, NUMBER, TEXT } from "sequelize";
 interface RoleAttributes {}
 
 interface RoleAttributes {
-  id: number;
+  id?: number;
   name: string;
 }
 
 export class RoleModel extends Model<RoleAttributes> implements RoleAttributes {
-  public id!: number;
+  public id?: number;
   public name!: string;
 }
 

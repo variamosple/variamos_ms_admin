@@ -63,6 +63,32 @@ export class PermissionRepositoryImpl {
 
     return response;
   }
+
+  async createPermission(
+    request: RequestModel<Permission>
+  ): Promise<ResponseModel<Permission>> {
+    const response = new ResponseModel<Permission>(request.transactionId);
+
+    try {
+      const { data } = request;
+
+      const newPermission = await PermissionModel.create({
+        name: data!.name!,
+      });
+
+      response.data = new Permission(newPermission.id, newPermission.name);
+    } catch (error) {
+      logger.err("Error in createPermission:");
+      logger.err(request);
+      logger.err(error);
+      response.withError(
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        "Internal server error"
+      );
+    }
+
+    return response;
+  }
 }
 
 export const PermissionRepositoryInstance = new PermissionRepositoryImpl();

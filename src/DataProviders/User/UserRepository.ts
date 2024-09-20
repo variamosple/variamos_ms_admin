@@ -103,8 +103,6 @@ export class UserRepositoryImpl {
         dbUser.name,
         dbUser.email
       );
-
-      return response;
     } catch (error) {
       logger.err("Error in getUsers:");
       logger.err(request);
@@ -150,8 +148,6 @@ export class UserRepositoryImpl {
         dbUser.name,
         dbUser.email
       );
-
-      return response;
     } catch (error) {
       logger.err("Error in signIn:");
       logger.err(request);
@@ -198,8 +194,6 @@ export class UserRepositoryImpl {
         newUser.name,
         newUser.email
       );
-
-      return response;
     } catch (error) {
       logger.err("Error in signUp:");
       logger.err(request);

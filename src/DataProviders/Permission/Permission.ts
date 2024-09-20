@@ -4,7 +4,7 @@ import { Model, NUMBER, TEXT } from "sequelize";
 interface PermissionAttributes {}
 
 interface PermissionAttributes {
-  id: number;
+  id?: number;
   name: string;
 }
 
@@ -12,7 +12,7 @@ export class PermissionModel
   extends Model<PermissionAttributes>
   implements PermissionAttributes
 {
-  public id!: number;
+  public id?: number;
   public name!: string;
 }
 

@@ -10,4 +10,10 @@ export class PermissionsUseCases {
   ): Promise<ResponseModel<Permission[]>> {
     return PermissionRepositoryInstance.queryPermissions(request);
   }
+
+  createPermission(
+    request: RequestModel<Permission>
+  ): Promise<ResponseModel<Permission>> {
+    return PermissionRepositoryInstance.createPermission(request);
+  }
 }

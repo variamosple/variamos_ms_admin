@@ -10,4 +10,8 @@ export class RolesUseCases {
   ): Promise<ResponseModel<Role[]>> {
     return RoleRepositoryInstance.queryRoles(request);
   }
+
+  createRole(request: RequestModel<Role>): Promise<ResponseModel<Role>> {
+    return RoleRepositoryInstance.createRole(request);
+  }
 }
