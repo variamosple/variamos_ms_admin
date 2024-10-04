@@ -26,4 +26,8 @@ export class UsersUseCases {
   ): Promise<ResponseModel<User>> {
     return UserRepositoryInstance.signUp(request);
   }
+
+  queryById(request: RequestModel<string>): Promise<ResponseModel<User>> {
+    return UserRepositoryInstance.queryById(request);
+  }
 }

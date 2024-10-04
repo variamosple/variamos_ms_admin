@@ -155,7 +155,11 @@ const validateGoogleCode = async (token: string): Promise<User | undefined> => {
     const name = payload?.name;
     const email = payload?.email;
 
-    const user: User = { email: email!, name: name!, user: name!, id: null };
+    const user: User = User.builder()
+      .setUser(name!)
+      .setName(name!)
+      .setEmail(email!)
+      .build();
 
     return user;
   } catch (err) {

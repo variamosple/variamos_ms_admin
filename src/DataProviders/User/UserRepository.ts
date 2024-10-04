@@ -58,7 +58,16 @@ export class UserRepositoryImpl {
         offset: (filter.pageNumber! - 1) * filter.pageSize!,
       }).then((response) =>
         response.map(
-          ({ id, name, user, email }) => new User(id, name, user, email)
+          ({ id, name, user, email, isEnabled, createdAt, lastLogin }) =>
+            User.builder()
+              .setId(id)
+              .setUser(user)
+              .setName(name)
+              .setEmail(email)
+              .setIsEnabled(isEnabled!)
+              .setCreatedAt(createdAt!)
+              .setLastLogin(lastLogin)
+              .build()
         )
       );
     } catch (error) {
@@ -94,15 +103,27 @@ export class UserRepositoryImpl {
           user,
           email,
           name,
+          isEnabled: true,
+          createdAt: new Date(),
+          lastLogin: new Date(),
         },
       });
 
-      response.data = new User(
-        dbUser.id,
-        dbUser.user,
-        dbUser.name,
-        dbUser.email
+      await UserModel.update(
+        { lastLogin: new Date() },
+        {
+          where: {
+            id: dbUser.id,
+          },
+        }
       );
+
+      response.data = User.builder()
+        .setId(dbUser.id)
+        .setUser(dbUser.user)
+        .setName(dbUser.name)
+        .setEmail(dbUser.email)
+        .build();
     } catch (error) {
       logger.err("Error in getUsers:");
       logger.err(request);
@@ -142,12 +163,21 @@ export class UserRepositoryImpl {
         return response.withError(400, errorMessage);
       }
 
-      response.data = new User(
-        dbUser.id,
-        dbUser.user,
-        dbUser.name,
-        dbUser.email
+      await UserModel.update(
+        { lastLogin: new Date() },
+        {
+          where: {
+            id: dbUser.id,
+          },
+        }
       );
+
+      response.data = User.builder()
+        .setId(dbUser.id)
+        .setUser(dbUser.user)
+        .setName(dbUser.name)
+        .setEmail(dbUser.email)
+        .build();
     } catch (error) {
       logger.err("Error in signIn:");
       logger.err(request);
@@ -186,16 +216,53 @@ export class UserRepositoryImpl {
         name,
         email,
         password: hashedPassword,
+        isEnabled: true,
+        createdAt: new Date(),
+        lastLogin: new Date(),
       });
 
-      response.data = new User(
-        newUser.id,
-        newUser.user,
-        newUser.name,
-        newUser.email
-      );
+      response.data = User.builder()
+        .setId(newUser.id)
+        .setUser(newUser.user)
+        .setName(newUser.name)
+        .setEmail(newUser.email)
+        .build();
     } catch (error) {
       logger.err("Error in signUp:");
+      logger.err(request);
+      logger.err(error);
+      response.withError(
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        "Internal server error"
+      );
+    }
+
+    return response;
+  }
+
+  async queryById(request: RequestModel<string>): Promise<ResponseModel<User>> {
+    const response = new ResponseModel<User>(request.transactionId);
+
+    try {
+      const { data } = request;
+
+      response.data = await UserModel.findOne({
+        where: { id: data },
+      }).then((response) =>
+        !response
+          ? undefined
+          : User.builder()
+              .setId(response.id)
+              .setUser(response.user)
+              .setName(response.name)
+              .setEmail(response.email)
+              .setIsEnabled(response.isEnabled!)
+              .setCreatedAt(response.createdAt!)
+              .setLastLogin(response.lastLogin)
+              .build()
+      );
+    } catch (error) {
+      logger.err("Error in queryById:");
       logger.err(request);
       logger.err(error);
       response.withError(

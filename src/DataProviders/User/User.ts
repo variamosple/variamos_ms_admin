@@ -1,5 +1,5 @@
 import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
-import { Model, TEXT, UUID, UUIDV4 } from "sequelize";
+import { BOOLEAN, DATE, Model, TEXT, UUID, UUIDV4 } from "sequelize";
 
 interface UserAttributes {
   id?: string;
@@ -7,6 +7,9 @@ interface UserAttributes {
   name: string;
   email: string;
   password?: string;
+  isEnabled?: boolean;
+  createdAt?: Date;
+  lastLogin?: Date;
 }
 
 export class UserModel extends Model<UserAttributes> implements UserAttributes {
@@ -15,6 +18,9 @@ export class UserModel extends Model<UserAttributes> implements UserAttributes {
   public name!: string;
   public email!: string;
   public password?: string;
+  public isEnabled?: boolean;
+  public createdAt?: Date;
+  public lastLogin?: Date;
 }
 
 UserModel.init(
@@ -36,6 +42,20 @@ UserModel.init(
     },
     password: {
       type: TEXT,
+    },
+    isEnabled: {
+      type: BOOLEAN,
+      allowNull: false,
+      field: "is_enabled",
+    },
+    createdAt: {
+      type: DATE,
+      allowNull: false,
+      field: "created_at",
+    },
+    lastLogin: {
+      type: DATE,
+      field: "last_login",
     },
   },
   {
