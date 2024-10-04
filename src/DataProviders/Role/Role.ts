@@ -1,9 +1,7 @@
 import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
 import { Model, NUMBER, TEXT } from "sequelize";
 
-interface RoleAttributes {}
-
-interface RoleAttributes {
+export interface RoleAttributes {
   id?: number;
   name: string;
 }

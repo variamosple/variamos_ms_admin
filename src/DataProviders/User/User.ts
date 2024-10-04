@@ -1,8 +1,6 @@
 import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
 import { Model, TEXT, UUID, UUIDV4 } from "sequelize";
 
-interface UserAttributes {}
-
 interface UserAttributes {
   id?: string;
   user: string;

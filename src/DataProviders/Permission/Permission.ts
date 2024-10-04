@@ -1,9 +1,7 @@
 import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
 import { Model, NUMBER, TEXT } from "sequelize";
 
-interface PermissionAttributes {}
-
-interface PermissionAttributes {
+export interface PermissionAttributes {
   id?: number;
   name: string;
 }

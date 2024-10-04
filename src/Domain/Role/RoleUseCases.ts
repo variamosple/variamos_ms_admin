@@ -18,4 +18,12 @@ export class RolesUseCases {
   deleteRole(request: RequestModel<number>): Promise<ResponseModel<void>> {
     return RoleRepositoryInstance.deleteRole(request);
   }
+
+  queryById(request: RequestModel<number>): Promise<ResponseModel<Role>> {
+    return RoleRepositoryInstance.queryById(request);
+  }
+
+  updateRole(request: RequestModel<Role>): Promise<ResponseModel<Role>> {
+    return RoleRepositoryInstance.updateRole(request);
+  }
 }

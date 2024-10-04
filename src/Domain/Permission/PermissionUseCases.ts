@@ -22,4 +22,14 @@ export class PermissionsUseCases {
   ): Promise<ResponseModel<void>> {
     return PermissionRepositoryInstance.deletePermission(request);
   }
+
+  queryById(request: RequestModel<number>): Promise<ResponseModel<Permission>> {
+    return PermissionRepositoryInstance.queryById(request);
+  }
+
+  updatePermission(
+    request: RequestModel<Permission>
+  ): Promise<ResponseModel<Permission>> {
+    return PermissionRepositoryInstance.updatePermission(request);
+  }
 }

@@ -5,26 +5,12 @@ import { Role } from "@src/Domain/Role/Entity/Role";
 import { RoleFilter } from "@src/Domain/Role/Entity/RoleFilter";
 import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
 import logger from "jet-logger";
-import { QueryTypes } from "sequelize";
-import { RoleModel } from "./Role";
+import { Op, QueryTypes, WhereOptions } from "sequelize";
+import { BaseRepository } from "../BaseRepository";
+import { RoleAttributes, RoleModel } from "./Role";
+import { RolePermissionModel } from "./RolePermission";
 
-interface Replacements {
-  [key: string]: any;
-}
-
-const initilizeReplacements = (filter: Replacements) => {
-  if (!filter) {
-    return {};
-  }
-
-  return Object.entries(filter).reduce<Replacements>((result, [key, value]) => {
-    result[key] = value === undefined ? null : value;
-
-    return result;
-  }, {});
-};
-
-export class RoleRepositoryImpl {
+export class RoleRepositoryImpl extends BaseRepository {
   async queryRoles(
     request: RequestModel<RoleFilter>
   ): Promise<ResponseModel<Role[]>> {
@@ -33,7 +19,7 @@ export class RoleRepositoryImpl {
     try {
       const { data: filter = new RoleFilter() } = request;
 
-      const replacements = initilizeReplacements(filter);
+      const replacements = super.initilizeReplacements(filter);
 
       response.totalCount = await VARIAMOS_ORM.query(
         `
@@ -44,8 +30,14 @@ export class RoleRepositoryImpl {
         { type: QueryTypes.SELECT, replacements }
       ).then((result: any) => +result?.[0]?.count || 0);
 
+      const where: WhereOptions<RoleAttributes> = {};
+
+      if (filter.name) {
+        where.name = { [Op.iLike]: `%${replacements.name}%` };
+      }
+
       response.data = await RoleModel.findAll({
-        where: {},
+        where,
         limit: filter.pageSize!,
         offset: (filter.pageNumber! - 1) * filter.pageSize!,
       }).then((response) => response.map(({ id, name }) => new Role(id, name)));
@@ -68,11 +60,11 @@ export class RoleRepositoryImpl {
     try {
       const { data } = request;
 
-      const newPermission = await RoleModel.create({
+      const newRole = await RoleModel.create({
         name: data!.name!,
       });
 
-      response.data = new Role(newPermission.id, newPermission.name);
+      response.data = new Role(newRole.id, newRole.name);
     } catch (error) {
       logger.err("Error in createRole:");
       logger.err(request);
@@ -94,9 +86,61 @@ export class RoleRepositoryImpl {
     try {
       const { data: id } = request;
 
+      await RolePermissionModel.destroy({ where: { roleId: id } });
       await RoleModel.destroy({ where: { id } });
     } catch (error) {
       logger.err("Error in deleteRole:");
+      logger.err(request);
+      logger.err(error);
+      response.withError(
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        "Internal server error"
+      );
+    }
+
+    return response;
+  }
+
+  async queryById(request: RequestModel<number>): Promise<ResponseModel<Role>> {
+    const response = new ResponseModel<Role>(request.transactionId);
+
+    try {
+      const { data } = request;
+
+      response.data = await RoleModel.findOne({
+        where: { id: data },
+      }).then((response) =>
+        !response ? undefined : new Role(response.id, response.name)
+      );
+    } catch (error) {
+      logger.err("Error in queryById:");
+      logger.err(request);
+      logger.err(error);
+      response.withError(
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        "Internal server error"
+      );
+    }
+
+    return response;
+  }
+
+  async updateRole(request: RequestModel<Role>): Promise<ResponseModel<Role>> {
+    const response = new ResponseModel<Role>(request.transactionId);
+
+    try {
+      const { data } = request;
+
+      await RoleModel.update(
+        {
+          name: data!.name!,
+        },
+        { where: { id: data!.id! } }
+      );
+
+      response.data = data;
+    } catch (error) {
+      logger.err("Error in updateRole:");
       logger.err(request);
       logger.err(error);
       response.withError(
