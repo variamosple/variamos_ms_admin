@@ -52,9 +52,16 @@ authRouter.post("/sign-in", async (req, res) => {
         .json(response);
     }
 
-    const { id, name, user: username } = response.data!;
+    const { id, name, user: username, roles, permissions } = response.data!;
 
-    const sessionUser: SessionUser = { id: id!, name, email, user: username };
+    const sessionUser: SessionUser = {
+      id: id!,
+      name,
+      email,
+      user: username,
+      roles,
+      permissions,
+    };
     const token = await createJwt(sessionUser);
 
     res.cookie("authToken", token, { httpOnly: true, secure: true });
@@ -85,12 +92,23 @@ authRouter.post("/sign-up", async (req, res) => {
 
   try {
     if (!name || !email || !password) {
-      res
+      return res
         .status(HttpStatusCodes.BAD_REQUEST)
         .json(
           new ResponseModel<unknown>(transactionId).withError(
             HttpStatusCodes.BAD_REQUEST,
             "Full name, Email and password are required."
+          )
+        );
+    }
+
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,24}$/.test(password)) {
+      return res
+        .status(HttpStatusCodes.BAD_REQUEST)
+        .json(
+          new ResponseModel<unknown>(transactionId).withError(
+            HttpStatusCodes.BAD_REQUEST,
+            "Password must be between 8 and 24 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character."
           )
         );
     }
@@ -177,16 +195,37 @@ authRouter.post("/google/callback", async (req, res) => {
     const request = new RequestModel<User>(transactionId, user);
     const response = await new UsersUseCases().findOrCreateUser(request);
 
-    const { id, name, user: username, email } = response.data!;
+    if (response.errorCode) {
+      return res.redirect(
+        302,
+        `http://localhost:3000/login?errorMessage=${response.message}`
+      );
+    }
 
-    const sessionUser: SessionUser = { id: id!, name, email, user: username };
+    const {
+      id,
+      name,
+      user: username,
+      email,
+      roles,
+      permissions,
+    } = response.data! || {};
+
+    const sessionUser: SessionUser = {
+      id: id!,
+      name,
+      email,
+      user: username,
+      roles,
+      permissions,
+    };
     const token = await createJwt(sessionUser);
 
     res.cookie("authToken", token, { httpOnly: true, secure: true });
     res.redirect(302, "http://localhost:3000");
   } catch (err) {
     logger.err(err);
-    res.status(500).send("error");
+    res.redirect(302, `http://localhost:3000/login?errorMessage=Login error.`);
   }
 });
 

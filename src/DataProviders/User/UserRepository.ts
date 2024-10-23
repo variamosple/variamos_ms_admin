@@ -10,6 +10,8 @@ import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
 import bcrypt from "bcrypt";
 import logger from "jet-logger";
 import { QueryTypes } from "sequelize";
+import { PermissionModel } from "../Permission/Permission";
+import { RoleModel } from "../Role/Role";
 import { UserModel } from "./User";
 
 interface Replacements {
@@ -92,12 +94,15 @@ export class UserRepositoryImpl {
       const { data } = request;
 
       if (!data) {
-        return response.withError(404, "User information is required");
+        return response.withError(
+          HttpStatusCodes.NOT_FOUND,
+          "User information is required"
+        );
       }
 
       const { email, user, name } = data;
 
-      const [dbUser] = await UserModel.findOrCreate({
+      const [dbUser, crated] = await UserModel.findOrCreate({
         where: { email: email },
         defaults: {
           user,
@@ -109,14 +114,23 @@ export class UserRepositoryImpl {
         },
       });
 
-      await UserModel.update(
-        { lastLogin: new Date() },
-        {
-          where: {
-            id: dbUser.id,
-          },
-        }
-      );
+      if (!dbUser.isEnabled) {
+        return response.withError(
+          HttpStatusCodes.BAD_REQUEST,
+          "Your account is disabled."
+        );
+      }
+
+      if (!crated) {
+        await UserModel.update(
+          { lastLogin: new Date() },
+          {
+            where: {
+              id: dbUser.id,
+            },
+          }
+        );
+      }
 
       response.data = User.builder()
         .setId(dbUser.id)
@@ -124,6 +138,8 @@ export class UserRepositoryImpl {
         .setName(dbUser.name)
         .setEmail(dbUser.email)
         .build();
+
+      await this.enrichUserRolesAndPermissions(response.data);
     } catch (error) {
       logger.err("Error in getUsers:");
       logger.err(request);
@@ -153,14 +169,14 @@ export class UserRepositoryImpl {
 
       const errorMessage = "Incorrect username or password.";
 
-      if (!dbUser || !dbUser.password) {
-        return response.withError(400, errorMessage);
+      if (!dbUser || !dbUser.password || !dbUser.isEnabled) {
+        return response.withError(HttpStatusCodes.BAD_REQUEST, errorMessage);
       }
 
       const passwordMatch = await bcrypt.compare(password, dbUser.password);
 
       if (!passwordMatch) {
-        return response.withError(400, errorMessage);
+        return response.withError(HttpStatusCodes.BAD_REQUEST, errorMessage);
       }
 
       await UserModel.update(
@@ -178,6 +194,8 @@ export class UserRepositoryImpl {
         .setName(dbUser.name)
         .setEmail(dbUser.email)
         .build();
+
+      await this.enrichUserRolesAndPermissions(response.data);
     } catch (error) {
       logger.err("Error in signIn:");
       logger.err(request);
@@ -272,6 +290,99 @@ export class UserRepositoryImpl {
     }
 
     return response;
+  }
+
+  async disableUser(
+    request: RequestModel<string>
+  ): Promise<ResponseModel<unknown>> {
+    const response = new ResponseModel<unknown>(request.transactionId);
+
+    try {
+      const { data } = request;
+
+      await UserModel.update(
+        {
+          isEnabled: false,
+        },
+        {
+          where: { id: data },
+        }
+      );
+    } catch (error) {
+      logger.err("Error in disableUser:");
+      logger.err(request);
+      logger.err(error);
+      response.withError(
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        "Internal server error"
+      );
+    }
+
+    return response;
+  }
+
+  async enableUser(
+    request: RequestModel<string>
+  ): Promise<ResponseModel<unknown>> {
+    const response = new ResponseModel<unknown>(request.transactionId);
+
+    try {
+      const { data } = request;
+
+      await UserModel.update(
+        {
+          isEnabled: true,
+        },
+        {
+          where: { id: data },
+        }
+      );
+    } catch (error) {
+      logger.err("Error in enableUser:");
+      logger.err(request);
+      logger.err(error);
+      response.withError(
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        "Internal server error"
+      );
+    }
+
+    return response;
+  }
+
+  private async enrichUserRolesAndPermissions(user: User) {
+    if (!user?.id) {
+      return;
+    }
+
+    const replacements = initilizeReplacements({ userId: user.id });
+
+    user.roles = await VARIAMOS_ORM.query<RoleModel>(
+      `
+        SELECT r.name
+        FROM variamos.role r
+        INNER JOIN variamos.user_role ur ON r.id = ur.role_id
+        WHERE ur.user_id = :userId
+      `,
+      {
+        type: QueryTypes.SELECT,
+        replacements,
+      }
+    ).then((response) => response.map(({ name }) => name));
+
+    user.permissions = await VARIAMOS_ORM.query<PermissionModel>(
+      `
+        SELECT p.name
+        FROM variamos.user_role ur
+        INNER JOIN variamos.role_permission rp ON ur.role_id = rp.role_id
+        INNER JOIN variamos.permission p ON p.id = rp.permission_id
+        WHERE ur.user_id = :userId
+      `,
+      {
+        type: QueryTypes.SELECT,
+        replacements,
+      }
+    ).then((response) => response.map(({ name }) => name));
   }
 }
 

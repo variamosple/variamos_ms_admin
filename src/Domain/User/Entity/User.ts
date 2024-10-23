@@ -8,6 +8,8 @@ export class User {
   isEnabled: boolean;
   createdAt: Date;
   lastLogin?: Date;
+  roles?: string[];
+  permissions?: string[];
 
   constructor(
     id: Nullable<string>,
@@ -16,7 +18,9 @@ export class User {
     email: string,
     isEnabled: boolean,
     createdAt: Date,
-    lastLogin?: Date
+    lastLogin?: Date,
+    roles?: string[],
+    permissions?: string[]
   ) {
     this.id = id;
     this.name = name;
@@ -25,6 +29,8 @@ export class User {
     this.isEnabled = isEnabled;
     this.createdAt = createdAt;
     this.lastLogin = lastLogin;
+    this.roles = roles;
+    this.permissions = permissions;
   }
 
   public static builder(): UserBuilder {
@@ -52,6 +58,8 @@ class UserBuilder {
   private isEnabled!: boolean;
   private createdAt!: Date;
   private lastLogin?: Date;
+  private roles?: string[];
+  private permissions?: string[];
 
   public setId(id: Nullable<string>): this {
     this.id = id;
@@ -88,6 +96,16 @@ class UserBuilder {
     return this;
   }
 
+  public setRoles(roles?: string[]): this {
+    this.roles = roles;
+    return this;
+  }
+
+  public setPermissions(permissions?: string[]): this {
+    this.permissions = permissions;
+    return this;
+  }
+
   public getId(): Nullable<string> {
     return this.id;
   }
@@ -114,6 +132,14 @@ class UserBuilder {
 
   public getLastLogin(): Date | undefined {
     return this.lastLogin;
+  }
+
+  public getRoles(): string[] | undefined {
+    return this.roles;
+  }
+
+  public getPermissions(): string[] | undefined {
+    return this.permissions;
   }
 
   public build(): User {

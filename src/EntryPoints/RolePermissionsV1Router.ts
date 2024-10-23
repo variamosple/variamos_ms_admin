@@ -56,7 +56,7 @@ rolePermissionsV1Router.get("/", isAuthenticated, async (req, res) => {
 });
 
 rolePermissionsV1Router.post("/", isAuthenticated, async (req, res) => {
-  const transactionId = "createRole";
+  const transactionId = "createRolePermission";
   const roleId = req.params.roleId;
   const { permissionId } = req.body;
   try {
@@ -106,7 +106,7 @@ rolePermissionsV1Router.delete(
   "/:permissionId",
   isAuthenticated,
   async (req, res) => {
-    const transactionId = "deleteRole";
+    const transactionId = "deleteRolePermission";
     const { roleId, permissionId } = req.params;
     try {
       if (

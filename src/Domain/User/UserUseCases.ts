@@ -30,4 +30,12 @@ export class UsersUseCases {
   queryById(request: RequestModel<string>): Promise<ResponseModel<User>> {
     return UserRepositoryInstance.queryById(request);
   }
+
+  disableUser(request: RequestModel<string>): Promise<ResponseModel<unknown>> {
+    return UserRepositoryInstance.disableUser(request);
+  }
+
+  enableUser(request: RequestModel<string>): Promise<ResponseModel<unknown>> {
+    return UserRepositoryInstance.enableUser(request);
+  }
 }
