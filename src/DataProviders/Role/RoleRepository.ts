@@ -7,6 +7,7 @@ import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
 import logger from "jet-logger";
 import { Op, QueryTypes, WhereOptions } from "sequelize";
 import { BaseRepository } from "../BaseRepository";
+import { UserRoleModel } from "../User/UserRole";
 import { RoleAttributes, RoleModel } from "./Role";
 import { RolePermissionModel } from "./RolePermission";
 
@@ -86,6 +87,7 @@ export class RoleRepositoryImpl extends BaseRepository {
     try {
       const { data: id } = request;
 
+      await UserRoleModel.destroy({ where: { roleId: id } });
       await RolePermissionModel.destroy({ where: { roleId: id } });
       await RoleModel.destroy({ where: { id } });
     } catch (error) {
