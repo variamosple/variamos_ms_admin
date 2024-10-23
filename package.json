@@ -22,7 +22,7 @@
     "@src": "dist"
   },
   "dependencies": {
-    "@variamos/variamos-security": "^0.0.4",
+    "@variamos/variamos-security": "^0.0.5",
     "axios": "^1.7.7",
     "bcrypt": "^5.1.1",
     "cookie-parser": "~1.4.4",
