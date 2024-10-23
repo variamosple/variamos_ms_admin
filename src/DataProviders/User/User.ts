@@ -8,6 +8,7 @@ interface UserAttributes {
   email: string;
   password?: string;
   isEnabled?: boolean;
+  isDeleted?: boolean;
   createdAt?: Date;
   lastLogin?: Date;
 }
@@ -19,6 +20,7 @@ export class UserModel extends Model<UserAttributes> implements UserAttributes {
   public email!: string;
   public password?: string;
   public isEnabled?: boolean;
+  public isDeleted?: boolean;
   public createdAt?: Date;
   public lastLogin?: Date;
 }
@@ -47,6 +49,11 @@ UserModel.init(
       type: BOOLEAN,
       allowNull: false,
       field: "is_enabled",
+    },
+    isDeleted: {
+      type: BOOLEAN,
+      allowNull: false,
+      field: "is_deleted",
     },
     createdAt: {
       type: DATE,

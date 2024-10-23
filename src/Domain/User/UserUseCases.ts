@@ -38,4 +38,8 @@ export class UsersUseCases {
   enableUser(request: RequestModel<string>): Promise<ResponseModel<unknown>> {
     return UserRepositoryInstance.enableUser(request);
   }
+
+  deleteUser(request: RequestModel<string>): Promise<ResponseModel<unknown>> {
+    return UserRepositoryInstance.deleteUser(request);
+  }
 }

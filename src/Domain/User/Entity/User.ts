@@ -6,6 +6,7 @@ export class User {
   name: string;
   email: string;
   isEnabled: boolean;
+  isDeleted: boolean;
   createdAt: Date;
   lastLogin?: Date;
   roles?: string[];
@@ -17,6 +18,7 @@ export class User {
     name: string,
     email: string,
     isEnabled: boolean,
+    isDeleted: boolean,
     createdAt: Date,
     lastLogin?: Date,
     roles?: string[],
@@ -27,6 +29,7 @@ export class User {
     this.user = user;
     this.email = email;
     this.isEnabled = isEnabled;
+    this.isDeleted = isDeleted;
     this.createdAt = createdAt;
     this.lastLogin = lastLogin;
     this.roles = roles;
@@ -44,6 +47,7 @@ export class User {
       builder.getName(),
       builder.getEmail(),
       builder.getIsEnabled(),
+      builder.getIsDeleted(),
       builder.getCreatedAt(),
       builder.getLastLogin()
     );
@@ -56,6 +60,7 @@ class UserBuilder {
   private name!: string;
   private email!: string;
   private isEnabled!: boolean;
+  private isDeleted!: boolean;
   private createdAt!: Date;
   private lastLogin?: Date;
   private roles?: string[];
@@ -83,6 +88,11 @@ class UserBuilder {
 
   public setIsEnabled(isEnabled: boolean): this {
     this.isEnabled = isEnabled;
+    return this;
+  }
+
+  public setIsDeleted(isDeleted: boolean): this {
+    this.isDeleted = isDeleted;
     return this;
   }
 
@@ -124,6 +134,10 @@ class UserBuilder {
 
   public getIsEnabled(): boolean {
     return this.isEnabled;
+  }
+
+  public getIsDeleted(): boolean {
+    return this.isDeleted;
   }
 
   public getCreatedAt(): Date {

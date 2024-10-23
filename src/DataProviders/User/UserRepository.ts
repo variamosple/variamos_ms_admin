@@ -60,13 +60,23 @@ export class UserRepositoryImpl {
         offset: (filter.pageNumber! - 1) * filter.pageSize!,
       }).then((response) =>
         response.map(
-          ({ id, name, user, email, isEnabled, createdAt, lastLogin }) =>
+          ({
+            id,
+            name,
+            user,
+            email,
+            isEnabled,
+            isDeleted,
+            createdAt,
+            lastLogin,
+          }) =>
             User.builder()
               .setId(id)
               .setUser(user)
               .setName(name)
               .setEmail(email)
               .setIsEnabled(isEnabled!)
+              .setIsDeleted(isDeleted!)
               .setCreatedAt(createdAt!)
               .setLastLogin(lastLogin)
               .build()
@@ -109,6 +119,7 @@ export class UserRepositoryImpl {
           email,
           name,
           isEnabled: true,
+          isDeleted: false,
           createdAt: new Date(),
           lastLogin: new Date(),
         },
@@ -118,6 +129,13 @@ export class UserRepositoryImpl {
         return response.withError(
           HttpStatusCodes.BAD_REQUEST,
           "Your account is disabled."
+        );
+      }
+
+      if (dbUser.isDeleted) {
+        return response.withError(
+          HttpStatusCodes.BAD_REQUEST,
+          "Your account is deleted."
         );
       }
 
@@ -169,7 +187,12 @@ export class UserRepositoryImpl {
 
       const errorMessage = "Incorrect username or password.";
 
-      if (!dbUser || !dbUser.password || !dbUser.isEnabled) {
+      if (
+        !dbUser ||
+        !dbUser.password ||
+        !dbUser.isEnabled ||
+        dbUser.isDeleted
+      ) {
         return response.withError(HttpStatusCodes.BAD_REQUEST, errorMessage);
       }
 
@@ -235,6 +258,7 @@ export class UserRepositoryImpl {
         email,
         password: hashedPassword,
         isEnabled: true,
+        isDeleted: false,
         createdAt: new Date(),
         lastLogin: new Date(),
       });
@@ -275,6 +299,7 @@ export class UserRepositoryImpl {
               .setName(response.name)
               .setEmail(response.email)
               .setIsEnabled(response.isEnabled!)
+              .setIsDeleted(response.isDeleted!)
               .setCreatedAt(response.createdAt!)
               .setLastLogin(response.lastLogin)
               .build()
@@ -383,6 +408,35 @@ export class UserRepositoryImpl {
         replacements,
       }
     ).then((response) => response.map(({ name }) => name));
+  }
+
+  async deleteUser(
+    request: RequestModel<string>
+  ): Promise<ResponseModel<unknown>> {
+    const response = new ResponseModel<unknown>(request.transactionId);
+
+    try {
+      const { data } = request;
+
+      await UserModel.update(
+        {
+          isDeleted: true,
+        },
+        {
+          where: { id: data },
+        }
+      );
+    } catch (error) {
+      logger.err("Error in deleteUser:");
+      logger.err(request);
+      logger.err(error);
+      response.withError(
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        "Internal server error"
+      );
+    }
+
+    return response;
   }
 }
 

@@ -152,6 +152,44 @@ usersV1Router.put(
   }
 );
 
+usersV1Router.delete(
+  "/:userId",
+
+  hasPermissions(["users::delete"]),
+
+  async (req, res) => {
+    const transactionId = "deleteUser";
+    const userId = req.params.userId;
+
+    try {
+      if (!userId) {
+        res
+          .status(HttpStatusCodes.BAD_REQUEST)
+          .json(
+            new ResponseModel<unknown>(transactionId).withError(
+              HttpStatusCodes.BAD_REQUEST,
+              "userId is required."
+            )
+          );
+      }
+
+      const request = new RequestModel<string>(transactionId, userId);
+      const response = await new UsersUseCases().deleteUser(request);
+
+      const status = response.errorCode || 200;
+      res.status(status).json(response);
+    } catch (error) {
+      logger.err(error);
+      const response = new ResponseModel(
+        transactionId,
+        500,
+        "Internal Server Error"
+      );
+      res.status(500).json(response);
+    }
+  }
+);
+
 usersV1Router.use(USER_ROLES_V1_ROUTE, userRolesV1Router);
 
 export default usersV1Router;
