@@ -95,6 +95,62 @@ export class UserRepositoryImpl {
     return response;
   }
 
+  async findSessionUser(
+    request: RequestModel<string>
+  ): Promise<ResponseModel<User>> {
+    const response = new ResponseModel<User>(request.transactionId);
+
+    try {
+      const { data: userId } = request;
+
+      if (!userId) {
+        return response.withError(
+          HttpStatusCodes.BAD_REQUEST,
+          "UserId is required"
+        );
+      }
+
+      const dbUser = await UserModel.findOne({
+        where: { id: userId },
+      });
+
+      if (!dbUser?.isEnabled) {
+        return response.withError(
+          HttpStatusCodes.BAD_REQUEST,
+          "Your account is disabled."
+        );
+      }
+
+      if (dbUser?.isDeleted) {
+        return response.withError(
+          HttpStatusCodes.BAD_REQUEST,
+          "Your account is deleted."
+        );
+      }
+
+      response.data = User.builder()
+        .setId(dbUser.id)
+        .setUser(dbUser.user)
+        .setName(dbUser.name)
+        .setEmail(dbUser.email)
+        .setIsEnabled(dbUser.isEnabled!)
+        .setIsDeleted(dbUser.isDeleted!)
+        .build();
+
+      await this.enrichUserRolesAndPermissions(response.data);
+    } catch (error) {
+      logger.err("Error in findUser:");
+      logger.err(request);
+      logger.err(error);
+      response.withError(
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        "Internal server error"
+      );
+    }
+
+    return response;
+  }
+
   async findOrCreateUser(
     request: RequestModel<User>
   ): Promise<ResponseModel<User>> {
@@ -155,6 +211,8 @@ export class UserRepositoryImpl {
         .setUser(dbUser.user)
         .setName(dbUser.name)
         .setEmail(dbUser.email)
+        .setIsEnabled(dbUser.isEnabled!)
+        .setIsDeleted(dbUser.isDeleted!)
         .build();
 
       await this.enrichUserRolesAndPermissions(response.data);

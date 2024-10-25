@@ -8,8 +8,9 @@ import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration";
 import { UsersUseCases } from "@src/Domain/User/UserUseCases";
 import {
   createJwt,
-  isAuthenticated,
+  isSessionExpired,
   SessionUser,
+  validateToken,
 } from "@variamos/variamos-security";
 import { Request, Router } from "express";
 import { OAuth2Client } from "google-auth-library";
@@ -19,10 +20,67 @@ export const AUTH_ROUTE = "/auth";
 
 const authRouter = Router();
 
-authRouter.get("/session-info", isAuthenticated, async (req: Request, res) => {
-  const user = req.user;
+authRouter.get("/session-info", async (req: Request, res) => {
+  try {
+    const user = await validateToken(req);
 
-  return res.status(200).json(user);
+    if (!isSessionExpired(user.exp)) {
+      return res.status(200).json(user);
+    }
+
+    if (!user.iat) {
+      return res
+        .status(401)
+        .json({ errorMessage: "Your session has expired." });
+    }
+
+    const currentDateInMs = Date.now();
+
+    // Get max refresh time
+    const refreshTimeInMs =
+      user.iat * 1000 + EnvVars.CookieProps.Options.maxAge;
+
+    if (currentDateInMs > refreshTimeInMs) {
+      return res
+        .status(401)
+        .json({ errorMessage: "Your session has expired." });
+    }
+
+    const refreshedUser = await new UsersUseCases().findSessionUser(
+      new RequestModel("getSessionInfo", user.id)
+    );
+
+    const {
+      id,
+      name,
+      user: username,
+      email,
+      roles,
+      permissions,
+    } = refreshedUser.data! || {};
+
+    const sessionUser: SessionUser = {
+      id: id!,
+      name,
+      email,
+      user: username,
+      roles,
+      permissions,
+    };
+    const token = await createJwt(sessionUser);
+
+    res
+      .cookie("authToken", token, {
+        httpOnly: EnvVars.CookieProps.Options.httpOnly,
+        secure: EnvVars.CookieProps.Options.secure,
+        maxAge: EnvVars.CookieProps.Options.maxAge,
+      })
+      .status(200)
+      .json(sessionUser);
+  } catch (error) {
+    console.error("Error verifying JWT:", error);
+    res.status(401).json({ errorMessage: "Session validation error" });
+  }
 });
 
 authRouter.post("/sign-in", async (req, res) => {
@@ -221,7 +279,11 @@ authRouter.post("/google/callback", async (req, res) => {
     };
     const token = await createJwt(sessionUser);
 
-    res.cookie("authToken", token, { httpOnly: true, secure: true });
+    res.cookie("authToken", token, {
+      httpOnly: EnvVars.CookieProps.Options.httpOnly,
+      secure: EnvVars.CookieProps.Options.secure,
+      maxAge: EnvVars.CookieProps.Options.maxAge,
+    });
     res.redirect(302, "http://localhost:3000");
   } catch (err) {
     logger.err(err);

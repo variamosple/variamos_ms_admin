@@ -22,7 +22,7 @@
     "@src": "dist"
   },
   "dependencies": {
-    "@variamos/variamos-security": "^0.0.5",
+    "@variamos/variamos-security": "^0.0.7",
     "axios": "^1.7.7",
     "bcrypt": "^5.1.1",
     "cookie-parser": "~1.4.4",
@@ -39,7 +39,8 @@
     "morgan": "~1.9.1",
     "pg": "^8.12.0",
     "sequelize": "^6.37.3",
-    "ts-command-line-args": "^2.5.1"
+    "ts-command-line-args": "^2.5.1",
+    "variamos-ms-admin": "file:"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",

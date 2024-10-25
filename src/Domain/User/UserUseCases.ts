@@ -13,6 +13,10 @@ export class UsersUseCases {
     return UserRepositoryInstance.queryUsers(request);
   }
 
+  findSessionUser(request: RequestModel<string>): Promise<ResponseModel<User>> {
+    return UserRepositoryInstance.findSessionUser(request);
+  }
+
   findOrCreateUser(request: RequestModel<User>): Promise<ResponseModel<User>> {
     return UserRepositoryInstance.findOrCreateUser(request);
   }
