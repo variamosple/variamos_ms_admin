@@ -7,7 +7,7 @@
 export default {
   NodeEnv: process.env.NODE_ENV ?? "",
   Port: process.env.PORT ?? 0,
-  VERSION: "1.24.04.14.14",
+  VERSION: "1.24.10.27.08",
   DB: {
     USER: process.env.DB_USER ?? "db_user_test",
     HOST: process.env.DB_HOST ?? "db_host_test",
