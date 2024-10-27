@@ -9,6 +9,7 @@ import { UsersUseCases } from "@src/Domain/User/UserUseCases";
 import {
   createJwt,
   isSessionExpired,
+  sessionInfoToSessionUser,
   SessionUser,
   validateToken,
 } from "@variamos/variamos-security";
@@ -22,13 +23,13 @@ const authRouter = Router();
 
 authRouter.get("/session-info", async (req: Request, res) => {
   try {
-    const user = await validateToken(req);
+    const sessionInfo = await validateToken(req);
 
-    if (!isSessionExpired(user.exp)) {
-      return res.status(200).json(user);
+    if (!isSessionExpired(sessionInfo.exp)) {
+      return res.status(200).json(sessionInfoToSessionUser(sessionInfo));
     }
 
-    if (!user.iat) {
+    if (!sessionInfo.iat) {
       return res
         .status(401)
         .json({ errorMessage: "Your session has expired." });
@@ -38,7 +39,7 @@ authRouter.get("/session-info", async (req: Request, res) => {
 
     // Get max refresh time
     const refreshTimeInMs =
-      user.iat * 1000 + EnvVars.CookieProps.Options.maxAge;
+      sessionInfo.iat * 1000 + EnvVars.CookieProps.Options.maxAge;
 
     if (currentDateInMs > refreshTimeInMs) {
       return res
@@ -47,23 +48,29 @@ authRouter.get("/session-info", async (req: Request, res) => {
     }
 
     const refreshedUser = await new UsersUseCases().findSessionUser(
-      new RequestModel("getSessionInfo", user.id)
+      new RequestModel("getSessionInfo", sessionInfo.sub)
     );
+
+    if (!!refreshedUser.errorCode || !refreshedUser.data) {
+      return res
+        .status(401)
+        .json({ errorMessage: "Your session has expired." });
+    }
 
     const {
       id,
       name,
-      user: username,
+      user: userName,
       email,
       roles,
       permissions,
-    } = refreshedUser.data! || {};
+    } = refreshedUser.data;
 
     const sessionUser: SessionUser = {
       id: id!,
       name,
       email,
-      user: username,
+      user: userName,
       roles,
       permissions,
     };

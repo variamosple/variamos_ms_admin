@@ -58,6 +58,7 @@ export class UserRepositoryImpl {
         where: {},
         limit: filter.pageSize!,
         offset: (filter.pageNumber! - 1) * filter.pageSize!,
+        order: [["created_at", "desc"], "name", "email"],
       }).then((response) =>
         response.map(
           ({
@@ -133,8 +134,6 @@ export class UserRepositoryImpl {
         .setUser(dbUser.user)
         .setName(dbUser.name)
         .setEmail(dbUser.email)
-        .setIsEnabled(dbUser.isEnabled!)
-        .setIsDeleted(dbUser.isDeleted!)
         .build();
 
       await this.enrichUserRolesAndPermissions(response.data);
@@ -211,8 +210,6 @@ export class UserRepositoryImpl {
         .setUser(dbUser.user)
         .setName(dbUser.name)
         .setEmail(dbUser.email)
-        .setIsEnabled(dbUser.isEnabled!)
-        .setIsDeleted(dbUser.isDeleted!)
         .build();
 
       await this.enrichUserRolesAndPermissions(response.data);
@@ -433,6 +430,35 @@ export class UserRepositoryImpl {
     return response;
   }
 
+  async deleteUser(
+    request: RequestModel<string>
+  ): Promise<ResponseModel<unknown>> {
+    const response = new ResponseModel<unknown>(request.transactionId);
+
+    try {
+      const { data } = request;
+
+      await UserModel.update(
+        {
+          isDeleted: true,
+        },
+        {
+          where: { id: data },
+        }
+      );
+    } catch (error) {
+      logger.err("Error in deleteUser:");
+      logger.err(request);
+      logger.err(error);
+      response.withError(
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        "Internal server error"
+      );
+    }
+
+    return response;
+  }
+
   private async enrichUserRolesAndPermissions(user: User) {
     if (!user?.id) {
       return;
@@ -466,35 +492,6 @@ export class UserRepositoryImpl {
         replacements,
       }
     ).then((response) => response.map(({ name }) => name));
-  }
-
-  async deleteUser(
-    request: RequestModel<string>
-  ): Promise<ResponseModel<unknown>> {
-    const response = new ResponseModel<unknown>(request.transactionId);
-
-    try {
-      const { data } = request;
-
-      await UserModel.update(
-        {
-          isDeleted: true,
-        },
-        {
-          where: { id: data },
-        }
-      );
-    } catch (error) {
-      logger.err("Error in deleteUser:");
-      logger.err(request);
-      logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
-    }
-
-    return response;
   }
 }
 
