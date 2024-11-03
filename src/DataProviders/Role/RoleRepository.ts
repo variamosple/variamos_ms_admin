@@ -41,6 +41,7 @@ export class RoleRepositoryImpl extends BaseRepository {
         where,
         limit: filter.pageSize!,
         offset: (filter.pageNumber! - 1) * filter.pageSize!,
+        order: [["name", "ASC"]],
       }).then((response) => response.map(({ id, name }) => new Role(id, name)));
     } catch (error) {
       logger.err("Error in getRoles:");

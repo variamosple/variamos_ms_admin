@@ -14,6 +14,19 @@ baseRouter.use(USERS_V1_ROUTE, usersV1Router);
 baseRouter.use(ROLES_V1_ROUTE, rolesV1Router);
 baseRouter.use(PERMISSIONS_V1_ROUTE, permissionsV1Router);
 
+baseRouter.get("/version", async function (_, res) {
+  try {
+    const data = {
+      message: "variamos_ms_admin",
+      version: EnvVars.VERSION,
+    };
+
+    res.status(200).json(data);
+  } catch (error) {
+    res.status(400).send(JSON.stringify(error));
+  }
+});
+
 baseRouter.get("/", async function (_, res) {
   try {
     const data = {

@@ -5,6 +5,7 @@ import { User } from "@src/Domain/User/Entity/User";
 import { UserFilter } from "@src/Domain/User/Entity/UserFilter";
 
 import { Credentials } from "@src/Domain/User/Entity/Credentials";
+import { PasswordUpdate } from "@src/Domain/User/Entity/PasswordUpdate";
 import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration";
 import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
 import bcrypt from "bcrypt";
@@ -492,6 +493,62 @@ export class UserRepositoryImpl {
         replacements,
       }
     ).then((response) => response.map(({ name }) => name));
+  }
+
+  async updateUserPassword(
+    request: RequestModel<PasswordUpdate>
+  ): Promise<ResponseModel<void>> {
+    const response = new ResponseModel<void>(request.transactionId);
+
+    try {
+      const passwordUpdate = request.data!;
+
+      const dbUser = await UserModel.findOne({
+        where: { id: passwordUpdate.getId() },
+      });
+
+      if (!dbUser) {
+        return response.withError(HttpStatusCodes.NOT_FOUND, "User not found.");
+      }
+
+      const passwordMatch = await bcrypt.compare(
+        passwordUpdate.getCurrentPassword(),
+        dbUser.password!
+      );
+
+      if (!passwordMatch) {
+        return response.withError(
+          HttpStatusCodes.BAD_REQUEST,
+          "Current password is incorrect."
+        );
+      }
+
+      const newHashedPassword = await bcrypt.hash(
+        passwordUpdate.getNewPassword(),
+        10
+      );
+
+      await UserModel.update(
+        { password: newHashedPassword },
+        {
+          where: {
+            id: dbUser.id,
+          },
+        }
+      );
+    } catch (error) {
+      logger.err("Error in updateUserPassword:");
+      logger.err(
+        "Error trying to update user password with id: " + request.data!.getId()
+      );
+      logger.err(error);
+      response.withError(
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        "Internal server error"
+      );
+    }
+
+    return response;
   }
 }
 
