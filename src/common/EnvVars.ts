@@ -16,9 +16,13 @@ export default {
     PORT: process.env.DB_PORT ?? 5432,
     SSL: process.env.DB_SSL === "true",
   },
+  CORS: {
+    AllowedOriginsPatterns: (process.env.CORS_ALLOWED_ORIGINS_PATTERNS ?? "")
+      .split(",")
+      .map((pattern) => new RegExp(pattern)),
+  },
   CookieProps: {
     Secret: process.env.COOKIE_SECRET ?? "",
-    Origin: process.env.COOKIE_ORIGIN_URI ?? "",
     Options: {
       httpOnly: true,
       signed: true,
