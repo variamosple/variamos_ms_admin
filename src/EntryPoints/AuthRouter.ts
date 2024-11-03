@@ -258,7 +258,7 @@ authRouter.post("/google/callback", async (req, res) => {
     if (response.errorCode) {
       return res.redirect(
         302,
-        `http://localhost:3000/login?errorMessage=${response.message}`
+        `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?errorMessage=${response.message}`
       );
     }
 
@@ -286,10 +286,13 @@ authRouter.post("/google/callback", async (req, res) => {
       secure: EnvVars.CookieProps.Options.secure,
       maxAge: EnvVars.CookieProps.Options.maxAge,
     });
-    res.redirect(302, "http://localhost:3000");
+    res.redirect(302, `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`);
   } catch (err) {
     logger.err(err);
-    res.redirect(302, `http://localhost:3000/login?errorMessage=Login error.`);
+    res.redirect(
+      302,
+      `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?errorMessage=Login error.`
+    );
   }
 });
 

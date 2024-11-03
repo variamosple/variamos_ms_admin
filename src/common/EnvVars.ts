@@ -18,6 +18,7 @@ export default {
   },
   CookieProps: {
     Secret: process.env.COOKIE_SECRET ?? "",
+    Origin: process.env.COOKIE_ORIGIN_URI ?? "",
     Options: {
       httpOnly: true,
       signed: true,
@@ -31,7 +32,11 @@ export default {
     GOOGLE: {
       CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
       CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-      REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
+      GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
+    },
+    APP: {
+      HOME_REDIRECT_URI: process.env.HOME_REDIRECT_URI,
+      LOGIN_REDIRECT_URI: process.env.LOGIN_REDIRECT_URI,
     },
   },
 } as const;
