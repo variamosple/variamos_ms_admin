@@ -35,7 +35,7 @@ const corsOptions = {
     origin: string | undefined,
     callback: (err: Error | null, allow?: boolean) => void
   ) => {
-    if (!origin) return callback(null, true);
+    if (!origin || "null" === origin) return callback(null, true);
 
     const isAllowed =
       EnvVars.CORS.AllowedOriginsPatterns.findIndex((pattern) =>
