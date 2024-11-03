@@ -3,11 +3,13 @@ import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { Credentials } from "@src/Domain/User/Entity/Credentials";
+import { PasswordUpdate } from "@src/Domain/User/Entity/PasswordUpdate";
 import { User } from "@src/Domain/User/Entity/User";
 import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration";
 import { UsersUseCases } from "@src/Domain/User/UserUseCases";
 import {
   createJwt,
+  isAuthenticated,
   isSessionExpired,
   sessionInfoToSessionUser,
   SessionUser,
@@ -78,6 +80,9 @@ authRouter.get("/session-info", async (req: Request, res) => {
 
     res
       .cookie("authToken", token, {
+        domain: EnvVars.CookieProps.Options.domain,
+        path: EnvVars.CookieProps.Options.path,
+        sameSite: "strict",
         httpOnly: EnvVars.CookieProps.Options.httpOnly,
         secure: EnvVars.CookieProps.Options.secure,
         maxAge: EnvVars.CookieProps.Options.maxAge,
@@ -129,7 +134,14 @@ authRouter.post("/sign-in", async (req, res) => {
     };
     const token = await createJwt(sessionUser);
 
-    res.cookie("authToken", token, { httpOnly: true, secure: true });
+    res.cookie("authToken", token, {
+      domain: EnvVars.CookieProps.Options.domain,
+      path: EnvVars.CookieProps.Options.path,
+      sameSite: "strict",
+      httpOnly: EnvVars.CookieProps.Options.httpOnly,
+      secure: EnvVars.CookieProps.Options.secure,
+      maxAge: EnvVars.CookieProps.Options.maxAge,
+    });
 
     response.data = undefined;
     res.status(200).json(response);
@@ -148,7 +160,7 @@ authRouter.post("/sign-in", async (req, res) => {
 
 authRouter.post("/sign-up", async (req, res) => {
   const transactionId = "signUp";
-  const { name, email, password } = req.body || {};
+  const { name, email, password, passwordConfirmation } = req.body || {};
   const successfullResponse = new ResponseModel<unknown>(
     transactionId,
     undefined,
@@ -156,29 +168,12 @@ authRouter.post("/sign-up", async (req, res) => {
   );
 
   try {
-    if (!name || !email || !password) {
-      return res
-        .status(HttpStatusCodes.BAD_REQUEST)
-        .json(
-          new ResponseModel<unknown>(transactionId).withError(
-            HttpStatusCodes.BAD_REQUEST,
-            "Full name, Email and password are required."
-          )
-        );
-    }
-
-    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,24}$/.test(password)) {
-      return res
-        .status(HttpStatusCodes.BAD_REQUEST)
-        .json(
-          new ResponseModel<unknown>(transactionId).withError(
-            HttpStatusCodes.BAD_REQUEST,
-            "Password must be between 8 and 24 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character."
-          )
-        );
-    }
-
-    const registration = new UserRegistration(name, email, password);
+    const registration = new UserRegistration(
+      name,
+      email,
+      password,
+      passwordConfirmation
+    );
 
     const request = new RequestModel<UserRegistration>(
       transactionId,
@@ -295,6 +290,56 @@ authRouter.post("/google/callback", async (req, res) => {
   } catch (err) {
     logger.err(err);
     res.redirect(302, `http://localhost:3000/login?errorMessage=Login error.`);
+  }
+});
+
+authRouter.get("/my-account", isAuthenticated, async (req, res) => {
+  const transactionId = "myAccount";
+  const user = req.user!;
+  try {
+    const request = new RequestModel<string>(transactionId, user.id);
+
+    const response = await new UsersUseCases().getMyAccount(request);
+
+    const status = response.errorCode || 200;
+    res.status(status).json(response);
+  } catch (error) {
+    logger.err(error);
+    const response = new ResponseModel(
+      transactionId,
+      500,
+      "Internal Server Error"
+    );
+    res.status(500).json(response);
+  }
+});
+
+authRouter.put("/password-update", isAuthenticated, async (req, res) => {
+  const transactionId = "passwordUpdate";
+  const user = req.user!;
+  const { currentPassword, newPassword, passwordConfirmation } = req.body || {};
+  try {
+    const passwordUpdate = PasswordUpdate.builder()
+      .setId(user.id)
+      .setCurrentPassword(currentPassword)
+      .setNewPassword(newPassword)
+      .setPasswordConfirmation(passwordConfirmation)
+      .build();
+
+    const response = await new UsersUseCases().updatePassword(
+      new RequestModel(transactionId, passwordUpdate)
+    );
+
+    const status = response.errorCode || 200;
+    res.status(status).json(response);
+  } catch (error) {
+    logger.err(error);
+    const response = new ResponseModel(
+      transactionId,
+      500,
+      "Internal Server Error"
+    );
+    res.status(500).json(response);
   }
 });
 

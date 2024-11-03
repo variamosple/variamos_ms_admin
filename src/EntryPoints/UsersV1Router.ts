@@ -40,9 +40,7 @@ usersV1Router.get("/", hasPermissions(["users::query"]), async (req, res) => {
 
 usersV1Router.get(
   "/:userId",
-
   hasPermissions(["users::query"]),
-
   async (req, res) => {
     const transactionId = "queryUserById";
     const userId = req.params.userId;
