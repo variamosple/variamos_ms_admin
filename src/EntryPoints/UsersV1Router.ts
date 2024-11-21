@@ -76,9 +76,7 @@ usersV1Router.get(
 
 usersV1Router.put(
   "/:userId/disable",
-
   hasPermissions(["users::update"]),
-
   async (req, res) => {
     const transactionId = "disableUser";
     const userId = req.params.userId;
@@ -114,9 +112,7 @@ usersV1Router.put(
 
 usersV1Router.put(
   "/:userId/enable",
-
   hasPermissions(["users::update"]),
-
   async (req, res) => {
     const transactionId = "enableUser";
     const userId = req.params.userId;
@@ -152,9 +148,7 @@ usersV1Router.put(
 
 usersV1Router.delete(
   "/:userId",
-
   hasPermissions(["users::delete"]),
-
   async (req, res) => {
     const transactionId = "deleteUser";
     const userId = req.params.userId;

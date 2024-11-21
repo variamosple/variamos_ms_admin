@@ -1,5 +1,7 @@
 import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
 import { Model, NUMBER } from "sequelize";
+import { PermissionModel } from "../Permission/Permission";
+import { RoleModel } from "./Role";
 
 interface RolePermissionAttributes {
   roleId: number;
@@ -36,3 +38,15 @@ RolePermissionModel.init(
     timestamps: false,
   }
 );
+
+RoleModel.belongsToMany(PermissionModel, {
+  through: RolePermissionModel,
+  foreignKey: "role_id",
+  as: "permissions",
+});
+
+PermissionModel.belongsToMany(RoleModel, {
+  through: RolePermissionModel,
+  foreignKey: "permission_id",
+  as: "roles",
+});

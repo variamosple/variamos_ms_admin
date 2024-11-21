@@ -12,6 +12,12 @@ export class UserRoleUseCases {
     return UserRoleRepositoryInstance.queryUserRoles(request);
   }
 
+  queryUserRolesDetails(
+    request: RequestModel<UserRoleFilter>
+  ): Promise<ResponseModel<Role[]>> {
+    return UserRoleRepositoryInstance.queryUserRolesDetails(request);
+  }
+
   createUserRole(
     request: RequestModel<UserRole>
   ): Promise<ResponseModel<UserRole>> {

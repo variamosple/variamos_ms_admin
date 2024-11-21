@@ -50,6 +50,46 @@ userRolesV1Router.get("/", isAuthenticated, async (req, res) => {
   }
 });
 
+userRolesV1Router.get("/details", isAuthenticated, async (req, res) => {
+  const transactionId = "queryUserRolesDetails";
+  const { pageNumber, pageSize } = req.query;
+  const userId = req.params.userId;
+  try {
+    if (!userId) {
+      res
+        .status(HttpStatusCodes.BAD_REQUEST)
+        .json(
+          new ResponseModel<unknown>(transactionId).withError(
+            HttpStatusCodes.BAD_REQUEST,
+            "userId is required."
+          )
+        );
+    }
+
+    const filter: UserRoleFilter = UserRoleFilter.builder()
+      .setUserId(userId)
+      .setPageNumber(pageNumber as unknown as number)
+      .setPageSize(pageSize as unknown as number)
+      .build();
+
+    const request = new RequestModel<UserRoleFilter>(transactionId, filter);
+    const response = await new UserRoleUseCases().queryUserRolesDetails(
+      request
+    );
+
+    const status = response.errorCode || HttpStatusCodes.OK;
+    res.status(status).json(response);
+  } catch (error) {
+    logger.err(error);
+    const response = new ResponseModel(
+      transactionId,
+      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+      "Internal Server Error"
+    );
+    res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+  }
+});
+
 userRolesV1Router.post("/", isAuthenticated, async (req, res) => {
   const transactionId = "createUserRole";
   const userId = req.params.userId;

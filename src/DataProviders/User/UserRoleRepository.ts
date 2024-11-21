@@ -9,7 +9,9 @@ import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
 import logger from "jet-logger";
 import { QueryTypes } from "sequelize";
 import { BaseRepository } from "../BaseRepository";
+import { PermissionModel } from "../Permission/Permission";
 import { RoleModel } from "../Role/Role";
+import { UserModel } from "./User";
 import { UserRoleModel } from "./UserRole";
 
 export class UserRoleRepositoryImpl extends BaseRepository {
@@ -50,6 +52,49 @@ export class UserRoleRepositoryImpl extends BaseRepository {
           replacements,
         }
       ).then((response) => response.map(({ id, name }) => new Role(id, name)));
+    } catch (error) {
+      logger.err("Error in queryUserRoles:");
+      logger.err(request);
+      logger.err(error);
+      response.withError(
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        "Internal server error"
+      );
+    }
+
+    return response;
+  }
+
+  async queryUserRolesDetails(
+    request: RequestModel<UserRoleFilter>
+  ): Promise<ResponseModel<Role[]>> {
+    const response = new ResponseModel<Role[]>(request.transactionId);
+
+    try {
+      const { data: filter } = request;
+
+      response.data = await RoleModel.findAll({
+        include: [
+          {
+            model: UserModel,
+            as: "users",
+            where: { id: filter?.userId },
+            attributes: [],
+            through: { attributes: [] },
+          },
+          {
+            model: PermissionModel,
+            as: "permissions",
+            attributes: ["id", "name"],
+            through: { attributes: [] },
+          },
+        ],
+        attributes: ["id", "name"],
+      }).then((roles) =>
+        roles.map(
+          ({ id, name, permissions }: any) => new Role(id, name, permissions)
+        )
+      );
     } catch (error) {
       logger.err("Error in queryUserRoles:");
       logger.err(request);
