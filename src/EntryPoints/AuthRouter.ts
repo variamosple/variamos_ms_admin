@@ -24,17 +24,26 @@ export const AUTH_ROUTE = "/auth";
 const authRouter = Router();
 
 authRouter.get("/session-info", async (req: Request, res) => {
+  const response = new ResponseModel<SessionUser>("getSessionInfo");
+
   try {
     const sessionInfo = await validateToken(req);
 
     if (!isSessionExpired(sessionInfo.exp)) {
-      return res.status(200).json(sessionInfoToSessionUser(sessionInfo));
+      return res
+        .status(200)
+        .json(response.withResponse(sessionInfoToSessionUser(sessionInfo)));
     }
 
     if (!sessionInfo.iat) {
       return res
-        .status(401)
-        .json({ errorMessage: "Your session has expired." });
+        .status(HttpStatusCodes.UNAUTHORIZED)
+        .json(
+          response.withError(
+            HttpStatusCodes.UNAUTHORIZED,
+            "Your session has expired."
+          )
+        );
     }
 
     const currentDateInMs = Date.now();
@@ -45,8 +54,13 @@ authRouter.get("/session-info", async (req: Request, res) => {
 
     if (currentDateInMs > refreshTimeInMs) {
       return res
-        .status(401)
-        .json({ errorMessage: "Your session has expired." });
+        .status(HttpStatusCodes.UNAUTHORIZED)
+        .json(
+          response.withError(
+            HttpStatusCodes.UNAUTHORIZED,
+            "Your session has expired."
+          )
+        );
     }
 
     const refreshedUser = await new UsersUseCases().findSessionUser(
@@ -55,8 +69,13 @@ authRouter.get("/session-info", async (req: Request, res) => {
 
     if (!!refreshedUser.errorCode || !refreshedUser.data) {
       return res
-        .status(401)
-        .json({ errorMessage: "Your session has expired." });
+        .status(HttpStatusCodes.UNAUTHORIZED)
+        .json(
+          response.withError(
+            HttpStatusCodes.UNAUTHORIZED,
+            "Your session has expired."
+          )
+        );
     }
 
     const {
@@ -88,10 +107,17 @@ authRouter.get("/session-info", async (req: Request, res) => {
         maxAge: EnvVars.CookieProps.Options.maxAge,
       })
       .status(200)
-      .json(sessionUser);
+      .json(response.withResponse(sessionUser));
   } catch (error) {
     console.error("Error verifying JWT:", error);
-    res.status(401).json({ errorMessage: "Session validation error" });
+    res
+      .status(HttpStatusCodes.UNAUTHORIZED)
+      .json(
+        response.withError(
+          HttpStatusCodes.UNAUTHORIZED,
+          "Session validation error"
+        )
+      );
   }
 });
 
