@@ -43,4 +43,7 @@ export default {
       LOGIN_REDIRECT_URI: process.env.LOGIN_REDIRECT_URI,
     },
   },
+  DOCKER: {
+    SOCKET_PATH: process.env.DOCKER_SOCKET_PATH ?? "",
+  },
 } as const;
