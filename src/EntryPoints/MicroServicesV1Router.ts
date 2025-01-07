@@ -131,4 +131,70 @@ microServicesV1Router.put(
   }
 );
 
+microServicesV1Router.get(
+  "/:microserviceId/logs/watch",
+  isAuthenticated,
+  async (req, res) => {
+    const transactionId = "watchMicroServiceLogs";
+    const { microserviceId = null } = req.params;
+
+    try {
+      const request = new RequestModel<string>(
+        transactionId,
+        microserviceId as string
+      );
+
+      const response = await new MicroServiceUseCases().watchMicroServiceLogs(
+        request
+      );
+
+      if (response.errorCode) {
+        res.status(response.errorCode).json(response);
+        return;
+      }
+
+      if (!response.data) {
+        res
+          .status(HttpStatusCodes.NOT_FOUND)
+          .json(
+            response.withError(
+              HttpStatusCodes.NOT_FOUND,
+              "No Logs found for microservice with id: " + microserviceId
+            )
+          );
+        return;
+      }
+
+      res.writeHead(200, {
+        "Content-Type": "application/octet-stream",
+        "Transfer-Encoding": "chunked",
+      });
+      res.flushHeaders();
+
+      const stream = response.data!;
+
+      stream.on("data", (chunk) => {
+        res.write(chunk.toString("utf8"));
+      });
+
+      stream.on("end", () => {
+        res.end();
+      });
+
+      stream.on("error", (error) => {
+        logger.err(error);
+        res.end();
+      });
+    } catch (error) {
+      logger.err(error);
+      const response = new ResponseModel(
+        transactionId,
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        "Internal Server Error"
+      );
+      res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+    }
+  }
+);
+
 export default microServicesV1Router;

@@ -107,4 +107,21 @@ export class MicroServiceUseCases {
 
     return MicroServiceRepositoryInstance.restartMicroService(request);
   }
+
+  async watchMicroServiceLogs(
+    request: RequestModel<string>
+  ): Promise<ResponseModel<NodeJS.ReadableStream>> {
+    const defaultResponse = new ResponseModel<NodeJS.ReadableStream>(
+      request.transactionId
+    );
+
+    if (!request.data) {
+      return defaultResponse.withError(
+        HttpStatusCodes.BAD_REQUEST,
+        "MicroService Id is required."
+      );
+    }
+
+    return MicroServiceRepositoryInstance.watchMicroServiceLogs(request);
+  }
 }

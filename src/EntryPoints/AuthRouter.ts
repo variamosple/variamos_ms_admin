@@ -27,21 +27,24 @@ authRouter.get("/session-info", async (req: Request, res) => {
   const response = new ResponseModel<SessionUser>("getSessionInfo");
 
   try {
-    const sessionInfo = await validateToken(req);
+    const validationResponse = await validateToken(req.cookies.authToken);
+    const user = validationResponse.data;
 
-    if (!isSessionExpired(sessionInfo.exp)) {
+    if (validationResponse.errorCode) {
+      return res.status(validationResponse.errorCode).json(validationResponse);
+    } else if (!isSessionExpired(user?.exp)) {
       return res
         .status(200)
-        .json(response.withResponse(sessionInfoToSessionUser(sessionInfo)));
+        .json(response.withResponse(sessionInfoToSessionUser(user)));
     }
 
-    if (!sessionInfo.iat) {
+    if (!user?.iat) {
       return res
         .status(HttpStatusCodes.UNAUTHORIZED)
         .json(
           response.withError(
             HttpStatusCodes.UNAUTHORIZED,
-            "Your session has expired."
+            "Your session has expired, please log in again."
           )
         );
     }
@@ -50,7 +53,7 @@ authRouter.get("/session-info", async (req: Request, res) => {
 
     // Get max refresh time
     const refreshTimeInMs =
-      sessionInfo.iat * 1000 + EnvVars.CookieProps.Options.maxAge;
+      user.iat * 1000 + EnvVars.CookieProps.Options.maxAge;
 
     if (currentDateInMs > refreshTimeInMs) {
       return res
@@ -58,13 +61,13 @@ authRouter.get("/session-info", async (req: Request, res) => {
         .json(
           response.withError(
             HttpStatusCodes.UNAUTHORIZED,
-            "Your session has expired."
+            "Your session has expired, please log in again."
           )
         );
     }
 
     const refreshedUser = await new UsersUseCases().findSessionUser(
-      new RequestModel("getSessionInfo", sessionInfo.sub)
+      new RequestModel("getSessionInfo", user.sub)
     );
 
     if (!!refreshedUser.errorCode || !refreshedUser.data) {
@@ -73,7 +76,7 @@ authRouter.get("/session-info", async (req: Request, res) => {
         .json(
           response.withError(
             HttpStatusCodes.UNAUTHORIZED,
-            "Your session has expired."
+            "Your session has expired, please log in again."
           )
         );
     }

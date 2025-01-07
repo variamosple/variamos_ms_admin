@@ -173,6 +173,38 @@ export class MicroServiceRepositoryImpl {
 
     return response;
   }
+
+  async watchMicroServiceLogs(
+    request: RequestModel<string>
+  ): Promise<ResponseModel<NodeJS.ReadableStream>> {
+    const response = new ResponseModel<NodeJS.ReadableStream>(
+      request.transactionId
+    );
+
+    try {
+      const { data: id } = request;
+
+      const container = this.dockerConnection.getContainer(id!);
+
+      response.data = await container.logs({
+        stdout: true,
+        stderr: true,
+        follow: true,
+        tail: 100,
+        timestamps: true,
+      });
+    } catch (error) {
+      logger.err("Error in restartMicroService:");
+      logger.err(request);
+      logger.err(error);
+      response.withError(
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        "Internal server error"
+      );
+    }
+
+    return response;
+  }
 }
 
 export const MicroServiceRepositoryInstance = new MicroServiceRepositoryImpl();
