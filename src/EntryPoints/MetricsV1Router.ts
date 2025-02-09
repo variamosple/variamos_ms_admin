@@ -2,8 +2,8 @@ import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { Metric } from "@src/Domain/Metrics/Entity/Metric";
 import { MetricsUseCases } from "@src/Domain/Metrics/MetricsUseCases";
+import { hasPermissions } from "@variamos/variamos-security";
 
-import { isAuthenticated } from "@variamos/variamos-security";
 import { Router } from "express";
 import logger from "jet-logger";
 
@@ -11,7 +11,7 @@ export const METRICS_V1_ROUTE = "/v1/metrics";
 
 const metricsV1Router = Router();
 
-metricsV1Router.get("/", isAuthenticated, async (_, res) => {
+metricsV1Router.get("/", hasPermissions(["metrics::query"]), async (_, res) => {
   const transactionId = "getMetrics";
 
   try {
