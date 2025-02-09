@@ -5,6 +5,8 @@ export class User {
   user: string;
   name: string;
   email: string;
+  countryCode: Nullable<string>;
+  countryName: Nullable<string>;
   isEnabled: boolean;
   isDeleted: boolean;
   createdAt: Date;
@@ -17,6 +19,8 @@ export class User {
     user: string,
     name: string,
     email: string,
+    countryCode: Nullable<string>,
+    countryName: Nullable<string>,
     isEnabled: boolean,
     isDeleted: boolean,
     createdAt: Date,
@@ -28,6 +32,8 @@ export class User {
     this.name = name;
     this.user = user;
     this.email = email;
+    this.countryCode = countryCode;
+    this.countryName = countryName;
     this.isEnabled = isEnabled;
     this.isDeleted = isDeleted;
     this.createdAt = createdAt;
@@ -46,10 +52,14 @@ export class User {
       builder.getUser(),
       builder.getName(),
       builder.getEmail(),
+      builder.getCountryCode(),
+      builder.getCountryName(),
       builder.getIsEnabled(),
       builder.getIsDeleted(),
       builder.getCreatedAt(),
-      builder.getLastLogin()
+      builder.getLastLogin(),
+      builder.getRoles(),
+      builder.getPermissions()
     );
   }
 }
@@ -59,6 +69,8 @@ class UserBuilder {
   private user!: string;
   private name!: string;
   private email!: string;
+  private countryCode: Nullable<string>;
+  private countryName: Nullable<string>;
   private isEnabled!: boolean;
   private isDeleted!: boolean;
   private createdAt!: Date;
@@ -83,6 +95,16 @@ class UserBuilder {
 
   public setEmail(email: string): this {
     this.email = email;
+    return this;
+  }
+
+  public setCountryCode(countryCode: Nullable<string>): this {
+    this.countryCode = countryCode;
+    return this;
+  }
+
+  public setCountryName(countryName: Nullable<string>): this {
+    this.countryName = countryName;
     return this;
   }
 
@@ -132,6 +154,14 @@ class UserBuilder {
     return this.email;
   }
 
+  public getCountryCode(): Nullable<string> {
+    return this.countryCode;
+  }
+
+  public getCountryName(): Nullable<string> {
+    return this.countryName;
+  }
+
   public getIsEnabled(): boolean {
     return this.isEnabled;
   }
@@ -157,6 +187,19 @@ class UserBuilder {
   }
 
   public build(): User {
-    return User.build(this);
+    return new User(
+      this.id,
+      this.user,
+      this.name,
+      this.email,
+      this.countryCode,
+      this.countryName,
+      this.isEnabled,
+      this.isDeleted,
+      this.createdAt,
+      this.lastLogin,
+      this.roles,
+      this.permissions
+    );
   }
 }

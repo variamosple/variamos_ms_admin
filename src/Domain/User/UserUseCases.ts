@@ -6,6 +6,7 @@ import { PASSWORD_REGEXP } from "../Validations/ValidationConstants";
 import { PASSWORD_FORMAT_ERROR } from "../Validations/ValidationMessages";
 import { Credentials } from "./Entity/Credentials";
 import { PasswordUpdate } from "./Entity/PasswordUpdate";
+import { PersonalInformationUpdate } from "./Entity/PersonalInformationUpdate";
 import { User } from "./Entity/User";
 import { UserFilter } from "./Entity/UserFilter";
 import { UserRegistration } from "./Entity/UserRegistration";
@@ -90,6 +91,8 @@ export class UsersUseCases {
           .setName(response.data.name)
           .setEmail(response.data.email)
           .setUser(response.data.user)
+          .setCountryCode(response.data.countryCode)
+          .setCountryName(response.data.countryName)
           .build();
       }
 
@@ -129,5 +132,11 @@ export class UsersUseCases {
     }
 
     return UserRepositoryInstance.updateUserPassword(request);
+  }
+
+  updatePersonalInformation(
+    request: RequestModel<PersonalInformationUpdate>
+  ): Promise<ResponseModel<void>> {
+    return UserRepositoryInstance.updatePersonalInformation(request);
   }
 }

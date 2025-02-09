@@ -7,6 +7,7 @@ export class UserFilter extends PagedModel {
     public user?: Nullable<string>,
     public name?: Nullable<string>,
     public email?: Nullable<string>,
+    public search?: Nullable<string>,
     pageNumber?: number,
     pageSize?: number
   ) {
@@ -23,6 +24,7 @@ export class UserFilter extends PagedModel {
       builder.name,
       builder.user,
       builder.email,
+      builder.search,
       builder.pageNumber,
       builder.pageSize
     );
@@ -34,6 +36,7 @@ class UserFilterBuilder {
   public user: Nullable<string>;
   public name: Nullable<string>;
   public email: Nullable<string>;
+  public search: Nullable<string>;
   public pageNumber?: number;
   public pageSize?: number;
 
@@ -54,6 +57,11 @@ class UserFilterBuilder {
 
   public setEmail(email: string): UserFilterBuilder {
     this.email = email;
+    return this;
+  }
+
+  public setSearch(search: string): UserFilterBuilder {
+    this.search = search;
     return this;
   }
 

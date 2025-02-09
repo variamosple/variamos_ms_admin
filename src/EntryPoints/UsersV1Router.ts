@@ -14,9 +14,10 @@ const usersV1Router = Router();
 
 usersV1Router.get("/", hasPermissions(["users::query"]), async (req, res) => {
   const transactionId = "queryUsers";
-  const { pageNumber, pageSize, name = null } = req.query;
+  const { pageNumber, pageSize, name = null, search = null } = req.query;
   try {
     const filter: UserFilter = UserFilter.builder()
+      .setSearch(search as string)
       .setName(name as string)
       .setPageNumber(pageNumber as unknown as number)
       .setPageSize(pageSize as unknown as number)

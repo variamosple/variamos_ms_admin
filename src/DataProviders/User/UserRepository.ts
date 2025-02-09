@@ -6,14 +6,16 @@ import { UserFilter } from "@src/Domain/User/Entity/UserFilter";
 
 import { Credentials } from "@src/Domain/User/Entity/Credentials";
 import { PasswordUpdate } from "@src/Domain/User/Entity/PasswordUpdate";
+import { PersonalInformationUpdate } from "@src/Domain/User/Entity/PersonalInformationUpdate";
 import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration";
 import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
 import bcrypt from "bcrypt";
 import logger from "jet-logger";
-import { QueryTypes } from "sequelize";
+import { Op, QueryTypes, WhereOptions } from "sequelize";
+import { CountryModel } from "../Countries/Country";
 import { PermissionModel } from "../Permission/Permission";
 import { RoleModel } from "../Role/Role";
-import { UserModel } from "./User";
+import { UserAttributes, UserModel } from "./User";
 
 interface Replacements {
   [key: string]: any;
@@ -49,14 +51,43 @@ export class UserRepositoryImpl {
             WHERE (:id IS NULL OR id = :id)
                 AND (:name IS NULL OR name ILIKE '%' || :name || '%')
                 AND (:user IS NULL OR user ILIKE '%' || :user || '%')
-                AND (:email IS NULL OR email ILIKE '%' || :email || '%');
+                AND (:email IS NULL OR email ILIKE '%' || :email || '%')
+                AND (
+                  :search IS NULL OR name ILIKE '%' || :search || '%'
+                  OR user ILIKE '%' || :search || '%'
+                  OR email ILIKE '%' || :search || '%'
+                );
                  
         `,
         { type: QueryTypes.SELECT, replacements }
       ).then((result: any) => +result?.[0]?.count || 0);
 
+      const where: WhereOptions<UserAttributes> = {};
+
+      if (filter.name) {
+        where.name = { [Op.iLike]: `%${replacements.name}%` };
+      }
+
+      if (filter.user) {
+        where.user = { [Op.iLike]: `%${replacements.user}%` };
+      }
+
+      if (filter.email) {
+        where.email = { [Op.iLike]: `%${replacements.email}%` };
+      }
+
+      if (filter.search) {
+        Object.assign(where, {
+          [Op.or]: [
+            { name: { [Op.iLike]: `%${replacements.search}%` } },
+            { user: { [Op.iLike]: `%${replacements.search}%` } },
+            { email: { [Op.iLike]: `%${replacements.search}%` } },
+          ],
+        });
+      }
+
       response.data = await UserModel.findAll({
-        where: {},
+        where,
         limit: filter.pageSize!,
         offset: (filter.pageNumber! - 1) * filter.pageSize!,
         order: [["created_at", "desc"], "name", "email"],
@@ -346,6 +377,12 @@ export class UserRepositoryImpl {
 
       response.data = await UserModel.findOne({
         where: { id: data },
+        include: [
+          {
+            model: CountryModel,
+            as: "country",
+          },
+        ],
       }).then((response) =>
         !response
           ? undefined
@@ -354,6 +391,8 @@ export class UserRepositoryImpl {
               .setUser(response.user)
               .setName(response.name)
               .setEmail(response.email)
+              .setCountryCode(response.countryCode)
+              .setCountryName((response as any).country?.name)
               .setIsEnabled(response.isEnabled!)
               .setIsDeleted(response.isDeleted!)
               .setCreatedAt(response.createdAt!)
@@ -540,6 +579,38 @@ export class UserRepositoryImpl {
       logger.err("Error in updateUserPassword:");
       logger.err(
         "Error trying to update user password with id: " + request.data!.getId()
+      );
+      logger.err(error);
+      response.withError(
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        "Internal server error"
+      );
+    }
+
+    return response;
+  }
+
+  async updatePersonalInformation(
+    request: RequestModel<PersonalInformationUpdate>
+  ): Promise<ResponseModel<void>> {
+    const response = new ResponseModel<void>(request.transactionId);
+
+    try {
+      const personalInformation = request.data!;
+
+      await UserModel.update(
+        { countryCode: personalInformation.getCountryCode() || (null as any) },
+        {
+          where: {
+            id: personalInformation.getUserId(),
+          },
+        }
+      );
+    } catch (error) {
+      logger.err("Error in updatePersonalInformation:");
+      logger.err(
+        "Error trying to update user infromation with id: " +
+          request.data!.getUserId()
       );
       logger.err(error);
       response.withError(

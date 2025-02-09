@@ -4,6 +4,7 @@ import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { Credentials } from "@src/Domain/User/Entity/Credentials";
 import { PasswordUpdate } from "@src/Domain/User/Entity/PasswordUpdate";
+import { PersonalInformationUpdate } from "@src/Domain/User/Entity/PersonalInformationUpdate";
 import { User } from "@src/Domain/User/Entity/User";
 import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration";
 import { UsersUseCases } from "@src/Domain/User/UserUseCases";
@@ -332,6 +333,39 @@ authRouter.get("/my-account", isAuthenticated, async (req, res) => {
     const request = new RequestModel<string>(transactionId, user.id);
 
     const response = await new UsersUseCases().getMyAccount(request);
+
+    const status = response.errorCode || 200;
+    res.status(status).json(response);
+  } catch (error) {
+    logger.err(error);
+    const response = new ResponseModel(
+      transactionId,
+      500,
+      "Internal Server Error"
+    );
+    res.status(500).json(response);
+  }
+});
+
+authRouter.put("/my-account/information", isAuthenticated, async (req, res) => {
+  const transactionId = "updateMyAccountInformation";
+  const user = req.user!;
+  const personalInformation = req.body!;
+
+  try {
+    const personalInformationUpdate = PersonalInformationUpdate.builder()
+      .setUserId(user.id)
+      .setCountryCode(personalInformation?.countryCode)
+      .build();
+
+    const request = new RequestModel<PersonalInformationUpdate>(
+      transactionId,
+      personalInformationUpdate
+    );
+
+    const response = await new UsersUseCases().updatePersonalInformation(
+      request
+    );
 
     const status = response.errorCode || 200;
     res.status(status).json(response);

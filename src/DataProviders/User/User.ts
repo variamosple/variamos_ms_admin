@@ -1,11 +1,13 @@
 import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
 import { BOOLEAN, DATE, Model, TEXT, UUID, UUIDV4 } from "sequelize";
+import { CountryModel } from "../Countries/Country";
 
-interface UserAttributes {
+export interface UserAttributes {
   id?: string;
   user: string;
   name: string;
   email: string;
+  countryCode?: string;
   password?: string;
   isEnabled?: boolean;
   isDeleted?: boolean;
@@ -18,6 +20,7 @@ export class UserModel extends Model<UserAttributes> implements UserAttributes {
   public user!: string;
   public name!: string;
   public email!: string;
+  public countryCode?: string;
   public password?: string;
   public isEnabled?: boolean;
   public isDeleted?: boolean;
@@ -41,6 +44,11 @@ UserModel.init(
     },
     email: {
       type: TEXT,
+    },
+    countryCode: {
+      type: TEXT,
+      field: "country_code",
+      references: { model: CountryModel, key: "code" },
     },
     password: {
       type: TEXT,
@@ -72,3 +80,9 @@ UserModel.init(
     timestamps: false,
   }
 );
+
+UserModel.hasOne(CountryModel, {
+  foreignKey: "code",
+  sourceKey: "countryCode",
+  as: "country",
+});
