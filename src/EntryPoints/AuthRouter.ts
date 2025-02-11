@@ -16,13 +16,22 @@ import {
   SessionUser,
   validateToken,
 } from "@variamos/variamos-security";
-import { Request, Router } from "express";
+import { CookieOptions, Request, Router } from "express";
 import { OAuth2Client } from "google-auth-library";
 import logger from "jet-logger";
 
 export const AUTH_ROUTE = "/auth";
 
 const authRouter = Router();
+
+const cookieOptions: CookieOptions = {
+  domain: EnvVars.CookieProps.Options.domain,
+  path: EnvVars.CookieProps.Options.path,
+  sameSite: "strict",
+  httpOnly: EnvVars.CookieProps.Options.httpOnly,
+  secure: EnvVars.CookieProps.Options.secure,
+  maxAge: EnvVars.CookieProps.Options.maxAge,
+};
 
 authRouter.get("/session-info", async (req: Request, res) => {
   const response = new ResponseModel<SessionUser>("getSessionInfo");
@@ -102,14 +111,7 @@ authRouter.get("/session-info", async (req: Request, res) => {
     const token = await createJwt(sessionUser);
 
     res
-      .cookie("authToken", token, {
-        domain: EnvVars.CookieProps.Options.domain,
-        path: EnvVars.CookieProps.Options.path,
-        sameSite: "strict",
-        httpOnly: EnvVars.CookieProps.Options.httpOnly,
-        secure: EnvVars.CookieProps.Options.secure,
-        maxAge: EnvVars.CookieProps.Options.maxAge,
-      })
+      .cookie("authToken", token, cookieOptions)
       .status(200)
       .json(response.withResponse(sessionUser));
   } catch (error) {
@@ -164,14 +166,7 @@ authRouter.post("/sign-in", async (req, res) => {
     };
     const token = await createJwt(sessionUser);
 
-    res.cookie("authToken", token, {
-      domain: EnvVars.CookieProps.Options.domain,
-      path: EnvVars.CookieProps.Options.path,
-      sameSite: "strict",
-      httpOnly: EnvVars.CookieProps.Options.httpOnly,
-      secure: EnvVars.CookieProps.Options.secure,
-      maxAge: EnvVars.CookieProps.Options.maxAge,
-    });
+    res.cookie("authToken", token, cookieOptions);
 
     response.data = undefined;
     res.status(200).json(response);
@@ -236,12 +231,7 @@ authRouter.post("/sign-up", async (req, res) => {
 });
 
 authRouter.post("/logout", async (_, res) => {
-  res.clearCookie("authToken", {
-    path: EnvVars.CookieProps.Options.path,
-    domain: EnvVars.CookieProps.Options.domain,
-    secure: EnvVars.CookieProps.Options.secure,
-    httpOnly: EnvVars.CookieProps.Options.httpOnly,
-  });
+  res.clearCookie("authToken", cookieOptions);
   res.sendStatus(200);
 });
 
@@ -311,11 +301,7 @@ authRouter.post("/google/callback", async (req, res) => {
     };
     const token = await createJwt(sessionUser);
 
-    res.cookie("authToken", token, {
-      httpOnly: EnvVars.CookieProps.Options.httpOnly,
-      secure: EnvVars.CookieProps.Options.secure,
-      maxAge: EnvVars.CookieProps.Options.maxAge,
-    });
+    res.cookie("authToken", token, cookieOptions);
     res.redirect(302, `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`);
   } catch (err) {
     logger.err(err);
