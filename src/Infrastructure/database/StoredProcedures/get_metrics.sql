@@ -38,7 +38,7 @@ BEGIN
 		LEFT JOIN variamos.country AS c ON (c.code = yvs.country_code)
 		WHERE yvs.visit_year = DATE_TRUNC('year', current_date) - INTERVAL '1 years'
 		UNION ALL (
-			SELECT COALESCE(c.name, 'NO COUNTRY') as country_code
+			SELECT COALESCE(c.name, 'NO COUNTRY') as country_name
 				,EXTRACT(YEAR FROM uv.visit_date)::TEXT as visit_year
 				,count(1) as visits_count 
 			FROM variamos.user_visit AS uv
@@ -59,6 +59,23 @@ BEGIN
     )
     INTO metrics_data
     FROM (
+        (
+            SELECT 
+            'Yearly visits' AS title,
+            'geo' AS chart_type,
+            'Country' as label_key,
+            EXTRACT(YEAR FROM CURRENT_DATE)::TEXT AS default_filter,
+            NULL AS filters,
+            json_object_agg(visit_year, data_array) AS data
+			FROM (
+			    SELECT 
+			        visit_year,
+			        array_agg(json_build_array(country_name, visits_count)) AS data_array
+			    FROM yearly_visits
+			    GROUP BY visit_year
+			)
+        )
+        UNION ALL
         (
             SELECT 
             'Daily Unique Visits' AS title,
@@ -108,20 +125,6 @@ BEGIN
             (
                 SELECT json_agg(json_build_object('page', page_id, 'count', total_visits))
                 FROM top_visited_pages
-            ) AS data
-        )
-        UNION ALL
-        (
-            SELECT 
-            'Yearly visits' AS title,
-            'geo' AS chart_type,
-            'Country' as label_key,
-            EXTRACT(YEAR FROM CURRENT_DATE)::TEXT AS default_filter,
-            NULL AS filters,
-            (
-                SELECT json_build_object(visit_year, array_agg(json_build_array(country_name, visits_count)))
-                FROM yearly_visits
-                GROUP BY visit_year
             ) AS data
         )
     );
