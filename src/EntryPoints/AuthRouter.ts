@@ -237,10 +237,10 @@ authRouter.post("/sign-up", async (req, res) => {
 
 authRouter.post("/logout", async (_, res) => {
   res.clearCookie("authToken", {
-    path: "/",
+    path: EnvVars.CookieProps.Options.path,
     domain: EnvVars.CookieProps.Options.domain,
     secure: EnvVars.CookieProps.Options.secure,
-    httpOnly: true,
+    httpOnly: EnvVars.CookieProps.Options.httpOnly,
   });
   res.sendStatus(200);
 });
