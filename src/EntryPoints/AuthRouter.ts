@@ -238,7 +238,7 @@ authRouter.post("/sign-up", async (req, res) => {
 authRouter.post("/logout", async (_, res) => {
   res.clearCookie("authToken", {
     path: "/",
-    domain: "localhost",
+    domain: EnvVars.CookieProps.Options.domain,
     secure: true,
     httpOnly: true,
   });

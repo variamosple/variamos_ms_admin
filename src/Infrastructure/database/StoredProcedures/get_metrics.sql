@@ -73,7 +73,7 @@ BEGIN
 			        array_agg(json_build_array(country_name, visits_count)) AS data_array
 			    FROM yearly_visits
 			    GROUP BY visit_year
-			)
+			) AS chart_data
         )
         UNION ALL
         (
@@ -127,7 +127,7 @@ BEGIN
                 FROM top_visited_pages
             ) AS data
         )
-    );
+    ) AS chart_data;
     
     RETURN metrics_data;
 END;
