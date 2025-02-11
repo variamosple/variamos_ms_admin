@@ -239,7 +239,7 @@ authRouter.post("/logout", async (_, res) => {
   res.clearCookie("authToken", {
     path: "/",
     domain: EnvVars.CookieProps.Options.domain,
-    secure: true,
+    secure: EnvVars.CookieProps.Options.secure,
     httpOnly: true,
   });
   res.sendStatus(200);
