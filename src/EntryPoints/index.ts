@@ -37,17 +37,17 @@ baseRouter.get("/version", async function (_, res) {
   }
 });
 
-baseRouter.get("/", async function (_, res) {
-  try {
-    const data = {
-      message: "variamos_ms_admin",
-      version: EnvVars.VERSION,
-    };
+// baseRouter.get("/", async function (_, res) {
+//   try {
+//     const data = {
+//       message: "variamos_ms_admin",
+//       version: EnvVars.VERSION,
+//     };
 
-    res.status(200).json(data);
-  } catch (error) {
-    res.status(400).send(JSON.stringify(error));
-  }
-});
+//     res.status(200).json(data);
+//   } catch (error) {
+//     res.status(400).send(JSON.stringify(error));
+//   }
+// });
 
 export default baseRouter;
