@@ -1,4 +1,5 @@
 export class Metric {
+  private id: string;
   private title: string;
   private chartType: string;
   private defaultFilter: string;
@@ -7,6 +8,7 @@ export class Metric {
   private data: any;
 
   constructor(
+    id: string,
     title: string,
     chartType: string,
     defaultFilter: string,
@@ -14,12 +16,17 @@ export class Metric {
     labelKey?: string,
     data?: any
   ) {
+    this.id = id;
     this.title = title;
     this.chartType = chartType;
     this.defaultFilter = defaultFilter;
     this.filters = filters;
     this.labelKey = labelKey;
     this.data = data;
+  }
+
+  public getId(): string {
+    return this.id;
   }
 
   public getTitle(): string {
@@ -52,6 +59,7 @@ export class Metric {
 
   public static build(builder: MetricBuilder): Metric {
     return new Metric(
+      builder.getId(),
       builder.getTitle(),
       builder.getChartType(),
       builder.getDefaultFilter(),
@@ -63,12 +71,22 @@ export class Metric {
 }
 
 class MetricBuilder {
+  private id!: string;
   private title!: string;
   private chartType!: string;
   private defaultFilter!: string;
   private filters?: string[];
   private labelKey?: string;
   private data!: any;
+
+  public getId(): string {
+    return this.id;
+  }
+
+  public setId(id: string): MetricBuilder {
+    this.id = id;
+    return this;
+  }
 
   public getTitle(): string {
     return this.title;
@@ -126,6 +144,7 @@ class MetricBuilder {
 
   public build(): Metric {
     return new Metric(
+      this.id,
       this.title,
       this.chartType,
       this.defaultFilter,
