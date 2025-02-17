@@ -18,8 +18,6 @@ visitsV1Router.post("/", isAuthenticated, async (req, res) => {
   const ipAddress: string | undefined =
     (req.headers["x-forwarded-for"] as string) || req.ip;
 
-  console.log("ipAddress", ipAddress);
-
   try {
     if (!pageId || !user.id) {
       res
@@ -37,7 +35,7 @@ visitsV1Router.post("/", isAuthenticated, async (req, res) => {
     const request = new RequestModel<Visit>(transactionId, permission);
     const response = await new VisitsUseCases().registerVisit(
       request,
-      "191.91.238.0"
+      ipAddress
     );
 
     const status = response.errorCode || 200;
