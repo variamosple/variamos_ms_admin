@@ -1,12 +1,14 @@
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
+import { Permission } from "@src/Domain/Permission/Entity/Permission";
 import { Role } from "@src/Domain/Role/Entity/Role";
 import { RoleFilter } from "@src/Domain/Role/Entity/RoleFilter";
 import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
 import logger from "jet-logger";
 import { Op, QueryTypes, WhereOptions } from "sequelize";
 import { BaseRepository } from "../BaseRepository";
+import { PermissionModel } from "../Permission/Permission";
 import { UserRoleModel } from "../User/UserRole";
 import { RoleAttributes, RoleModel } from "./Role";
 import { RolePermissionModel } from "./RolePermission";
@@ -144,6 +146,52 @@ export class RoleRepositoryImpl extends BaseRepository {
       response.data = data;
     } catch (error) {
       logger.err("Error in updateRole:");
+      logger.err(request);
+      logger.err(error);
+      response.withError(
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        "Internal server error"
+      );
+    }
+
+    return response;
+  }
+
+  async queryGuestRole(
+    request: RequestModel<any>
+  ): Promise<ResponseModel<Role>> {
+    const response = new ResponseModel<Role>(request.transactionId);
+
+    try {
+      response.data = await RoleModel.findOne({
+        where: {
+          name: {
+            [Op.iLike]: "guest",
+          },
+        },
+        include: [
+          {
+            model: PermissionModel,
+            as: "permissions",
+            attributes: ["id", "name"],
+            through: { attributes: [] },
+          },
+        ],
+        attributes: ["id", "name"],
+      }).then((role) => {
+        if (!role) {
+          return null;
+        }
+        const { id: roleId, name: roleName, permissions = [] } = role as any;
+
+        return new Role(
+          roleId,
+          roleName,
+          permissions.map(({ id, name }: any) => new Permission(id, name))
+        );
+      });
+    } catch (error) {
+      logger.err("Error in queryGuestRole:");
       logger.err(request);
       logger.err(error);
       response.withError(

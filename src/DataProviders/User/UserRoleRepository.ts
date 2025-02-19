@@ -96,7 +96,7 @@ export class UserRoleRepositoryImpl extends BaseRepository {
         )
       );
     } catch (error) {
-      logger.err("Error in queryUserRoles:");
+      logger.err("Error in queryUserRolesDetails:");
       logger.err(request);
       logger.err(error);
       response.withError(

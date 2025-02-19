@@ -39,4 +39,11 @@ export class ResponseModel<Type> {
 
     return Promise.resolve(this);
   }
+
+  copyErrorWithPromise(response: ResponseModel<any>): Promise<this> {
+    this.errorCode = response.errorCode;
+    this.message = response.message;
+
+    return Promise.resolve(this);
+  }
 }

@@ -76,9 +76,28 @@ authRouter.get("/session-info", async (req: Request, res) => {
         );
     }
 
-    const refreshedUser = await new UsersUseCases().findSessionUser(
-      new RequestModel("getSessionInfo", user.sub)
+    const userRoles = user.roles || [];
+
+    const isGuest = userRoles.find(
+      (role: string) => role.toLowerCase() === "guest"
     );
+
+    const findeSessionUserRequest = new RequestModel<string>(
+      "getSessionInfo",
+      user.sub
+    );
+
+    let refreshedUser: ResponseModel<User>;
+
+    if (isGuest) {
+      refreshedUser = await new UsersUseCases().getGuestData(
+        findeSessionUserRequest
+      );
+    } else {
+      refreshedUser = await new UsersUseCases().findSessionUser(
+        findeSessionUserRequest
+      );
+    }
 
     if (!!refreshedUser.errorCode || !refreshedUser.data) {
       return res
@@ -392,6 +411,52 @@ authRouter.put("/password-update", isAuthenticated, async (req, res) => {
       "Internal Server Error"
     );
     res.status(500).json(response);
+  }
+});
+
+authRouter.post("/guest/sign-in", async (req, res) => {
+  const transactionId = "signInAsGuest";
+  const { guestId = null } = req.body || {};
+
+  try {
+    const response = new ResponseModel<string>(transactionId);
+    const request = new RequestModel<string>(transactionId, guestId);
+    const guestResponse = await new UsersUseCases().getGuestData(request);
+
+    if (guestResponse.errorCode) {
+      return res
+        .status(
+          guestResponse.errorCode || HttpStatusCodes.INTERNAL_SERVER_ERROR
+        )
+        .json(guestResponse);
+    }
+
+    const { id, name, user, email, roles, permissions } = guestResponse.data!;
+
+    const sessionUser: SessionUser = {
+      id: id!,
+      name,
+      email,
+      user,
+      roles,
+      permissions,
+    };
+    const token = await createJwt(sessionUser);
+
+    res.cookie("authToken", token, cookieOptions);
+
+    response.data = id;
+    res.status(200).json(response);
+  } catch (err) {
+    logger.err(err);
+    res
+      .status(500)
+      .json(
+        new ResponseModel<unknown>(transactionId).withError(
+          HttpStatusCodes.INTERNAL_SERVER_ERROR,
+          "Sign in error. Please try again later."
+        )
+      );
   }
 });
 

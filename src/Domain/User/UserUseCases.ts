@@ -1,5 +1,7 @@
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
+import { RoleRepositoryInstance } from "@src/DataProviders/Role/RoleRepository";
 import { UserRepositoryInstance } from "@src/DataProviders/User/UserRepository";
+import { v4 as uuidv4 } from "uuid";
 import { RequestModel } from "../Core/Entity/RequestModel";
 import { ResponseModel } from "../Core/Entity/ResponseModel";
 import { PASSWORD_REGEXP } from "../Validations/ValidationConstants";
@@ -138,5 +140,46 @@ export class UsersUseCases {
     request: RequestModel<PersonalInformationUpdate>
   ): Promise<ResponseModel<void>> {
     return UserRepositoryInstance.updatePersonalInformation(request);
+  }
+
+  async getGuestData(
+    request: RequestModel<string>
+  ): Promise<ResponseModel<User>> {
+    let guestId = request.data || uuidv4();
+    let userExists = false;
+    const response = new ResponseModel<User>(request.transactionId);
+
+    do {
+      const existsReponse = await UserRepositoryInstance.userExists(
+        new RequestModel<string>(request.transactionId, guestId)
+      );
+
+      if (existsReponse.errorCode) {
+        return response.copyErrorWithPromise(existsReponse);
+      }
+
+      if (existsReponse.data) {
+        guestId = uuidv4();
+      }
+
+      userExists = existsReponse.data!;
+    } while (userExists);
+
+    const role = await RoleRepositoryInstance.queryGuestRole(request);
+    const roles = role.data ? [role.data.name] : [];
+    const permissions = role.data?.permissions
+      ? role.data.permissions.map((permission) => permission.name)
+      : [];
+
+    response.data = User.builder()
+      .setId(guestId)
+      .setName("Guest")
+      .setUser("Guest")
+      .setEmail("guest@variamos.com")
+      .setRoles(roles)
+      .setPermissions(permissions)
+      .build();
+
+    return response;
   }
 }

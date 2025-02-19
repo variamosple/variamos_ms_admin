@@ -621,6 +621,30 @@ export class UserRepositoryImpl {
 
     return response;
   }
+
+  async userExists(
+    request: RequestModel<string>
+  ): Promise<ResponseModel<boolean>> {
+    const response = new ResponseModel<boolean>(request.transactionId);
+
+    try {
+      const { data: userId } = request;
+
+      response.data = await UserModel.count({
+        where: { id: userId },
+      }).then((count) => count > 0);
+    } catch (error) {
+      logger.err("Error in userExists:");
+      logger.err(request);
+      logger.err(error);
+      response.withError(
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        "Internal server error"
+      );
+    }
+
+    return response;
+  }
 }
 
 export const UserRepositoryInstance = new UserRepositoryImpl();
