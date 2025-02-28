@@ -30,7 +30,10 @@ export class MetricsRepositoryImpl extends BaseRepository {
     super();
 
     setTimeout(async () => this.loadMetrics().then(), 10000);
-    setInterval(this.loadMetrics, this.metricsRefreshInterval);
+    setInterval(
+      async () => this.loadMetrics().then(),
+      this.metricsRefreshInterval
+    );
   }
 
   private async loadMetrics() {
