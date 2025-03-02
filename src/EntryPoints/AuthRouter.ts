@@ -5,6 +5,7 @@ import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { Credentials } from "@src/Domain/User/Entity/Credentials";
 import { PasswordUpdate } from "@src/Domain/User/Entity/PasswordUpdate";
 import { PersonalInformationUpdate } from "@src/Domain/User/Entity/PersonalInformationUpdate";
+import { singInResponse } from "@src/Domain/User/Entity/SingInResponse";
 import { User } from "@src/Domain/User/Entity/User";
 import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration";
 import { UsersUseCases } from "@src/Domain/User/UserUseCases";
@@ -16,7 +17,7 @@ import {
   SessionUser,
   validateToken,
 } from "@variamos/variamos-security";
-import { CookieOptions, Request, Router } from "express";
+import { CookieOptions, Request, Response, Router } from "express";
 import { OAuth2Client } from "google-auth-library";
 import logger from "jet-logger";
 
@@ -24,13 +25,77 @@ export const AUTH_ROUTE = "/auth";
 
 const authRouter = Router();
 
-const cookieOptions: CookieOptions = {
-  domain: EnvVars.CookieProps.Options.domain,
-  path: EnvVars.CookieProps.Options.path,
-  sameSite: "strict",
-  httpOnly: EnvVars.CookieProps.Options.httpOnly,
-  secure: EnvVars.CookieProps.Options.secure,
-  maxAge: EnvVars.CookieProps.Options.maxAge,
+const isAllowedOrigin = (origin: string | undefined): boolean => {
+  if (!origin || "null" === origin) {
+    return true;
+  }
+
+  return (
+    EnvVars.CORS.AllowedOriginsPatterns.findIndex((pattern) =>
+      pattern.test(origin)
+    ) !== -1
+  );
+};
+
+const getRedirectUrl = (
+  transactionId: string,
+  req: Request,
+  res: Response
+): URL | undefined => {
+  const redirectUrl = req.cookies.redirectTo;
+
+  if (!redirectUrl) {
+    return undefined;
+  }
+
+  res.clearCookie(
+    "redirectTo",
+    getCookieOptions({ sameSite: "none", maxAge: false })
+  );
+
+  try {
+    const redirect = new URL(redirectUrl);
+
+    return isAllowedOrigin(redirect.origin) ? redirect : undefined;
+  } catch (error) {
+    logger.err(`${transactionId} Invalid redirect URL: ${redirectUrl}`);
+    logger.err(error, true);
+  }
+
+  return undefined;
+};
+
+interface CookieOptionsInput {
+  domain?: string;
+  httpOnly?: boolean;
+  sameSite?: "strict" | "lax" | "none";
+  maxAge?: boolean;
+}
+
+const getCookieOptions = ({
+  domain,
+  httpOnly = EnvVars.CookieProps.Options.httpOnly,
+  sameSite,
+  maxAge = true,
+}: CookieOptionsInput): CookieOptions => {
+  const cookieDomain = domain || EnvVars.CookieProps.Options.domain;
+  const cookieSameSite = sameSite
+    ? sameSite
+    : /^localhost$/.test(cookieDomain)
+    ? "lax"
+    : "strict";
+
+  const cookieOptions: CookieOptions = {
+    domain: cookieDomain,
+    path: EnvVars.CookieProps.Options.path,
+    sameSite: cookieSameSite,
+    httpOnly,
+    secure:
+      cookieSameSite === "none" ? true : EnvVars.CookieProps.Options.secure,
+    maxAge: maxAge ? EnvVars.CookieProps.Options.maxAge : undefined,
+  };
+
+  return cookieOptions;
 };
 
 authRouter.get("/session-info", async (req: Request, res) => {
@@ -127,10 +192,10 @@ authRouter.get("/session-info", async (req: Request, res) => {
       roles,
       permissions,
     };
-    const token = await createJwt(sessionUser);
+    const token = await createJwt(sessionUser, user.aud);
 
     res
-      .cookie("authToken", token, cookieOptions)
+      .cookie("authToken", token, getCookieOptions({ domain: user.aud }))
       .status(200)
       .json(response.withResponse(sessionUser));
   } catch (error) {
@@ -148,6 +213,7 @@ authRouter.get("/session-info", async (req: Request, res) => {
 
 authRouter.post("/sign-in", async (req, res) => {
   const transactionId = "signIn";
+  const response = new ResponseModel<singInResponse>(transactionId);
   const { email, password } = req.body || {};
 
   try {
@@ -155,7 +221,7 @@ authRouter.post("/sign-in", async (req, res) => {
       res
         .status(HttpStatusCodes.BAD_REQUEST)
         .json(
-          new ResponseModel<unknown>(transactionId).withError(
+          response.withError(
             HttpStatusCodes.BAD_REQUEST,
             "Email and password are required."
           )
@@ -165,15 +231,23 @@ authRouter.post("/sign-in", async (req, res) => {
     const credentials = new Credentials(email, password);
 
     const request = new RequestModel<Credentials>(transactionId, credentials);
-    const response = await new UsersUseCases().signIn(request);
+    const singInResponse = await new UsersUseCases().signIn(request);
 
-    if (response.errorCode) {
+    if (singInResponse.errorCode) {
       return res
-        .status(response.errorCode || HttpStatusCodes.INTERNAL_SERVER_ERROR)
-        .json(response);
+        .status(
+          singInResponse.errorCode || HttpStatusCodes.INTERNAL_SERVER_ERROR
+        )
+        .json(singInResponse);
     }
 
-    const { id, name, user: username, roles, permissions } = response.data!;
+    const {
+      id,
+      name,
+      user: username,
+      roles,
+      permissions,
+    } = singInResponse.data!;
 
     const sessionUser: SessionUser = {
       id: id!,
@@ -183,14 +257,29 @@ authRouter.post("/sign-in", async (req, res) => {
       roles,
       permissions,
     };
-    const token = await createJwt(sessionUser);
 
-    res.cookie("authToken", token, cookieOptions);
+    const redirect = getRedirectUrl(transactionId, req, res);
 
-    response.data = undefined;
+    const token = await createJwt(
+      sessionUser,
+      redirect?.hostname || EnvVars.CookieProps.Options.domain
+    );
+
+    res.cookie(
+      "authToken",
+      token,
+      getCookieOptions({ domain: redirect?.hostname })
+    );
+
+    response.data = {
+      redirect: redirect
+        ? redirect.toString()
+        : `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`,
+    };
+
     res.status(200).json(response);
   } catch (err) {
-    logger.err(err);
+    logger.err(err, true);
     res
       .status(500)
       .json(
@@ -237,7 +326,7 @@ authRouter.post("/sign-up", async (req, res) => {
 
     res.status(HttpStatusCodes.OK).json(successfullResponse);
   } catch (err) {
-    logger.err(err);
+    logger.err(err, true);
     res
       .status(500)
       .json(
@@ -249,9 +338,16 @@ authRouter.post("/sign-up", async (req, res) => {
   }
 });
 
-authRouter.post("/logout", async (_, res) => {
+authRouter.post("/logout", async (req, res) => {
+  const validationResponse = await validateToken(req.cookies.authToken);
+
+  const cookieOptions = getCookieOptions({
+    domain: validationResponse.data?.aud,
+    maxAge: false,
+  });
+
   res.clearCookie("authToken", cookieOptions);
-  res.sendStatus(200);
+  res.status(200).json(new ResponseModel<void>("logout"));
 });
 
 const validateGoogleCode = async (token: string): Promise<User | undefined> => {
@@ -318,12 +414,24 @@ authRouter.post("/google/callback", async (req, res) => {
       roles,
       permissions,
     };
-    const token = await createJwt(sessionUser);
 
-    res.cookie("authToken", token, cookieOptions);
-    res.redirect(302, `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`);
+    const redirect = getRedirectUrl(transactionId, req, res);
+    const token = await createJwt(
+      sessionUser,
+      redirect?.hostname || EnvVars.CookieProps.Options.domain
+    );
+
+    res.cookie(
+      "authToken",
+      token,
+      getCookieOptions({ domain: redirect?.hostname })
+    );
+    res.redirect(
+      302,
+      redirect ? redirect.toString() : `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`
+    );
   } catch (err) {
-    logger.err(err);
+    logger.err(err, true);
     res.redirect(
       302,
       `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?errorMessage=Login error.`
@@ -342,7 +450,7 @@ authRouter.get("/my-account", isAuthenticated, async (req, res) => {
     const status = response.errorCode || 200;
     res.status(status).json(response);
   } catch (error) {
-    logger.err(error);
+    logger.err(error, true);
     const response = new ResponseModel(
       transactionId,
       500,
@@ -375,7 +483,7 @@ authRouter.put("/my-account/information", isAuthenticated, async (req, res) => {
     const status = response.errorCode || 200;
     res.status(status).json(response);
   } catch (error) {
-    logger.err(error);
+    logger.err(error, true);
     const response = new ResponseModel(
       transactionId,
       500,
@@ -404,7 +512,7 @@ authRouter.put("/password-update", isAuthenticated, async (req, res) => {
     const status = response.errorCode || 200;
     res.status(status).json(response);
   } catch (error) {
-    logger.err(error);
+    logger.err(error, true);
     const response = new ResponseModel(
       transactionId,
       500,
@@ -419,7 +527,7 @@ authRouter.post("/guest/sign-in", async (req, res) => {
   const { guestId = null } = req.body || {};
 
   try {
-    const response = new ResponseModel<string>(transactionId);
+    const response = new ResponseModel<singInResponse>(transactionId);
     const request = new RequestModel<string>(transactionId, guestId);
     const guestResponse = await new UsersUseCases().getGuestData(request);
 
@@ -441,14 +549,29 @@ authRouter.post("/guest/sign-in", async (req, res) => {
       roles,
       permissions,
     };
-    const token = await createJwt(sessionUser);
 
-    res.cookie("authToken", token, cookieOptions);
+    const redirect = getRedirectUrl(transactionId, req, res);
+    const token = await createJwt(
+      sessionUser,
+      redirect?.hostname || EnvVars.CookieProps.Options.domain
+    );
 
-    response.data = id;
+    res.cookie(
+      "authToken",
+      token,
+      getCookieOptions({ domain: redirect?.hostname })
+    );
+
+    response.data = {
+      id: id!,
+      redirect: redirect
+        ? redirect.toString()
+        : `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`,
+    };
+
     res.status(200).json(response);
   } catch (err) {
-    logger.err(err);
+    logger.err(err, true);
     res
       .status(500)
       .json(
@@ -458,6 +581,32 @@ authRouter.post("/guest/sign-in", async (req, res) => {
         )
       );
   }
+});
+
+authRouter.post("/redirects", async (request, res) => {
+  const response = new ResponseModel<void>("setRedirect");
+  const { url } = request.body || {};
+
+  if (!url) {
+    res.status(200).json(response);
+    return;
+  }
+
+  let isAllowed = false;
+
+  try {
+    const redirect = new URL(url);
+    isAllowed = isAllowedOrigin(redirect.origin);
+  } catch (error) {
+    logger.err(`POST: ${AUTH_ROUTE}/redirects Invalid redirect URL: `, error);
+    logger.err(error, true);
+  }
+
+  if (isAllowed) {
+    res.cookie("redirectTo", url, getCookieOptions({ sameSite: "none" }));
+  }
+
+  res.status(200).json(response);
 });
 
 export default authRouter;

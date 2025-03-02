@@ -122,7 +122,6 @@ export class MetricsRepositoryImpl extends BaseRepository {
         const { id, title, chartType, defaultFilter, filters, labelKey, data } =
           result.data;
 
-        console.log(result.data);
         return Metric.builder()
           .setId(id)
           .setTitle(title)
