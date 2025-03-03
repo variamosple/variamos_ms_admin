@@ -79,7 +79,9 @@ const getCookieOptions = ({
   maxAge = true,
 }: CookieOptionsInput): CookieOptions => {
   const isLocalhost = /^localhost$/.test(domain || "");
-  const cookieDomain = domain || EnvVars.CookieProps.Options.domain;
+  const cookieDomain = isLocalhost
+    ? "127.0.0.1"
+    : domain || EnvVars.CookieProps.Options.domain;
   const cookieSameSite = sameSite ? sameSite : isLocalhost ? "none" : "strict";
 
   const cookieOptions: CookieOptions = {
