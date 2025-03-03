@@ -4,7 +4,7 @@ import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { UserRole } from "@src/Domain/User/Entity/UserRole";
 import { UserRoleFilter } from "@src/Domain/User/Entity/UserRoleFilter";
 import { UserRoleUseCases } from "@src/Domain/User/UserRoleUseCases";
-import { hasPermissions } from "@variamos/variamos-security";
+import { hasPermissions } from "@variamosple/variamos-security";
 import { Router } from "express";
 import logger from "jet-logger";
 

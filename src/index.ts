@@ -2,7 +2,7 @@ import logger from "jet-logger";
 import "./pre-start"; // Must be the first import
 
 import EnvVars from "@src/common/EnvVars";
-import { initKeyStore, validateSession } from "@variamos/variamos-security";
+import { initKeyStore, validateSession } from "@variamosple/variamos-security";
 import * as cookie from "cookie";
 import { Readable } from "stream";
 import { WebSocket, WebSocketServer } from "ws";

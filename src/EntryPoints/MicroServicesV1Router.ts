@@ -4,7 +4,7 @@ import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { MicroServiceFilter } from "@src/Domain/MicroService/Entity/MicroServiceFilter";
 
 import { MicroServiceUseCases } from "@src/Domain/MicroService/MicroServiceCases";
-import { hasPermissions } from "@variamos/variamos-security";
+import { hasPermissions } from "@variamosple/variamos-security";
 import { Router } from "express";
 import logger from "jet-logger";
 

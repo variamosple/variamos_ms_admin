@@ -3,7 +3,7 @@ import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { UserFilter } from "@src/Domain/User/Entity/UserFilter";
 import { UsersUseCases } from "@src/Domain/User/UserUseCases";
-import { hasPermissions } from "@variamos/variamos-security";
+import { hasPermissions } from "@variamosple/variamos-security";
 import { Router } from "express";
 import logger from "jet-logger";
 import userRolesV1Router, { USER_ROLES_V1_ROUTE } from "./UserRolesV1Router";

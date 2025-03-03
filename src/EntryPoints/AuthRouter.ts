@@ -16,7 +16,7 @@ import {
   sessionInfoToSessionUser,
   SessionUser,
   validateToken,
-} from "@variamos/variamos-security";
+} from "@variamosple/variamos-security";
 import { CookieOptions, Request, Response, Router } from "express";
 import { OAuth2Client } from "google-auth-library";
 import logger from "jet-logger";

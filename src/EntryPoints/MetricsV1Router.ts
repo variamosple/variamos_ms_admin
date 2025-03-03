@@ -3,7 +3,7 @@ import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { Metric } from "@src/Domain/Metrics/Entity/Metric";
 import { MetricsFilter } from "@src/Domain/Metrics/Entity/MetricsFilter";
 import { MetricsUseCases } from "@src/Domain/Metrics/MetricsUseCases";
-import { hasPermissions } from "@variamos/variamos-security";
+import { hasPermissions } from "@variamosple/variamos-security";
 
 import { Router } from "express";
 import logger from "jet-logger";

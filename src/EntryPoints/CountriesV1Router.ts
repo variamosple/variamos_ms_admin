@@ -2,7 +2,7 @@ import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { CountriesUseCases } from "@src/Domain/Countries/CountriesUseCases";
 
-import { isAuthenticated } from "@variamos/variamos-security";
+import { isAuthenticated } from "@variamosple/variamos-security";
 import { Router } from "express";
 import logger from "jet-logger";
 
