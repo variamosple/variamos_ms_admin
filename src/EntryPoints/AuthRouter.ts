@@ -11,7 +11,7 @@ import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration";
 import { UsersUseCases } from "@src/Domain/User/UserUseCases";
 import {
   createJwt,
-  isAuthenticated,
+  hasPermissions,
   isSessionExpired,
   sessionInfoToSessionUser,
   SessionUser,
@@ -439,88 +439,101 @@ authRouter.post("/google/callback", async (req, res) => {
   }
 });
 
-authRouter.get("/my-account", isAuthenticated, async (req, res) => {
-  const transactionId = "myAccount";
-  const user = req.user!;
-  try {
-    const request = new RequestModel<string>(transactionId, user.id);
+authRouter.get(
+  "/my-account",
+  hasPermissions(["my-account::query"]),
+  async (req, res) => {
+    const transactionId = "myAccount";
+    const user = req.user!;
+    try {
+      const request = new RequestModel<string>(transactionId, user.id);
 
-    const response = await new UsersUseCases().getMyAccount(request);
+      const response = await new UsersUseCases().getMyAccount(request);
 
-    const status = response.errorCode || 200;
-    res.status(status).json(response);
-  } catch (error) {
-    logger.err(error, true);
-    const response = new ResponseModel(
-      transactionId,
-      500,
-      "Internal Server Error"
-    );
-    res.status(500).json(response);
+      const status = response.errorCode || 200;
+      res.status(status).json(response);
+    } catch (error) {
+      logger.err(error, true);
+      const response = new ResponseModel(
+        transactionId,
+        500,
+        "Internal Server Error"
+      );
+      res.status(500).json(response);
+    }
   }
-});
+);
 
-authRouter.put("/my-account/information", isAuthenticated, async (req, res) => {
-  const transactionId = "updateMyAccountInformation";
-  const user = req.user!;
-  const personalInformation = req.body!;
+authRouter.put(
+  "/my-account/information",
+  hasPermissions(["my-account::update"]),
+  async (req, res) => {
+    const transactionId = "updateMyAccountInformation";
+    const user = req.user!;
+    const personalInformation = req.body!;
 
-  try {
-    const personalInformationUpdate = PersonalInformationUpdate.builder()
-      .setUserId(user.id)
-      .setCountryCode(personalInformation?.countryCode)
-      .build();
+    try {
+      const personalInformationUpdate = PersonalInformationUpdate.builder()
+        .setUserId(user.id)
+        .setCountryCode(personalInformation?.countryCode)
+        .build();
 
-    const request = new RequestModel<PersonalInformationUpdate>(
-      transactionId,
-      personalInformationUpdate
-    );
+      const request = new RequestModel<PersonalInformationUpdate>(
+        transactionId,
+        personalInformationUpdate
+      );
 
-    const response = await new UsersUseCases().updatePersonalInformation(
-      request
-    );
+      const response = await new UsersUseCases().updatePersonalInformation(
+        request
+      );
 
-    const status = response.errorCode || 200;
-    res.status(status).json(response);
-  } catch (error) {
-    logger.err(error, true);
-    const response = new ResponseModel(
-      transactionId,
-      500,
-      "Internal Server Error"
-    );
-    res.status(500).json(response);
+      const status = response.errorCode || 200;
+      res.status(status).json(response);
+    } catch (error) {
+      logger.err(error, true);
+      const response = new ResponseModel(
+        transactionId,
+        500,
+        "Internal Server Error"
+      );
+      res.status(500).json(response);
+    }
   }
-});
+);
 
-authRouter.put("/password-update", isAuthenticated, async (req, res) => {
-  const transactionId = "passwordUpdate";
-  const user = req.user!;
-  const { currentPassword, newPassword, passwordConfirmation } = req.body || {};
-  try {
-    const passwordUpdate = PasswordUpdate.builder()
-      .setId(user.id)
-      .setCurrentPassword(currentPassword)
-      .setNewPassword(newPassword)
-      .setPasswordConfirmation(passwordConfirmation)
-      .build();
+authRouter.put(
+  "/password-update",
+  hasPermissions(["my-account::update"]),
+  async (req, res) => {
+    const transactionId = "passwordUpdate";
+    const user = req.user!;
+    const { currentPassword, newPassword, passwordConfirmation } =
+      req.body || {};
+    try {
+      const passwordUpdate = PasswordUpdate.builder()
+        .setId(user.id)
+        .setCurrentPassword(currentPassword)
+        .setNewPassword(newPassword)
+        .setPasswordConfirmation(passwordConfirmation)
+        .build();
 
-    const response = await new UsersUseCases().updatePassword(
-      new RequestModel(transactionId, passwordUpdate)
-    );
+      const response = await new UsersUseCases().updatePassword(
+        new RequestModel(transactionId, passwordUpdate)
+      );
 
-    const status = response.errorCode || 200;
-    res.status(status).json(response);
-  } catch (error) {
-    logger.err(error, true);
-    const response = new ResponseModel(
-      transactionId,
-      500,
-      "Internal Server Error"
-    );
-    res.status(500).json(response);
+      const status = response.errorCode || 200;
+      res.status(status).json(response);
+    } catch (error) {
+      logger.err(error, true);
+      const response = new ResponseModel(
+        transactionId,
+        500,
+        "Internal Server Error"
+      );
+      res.status(500).json(response);
+    }
   }
-});
+);
 
 authRouter.post("/guest/sign-in", async (req, res) => {
   const transactionId = "signInAsGuest";

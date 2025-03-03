@@ -1,6 +1,10 @@
 import EnvVars from "@src/common/EnvVars";
 import { Router } from "express";
 import authRouter, { AUTH_ROUTE } from "./AuthRouter";
+
+import configurationV1Router, {
+  CONFIGURATION_V1_ROUTE,
+} from "./ConfigurationRouter";
 import countriesV1Router, { COUNTRIES_V1_ROUTE } from "./CountriesV1Router";
 import metricsV1Router, { METRICS_V1_ROUTE } from "./MetricsV1Router";
 import microServicesV1Router, {
@@ -16,6 +20,7 @@ import visitsV1Router, { VISITS_V1_ROUTE } from "./VisitsV1Router";
 const baseRouter = Router();
 
 baseRouter.use(AUTH_ROUTE, authRouter);
+baseRouter.use(CONFIGURATION_V1_ROUTE, configurationV1Router);
 baseRouter.use(USERS_V1_ROUTE, usersV1Router);
 baseRouter.use(ROLES_V1_ROUTE, rolesV1Router);
 baseRouter.use(PERMISSIONS_V1_ROUTE, permissionsV1Router);
