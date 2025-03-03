@@ -79,6 +79,9 @@ const getCookieOptions = ({
   maxAge = true,
 }: CookieOptionsInput): CookieOptions => {
   const cookieDomain = domain || EnvVars.CookieProps.Options.domain;
+  const secure = /^localhost$/.test(cookieDomain)
+    ? false
+    : EnvVars.CookieProps.Options.secure;
   const cookieSameSite = sameSite
     ? sameSite
     : /^localhost$/.test(cookieDomain)
@@ -90,8 +93,7 @@ const getCookieOptions = ({
     path: EnvVars.CookieProps.Options.path,
     sameSite: cookieSameSite,
     httpOnly,
-    secure:
-      cookieSameSite === "none" ? true : EnvVars.CookieProps.Options.secure,
+    secure: cookieSameSite === "none" ? true : secure,
     maxAge: maxAge ? EnvVars.CookieProps.Options.maxAge : undefined,
   };
 
