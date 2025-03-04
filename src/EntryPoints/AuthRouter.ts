@@ -79,9 +79,7 @@ const getCookieOptions = ({
   maxAge = true,
 }: CookieOptionsInput): CookieOptions => {
   const isLocalhost = /^localhost$/.test(domain || "");
-  const cookieDomain = isLocalhost
-    ? "127.0.0.1"
-    : domain || EnvVars.CookieProps.Options.domain;
+  const cookieDomain = domain || EnvVars.CookieProps.Options.domain;
   const cookieSameSite = sameSite ? sameSite : isLocalhost ? "none" : "strict";
 
   const cookieOptions: CookieOptions = {
@@ -619,6 +617,37 @@ authRouter.post("/redirects", async (request, res) => {
   }
 
   res.status(200).json(response);
+});
+
+authRouter.get("/exchange-token", async (req, res) => {
+  const response = new ResponseModel<unknown>("exchangeToken");
+  const origin = req.get("origin");
+
+  const request = new RequestModel<string>("exchangeToken");
+  const guestResponse = await new UsersUseCases().getGuestData(request);
+
+  if (guestResponse.errorCode) {
+    return res
+      .status(guestResponse.errorCode || HttpStatusCodes.INTERNAL_SERVER_ERROR)
+      .json(guestResponse);
+  }
+
+  const { id, name, user, email, roles, permissions } = guestResponse.data!;
+
+  const sessionUser: SessionUser = {
+    id: id!,
+    name,
+    email,
+    user,
+    roles,
+    permissions,
+  };
+
+  const token = await createJwt(sessionUser, "localhost");
+
+  res.cookie("authToken", token, getCookieOptions({ domain: "localhost" }));
+
+  return res.status(200).json(response);
 });
 
 export default authRouter;
