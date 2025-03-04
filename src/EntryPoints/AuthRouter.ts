@@ -80,15 +80,15 @@ const getCookieOptions = ({
 }: CookieOptionsInput): CookieOptions => {
   const isLocalhost = /^localhost$/.test(domain || "");
   const cookieDomain = domain || EnvVars.CookieProps.Options.domain;
-  const cookieSameSite = sameSite ? sameSite : isLocalhost ? "none" : "strict";
+  const cookieSameSite = sameSite ? sameSite : isLocalhost ? "lax" : "strict";
+  const secure = isLocalhost ? false : EnvVars.CookieProps.Options.secure;
 
   const cookieOptions: CookieOptions = {
     domain: cookieDomain,
     path: EnvVars.CookieProps.Options.path,
     sameSite: cookieSameSite,
     httpOnly,
-    secure:
-      cookieSameSite === "none" ? true : EnvVars.CookieProps.Options.secure,
+    secure: cookieSameSite === "none" ? true : secure,
     maxAge: maxAge ? EnvVars.CookieProps.Options.maxAge : undefined,
   };
 
