@@ -72,25 +72,25 @@ interface CookieOptionsInput {
   maxAge?: boolean;
 }
 
-const getCookieOptions = ({
-  domain,
-  httpOnly = EnvVars.CookieProps.Options.httpOnly,
-  sameSite,
-  maxAge = true,
-}: CookieOptionsInput): CookieOptions => {
-  const isLocalhost = /^localhost$/.test(domain || "");
-  const cookieDomain = isLocalhost
-    ? ""
-    : domain || EnvVars.CookieProps.Options.domain;
-  const cookieSameSite = sameSite ? sameSite : isLocalhost ? "none" : "strict";
-  const secure = /*isLocalhost ? false :*/ EnvVars.CookieProps.Options.secure;
-
+const getCookieOptions = (
+  {
+    domain = EnvVars.CookieProps.Options.domain,
+    httpOnly = EnvVars.CookieProps.Options.httpOnly,
+    sameSite = "strict",
+    maxAge = true,
+  }: CookieOptionsInput = {
+    domain: EnvVars.CookieProps.Options.domain,
+    httpOnly: EnvVars.CookieProps.Options.httpOnly,
+    sameSite: "strict",
+    maxAge: true,
+  }
+): CookieOptions => {
   const cookieOptions: CookieOptions = {
-    domain: cookieDomain,
+    domain,
     path: EnvVars.CookieProps.Options.path,
-    sameSite: cookieSameSite,
+    sameSite,
     httpOnly,
-    secure: cookieSameSite === "none" ? true : secure,
+    secure: sameSite === "none" ? true : EnvVars.CookieProps.Options.secure,
     maxAge: maxAge ? EnvVars.CookieProps.Options.maxAge : undefined,
   };
 
@@ -194,7 +194,7 @@ authRouter.get("/session-info", async (req: Request, res) => {
     const token = await createJwt(sessionUser, user.aud);
 
     res
-      .cookie("authToken", token, getCookieOptions({ domain: user.aud }))
+      .cookie("authToken", token, getCookieOptions())
       .status(200)
       .json(response.withResponse(sessionUser));
   } catch (error) {
@@ -264,11 +264,7 @@ authRouter.post("/sign-in", async (req, res) => {
       redirect?.hostname || EnvVars.CookieProps.Options.domain
     );
 
-    res.cookie(
-      "authToken",
-      token,
-      getCookieOptions({ domain: redirect?.hostname })
-    );
+    res.cookie("authToken", token, getCookieOptions());
 
     response.data = {
       redirect: redirect
@@ -337,11 +333,8 @@ authRouter.post("/sign-up", async (req, res) => {
   }
 });
 
-authRouter.post("/logout", async (req, res) => {
-  const validationResponse = await validateToken(req.cookies.authToken);
-
+authRouter.post("/logout", async (_, res) => {
   const cookieOptions = getCookieOptions({
-    domain: validationResponse.data?.aud,
     maxAge: false,
   });
 
@@ -420,11 +413,7 @@ authRouter.post("/google/callback", async (req, res) => {
       redirect?.hostname || EnvVars.CookieProps.Options.domain
     );
 
-    res.cookie(
-      "authToken",
-      token,
-      getCookieOptions({ domain: redirect?.hostname })
-    );
+    res.cookie("authToken", token, getCookieOptions());
     res.redirect(
       302,
       redirect ? redirect.toString() : `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`
@@ -568,11 +557,7 @@ authRouter.post("/guest/sign-in", async (req, res) => {
       redirect?.hostname || EnvVars.CookieProps.Options.domain
     );
 
-    res.cookie(
-      "authToken",
-      token,
-      getCookieOptions({ domain: redirect?.hostname })
-    );
+    res.cookie("authToken", token, getCookieOptions());
 
     response.data = {
       id: id!,
@@ -619,37 +604,6 @@ authRouter.post("/redirects", async (request, res) => {
   }
 
   res.status(200).json(response);
-});
-
-authRouter.get("/exchange-token", async (req, res) => {
-  const response = new ResponseModel<unknown>("exchangeToken");
-  const origin = req.get("origin");
-
-  const request = new RequestModel<string>("exchangeToken");
-  const guestResponse = await new UsersUseCases().getGuestData(request);
-
-  if (guestResponse.errorCode) {
-    return res
-      .status(guestResponse.errorCode || HttpStatusCodes.INTERNAL_SERVER_ERROR)
-      .json(guestResponse);
-  }
-
-  const { id, name, user, email, roles, permissions } = guestResponse.data!;
-
-  const sessionUser: SessionUser = {
-    id: id!,
-    name,
-    email,
-    user,
-    roles,
-    permissions,
-  };
-
-  const token = await createJwt(sessionUser, "localhost");
-
-  res.cookie("authToken", token, getCookieOptions({ domain: "localhost" }));
-
-  return res.status(200).json(response);
 });
 
 export default authRouter;
