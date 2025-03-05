@@ -59,12 +59,20 @@ const getRedirectUrl = (
     getCookieOptions({ sameSite: "none", maxAge: false })
   );
 
+  return getUrl(transactionId, redirectUrl);
+};
+
+const getUrl = (transactionId: string, url?: string): URL | undefined => {
+  if (!url) {
+    return undefined;
+  }
+
   try {
-    const redirect = new URL(redirectUrl);
+    const redirect = new URL(url);
 
     return isAllowedOrigin(redirect.origin) ? redirect : undefined;
   } catch (error) {
-    logger.err(`${transactionId} Invalid redirect URL: ${redirectUrl}`);
+    logger.err(`${transactionId} Invalid URL: ${url}`);
     logger.err(error, true);
   }
 
@@ -222,7 +230,10 @@ authRouter.get("/session-info", async (req: Request, res) => {
         response.withResponse({
           user: sessionUser,
           authToken:
-            isLocalHost(user.aud) && isLocalHost(req.headers.host)
+            isLocalHost(user.aud) &&
+            isLocalHost(
+              getUrl(response.transactionId!, req.headers.origin)?.hostname
+            )
               ? token
               : undefined,
           redirect: redirect?.toString?.(),
