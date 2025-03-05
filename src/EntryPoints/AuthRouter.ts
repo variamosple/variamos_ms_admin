@@ -1,16 +1,19 @@
 import EnvVars from "@src/common/EnvVars";
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
+import { Nullable } from "@src/Domain/Core/Entity/Nullable";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { Credentials } from "@src/Domain/User/Entity/Credentials";
 import { PasswordUpdate } from "@src/Domain/User/Entity/PasswordUpdate";
 import { PersonalInformationUpdate } from "@src/Domain/User/Entity/PersonalInformationUpdate";
-import { singInResponse } from "@src/Domain/User/Entity/SingInResponse";
+import { SessionInfoResponse } from "@src/Domain/User/Entity/SessionInfoResponse";
+import { SingInResponse } from "@src/Domain/User/Entity/SingInResponse";
 import { User } from "@src/Domain/User/Entity/User";
 import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration";
 import { UsersUseCases } from "@src/Domain/User/UserUseCases";
 import {
   createJwt,
+  getToken,
   hasPermissions,
   isSessionExpired,
   sessionInfoToSessionUser,
@@ -97,19 +100,32 @@ const getCookieOptions = (
   return cookieOptions;
 };
 
+const setRedirectAuthToken = (url: Nullable<URL>, token: string) => {
+  if (url && /^localhost$/.test(url.hostname)) {
+    url.searchParams.set("authToken", token);
+  }
+};
+
 authRouter.get("/session-info", async (req: Request, res) => {
-  const response = new ResponseModel<SessionUser>("getSessionInfo");
+  const response = new ResponseModel<SessionInfoResponse>("getSessionInfo");
 
   try {
-    const validationResponse = await validateToken(req.cookies.authToken);
+    const authToken = getToken(req);
+    const validationResponse = await validateToken(authToken);
     const user = validationResponse.data;
+    const redirect = getRedirectUrl("getSessionInfo", req, res);
 
     if (validationResponse.errorCode) {
       return res.status(validationResponse.errorCode).json(validationResponse);
     } else if (!isSessionExpired(user?.exp)) {
-      return res
-        .status(200)
-        .json(response.withResponse(sessionInfoToSessionUser(user)));
+      setRedirectAuthToken(redirect, authToken);
+
+      return res.status(200).json(
+        response.withResponse({
+          user: sessionInfoToSessionUser(user)!,
+          redirect: redirect?.toString?.(),
+        })
+      );
     }
 
     if (!user?.iat) {
@@ -193,10 +209,17 @@ authRouter.get("/session-info", async (req: Request, res) => {
     };
     const token = await createJwt(sessionUser, user.aud);
 
+    setRedirectAuthToken(redirect, authToken);
+
     res
       .cookie("authToken", token, getCookieOptions())
       .status(200)
-      .json(response.withResponse(sessionUser));
+      .json(
+        response.withResponse({
+          user: sessionUser,
+          redirect: redirect?.toString?.(),
+        })
+      );
   } catch (error) {
     console.error("Error verifying JWT:", error);
     res
@@ -212,7 +235,7 @@ authRouter.get("/session-info", async (req: Request, res) => {
 
 authRouter.post("/sign-in", async (req, res) => {
   const transactionId = "signIn";
-  const response = new ResponseModel<singInResponse>(transactionId);
+  const response = new ResponseModel<SingInResponse>(transactionId);
   const { email, password } = req.body || {};
 
   try {
@@ -265,6 +288,7 @@ authRouter.post("/sign-in", async (req, res) => {
     );
 
     res.cookie("authToken", token, getCookieOptions());
+    setRedirectAuthToken(redirect, token);
 
     response.data = {
       redirect: redirect
@@ -414,6 +438,8 @@ authRouter.post("/google/callback", async (req, res) => {
     );
 
     res.cookie("authToken", token, getCookieOptions());
+    setRedirectAuthToken(redirect, token);
+
     res.redirect(
       302,
       redirect ? redirect.toString() : `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`
@@ -528,7 +554,7 @@ authRouter.post("/guest/sign-in", async (req, res) => {
   const { guestId = null } = req.body || {};
 
   try {
-    const response = new ResponseModel<singInResponse>(transactionId);
+    const response = new ResponseModel<SingInResponse>(transactionId);
     const request = new RequestModel<string>(transactionId, guestId);
     const guestResponse = await new UsersUseCases().getGuestData(request);
 
@@ -558,6 +584,7 @@ authRouter.post("/guest/sign-in", async (req, res) => {
     );
 
     res.cookie("authToken", token, getCookieOptions());
+    setRedirectAuthToken(redirect, token);
 
     response.data = {
       id: id!,

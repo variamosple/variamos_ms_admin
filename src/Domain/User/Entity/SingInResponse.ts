@@ -1,4 +1,4 @@
-export interface singInResponse {
+export interface SingInResponse {
   id?: string;
   redirect: string;
 }
