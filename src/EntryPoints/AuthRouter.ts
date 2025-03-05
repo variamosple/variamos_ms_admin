@@ -28,6 +28,9 @@ export const AUTH_ROUTE = "/auth";
 
 const authRouter = Router();
 
+const isLocalHost = (host?: string): boolean =>
+  !!host && /^localhost$/.test(host);
+
 const isAllowedOrigin = (origin: string | undefined): boolean => {
   if (!origin || "null" === origin) {
     return true;
@@ -101,7 +104,7 @@ const getCookieOptions = (
 };
 
 const setRedirectAuthToken = (url: Nullable<URL>, token: string) => {
-  if (url && /^localhost$/.test(url.hostname)) {
+  if (url && isLocalHost(url.hostname)) {
     url.searchParams.set("authToken", token);
   }
 };
@@ -113,11 +116,11 @@ authRouter.get("/session-info", async (req: Request, res) => {
     const authToken = getToken(req);
     const validationResponse = await validateToken(authToken);
     const user = validationResponse.data;
-    const redirect = getRedirectUrl("getSessionInfo", req, res);
 
     if (validationResponse.errorCode) {
       return res.status(validationResponse.errorCode).json(validationResponse);
     } else if (!isSessionExpired(user?.exp)) {
+      const redirect = getRedirectUrl("getSessionInfo", req, res);
       setRedirectAuthToken(redirect, authToken);
 
       return res.status(200).json(
@@ -209,6 +212,7 @@ authRouter.get("/session-info", async (req: Request, res) => {
     };
     const token = await createJwt(sessionUser, user.aud);
 
+    const redirect = getRedirectUrl("getSessionInfo", req, res);
     setRedirectAuthToken(redirect, authToken);
 
     res
@@ -217,6 +221,10 @@ authRouter.get("/session-info", async (req: Request, res) => {
       .json(
         response.withResponse({
           user: sessionUser,
+          authToken:
+            isLocalHost(user.aud) && isLocalHost(req.headers.host)
+              ? token
+              : undefined,
           redirect: redirect?.toString?.(),
         })
       );
