@@ -46,7 +46,8 @@ const isAllowedOrigin = (origin: string | undefined): boolean => {
 const getRedirectUrl = (
   transactionId: string,
   req: Request,
-  res: Response
+  res: Response,
+  remove: boolean = true
 ): URL | undefined => {
   const redirectUrl = req.cookies.redirectTo;
 
@@ -54,10 +55,12 @@ const getRedirectUrl = (
     return undefined;
   }
 
-  res.clearCookie(
-    "redirectTo",
-    getCookieOptions({ sameSite: "none", maxAge: false })
-  );
+  if (remove) {
+    res.clearCookie(
+      "redirectTo",
+      getCookieOptions({ sameSite: "none", maxAge: false })
+    );
+  }
 
   return getUrl(transactionId, redirectUrl);
 };
@@ -450,19 +453,15 @@ authRouter.post("/google/callback", async (req, res) => {
       permissions,
     };
 
-    const redirect = getRedirectUrl(transactionId, req, res);
+    const redirect = getRedirectUrl(transactionId, req, res, false);
     const token = await createJwt(
       sessionUser,
       redirect?.hostname || EnvVars.CookieProps.Options.domain
     );
 
     res.cookie("authToken", token, getCookieOptions());
-    setRedirectAuthToken(redirect, token);
 
-    res.redirect(
-      302,
-      redirect ? redirect.toString() : `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`
-    );
+    res.redirect(302, `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`);
   } catch (err) {
     logger.err(err, true);
     res.redirect(
