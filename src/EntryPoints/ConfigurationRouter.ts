@@ -11,13 +11,13 @@ const MENU: Menu = {
     {
       title: "Home",
       type: "location",
-      location: "https://variamos.com/home/",
+      location: "https://app.variamos.com/",
       target: "newWindow",
     },
     {
       title: "Admin",
       type: "location",
-      location: "http://localhost:8081/variamos_admin/",
+      location: "https://app.variamos.com//variamos_admin/",
       allowedPermissions: [
         "users::query",
         "roles::query",
@@ -29,7 +29,7 @@ const MENU: Menu = {
     {
       title: "Languages",
       type: "location",
-      location: "http://localhost:8081/variamos_languages/",
+      location: "https://app.variamos.com//variamos_languages/",
     },
     {
       title: "Wiki",
@@ -73,22 +73,50 @@ const MENU: Menu = {
   options: [
     {
       title: "My account",
-      location: "http://localhost:8081/variamos_admin/#/my-account",
+      location: "https://app.variamos.com/variamos_admin/#/my-account",
       allowedPermissions: ["my-account::query"],
     },
     {
       title: "Report a problem",
       location: `https://github.com/variamosple/VariaMosLanguages/issues/new`,
+      accessibleFrom: "/variamos_admin/",
+      target: "newWindow",
+      allowedPermissions: [],
+    },
+    {
+      title: "Issues",
+      location: `https://github.com/variamosple/VariaMosLanguages/issues/`,
+      accessibleFrom: "/variamos_admin/",
+      target: "newWindow",
+      allowedPermissions: [],
+    },
+    {
+      title: "Report a problem",
+      location: `https://github.com/variamosple/VariaMosAdmin/issues/new`,
       accessibleFrom: "/variamos_languages/",
       target: "newWindow",
       allowedPermissions: ["languages::create", "product-lines::create"],
     },
     {
       title: "Issues",
-      location: `https://github.com/variamosple/VariaMosLanguages/issues/`,
+      location: `https://github.com/variamosple/VariaMosAdmin/issues/`,
       accessibleFrom: "/variamos_languages/",
       target: "newWindow",
       allowedPermissions: ["languages::create", "product-lines::create"],
+    },
+    {
+      title: "Report a problem",
+      location: `https://github.com/variamosple/VariaMosPLE/issues/new`,
+      accessibleFrom: "/variamos_languages/",
+      target: "newWindow",
+      allowedPermissions: [],
+    },
+    {
+      title: "Issues",
+      location: `https://github.com/variamosple/VariaMosPLE/issues/`,
+      accessibleFrom: "/variamos_languages/",
+      target: "newWindow",
+      allowedPermissions: [],
     },
   ],
 };
