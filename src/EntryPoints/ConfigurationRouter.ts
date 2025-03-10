@@ -12,24 +12,23 @@ const MENU: Menu = {
       title: "Home",
       type: "location",
       location: "https://app.variamos.com/",
-      target: "newWindow",
     },
     {
       title: "Admin",
       type: "location",
-      location: "https://app.variamos.com//variamos_admin/",
+      location: "https://app.variamos.com/variamos_admin/",
       allowedPermissions: [
         "users::query",
         "roles::query",
         "permissions::query",
         "metrics::query",
-        "micro-services",
+        "micro-services::query",
       ],
     },
     {
       title: "Languages",
       type: "location",
-      location: "https://app.variamos.com//variamos_languages/",
+      location: "https://app.variamos.com/variamos_languages/",
     },
     {
       title: "Wiki",
