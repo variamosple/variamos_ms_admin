@@ -57,6 +57,11 @@ const MENU: Menu = {
           allowedPermissions: ["permissions::query"],
         },
         {
+          title: "Projects",
+          location: "/projects",
+          allowedPermissions: ["admin::projects::query"],
+        },
+        {
           title: "Metrics",
           location: "/metrics",
           allowedPermissions: ["metrics::query"],
