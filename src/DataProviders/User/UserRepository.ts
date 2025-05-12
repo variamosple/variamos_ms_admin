@@ -44,24 +44,6 @@ export class UserRepositoryImpl {
 
       const replacements = initilizeReplacements(filter);
 
-      response.totalCount = await VARIAMOS_ORM.query(
-        `
-            SELECT COUNT(1)
-            FROM variamos.user
-            WHERE (:id IS NULL OR id = :id)
-                AND (:name IS NULL OR name ILIKE '%' || :name || '%')
-                AND (:user IS NULL OR user ILIKE '%' || :user || '%')
-                AND (:email IS NULL OR email ILIKE '%' || :email || '%')
-                AND (
-                  :search IS NULL OR name ILIKE '%' || :search || '%'
-                  OR user ILIKE '%' || :search || '%'
-                  OR email ILIKE '%' || :search || '%'
-                );
-                 
-        `,
-        { type: QueryTypes.SELECT, replacements }
-      ).then((result: any) => +result?.[0]?.count || 0);
-
       const where: WhereOptions<UserAttributes> = {};
 
       if (filter.name) {
@@ -85,6 +67,8 @@ export class UserRepositoryImpl {
           ],
         });
       }
+
+      response.totalCount = await UserModel.count({ where });
 
       response.data = await UserModel.findAll({
         where,

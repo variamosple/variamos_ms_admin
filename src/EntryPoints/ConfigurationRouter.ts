@@ -57,9 +57,19 @@ const MENU: Menu = {
           allowedPermissions: ["permissions::query"],
         },
         {
+          title: "Languages",
+          location: "/languages",
+          allowedPermissions: ["admin::languages::query"],
+        },
+        {
           title: "Projects",
           location: "/projects",
           allowedPermissions: ["admin::projects::query"],
+        },
+        {
+          title: "Models",
+          location: "/models",
+          allowedPermissions: ["admin::models::query"],
         },
         {
           title: "Metrics",
