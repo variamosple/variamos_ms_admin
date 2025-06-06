@@ -28,8 +28,11 @@ export const AUTH_ROUTE = "/auth";
 
 const authRouter = Router();
 
-const isLocalHost = (host?: string): boolean =>
-  !!host && /^localhost$/.test(host);
+const HOME_URL = new URL(EnvVars.Auth.APP.HOME_REDIRECT_URI!);
+const HOME_URL_HOST_REGEX = new RegExp(`^${HOME_URL.hostname}$`);
+
+const isExternalDomain = (host?: string): boolean =>
+  !!host && HOME_URL_HOST_REGEX.test(host);
 
 const isAllowedOrigin = (origin: string | undefined): boolean => {
   if (!origin || "null" === origin) {
@@ -115,7 +118,7 @@ const getCookieOptions = (
 };
 
 const setRedirectAuthToken = (url: Nullable<URL>, token: string) => {
-  if (url && isLocalHost(url.hostname)) {
+  if (url && isExternalDomain(url.hostname)) {
     url.searchParams.set("authToken", token);
   }
 };
@@ -233,8 +236,8 @@ authRouter.get("/session-info", async (req: Request, res) => {
         response.withResponse({
           user: sessionUser,
           authToken:
-            isLocalHost(user.aud) &&
-            isLocalHost(
+            isExternalDomain(user.aud) &&
+            isExternalDomain(
               getUrl(response.transactionId!, req.headers.origin)?.hostname
             )
               ? token
