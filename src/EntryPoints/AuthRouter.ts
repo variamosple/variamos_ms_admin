@@ -32,7 +32,7 @@ const HOME_URL = new URL(EnvVars.Auth.APP.HOME_REDIRECT_URI!);
 const HOME_URL_HOST_REGEX = new RegExp(`^${HOME_URL.hostname}$`);
 
 const isExternalDomain = (host?: string): boolean =>
-  !!host && HOME_URL_HOST_REGEX.test(host);
+  !!host && !HOME_URL_HOST_REGEX.test(host);
 
 const isAllowedOrigin = (origin: string | undefined): boolean => {
   if (!origin || "null" === origin) {
