@@ -1,4 +1,5 @@
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
+import EnvVars from "@src/common/EnvVars";
 import { RoleRepositoryInstance } from "@src/DataProviders/Role/RoleRepository";
 import { UserRepositoryInstance } from "@src/DataProviders/User/UserRepository";
 import { v4 as uuidv4 } from "uuid";
@@ -14,7 +15,6 @@ import { UserFilter } from "./Entity/UserFilter";
 import { UserRegistration } from "./Entity/UserRegistration";
 import crypto from "crypto";
 import logger from "jet-logger";
-import bcrypt from "bcrypt";
 
 export class UsersUseCases {
   queryUsers(
@@ -211,7 +211,7 @@ export class UsersUseCases {
       );
       // TODO: In production, send this link via a secure email service and remove this log to prevent token leakage.
       logger.info(
-        `[PASSWORD RESET - DEV ONLY] Link: http://localhost:3000/#/reset-password?token=${token}`,
+        `[PASSWORD RESET - DEV ONLY] Link: ${EnvVars.Auth.APP.HOME_REDIRECT_URI}/#/reset-password?token=${token}`,
       );
       return response;
     } catch (error) {
@@ -360,7 +360,7 @@ export class UsersUseCases {
         `[AUDIT] Admin (ID: ${adminId}) generated a password reset link for User (ID: ${userId})`,
       );
       response.data = {
-        recoveryUrl: `http://localhost:3000/#/reset-password?token=${token}`,
+        recoveryUrl: `${EnvVars.Auth.APP.HOME_REDIRECT_URI}/#/reset-password?token=${token}`,
       };
       return response;
     } catch (error) {
