@@ -319,4 +319,56 @@ export class UsersUseCases {
       );
     }
   }
+
+  async generateRecoveryLink(
+    request: RequestModel<{ userId: string; adminId: string }>,
+  ): Promise<ResponseModel<{ recoveryUrl: string }>> {
+    const response = new ResponseModel<{ recoveryUrl: string }>(
+      request.transactionId,
+    );
+    try {
+      const { userId, adminId } = request.data!;
+      const userResponse = await UserRepositoryInstance.queryById(
+        new RequestModel<string>(request.transactionId, userId),
+      );
+
+      if (userResponse.errorCode) {
+        return response.withError(
+          userResponse.errorCode,
+          userResponse.message || "Error getting user.",
+        );
+      }
+
+      const targetUser = userResponse.data;
+
+      if (!targetUser || !targetUser.isEnabled || targetUser.isDeleted) {
+        logger.warn(
+          `[ADMIN PASSWORD RESET ATTEMPT] Failed: Admin (ID: ${adminId}) tried to generate a recovery link for a User (ID: ${userId}) but user is inactive or deleted.`,
+        );
+        return response;
+      }
+      const token = uuidv4();
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+      await UserRepositoryInstance.savePasswordResetToken(
+        targetUser.id!,
+        tokenHash,
+        expiresAt,
+      );
+      logger.info(
+        `[AUDIT] Admin (ID: ${adminId}) generated a password reset link for User (ID: ${userId})`,
+      );
+      response.data = {
+        recoveryUrl: `http://localhost:3000/#/reset-password?token=${token}`,
+      };
+      return response;
+    } catch (error) {
+      logger.err("Error generating recovery link:", error);
+      return response.withErrorPromise(
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        "Error generating recovery link",
+      );
+    }
+  }
 }
