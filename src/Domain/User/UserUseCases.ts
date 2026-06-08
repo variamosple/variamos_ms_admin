@@ -15,6 +15,7 @@ import { UserFilter } from "./Entity/UserFilter";
 import { UserRegistration } from "./Entity/UserRegistration";
 import crypto from "crypto";
 import logger from "jet-logger";
+import { MailService } from "@src/Infrastructure/Mail/MailService";
 
 export class UsersUseCases {
   queryUsers(
@@ -209,10 +210,18 @@ export class UsersUseCases {
         tokenHash,
         expiresAt,
       );
-      // TODO: In production, send this link via a secure email service and remove this log to prevent token leakage.
-      logger.info(
-        `[PASSWORD RESET - DEV ONLY] Link: ${EnvVars.Auth.APP.HOME_REDIRECT_URI}/#/reset-password?token=${token}`,
+
+      const recoveryLink = `${EnvVars.Auth.APP.HOME_REDIRECT_URI}/#/reset-password?token=${token}`;
+      const emailSent = await MailService.sendPasswordResetMail(
+        email,
+        recoveryLink,
       );
+      if (!emailSent) {
+        return response.withErrorPromise(
+          HttpStatusCodes.INTERNAL_SERVER_ERROR,
+          "Failed to send recovery email. Please try again later.",
+        );
+      }
       return response;
     } catch (error) {
       logger.err("Error requesting password reset:", error);

@@ -46,4 +46,11 @@ export default {
   DOCKER: {
     SOCKET_PATH: process.env.DOCKER_SOCKET_PATH ?? "",
   },
+  SMTP: {
+    HOST: process.env.SMTP_HOST ?? "smtp.ethereal.email",
+    PORT: Number(process.env.SMTP_PORT ?? 587),
+    USER: process.env.SMTP_USER ?? "",
+    PASSWORD: process.env.SMTP_PASSWORD ?? "",
+    FROM: process.env.SMTP_FROM ?? '"VariaMos Admin" <noreply@variamos.org>',
+  },
 } as const;
