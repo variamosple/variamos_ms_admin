@@ -6,7 +6,7 @@ export class MailService {
   private static transporter = nodemailer.createTransport({
     host: EnvVars.SMTP.HOST,
     port: EnvVars.SMTP.PORT,
-    secure: EnvVars.SMTP.PORT === 465, // true pour le port 465 (SSL), false pour les autres (TLS/STARTTLS)
+    secure: EnvVars.SMTP.PORT === 465, // true for port 465 (SSL), false for other ports (TLS/STARTTLS)
     auth:
       EnvVars.SMTP.USER && EnvVars.SMTP.PASSWORD
         ? {
@@ -17,7 +17,7 @@ export class MailService {
   });
 
   /**
-   * Envoie un email au format texte ou HTML
+   * Sends an email in text or HTML format
    */
   static async sendMail(
     to: string,
@@ -25,8 +25,11 @@ export class MailService {
     html: string,
   ): Promise<boolean> {
     try {
-      // Si on est en dev et qu'aucune configuration SMTP n'est renseignée, on simule l'envoi
-      if (!EnvVars.SMTP.USER || !EnvVars.SMTP.PASSWORD) {
+      // If in development/testing mode and no SMTP credentials are provided, simulate the email sending
+      if (
+        EnvVars.NodeEnv !== "production" &&
+        (!EnvVars.SMTP.USER || !EnvVars.SMTP.PASSWORD)
+      ) {
         logger.info(`[MAIL DEV ONLY] Simulate sending email to ${to}:                                                                                        
     Subject: ${subject}                                                                                                                                          
     Content: ${html}`);
@@ -51,14 +54,15 @@ export class MailService {
   }
 
   /**
-   * Envoie l'email spécifique de récupération de mot de passe
+   * Sends a password reset email containing the recovery link
    */
   static async sendPasswordResetMail(
     to: string,
     recoveryLink: string,
   ): Promise<boolean> {
     const subject = "VariaMos - Password Recovery Request";
-    const logoUrl = "https://app.variamos.com/variamos_admin/images/VariaMosLogo.png";
+    const logoUrl =
+      "https://app.variamos.com/variamos_admin/images/VariaMosLogo.png";
     const html = `
       <div style="background-color: #f8f9fa; padding: 40px 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333;">
         <div style="max-width: 550px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #e9ecef;">
