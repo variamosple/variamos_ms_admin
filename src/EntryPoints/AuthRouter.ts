@@ -41,7 +41,7 @@ const isAllowedOrigin = (origin: string | undefined): boolean => {
 
   return (
     EnvVars.CORS.AllowedOriginsPatterns.findIndex((pattern) =>
-      pattern.test(origin)
+      pattern.test(origin),
     ) !== -1
   );
 };
@@ -50,7 +50,7 @@ const getRedirectUrl = (
   transactionId: string,
   req: Request,
   res: Response,
-  remove: boolean = true
+  remove: boolean = true,
 ): URL | undefined => {
   const redirectUrl = req.cookies.redirectTo;
 
@@ -61,7 +61,7 @@ const getRedirectUrl = (
   if (remove) {
     res.clearCookie(
       "redirectTo",
-      getCookieOptions({ sameSite: "none", maxAge: false })
+      getCookieOptions({ sameSite: "none", maxAge: false }),
     );
   }
 
@@ -103,7 +103,7 @@ const getCookieOptions = (
     httpOnly: EnvVars.CookieProps.Options.httpOnly,
     sameSite: "strict",
     maxAge: true,
-  }
+  },
 ): CookieOptions => {
   const cookieOptions: CookieOptions = {
     domain,
@@ -141,7 +141,7 @@ authRouter.get("/session-info", async (req: Request, res) => {
         response.withResponse({
           user: sessionInfoToSessionUser(user)!,
           redirect: redirect?.toString?.(),
-        })
+        }),
       );
     }
 
@@ -151,8 +151,8 @@ authRouter.get("/session-info", async (req: Request, res) => {
         .json(
           response.withError(
             HttpStatusCodes.UNAUTHORIZED,
-            "Your session has expired, please log in again."
-          )
+            "Your session has expired, please log in again.",
+          ),
         );
     }
 
@@ -168,31 +168,31 @@ authRouter.get("/session-info", async (req: Request, res) => {
         .json(
           response.withError(
             HttpStatusCodes.UNAUTHORIZED,
-            "Your session has expired, please log in again."
-          )
+            "Your session has expired, please log in again.",
+          ),
         );
     }
 
     const userRoles = user.roles || [];
 
     const isGuest = userRoles.find(
-      (role: string) => role.toLowerCase() === "guest"
+      (role: string) => role.toLowerCase() === "guest",
     );
 
     const findeSessionUserRequest = new RequestModel<string>(
       "getSessionInfo",
-      user.sub
+      user.sub,
     );
 
     let refreshedUser: ResponseModel<User>;
 
     if (isGuest) {
       refreshedUser = await new UsersUseCases().getGuestData(
-        findeSessionUserRequest
+        findeSessionUserRequest,
       );
     } else {
       refreshedUser = await new UsersUseCases().findSessionUser(
-        findeSessionUserRequest
+        findeSessionUserRequest,
       );
     }
 
@@ -202,8 +202,8 @@ authRouter.get("/session-info", async (req: Request, res) => {
         .json(
           response.withError(
             HttpStatusCodes.UNAUTHORIZED,
-            "Your session has expired, please log in again."
-          )
+            "Your session has expired, please log in again.",
+          ),
         );
     }
 
@@ -238,12 +238,12 @@ authRouter.get("/session-info", async (req: Request, res) => {
           authToken:
             isExternalDomain(user.aud) &&
             isExternalDomain(
-              getUrl(response.transactionId!, req.headers.origin)?.hostname
+              getUrl(response.transactionId!, req.headers.origin)?.hostname,
             )
               ? token
               : undefined,
           redirect: redirect?.toString?.(),
-        })
+        }),
       );
   } catch (error) {
     console.error("Error verifying JWT:", error);
@@ -252,8 +252,8 @@ authRouter.get("/session-info", async (req: Request, res) => {
       .json(
         response.withError(
           HttpStatusCodes.UNAUTHORIZED,
-          "Session validation error"
-        )
+          "Session validation error",
+        ),
       );
   }
 });
@@ -270,8 +270,8 @@ authRouter.post("/sign-in", async (req, res) => {
         .json(
           response.withError(
             HttpStatusCodes.BAD_REQUEST,
-            "Email and password are required."
-          )
+            "Email and password are required.",
+          ),
         );
     }
 
@@ -283,7 +283,7 @@ authRouter.post("/sign-in", async (req, res) => {
     if (singInResponse.errorCode) {
       return res
         .status(
-          singInResponse.errorCode || HttpStatusCodes.INTERNAL_SERVER_ERROR
+          singInResponse.errorCode || HttpStatusCodes.INTERNAL_SERVER_ERROR,
         )
         .json(singInResponse);
     }
@@ -309,7 +309,7 @@ authRouter.post("/sign-in", async (req, res) => {
 
     const token = await createJwt(
       sessionUser,
-      redirect?.hostname || EnvVars.CookieProps.Options.domain
+      redirect?.hostname || EnvVars.CookieProps.Options.domain,
     );
 
     res.cookie("authToken", token, getCookieOptions());
@@ -329,8 +329,8 @@ authRouter.post("/sign-in", async (req, res) => {
       .json(
         new ResponseModel<unknown>(transactionId).withError(
           HttpStatusCodes.INTERNAL_SERVER_ERROR,
-          "Sign in error. Please try again later."
-        )
+          "Sign in error. Please try again later.",
+        ),
       );
   }
 });
@@ -341,7 +341,7 @@ authRouter.post("/sign-up", async (req, res) => {
   const successfullResponse = new ResponseModel<unknown>(
     transactionId,
     undefined,
-    "You have successfully signed up!"
+    "You have successfully signed up!",
   );
 
   try {
@@ -349,12 +349,12 @@ authRouter.post("/sign-up", async (req, res) => {
       name,
       email,
       password,
-      passwordConfirmation
+      passwordConfirmation,
     );
 
     const request = new RequestModel<UserRegistration>(
       transactionId,
-      registration
+      registration,
     );
     const response = await new UsersUseCases().signUp(request);
 
@@ -376,8 +376,8 @@ authRouter.post("/sign-up", async (req, res) => {
       .json(
         new ResponseModel<unknown>(transactionId).withError(
           HttpStatusCodes.INTERNAL_SERVER_ERROR,
-          "Sign in error. Please try again later."
-        )
+          "Sign in error. Please try again later.",
+        ),
       );
   }
 });
@@ -434,7 +434,7 @@ authRouter.post("/google/callback", async (req, res) => {
     if (response.errorCode) {
       return res.redirect(
         302,
-        `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?errorMessage=${response.message}`
+        `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?errorMessage=${response.message}`,
       );
     }
 
@@ -459,7 +459,7 @@ authRouter.post("/google/callback", async (req, res) => {
     const redirect = getRedirectUrl(transactionId, req, res, false);
     const token = await createJwt(
       sessionUser,
-      redirect?.hostname || EnvVars.CookieProps.Options.domain
+      redirect?.hostname || EnvVars.CookieProps.Options.domain,
     );
 
     res.cookie("authToken", token, getCookieOptions());
@@ -469,7 +469,7 @@ authRouter.post("/google/callback", async (req, res) => {
     logger.err(err, true);
     res.redirect(
       302,
-      `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?errorMessage=Login error.`
+      `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?errorMessage=Login error.`,
     );
   }
 });
@@ -492,11 +492,11 @@ authRouter.get(
       const response = new ResponseModel(
         transactionId,
         500,
-        "Internal Server Error"
+        "Internal Server Error",
       );
       res.status(500).json(response);
     }
-  }
+  },
 );
 
 authRouter.put(
@@ -515,11 +515,11 @@ authRouter.put(
 
       const request = new RequestModel<PersonalInformationUpdate>(
         transactionId,
-        personalInformationUpdate
+        personalInformationUpdate,
       );
 
       const response = await new UsersUseCases().updatePersonalInformation(
-        request
+        request,
       );
 
       const status = response.errorCode || 200;
@@ -529,11 +529,11 @@ authRouter.put(
       const response = new ResponseModel(
         transactionId,
         500,
-        "Internal Server Error"
+        "Internal Server Error",
       );
       res.status(500).json(response);
     }
-  }
+  },
 );
 
 authRouter.put(
@@ -553,7 +553,7 @@ authRouter.put(
         .build();
 
       const response = await new UsersUseCases().updatePassword(
-        new RequestModel(transactionId, passwordUpdate)
+        new RequestModel(transactionId, passwordUpdate),
       );
 
       const status = response.errorCode || 200;
@@ -563,11 +563,11 @@ authRouter.put(
       const response = new ResponseModel(
         transactionId,
         500,
-        "Internal Server Error"
+        "Internal Server Error",
       );
       res.status(500).json(response);
     }
-  }
+  },
 );
 
 authRouter.post("/guest/sign-in", async (req, res) => {
@@ -582,7 +582,7 @@ authRouter.post("/guest/sign-in", async (req, res) => {
     if (guestResponse.errorCode) {
       return res
         .status(
-          guestResponse.errorCode || HttpStatusCodes.INTERNAL_SERVER_ERROR
+          guestResponse.errorCode || HttpStatusCodes.INTERNAL_SERVER_ERROR,
         )
         .json(guestResponse);
     }
@@ -601,7 +601,7 @@ authRouter.post("/guest/sign-in", async (req, res) => {
     const redirect = getRedirectUrl(transactionId, req, res);
     const token = await createJwt(
       sessionUser,
-      redirect?.hostname || EnvVars.CookieProps.Options.domain
+      redirect?.hostname || EnvVars.CookieProps.Options.domain,
     );
 
     res.cookie("authToken", token, getCookieOptions());
@@ -622,8 +622,8 @@ authRouter.post("/guest/sign-in", async (req, res) => {
       .json(
         new ResponseModel<unknown>(transactionId).withError(
           HttpStatusCodes.INTERNAL_SERVER_ERROR,
-          "Sign in error. Please try again later."
-        )
+          "Sign in error. Please try again later.",
+        ),
       );
   }
 });
@@ -652,6 +652,96 @@ authRouter.post("/redirects", async (request, res) => {
   }
 
   res.status(200).json(response);
+});
+
+authRouter.post("/forgot-password", async (req, res) => {
+  const transactionId = "forgotPassword";
+  const { email = "" } = req.body || {};
+
+  try {
+    const forgotPasswordResponse =
+      await new UsersUseCases().requestPasswordReset(
+        new RequestModel<string>(transactionId, email),
+      );
+
+    if (forgotPasswordResponse.errorCode) {
+      return res
+        .status(
+          forgotPasswordResponse.errorCode ||
+            HttpStatusCodes.INTERNAL_SERVER_ERROR,
+        )
+        .json(forgotPasswordResponse);
+    }
+
+    res.status(200).json(forgotPasswordResponse);
+  } catch (err) {
+    logger.err(err, true);
+    res
+      .status(500)
+      .json(
+        new ResponseModel<unknown>(transactionId).withError(
+          HttpStatusCodes.INTERNAL_SERVER_ERROR,
+          "Forgot password error. Please try again later.",
+        ),
+      );
+  }
+});
+
+authRouter.get("/verify-token", async (req, res) => {
+  const transactionId = "verifyToken";
+  const { token = "" } = req.query || {};
+
+  try {
+    const verifyResponse = await new UsersUseCases().verifyPasswordResetToken(
+      new RequestModel<string>(transactionId, token as string),
+    );
+
+    if (verifyResponse.errorCode) {
+      return res.status(verifyResponse.errorCode).json(verifyResponse);
+    }
+
+    res.status(200).json(verifyResponse);
+  } catch (err) {
+    logger.err(err, true);
+    res
+      .status(500)
+      .json(
+        new ResponseModel<unknown>(transactionId).withError(
+          HttpStatusCodes.INTERNAL_SERVER_ERROR,
+          "Token verification error.",
+        ),
+      );
+  }
+});
+
+authRouter.post("/reset-password", async (req, res) => {
+  const transactionId = "resetPassword";
+  const { token = "", password = "" } = req.body || {};
+
+  try {
+    const resetResponse = await new UsersUseCases().resetPassword(
+      new RequestModel<{ token: string; password: string }>(transactionId, {
+        token,
+        password,
+      }),
+    );
+
+    if (resetResponse.errorCode) {
+      return res.status(resetResponse.errorCode).json(resetResponse);
+    }
+
+    res.status(200).json(resetResponse);
+  } catch (err) {
+    logger.err(err, true);
+    res
+      .status(500)
+      .json(
+        new ResponseModel<unknown>(transactionId).withError(
+          HttpStatusCodes.INTERNAL_SERVER_ERROR,
+          "Reset password error. Please try again later.",
+        ),
+      );
+  }
 });
 
 export default authRouter;

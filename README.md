@@ -32,7 +32,16 @@
      VARIAMOS_PUBLIC_KEY_PATH=./jwtRS256.key.pub
      ```
 
-3. **Install Dependencies:**
+3. **Configure SMTP Variables for Emails (Optional for Dev):**
+   
+   Configure the following environment variables in `./env/development.env` (or let them blank to simulate emails in console logs):
+   - `SMTP_HOST`: Host address of the SMTP server.
+   - `SMTP_PORT`: SMTP port (e.g., 587 for TLS, 465 for SSL).
+   - `SMTP_USER`: SMTP username or authentication email.
+   - `SMTP_PASSWORD`: SMTP authentication password.
+   - `SMTP_FROM`: Sender name and address (e.g., `"VariaMos" <noreply@variamos.com>`).
+
+4. **Install Dependencies:**
 
    - Run the following command:
      ```shell
