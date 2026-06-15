@@ -1,0 +1,146 @@
+import axios from "axios";
+
+export class GitHubIssuesService {
+  private static getHeaders(token: string) {
+    return {
+      "Content-Type": "application/json",
+      Authorization: `token ${token}`,
+      Accept: "application/vnd.github+json",
+    };
+  }
+
+  public static async createIssue(
+    repo: string,
+    title: string,
+    body: string,
+    category: string,
+    token: string,
+  ): Promise<number | null> {
+    const url = `https://api.github.com/repos/${repo}/issues`;
+    let label = "bug";
+    if (category === "Question") label = "question";
+    else if (category === "Enhancement") label = "enhancement";
+
+    try {
+      const response = await axios.post(
+        url,
+        {
+          title,
+          body,
+          labels: [label],
+        },
+        {
+          headers: this.getHeaders(token),
+        },
+      );
+      return response.data.number;
+    } catch (error) {
+      console.error(
+        `GitHub error [createIssue] on ${repo}:`,
+        error.response?.data || error.message,
+      );
+      return null;
+    }
+  }
+
+  public static async updateIssue(
+    repo: string,
+    issueNumber: number,
+    title: string,
+    body: string,
+    category: string,
+    token: string,
+  ): Promise<boolean> {
+    const url = `https://api.github.com/repos/${repo}/issues/${issueNumber}`;
+    let label = "bug";
+    if (category === "Question") label = "question";
+    else if (category === "Enhancement") label = "enhancement";
+
+    try {
+      await axios.patch(
+        url,
+        {
+          title,
+          body,
+          labels: [label],
+        },
+        {
+          headers: this.getHeaders(token),
+        },
+      );
+      return true;
+    } catch (error) {
+      console.error(
+        `GitHub error [updateIssue] on ${repo}:`,
+        error.response?.data || error.message,
+      );
+      return false;
+    }
+  }
+
+  public static async closeIssue(
+    repo: string,
+    issueNumber: number,
+    token: string,
+  ): Promise<boolean> {
+    const url = `https://api.github.com/repos/${repo}/issues/${issueNumber}`;
+
+    try {
+      await axios.patch(
+        url,
+        { state: "closed" },
+        { headers: this.getHeaders(token) },
+      );
+      return true;
+    } catch (error) {
+      console.error(
+        `GitHub error [closeIssue] on ${repo}:`,
+        error.response?.data || error.message,
+      );
+      return false;
+    }
+  }
+
+  public static async reopenIssue(
+    repo: string,
+    issueNumber: number,
+    token: string,
+  ): Promise<boolean> {
+    const url = `https://api.github.com/repos/${repo}/issues/${issueNumber}`;
+
+    try {
+      await axios.patch(
+        url,
+        { state: "open" },
+        { headers: this.getHeaders(token) },
+      );
+      return true;
+    } catch (error) {
+      console.error(
+        `GitHub error [reopenIssue] on ${repo}:`,
+        error.response?.data || error.message,
+      );
+      return false;
+    }
+  }
+
+  public static async getIssues(
+    repo: string,
+    token: string,
+  ): Promise<any[] | null> {
+    const url = `https://api.github.com/repos/${repo}/issues?state=all&per_page=100`;
+
+    try {
+      const response = await axios.get(url, {
+        headers: this.getHeaders(token),
+      });
+      return response.data;
+    } catch (error) {
+      console.error(
+        `GitHub error [getIssues] on ${repo}:`,
+        error.response?.data || error.message,
+      );
+      return null;
+    }
+  }
+}
