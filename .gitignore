@@ -63,3 +63,7 @@ typings/
 
 dist/
 **/**/*.log
+
+# Uploaded files
+src/public/uploads/
+
