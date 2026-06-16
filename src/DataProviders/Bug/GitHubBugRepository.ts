@@ -6,8 +6,9 @@ import { Bug } from "@src/Domain/Bug/Entity/Bug";
 import { BugFilter } from "@src/Domain/Bug/Entity/BugFilter";
 import { GitHubBugModel } from "./GitHubBug";
 import logger from "jet-logger";
+import { IIssueTrackerRepository } from "@src/Domain/Bug/Repository/IIssueTrackerRepository";
 
-export class GitHubBugRepositoryImpl {
+export class GitHubBugRepositoryImpl implements IIssueTrackerRepository {
   async queryBugs(
     request: RequestModel<BugFilter>,
   ): Promise<ResponseModel<Bug[]>> {
@@ -60,7 +61,7 @@ export class GitHubBugRepositoryImpl {
     return response;
   }
 
-  async saveOrUpdateGitHubBug(
+  async saveOrUpdateBug(
     request: RequestModel<Bug>,
   ): Promise<ResponseModel<{ created: boolean; updated: boolean }>> {
     const response = new ResponseModel<{ created: boolean; updated: boolean }>(

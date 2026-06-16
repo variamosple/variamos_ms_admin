@@ -46,4 +46,11 @@ export default {
   DOCKER: {
     SOCKET_PATH: process.env.DOCKER_SOCKET_PATH ?? "",
   },
+  GITHUB: {
+    TOKEN: process.env.GITHUB_TOKEN ?? "",
+    MANAGED_REPOS: (process.env.GITHUB_MANAGED_REPOS ?? "")
+      .split(",")
+      .map((repo) => repo.trim())
+      .filter((repo) => repo !== ""),
+  },
 } as const;

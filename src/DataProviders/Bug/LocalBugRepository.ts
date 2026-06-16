@@ -10,8 +10,9 @@ import { LocalBugLogModel } from "./LocalBugLog";
 import { UserModel } from "../User/User";
 import { Op } from "sequelize";
 import logger from "jet-logger";
+import { ILocalBugRepository } from "@src/Domain/Bug/Repository/ILocalBugRepository";
 
-export class LocalBugRepositoryImpl {
+export class LocalBugRepositoryImpl implements ILocalBugRepository {
   async queryLocalBugs(
     request: RequestModel<BugFilter>,
   ): Promise<ResponseModel<Bug[]>> {

@@ -1,7 +1,8 @@
 import axios from "axios";
+import { IIssueTrackerService } from "@src/Domain/Core/Service/IIssueTrackerService";
 
-export class GitHubIssuesService {
-  private static getHeaders(token: string) {
+export class GitHubIssuesService implements IIssueTrackerService {
+  private getHeaders(token: string) {
     return {
       "Content-Type": "application/json",
       Authorization: `token ${token}`,
@@ -9,7 +10,7 @@ export class GitHubIssuesService {
     };
   }
 
-  public static async createIssue(
+  public async createIssue(
     repo: string,
     title: string,
     body: string,
@@ -43,7 +44,7 @@ export class GitHubIssuesService {
     }
   }
 
-  public static async updateIssue(
+  public async updateIssue(
     repo: string,
     issueNumber: number,
     title: string,
@@ -78,7 +79,7 @@ export class GitHubIssuesService {
     }
   }
 
-  public static async closeIssue(
+  public async closeIssue(
     repo: string,
     issueNumber: number,
     token: string,
@@ -101,7 +102,7 @@ export class GitHubIssuesService {
     }
   }
 
-  public static async reopenIssue(
+  public async reopenIssue(
     repo: string,
     issueNumber: number,
     token: string,
@@ -124,10 +125,7 @@ export class GitHubIssuesService {
     }
   }
 
-  public static async getIssues(
-    repo: string,
-    token: string,
-  ): Promise<any[] | null> {
+  public async getIssues(repo: string, token: string): Promise<any[] | null> {
     const url = `https://api.github.com/repos/${repo}/issues?state=all&per_page=100`;
 
     try {
@@ -144,3 +142,5 @@ export class GitHubIssuesService {
     }
   }
 }
+
+export const GitHubIssuesServiceInstance = new GitHubIssuesService();

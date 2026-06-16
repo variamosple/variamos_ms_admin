@@ -16,6 +16,7 @@ import permissionsV1Router, {
 import rolesV1Router, { ROLES_V1_ROUTE } from "./RolesV1Router";
 import usersV1Router, { USERS_V1_ROUTE } from "./UsersV1Router";
 import visitsV1Router, { VISITS_V1_ROUTE } from "./VisitsV1Router";
+import bugV1Router, { BUG_V1_ROUTE } from "./BugRouter";
 
 const baseRouter = Router();
 
@@ -28,6 +29,7 @@ baseRouter.use(MICRO_SERVICES_V1_ROUTE, microServicesV1Router);
 baseRouter.use(VISITS_V1_ROUTE, visitsV1Router);
 baseRouter.use(METRICS_V1_ROUTE, metricsV1Router);
 baseRouter.use(COUNTRIES_V1_ROUTE, countriesV1Router);
+baseRouter.use(BUG_V1_ROUTE, bugV1Router);
 
 baseRouter.get("/version", async function (_, res) {
   try {
