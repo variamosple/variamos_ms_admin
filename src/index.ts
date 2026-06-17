@@ -12,27 +12,15 @@ import { MicroServiceUseCases } from "./Domain/MicroService/MicroServiceCases";
 import app from "./server";
 // **** Run **** //
 
-import { BugUseCases } from "./Domain/Bug/BugUseCases";
-import { DiskStorageServiceInstance } from "./Infrastructure/Storage/DiskStorageService";
-import { GitHubIssuesServiceInstance } from "./Infrastructure/GitHub/GitHubIssuesService";
+import { productionBugUseCases as bugUseCases } from "./EntryPoints";
 import { GitHubBugModel } from "./DataProviders/Bug/GitHubBug";
 import { LocalBugModel } from "./DataProviders/Bug/LocalBug";
 import { LocalBugAttachmentModel } from "./DataProviders/Bug/LocalBugAttachment";
 import { LocalBugLogModel } from "./DataProviders/Bug/LocalBugLog";
 import "./DataProviders/Bug/LocalBugAssociations";
 
-import { GitHubBugRepositoryInstance } from "./DataProviders/Bug/GitHubBugRepository";
-import { LocalBugRepositoryInstance } from "./DataProviders/Bug/LocalBugRepository";
-
 const SERVER_START_MSG =
   "Express server started on port: " + EnvVars.Port.toString();
-
-const bugUseCases = new BugUseCases(
-  GitHubIssuesServiceInstance,
-  DiskStorageServiceInstance,
-  GitHubBugRepositoryInstance,
-  LocalBugRepositoryInstance,
-);
 
 const server = app.listen(EnvVars.Port, async () => {
   initKeyStore().then();

@@ -3,14 +3,14 @@ import { ResponseModel } from "../Core/Entity/ResponseModel";
 import { Bug } from "./Entity/Bug";
 import { BugStatusLog } from "./Entity/BugStatusLog";
 import { BugFilter } from "./Entity/BugFilter";
-import { UserRepositoryInstance } from "@src/DataProviders/User/UserRepository";
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
-import EnvVars from "@src/common/EnvVars";
 import logger from "jet-logger";
 import { IIssueTrackerService } from "../Core/Service/IIssueTrackerService";
 import { IStorageService } from "../Core/Service/IStorageService";
 import { IIssueTrackerRepository } from "./Repository/IIssueTrackerRepository";
 import { ILocalBugRepository } from "./Repository/ILocalBugRepository";
+import { IUserRepository } from "./Repository/IUserRepository";
+import { IBugTrackerConfig } from "./Config/IBugTrackerConfig";
+import { DomainErrorCodes } from "../Core/Error/DomainErrorCodes";
 
 export const ALLOWED_CATEGORIES = [
   "Editor",
@@ -28,6 +28,8 @@ export class BugUseCases {
     private readonly storageService: IStorageService,
     private readonly gitHubBugRepository: IIssueTrackerRepository,
     private readonly localBugRepository: ILocalBugRepository,
+    private readonly userRepository: IUserRepository,
+    private readonly githubConfig: IBugTrackerConfig,
   ) {}
 
   queryBugs(request: RequestModel<BugFilter>): Promise<ResponseModel<Bug[]>> {
@@ -56,14 +58,14 @@ export class BugUseCases {
     if (!data.title || !data.description || !data.category) {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        HttpStatusCodes.BAD_REQUEST,
+        DomainErrorCodes.BAD_REQUEST,
         "Title, description and category are required.",
       );
     }
     if (!ALLOWED_CATEGORIES.includes(data.category)) {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        HttpStatusCodes.BAD_REQUEST,
+        DomainErrorCodes.BAD_REQUEST,
         `Invalid category selected. Allowed: ${ALLOWED_CATEGORIES.join(", ")}`,
       );
     }
@@ -71,14 +73,14 @@ export class BugUseCases {
     if (!data.createdById && !data.reporterEmail) {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        HttpStatusCodes.BAD_REQUEST,
+        DomainErrorCodes.BAD_REQUEST,
         "An email address is required for guest bug submissions.",
       );
     }
 
     let reporterEmail = data.reporterEmail;
     if (data.createdById) {
-      const userResponse = await UserRepositoryInstance.findSessionUser(
+      const userResponse = await this.userRepository.findSessionUser(
         new RequestModel(request.transactionId, data.createdById),
       );
       if (userResponse.data && userResponse.data.email) {
@@ -89,7 +91,7 @@ export class BugUseCases {
     if (!reporterEmail) {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        HttpStatusCodes.BAD_REQUEST,
+        DomainErrorCodes.BAD_REQUEST,
         "Reporter email could not be resolved.",
       );
     }
@@ -139,26 +141,27 @@ export class BugUseCases {
     if (!data.id || !data.status) {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        HttpStatusCodes.BAD_REQUEST,
+        DomainErrorCodes.BAD_REQUEST,
         "Bug ID and status are required.",
       );
     }
+    const gitHubToken = this.githubConfig.getGitHubToken();
     if (data.id.startsWith("gh-")) {
       const dbResponse = await this.gitHubBugRepository.updateStatus(request);
-      if (dbResponse.data && EnvVars.GITHUB.TOKEN) {
+      if (dbResponse.data && gitHubToken) {
         const bug = dbResponse.data;
         if (bug.githubRepo && bug.gitIssueNumber) {
           if (data.status === "closed") {
             await this.issueTrackerService.closeIssue(
               bug.githubRepo,
               bug.gitIssueNumber,
-              EnvVars.GITHUB.TOKEN,
+              gitHubToken,
             );
           } else if (data.status === "open") {
             await this.issueTrackerService.reopenIssue(
               bug.githubRepo,
               bug.gitIssueNumber,
-              EnvVars.GITHUB.TOKEN,
+              gitHubToken,
             );
           }
         }
@@ -176,7 +179,7 @@ export class BugUseCases {
     if (!data.id) {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        HttpStatusCodes.BAD_REQUEST,
+        DomainErrorCodes.BAD_REQUEST,
         "Bug ID is required.",
       );
     }
@@ -188,7 +191,7 @@ export class BugUseCases {
     if (!bugResponse.data) {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        HttpStatusCodes.NOT_FOUND,
+        DomainErrorCodes.NOT_FOUND,
         "Local bug not found.",
       );
     }
@@ -196,7 +199,7 @@ export class BugUseCases {
     if (bugResponse.data.status !== "pending") {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        HttpStatusCodes.BAD_REQUEST,
+        DomainErrorCodes.BAD_REQUEST,
         "Only pending bugs can be rejected.",
       );
     }
@@ -217,7 +220,7 @@ export class BugUseCases {
     if (!data.id) {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        HttpStatusCodes.BAD_REQUEST,
+        DomainErrorCodes.BAD_REQUEST,
         "Bug ID is required.",
       );
     }
@@ -229,7 +232,7 @@ export class BugUseCases {
     if (!bugResponse.data) {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        HttpStatusCodes.NOT_FOUND,
+        DomainErrorCodes.NOT_FOUND,
         "Local bug not found.",
       );
     }
@@ -237,7 +240,7 @@ export class BugUseCases {
     if (bugResponse.data.status !== "rejected") {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        HttpStatusCodes.BAD_REQUEST,
+        DomainErrorCodes.BAD_REQUEST,
         "Only rejected bugs can be restored.",
       );
     }
@@ -314,10 +317,10 @@ export class BugUseCases {
   ): Promise<ResponseModel<string[]>> {
     const response = new ResponseModel<string[]>(request.transactionId);
     try {
-      response.data = [...EnvVars.GITHUB.MANAGED_REPOS];
+      response.data = [...this.githubConfig.getGitHubManagedRepos()];
     } catch (error) {
       logger.err(error);
-      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, error.message);
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, error.message);
     }
     return response;
   }
@@ -325,18 +328,18 @@ export class BugUseCases {
   async syncBugs(request: RequestModel<void>): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
     try {
-      const token = EnvVars.GITHUB.TOKEN;
+      const token = this.githubConfig.getGitHubToken();
       if (!token) {
         logger.warn(
           "GitHub token is not defined in environment variables. Synchronization aborted.",
         );
         return response.withError(
-          HttpStatusCodes.BAD_REQUEST,
+          DomainErrorCodes.BAD_REQUEST,
           "GitHub Sync is not configured.",
         );
       }
 
-      const repos = EnvVars.GITHUB.MANAGED_REPOS;
+      const repos = this.githubConfig.getGitHubManagedRepos();
       logger.info(`Starting bugs sync for repos: ${repos.join(", ")}`);
 
       let totalCreated = 0;
@@ -407,7 +410,7 @@ export class BugUseCases {
       );
     } catch (error) {
       logger.err(error);
-      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, error.message);
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, error.message);
     }
     return response;
   }

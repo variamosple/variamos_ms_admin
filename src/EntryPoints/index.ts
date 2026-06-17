@@ -16,7 +16,47 @@ import permissionsV1Router, {
 import rolesV1Router, { ROLES_V1_ROUTE } from "./RolesV1Router";
 import usersV1Router, { USERS_V1_ROUTE } from "./UsersV1Router";
 import visitsV1Router, { VISITS_V1_ROUTE } from "./VisitsV1Router";
-import bugV1Router, { BUG_V1_ROUTE } from "./BugRouter";
+import { createBugRouter, BUG_V1_ROUTE } from "./BugRouter";
+import { BugUseCases } from "@src/Domain/Bug/BugUseCases";
+import { GitHubIssuesServiceInstance } from "@src/Infrastructure/GitHub/GitHubIssuesService";
+import { DiskStorageServiceInstance } from "@src/Infrastructure/Storage/DiskStorageService";
+import { GitHubBugRepositoryInstance } from "@src/DataProviders/Bug/GitHubBugRepository";
+import { LocalBugRepositoryInstance } from "@src/DataProviders/Bug/LocalBugRepository";
+import { UserRepositoryInstance } from "@src/DataProviders/User/UserRepository";
+import multer from "multer";
+import path from "path";
+
+// Initialize production dependencies for BugUseCases
+export const productionBugUseCases = new BugUseCases(
+  GitHubIssuesServiceInstance,
+  DiskStorageServiceInstance,
+  GitHubBugRepositoryInstance,
+  LocalBugRepositoryInstance,
+  UserRepositoryInstance,
+  {
+    getGitHubToken: () => EnvVars.GITHUB.TOKEN,
+    getGitHubManagedRepos: () => EnvVars.GITHUB.MANAGED_REPOS,
+  },
+);
+
+// Multer storage configuration
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, path.join(__dirname, "../public/uploads"));
+  },
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  },
+});
+const productionUpload = multer({ storage });
+import { isAuthenticated } from "@variamosple/variamos-security";
+
+const bugV1Router = createBugRouter(
+  productionBugUseCases,
+  productionUpload,
+  isAuthenticated
+);
 
 const baseRouter = Router();
 
