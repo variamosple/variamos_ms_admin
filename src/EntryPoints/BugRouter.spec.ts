@@ -1,14 +1,4 @@
-import request from "supertest";
-import express from "express";
-import cookieParser from "cookie-parser";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Bug } from "@src/Domain/Bug/Entity/Bug";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import { createBugRouter } from "./BugRouter";
-import { BugUseCases } from "@src/Domain/Bug/BugUseCases";
-import multer from "multer";
-
-// Mock the authentication middleware
+// Mock the authentication middleware (hoisted at the very top scope)
 jest.mock("@variamosple/variamos-security", () => ({
   isAuthenticated: (req: any, _res: any, next: any) => {
     req.sessionUser = { id: "admin-123", email: "admin@example.com" };
@@ -19,18 +9,28 @@ jest.mock("@variamosple/variamos-security", () => ({
   checkSession: () => (req: any, _res: any, next: any) => next(),
 }));
 
-// Define the mock functions at the top scope of the file so they are hoisted cleanly
-const mockQueryBugs = jest.fn();
-const mockQueryLocalBugs = jest.fn();
-const mockQueryBugRepos = jest.fn();
-const mockCreateBug = jest.fn();
-const mockQueryHistory = jest.fn();
-const mockUpdateStatus = jest.fn();
-const mockRestoreBug = jest.fn();
-const mockRejectBug = jest.fn();
-const mockSyncBugs = jest.fn();
+import request from "supertest";
+import express, { Request, Response, NextFunction } from "express";
+import cookieParser from "cookie-parser";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
+import { Bug } from "@src/Domain/Bug/Entity/Bug";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
+import { createBugRouter } from "./BugRouter";
+import { BugUseCases } from "@src/Domain/Bug/BugUseCases";
+import multer from "multer";
 
-// Mock the BugUseCases instances that the BugRouter imports
+// Define the mock functions at the top scope of the file so they are hoisted cleanly
+const mockQueryBugs = jest.fn() as jest.Mock;
+const mockQueryLocalBugs = jest.fn() as jest.Mock;
+const mockQueryBugRepos = jest.fn() as jest.Mock;
+const mockCreateBug = jest.fn() as jest.Mock;
+const mockQueryHistory = jest.fn() as jest.Mock;
+const mockUpdateStatus = jest.fn() as jest.Mock;
+const mockRestoreBug = jest.fn() as jest.Mock;
+const mockRejectBug = jest.fn() as jest.Mock;
+const mockSyncBugs = jest.fn() as jest.Mock;
+
+// Mock the BugUseCases instances that the BugRouter imports, enforcing type safety on interface boundaries
 const mockBugUseCases = {
   queryBugs: mockQueryBugs,
   queryLocalBugs: mockQueryLocalBugs,

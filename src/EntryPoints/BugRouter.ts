@@ -66,7 +66,6 @@ export function createBugRouter(
   });
 
   // Get local bugs (Inbox)
-  // Get local bugs (Inbox)
   router.get("/local", authMiddleware, async (req: Request, res: Response) => {
     const transactionId = "queryLocalBugs";
     const { status, priority } = req.query;
