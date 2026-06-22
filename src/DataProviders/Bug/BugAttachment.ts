@@ -1,31 +1,33 @@
 import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
 import { DATE, INTEGER, Model, TEXT, UUID } from "sequelize";
 
-export interface LocalBugAttachmentAttributes {
+export interface BugAttachmentAttributes {
   id?: number;
   filePath: string;
   fileType: string;
-  localBugId: string;
+  bugId: string;
   createdAt?: Date;
+  updatedAt?: Date;
 }
 
-export class LocalBugAttachmentModel
-  extends Model<LocalBugAttachmentAttributes>
-  implements LocalBugAttachmentAttributes
+export class BugAttachmentModel
+  extends Model<BugAttachmentAttributes>
+  implements BugAttachmentAttributes
 {
   public id?: number;
   public filePath!: string;
   public fileType!: string;
-  public localBugId!: string;
+  public bugId!: string;
   public createdAt?: Date;
+  public updatedAt?: Date;
 }
 
-LocalBugAttachmentModel.init(
+BugAttachmentModel.init(
   {
     id: {
       type: INTEGER,
-      autoIncrement: true,
       primaryKey: true,
+      autoIncrement: true,
       allowNull: false,
     },
     filePath: {
@@ -38,9 +40,9 @@ LocalBugAttachmentModel.init(
       field: "file_type",
       allowNull: false,
     },
-    localBugId: {
+    bugId: {
       type: UUID,
-      field: "local_bug_id",
+      field: "bug_id",
       allowNull: false,
     },
     createdAt: {
@@ -48,13 +50,17 @@ LocalBugAttachmentModel.init(
       allowNull: false,
       field: "created_at",
     },
+    updatedAt: {
+      type: DATE,
+      allowNull: false,
+      field: "updated_at",
+    },
   },
   {
-    tableName: "local_bug_attachments",
+    tableName: "bug_attachments",
     sequelize: VARIAMOS_ORM,
     schema: "variamos",
     timestamps: true,
-    updatedAt: false, // No updatedAt for attachments
     underscored: true,
   },
 );

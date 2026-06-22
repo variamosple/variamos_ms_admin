@@ -20,8 +20,7 @@ import { createBugRouter, BUG_V1_ROUTE } from "./BugRouter";
 import { BugUseCases } from "@src/Domain/Bug/BugUseCases";
 import { GitHubIssuesServiceInstance } from "@src/Infrastructure/GitHub/GitHubIssuesService";
 import { DiskStorageServiceInstance } from "@src/Infrastructure/Storage/DiskStorageService";
-import { GitHubBugRepositoryInstance } from "@src/DataProviders/Bug/GitHubBugRepository";
-import { LocalBugRepositoryInstance } from "@src/DataProviders/Bug/LocalBugRepository";
+import { BugRepositoryInstance } from "@src/DataProviders/Bug/BugRepository";
 import { UserRepositoryInstance } from "@src/DataProviders/User/UserRepository";
 import multer from "multer";
 import path from "path";
@@ -30,8 +29,7 @@ import path from "path";
 export const productionBugUseCases = new BugUseCases(
   GitHubIssuesServiceInstance,
   DiskStorageServiceInstance,
-  GitHubBugRepositoryInstance,
-  LocalBugRepositoryInstance,
+  BugRepositoryInstance,
   UserRepositoryInstance,
   {
     getGitHubToken: () => EnvVars.GITHUB.TOKEN,
@@ -55,7 +53,7 @@ import { isAuthenticated } from "@variamosple/variamos-security";
 const bugV1Router = createBugRouter(
   productionBugUseCases,
   productionUpload,
-  isAuthenticated
+  isAuthenticated,
 );
 
 const baseRouter = Router();

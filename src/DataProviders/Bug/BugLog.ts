@@ -1,33 +1,35 @@
 import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
 import { DATE, INTEGER, Model, TEXT, UUID } from "sequelize";
 
-export interface LocalBugLogAttributes {
+export interface BugLogAttributes {
   id?: number;
   action: string;
   comment?: string;
-  localBugId: string;
+  bugId: string;
   operatorId?: string;
   createdAt?: Date;
+  updatedAt?: Date;
 }
 
-export class LocalBugLogModel
-  extends Model<LocalBugLogAttributes>
-  implements LocalBugLogAttributes
+export class BugLogModel
+  extends Model<BugLogAttributes>
+  implements BugLogAttributes
 {
   public id?: number;
   public action!: string;
   public comment?: string;
-  public localBugId!: string;
+  public bugId!: string;
   public operatorId?: string;
   public createdAt?: Date;
+  public updatedAt?: Date;
 }
 
-LocalBugLogModel.init(
+BugLogModel.init(
   {
     id: {
       type: INTEGER,
-      autoIncrement: true,
       primaryKey: true,
+      autoIncrement: true,
       allowNull: false,
     },
     action: {
@@ -38,13 +40,13 @@ LocalBugLogModel.init(
       type: TEXT,
       allowNull: true,
     },
-    localBugId: {
+    bugId: {
       type: UUID,
-      field: "local_bug_id",
+      field: "bug_id",
       allowNull: false,
     },
     operatorId: {
-      type: UUID,
+      type: TEXT,
       field: "operator_id",
       allowNull: true,
     },
@@ -53,13 +55,17 @@ LocalBugLogModel.init(
       allowNull: false,
       field: "created_at",
     },
+    updatedAt: {
+      type: DATE,
+      allowNull: false,
+      field: "updated_at",
+    },
   },
   {
-    tableName: "local_bug_logs",
+    tableName: "bug_status_logs",
     sequelize: VARIAMOS_ORM,
     schema: "variamos",
     timestamps: true,
-    updatedAt: false,
     underscored: true,
   },
 );

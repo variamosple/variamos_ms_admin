@@ -1,38 +1,45 @@
 import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
-import { DATE, ENUM, Model, TEXT, UUID, UUIDV4 } from "sequelize";
+import { DATE, ENUM, INTEGER, Model, TEXT, UUID, UUIDV4 } from "sequelize";
 
-export interface LocalBugAttributes {
+export interface BugAttributes {
   id?: string;
   title: string;
   description: string;
-  reporterEmail: string;
   priority: "low" | "medium" | "high";
-  category: string;
+  category?: string;
   status: string;
-  githubRepo?: string;
+  reporterEmail?: string;
   createdById?: string;
+  githubRepo?: string;
+  gitIssueNumber?: number;
+  githubCreator?: string;
+  githubHtmlUrl?: string;
+  githubAssignee?: string;
+  githubCreatedAt?: Date;
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-export class LocalBugModel
-  extends Model<LocalBugAttributes>
-  implements LocalBugAttributes
-{
+export class BugModel extends Model<BugAttributes> implements BugAttributes {
   public id?: string;
   public title!: string;
   public description!: string;
-  public reporterEmail!: string;
   public priority!: "low" | "medium" | "high";
-  public category!: string;
+  public category?: string;
   public status!: string;
-  public githubRepo?: string;
+  public reporterEmail?: string;
   public createdById?: string;
+  public githubRepo?: string;
+  public gitIssueNumber?: number;
+  public githubCreator?: string;
+  public githubHtmlUrl?: string;
+  public githubAssignee?: string;
+  public githubCreatedAt?: Date;
   public createdAt?: Date;
   public updatedAt?: Date;
 }
 
-LocalBugModel.init(
+BugModel.init(
   {
     id: {
       type: UUID,
@@ -48,11 +55,6 @@ LocalBugModel.init(
       type: TEXT,
       allowNull: false,
     },
-    reporterEmail: {
-      type: TEXT,
-      field: "reporter_email",
-      allowNull: false,
-    },
     priority: {
       type: ENUM("low", "medium", "high"),
       defaultValue: "medium",
@@ -60,21 +62,51 @@ LocalBugModel.init(
     },
     category: {
       type: TEXT,
-      allowNull: false,
+      allowNull: true,
     },
     status: {
       type: TEXT,
       defaultValue: "pending",
       allowNull: false,
     },
+    reporterEmail: {
+      type: TEXT,
+      field: "reporter_email",
+      allowNull: true,
+    },
+    createdById: {
+      type: TEXT,
+      field: "created_by_id",
+      allowNull: true,
+    },
     githubRepo: {
       type: TEXT,
       field: "github_repo",
       allowNull: true,
     },
-    createdById: {
-      type: UUID,
-      field: "created_by_id",
+    gitIssueNumber: {
+      type: INTEGER,
+      field: "git_issue_number",
+      allowNull: true,
+    },
+    githubCreator: {
+      type: TEXT,
+      field: "github_creator",
+      allowNull: true,
+    },
+    githubHtmlUrl: {
+      type: TEXT,
+      field: "github_html_url",
+      allowNull: true,
+    },
+    githubAssignee: {
+      type: TEXT,
+      field: "github_assignee",
+      allowNull: true,
+    },
+    githubCreatedAt: {
+      type: DATE,
+      field: "github_created_at",
       allowNull: true,
     },
     createdAt: {
@@ -89,7 +121,7 @@ LocalBugModel.init(
     },
   },
   {
-    tableName: "local_bugs",
+    tableName: "bugs",
     sequelize: VARIAMOS_ORM,
     schema: "variamos",
     timestamps: true,

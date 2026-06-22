@@ -13,11 +13,10 @@ import app from "./server";
 // **** Run **** //
 
 import { productionBugUseCases as bugUseCases } from "./EntryPoints";
-import { GitHubBugModel } from "./DataProviders/Bug/GitHubBug";
-import { LocalBugModel } from "./DataProviders/Bug/LocalBug";
-import { LocalBugAttachmentModel } from "./DataProviders/Bug/LocalBugAttachment";
-import { LocalBugLogModel } from "./DataProviders/Bug/LocalBugLog";
-import "./DataProviders/Bug/LocalBugAssociations";
+import { BugModel } from "./DataProviders/Bug/Bug";
+import { BugAttachmentModel } from "./DataProviders/Bug/BugAttachment";
+import { BugLogModel } from "./DataProviders/Bug/BugLog";
+import "./DataProviders/Bug/BugAssociations";
 
 const SERVER_START_MSG =
   "Express server started on port: " + EnvVars.Port.toString();
@@ -29,10 +28,9 @@ const server = app.listen(EnvVars.Port, async () => {
   // Sync Bug tracker models to guarantee tables exist
   try {
     logger.info("Synchronizing Bug Tracker Database models...");
-    await LocalBugModel.sync();
-    await GitHubBugModel.sync();
-    await LocalBugAttachmentModel.sync();
-    await LocalBugLogModel.sync();
+    await BugModel.sync();
+    await BugAttachmentModel.sync();
+    await BugLogModel.sync();
     logger.info("Bug Tracker Database models synchronized successfully.");
 
     // Purge expired rejected bugs (older than 7 days) on startup
@@ -99,7 +97,7 @@ webSocketServer.on("connection", async (ws, req) => {
         );
       }
 
-      const logStream = response.data!;
+      const logStream = response.data;
 
       logStream.on("data", (chunk) => {
         if (ws.readyState === WebSocket.OPEN) {

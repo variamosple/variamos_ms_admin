@@ -8,16 +8,14 @@ import { DomainErrorCodes } from "../Core/Error/DomainErrorCodes";
 import logger from "jet-logger";
 import { IIssueTrackerService } from "../Core/Service/IIssueTrackerService";
 import { IStorageService } from "../Core/Service/IStorageService";
-import { IIssueTrackerRepository } from "./Repository/IIssueTrackerRepository";
-import { ILocalBugRepository } from "./Repository/ILocalBugRepository";
+import { IBugRepository } from "./Repository/IBugRepository";
 import { IUserRepository } from "./Repository/IUserRepository";
 
 describe("BugUseCases Unit Tests", () => {
   let bugUseCases: BugUseCases;
   let mockIssueTrackerService: jest.Mocked<IIssueTrackerService>;
   let mockStorageService: jest.Mocked<IStorageService>;
-  let mockGitHubBugRepository: jest.Mocked<IIssueTrackerRepository>;
-  let mockLocalBugRepository: jest.Mocked<ILocalBugRepository>;
+  let mockBugRepository: jest.Mocked<IBugRepository>;
   let mockUserRepository: jest.Mocked<IUserRepository>;
   let mockConfig: IBugTrackerConfig;
 
@@ -26,40 +24,45 @@ describe("BugUseCases Unit Tests", () => {
       closeIssue: jest.fn(),
       reopenIssue: jest.fn(),
       getIssues: jest.fn(),
+      createIssue: jest.fn(),
     } as unknown as jest.Mocked<IIssueTrackerService>;
     mockStorageService = {
       deleteFile: jest.fn(),
     } as unknown as jest.Mocked<IStorageService>;
-    mockGitHubBugRepository = {
+    mockBugRepository = {
       queryBugs: jest.fn(),
-      updateStatus: jest.fn(),
-      saveOrUpdateBug: jest.fn(),
-    } as unknown as jest.Mocked<IIssueTrackerRepository>;
-    mockLocalBugRepository = {
       queryLocalBugs: jest.fn(),
-      createBug: jest.fn(),
-      queryHistory: jest.fn(),
-      updateStatus: jest.fn(),
       findById: jest.fn(),
+      saveOrUpdateBug: jest.fn(),
       rejectBug: jest.fn(),
       restoreBug: jest.fn(),
       findExpiredRejectedBugs: jest.fn(),
       updateAttachmentPath: jest.fn(),
       createLog: jest.fn(),
-    } as unknown as jest.Mocked<ILocalBugRepository>;
+      createBug: jest.fn(),
+      queryHistory: jest.fn(),
+      updateStatus: jest.fn(),
+      createAttachment: jest.fn(),
+      deleteAttachment: jest.fn(),
+      findAttachmentById: jest.fn(),
+    } as unknown as jest.Mocked<IBugRepository>;
+    mockBugRepository.findById.mockResolvedValue(
+      new ResponseModel<Bug | null>("tx-id").withResponse(
+        Bug.builder().setId("123").setStatus("pending").build(),
+      ),
+    );
     mockUserRepository = {
       findSessionUser: jest.fn(),
     } as unknown as jest.Mocked<IUserRepository>;
     mockConfig = {
-      getGitHubToken: () => "dummy-token-from-test",
+      getGitHubToken: jest.fn().mockReturnValue("dummy-token-from-test"),
       getGitHubManagedRepos: () => ["VariaMos/VariaMosAdmin"],
     };
 
     bugUseCases = new BugUseCases(
       mockIssueTrackerService,
       mockStorageService,
-      mockGitHubBugRepository,
-      mockLocalBugRepository,
+      mockBugRepository,
       mockUserRepository,
       mockConfig,
     );
@@ -70,35 +73,48 @@ describe("BugUseCases Unit Tests", () => {
   });
 
   describe("queryBugs & queryLocalBugs & queryHistory", () => {
-    it("should route queryBugs directly to gitHubBugRepository", async () => {
-      mockGitHubBugRepository.queryBugs.mockResolvedValue(
+    it("should route queryBugs directly to gitHubBugRepository and not modify repo if provided", async () => {
+      mockBugRepository.queryBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([]),
       );
-      const request = new RequestModel("tx-id", {
-        repo: "VariaMos/VariaMosAdmin",
-      } as any);
+      const filterData = { repo: "VariaMos/VariaMosAdmin" } as any;
+      const request = new RequestModel("tx-id", filterData);
       await bugUseCases.queryBugs(request);
-      expect(mockGitHubBugRepository.queryBugs).toHaveBeenCalledWith(request);
+      expect(mockBugRepository.queryBugs).toHaveBeenCalledWith(request);
+      expect(filterData.managedRepos).toBeUndefined();
+    });
+
+    it("should set managedRepos if repo filter is missing in queryBugs", async () => {
+      mockBugRepository.queryBugs.mockResolvedValue(
+        new ResponseModel<Bug[]>("tx-id").withResponse([]),
+      );
+      const request = new RequestModel("tx-id", {} as any);
+      await bugUseCases.queryBugs(request);
+      expect(mockBugRepository.queryBugs).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            managedRepos: ["VariaMos/VariaMosAdmin"],
+          }),
+        }),
+      );
     });
 
     it("should route queryLocalBugs directly to localBugRepository", async () => {
-      mockLocalBugRepository.queryLocalBugs.mockResolvedValue(
+      mockBugRepository.queryLocalBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([]),
       );
       const request = new RequestModel("tx-id", { status: "pending" } as any);
       await bugUseCases.queryLocalBugs(request);
-      expect(mockLocalBugRepository.queryLocalBugs).toHaveBeenCalledWith(
-        request,
-      );
+      expect(mockBugRepository.queryLocalBugs).toHaveBeenCalledWith(request);
     });
 
     it("should route queryHistory directly to localBugRepository", async () => {
-      mockLocalBugRepository.queryHistory.mockResolvedValue(
+      mockBugRepository.queryHistory.mockResolvedValue(
         new ResponseModel<BugStatusLog[]>("tx-id").withResponse([]),
       );
       const request = new RequestModel("tx-id", "bug-123");
       await bugUseCases.queryHistory(request);
-      expect(mockLocalBugRepository.queryHistory).toHaveBeenCalledWith(request);
+      expect(mockBugRepository.queryHistory).toHaveBeenCalledWith(request);
     });
   });
 
@@ -122,14 +138,14 @@ describe("BugUseCases Unit Tests", () => {
         reporterEmail: "guest@example.com",
       };
 
-      mockLocalBugRepository.createBug.mockResolvedValue(
+      mockBugRepository.createBug.mockResolvedValue(
         new ResponseModel<Bug>("tx-1").withResponse(createMockBug("100")),
       );
 
       const request = new RequestModel("tx-1", bugData);
       const response = await bugUseCases.createBug(request);
 
-      expect(mockLocalBugRepository.createBug).toHaveBeenCalledWith(
+      expect(mockBugRepository.createBug).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             title: "New Bug",
@@ -158,7 +174,7 @@ describe("BugUseCases Unit Tests", () => {
         }),
       );
 
-      mockLocalBugRepository.createBug.mockResolvedValue(
+      mockBugRepository.createBug.mockResolvedValue(
         new ResponseModel<Bug>("tx-1").withResponse(createMockBug("101")),
       );
 
@@ -168,7 +184,7 @@ describe("BugUseCases Unit Tests", () => {
       expect(mockUserRepository.findSessionUser).toHaveBeenCalledWith(
         expect.objectContaining({ data: "user-123" }),
       );
-      expect(mockLocalBugRepository.createBug).toHaveBeenCalledWith(
+      expect(mockBugRepository.createBug).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             createdById: "user-123",
@@ -235,14 +251,14 @@ describe("BugUseCases Unit Tests", () => {
         file: { filename: "screenshot.png", mimetype: "image/png" },
       };
 
-      mockLocalBugRepository.createBug.mockResolvedValue(
+      mockBugRepository.createBug.mockResolvedValue(
         new ResponseModel<Bug>("tx-1").withResponse({ id: "102" } as Bug),
       );
 
       const request = new RequestModel("tx-1", bugData);
       await bugUseCases.createBug(request);
 
-      expect(mockLocalBugRepository.createBug).toHaveBeenCalledWith(
+      expect(mockBugRepository.createBug).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             resolvedFile: {
@@ -290,19 +306,187 @@ describe("BugUseCases Unit Tests", () => {
       );
     });
 
+    it("should successfully create a bug directly on GitHub when createdById and githubRepo are present", async () => {
+      const bugData = {
+        title: "Admin Direct GitHub Bug",
+        description: "Admin description",
+        priority: "high" as const,
+        category: ALLOWED_CATEGORIES[0],
+        createdById: "admin-123",
+        githubRepo: "VariaMos/VariaMosAdmin",
+        file: { filename: "doc.pdf", mimetype: "application/pdf" },
+      };
+
+      mockUserRepository.findSessionUser.mockResolvedValue(
+        new ResponseModel<any>("tx-1").withResponse({
+          email: "admin@test.com",
+        }),
+      );
+
+      mockIssueTrackerService.createIssue.mockResolvedValue(456);
+
+      mockBugRepository.createBug.mockResolvedValue(
+        new ResponseModel<Bug>("tx-1").withResponse(createMockBug("200")),
+      );
+
+      const request = new RequestModel("tx-1", bugData);
+      const response = await bugUseCases.createBug(request);
+
+      expect(mockIssueTrackerService.createIssue).toHaveBeenCalledWith(
+        "VariaMos/VariaMosAdmin",
+        "Admin Direct GitHub Bug",
+        expect.stringContaining("*Reported directly by Admin*"),
+        ["bug", "editor", "high"],
+        "dummy-token-from-test",
+      );
+
+      // Verify fields are correctly injected in the body
+      expect(mockIssueTrackerService.createIssue).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        expect.stringContaining("*Priority: high*"),
+        expect.any(Array),
+        expect.any(String),
+      );
+      expect(mockIssueTrackerService.createIssue).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        expect.stringContaining("*Category: Editor*"),
+        expect.any(Array),
+        expect.any(String),
+      );
+
+      expect(mockBugRepository.createBug).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: "open",
+            gitIssueNumber: 456,
+            githubHtmlUrl:
+              "https://github.com/VariaMos/VariaMosAdmin/issues/456",
+            logComment: "Bug submitted directly to GitHub by admin.",
+          }),
+        }),
+      );
+      expect(response.data?.id).toBe("200");
+    });
+
+    it("should successfully create a bug directly on GitHub when priority is missing", async () => {
+      const bugData = {
+        title: "Admin Bug No Priority",
+        description: "No priority description",
+        category: ALLOWED_CATEGORIES[0],
+        createdById: "admin-123",
+        githubRepo: "VariaMos/VariaMosAdmin",
+      };
+
+      mockUserRepository.findSessionUser.mockResolvedValue(
+        new ResponseModel<any>("tx-1").withResponse({
+          email: "admin@test.com",
+        }),
+      );
+
+      mockIssueTrackerService.createIssue.mockResolvedValue(457);
+
+      mockBugRepository.createBug.mockResolvedValue(
+        new ResponseModel<Bug>("tx-1").withResponse(createMockBug("201")),
+      );
+
+      const request = new RequestModel("tx-1", bugData as any);
+      await bugUseCases.createBug(request);
+
+      expect(mockIssueTrackerService.createIssue).toHaveBeenCalledWith(
+        "VariaMos/VariaMosAdmin",
+        "Admin Bug No Priority",
+        expect.stringContaining("No priority description"),
+        ["bug", "editor"],
+        "dummy-token-from-test",
+      );
+
+      // Verify no priority is appended to prevent undefined
+      expect(mockIssueTrackerService.createIssue).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        expect.not.stringContaining("Priority:"),
+        expect.any(Array),
+        expect.any(String),
+      );
+    });
+
+    it("should return error if direct GitHub push fails during creation", async () => {
+      const bugData = {
+        title: "Admin Direct GitHub Bug",
+        description: "Admin description",
+        priority: "high" as const,
+        category: ALLOWED_CATEGORIES[0],
+        createdById: "admin-123",
+        githubRepo: "VariaMos/VariaMosAdmin",
+      };
+
+      mockUserRepository.findSessionUser.mockResolvedValue(
+        new ResponseModel<any>("tx-1").withResponse({
+          email: "admin@test.com",
+        }),
+      );
+
+      mockIssueTrackerService.createIssue.mockResolvedValue(undefined as any);
+
+      const request = new RequestModel("tx-1", bugData);
+      const response = await bugUseCases.createBug(request);
+
+      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.message).toContain(
+        "Failed to push bug to GitHub repository",
+      );
+    });
+
+    it("should return error if direct GitHub push lacks token", async () => {
+      const noTokenBugUseCases = new BugUseCases(
+        mockIssueTrackerService,
+        mockStorageService,
+        mockBugRepository,
+        mockUserRepository,
+        { getGitHubToken: () => "", getGitHubManagedRepos: () => [] },
+      );
+
+      const bugData = {
+        title: "Admin Direct GitHub Bug",
+        description: "Admin description",
+        priority: "high" as const,
+        category: ALLOWED_CATEGORIES[0],
+        createdById: "admin-123",
+        githubRepo: "VariaMos/VariaMosAdmin",
+      };
+
+      mockUserRepository.findSessionUser.mockResolvedValue(
+        new ResponseModel<any>("tx-1").withResponse({
+          email: "admin@test.com",
+        }),
+      );
+
+      const request = new RequestModel("tx-1", bugData);
+      const response = await noTokenBugUseCases.createBug(request);
+
+      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.message).toContain(
+        "GitHub integration token is not configured",
+      );
+    });
+
     it("should return error if both reporterEmail and createdById are missing", async () => {
       const bugData = {
-        title: "Title",
-        description: "Description",
+        title: "New Bug",
+        description: "Detail description",
         priority: "medium" as const,
-        category: "Editor",
+        category: ALLOWED_CATEGORIES[0],
       };
 
       const request = new RequestModel("tx-1", bugData);
       const response = await bugUseCases.createBug(request);
 
       expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
-      expect(response.message).toContain("An email address is required");
+      expect(response.message).toContain(
+        "An email address is required for guest bug submissions.",
+      );
     });
   });
 
@@ -314,7 +498,7 @@ describe("BugUseCases Unit Tests", () => {
         status: "closed",
         adminId: "admin-1",
       };
-      mockLocalBugRepository.updateStatus.mockResolvedValue(
+      mockBugRepository.updateStatus.mockResolvedValue(
         new ResponseModel<Bug>("tx-id").withResponse({
           id: bugId,
           status: "closed",
@@ -324,7 +508,7 @@ describe("BugUseCases Unit Tests", () => {
       const request = new RequestModel("tx-id", requestPayload);
       const response = await bugUseCases.updateStatus(request);
 
-      expect(mockLocalBugRepository.updateStatus).toHaveBeenCalledWith(request);
+      expect(mockBugRepository.updateStatus).toHaveBeenCalledWith(request);
       expect(response.data?.status).toBe("closed");
     });
 
@@ -340,16 +524,18 @@ describe("BugUseCases Unit Tests", () => {
       bugEntity.githubRepo = "VariaMos/VariaMosAdmin";
       bugEntity.gitIssueNumber = 42;
 
-      mockGitHubBugRepository.updateStatus.mockResolvedValue(
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug | null>("tx-id").withResponse(bugEntity),
+      );
+
+      mockBugRepository.updateStatus.mockResolvedValue(
         new ResponseModel<Bug>("tx-id").withResponse(bugEntity),
       );
 
       const request = new RequestModel("tx-id", requestPayload);
       await bugUseCases.updateStatus(request);
 
-      expect(mockGitHubBugRepository.updateStatus).toHaveBeenCalledWith(
-        request,
-      );
+      expect(mockBugRepository.updateStatus).toHaveBeenCalledWith(request);
       expect(mockIssueTrackerService.closeIssue).toHaveBeenCalledWith(
         "VariaMos/VariaMosAdmin",
         42,
@@ -365,16 +551,18 @@ describe("BugUseCases Unit Tests", () => {
       bugEntity.githubRepo = "VariaMos/VariaMosAdmin";
       bugEntity.gitIssueNumber = 42;
 
-      mockGitHubBugRepository.updateStatus.mockResolvedValue(
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug | null>("tx-id").withResponse(bugEntity),
+      );
+
+      mockBugRepository.updateStatus.mockResolvedValue(
         new ResponseModel<Bug>("tx-id").withResponse(bugEntity),
       );
 
       const request = new RequestModel("tx-id", requestPayload);
       await bugUseCases.updateStatus(request);
 
-      expect(mockGitHubBugRepository.updateStatus).toHaveBeenCalledWith(
-        request,
-      );
+      expect(mockBugRepository.updateStatus).toHaveBeenCalledWith(request);
       expect(mockIssueTrackerService.reopenIssue).toHaveBeenCalledWith(
         "VariaMos/VariaMosAdmin",
         42,
@@ -394,7 +582,11 @@ describe("BugUseCases Unit Tests", () => {
       bugEntity.githubRepo = "VariaMos/VariaMosAdmin";
       bugEntity.gitIssueNumber = 42;
 
-      mockGitHubBugRepository.updateStatus.mockResolvedValue(
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug | null>("tx-id").withResponse(bugEntity),
+      );
+
+      mockBugRepository.updateStatus.mockResolvedValue(
         new ResponseModel<Bug>("tx-id").withResponse(bugEntity),
       );
 
@@ -416,7 +608,11 @@ describe("BugUseCases Unit Tests", () => {
       // Missing githubRepo or gitIssueNumber
       const bugEntity = Bug.builder().setId(bugId).build();
 
-      mockGitHubBugRepository.updateStatus.mockResolvedValue(
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug | null>("tx-id").withResponse(bugEntity),
+      );
+
+      mockBugRepository.updateStatus.mockResolvedValue(
         new ResponseModel<Bug>("tx-id").withResponse(bugEntity),
       );
 
@@ -429,8 +625,7 @@ describe("BugUseCases Unit Tests", () => {
       const noTokenBugUseCases = new BugUseCases(
         mockIssueTrackerService,
         mockStorageService,
-        mockGitHubBugRepository,
-        mockLocalBugRepository,
+        mockBugRepository,
         mockUserRepository,
         { getGitHubToken: () => "", getGitHubManagedRepos: () => [] },
       );
@@ -442,7 +637,11 @@ describe("BugUseCases Unit Tests", () => {
         .setGitIssueNumber(42)
         .build();
 
-      mockGitHubBugRepository.updateStatus.mockResolvedValue(
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug | null>("tx-id").withResponse(bugEntity),
+      );
+
+      mockBugRepository.updateStatus.mockResolvedValue(
         new ResponseModel<Bug>("tx-id").withResponse(bugEntity),
       );
 
@@ -496,7 +695,11 @@ describe("BugUseCases Unit Tests", () => {
       bugEntity.githubRepo = ""; // missing repo
       bugEntity.gitIssueNumber = 42;
 
-      mockGitHubBugRepository.updateStatus.mockResolvedValue(
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug | null>("tx-id").withResponse(bugEntity),
+      );
+
+      mockBugRepository.updateStatus.mockResolvedValue(
         new ResponseModel<Bug>("tx-id").withResponse(bugEntity),
       );
 
@@ -507,8 +710,13 @@ describe("BugUseCases Unit Tests", () => {
 
     it("should return updateStatus DB result even if bug entity data is missing", async () => {
       const bugId = "gh-repo-42";
-      mockGitHubBugRepository.updateStatus.mockResolvedValue(
-        new ResponseModel<Bug>("tx-id").withResponse(null),
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug | null>("tx-id").withResponse(
+          Bug.builder().setId(bugId).build(),
+        ),
+      );
+      mockBugRepository.updateStatus.mockResolvedValue(
+        new ResponseModel<Bug>("tx-id").withResponse(null as any),
       );
       const response = await bugUseCases.updateStatus(
         new RequestModel("tx-id", {
@@ -519,6 +727,397 @@ describe("BugUseCases Unit Tests", () => {
       );
       expect(response.data).toBeNull();
     });
+
+    it("should return error if bug is not found in database", async () => {
+      const bugId = "non-existent-id";
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug | null>("tx-id").withResponse(null),
+      );
+
+      const response = await bugUseCases.updateStatus(
+        new RequestModel("tx-id", {
+          id: bugId,
+          status: "closed",
+          adminId: "admin-1",
+        }),
+      );
+
+      expect(response.errorCode).toBe(DomainErrorCodes.NOT_FOUND);
+      expect(response.message).toBe("Bug not found.");
+    });
+
+    it("should successfully approve and push a local pending bug to GitHub, applying admin edits", async () => {
+      const bugId = "local-10";
+      const requestPayload = {
+        id: bugId,
+        status: "open",
+        adminId: "admin-123",
+        title: "Revised Admin Title",
+        description: "Revised Admin Description",
+        priority: "high" as const,
+        category: "Other",
+        githubRepo: "VariaMos/VariaMosAdmin",
+      };
+
+      const bugEntity = Bug.builder()
+        .setId(bugId)
+        .setTitle("Original Title")
+        .setDescription("Original Description")
+        .setPriority("low")
+        .setCategory("Editor")
+        .setStatus("pending")
+        .setReporterEmail("user@test.com")
+        .setAttachments([
+          { filePath: "/uploads/my-file.png", fileType: "image/png" },
+        ])
+        .build();
+
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug | null>("tx-id").withResponse(bugEntity),
+      );
+
+      mockIssueTrackerService.createIssue.mockResolvedValue(777);
+
+      mockBugRepository.updateStatus.mockResolvedValue(
+        new ResponseModel<Bug>("tx-id").withResponse(bugEntity),
+      );
+
+      const request = new RequestModel("tx-id", requestPayload);
+      const response = await bugUseCases.updateStatus(request);
+
+      expect(mockIssueTrackerService.createIssue).toHaveBeenCalledWith(
+        "VariaMos/VariaMosAdmin",
+        "Revised Admin Title",
+        expect.stringContaining("*Reported locally by: user@test.com*"),
+        ["bug", "other", "high"],
+        "dummy-token-from-test",
+      );
+
+      // Verify fields are present
+      expect(mockIssueTrackerService.createIssue).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        expect.stringContaining("*Priority: high*"),
+        expect.any(Array),
+        expect.any(String),
+      );
+      expect(mockIssueTrackerService.createIssue).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        expect.stringContaining("*Category: Other*"),
+        expect.any(Array),
+        expect.any(String),
+      );
+
+      expect(mockBugRepository.updateStatus).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            id: bugId,
+            status: "open",
+            gitIssueNumber: 777,
+            githubHtmlUrl:
+              "https://github.com/VariaMos/VariaMosAdmin/issues/777",
+            title: "Revised Admin Title",
+            description: "Revised Admin Description",
+            priority: "high",
+            category: "Other",
+            githubRepo: "VariaMos/VariaMosAdmin",
+          }),
+        }),
+      );
+    });
+
+    it("should successfully approve a bug without applying optional edits and not overwrite fields with undefined", async () => {
+      const bugId = "local-10";
+      const requestPayload = {
+        id: bugId,
+        status: "open",
+        adminId: "admin-123",
+      };
+
+      const bugEntity = Bug.builder()
+        .setId(bugId)
+        .setTitle("Keep Original Title")
+        .setDescription("Keep Original Description")
+        .setPriority("medium")
+        .setCategory("Editor")
+        .setStatus("pending")
+        .setReporterEmail("user@test.com")
+        .setGithubRepo("VariaMos/VariaMosAdmin")
+        .setAttachments([])
+        .build();
+
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug | null>("tx-id").withResponse(bugEntity),
+      );
+
+      mockIssueTrackerService.createIssue.mockResolvedValue(888);
+
+      mockBugRepository.updateStatus.mockResolvedValue(
+        new ResponseModel<Bug>("tx-id").withResponse(bugEntity),
+      );
+
+      const request = new RequestModel("tx-id", requestPayload);
+      await bugUseCases.updateStatus(request);
+
+      expect(bugEntity.title).toBe("Keep Original Title");
+      expect(bugEntity.category).toBe("Editor");
+      expect(bugEntity.priority).toBe("medium");
+
+      expect(mockIssueTrackerService.createIssue).toHaveBeenCalledWith(
+        expect.any(String),
+        "Keep Original Title",
+        expect.stringContaining("Keep Original Description"),
+        expect.arrayContaining(["bug", "editor", "medium"]),
+        "dummy-token-from-test",
+      );
+
+      expect(mockIssueTrackerService.createIssue).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        expect.not.stringContaining("### Attachments"),
+        expect.any(Array),
+        expect.any(String),
+      );
+    });
+
+    it("should filter out /purged attachments when approving and pushing to GitHub", async () => {
+      const bugId = "local-10";
+      const requestPayload = {
+        id: bugId,
+        status: "open",
+        adminId: "admin-123",
+      };
+
+      const bugEntity = Bug.builder()
+        .setId(bugId)
+        .setTitle("Bug with Attachments")
+        .setDescription("Test description")
+        .setPriority("medium")
+        .setCategory("Editor")
+        .setStatus("pending")
+        .setReporterEmail("user@test.com")
+        .setGithubRepo("VariaMos/VariaMosAdmin")
+        .setAttachments([
+          { filePath: "/uploads/valid.png", fileType: "image/png" },
+          { filePath: "/purged", fileType: "image/png" },
+        ])
+        .build();
+
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug | null>("tx-id").withResponse(bugEntity),
+      );
+
+      mockIssueTrackerService.createIssue.mockResolvedValue(889);
+
+      mockBugRepository.updateStatus.mockResolvedValue(
+        new ResponseModel<Bug>("tx-id").withResponse(bugEntity),
+      );
+
+      const request = new RequestModel("tx-id", requestPayload);
+      await bugUseCases.updateStatus(request);
+
+      expect(mockIssueTrackerService.createIssue).toHaveBeenCalledWith(
+        expect.any(String),
+        "Bug with Attachments",
+        expect.stringContaining("/uploads/valid.png"),
+        expect.any(Array),
+        "dummy-token-from-test",
+      );
+
+      expect(mockIssueTrackerService.createIssue).toHaveBeenCalledWith(
+        expect.any(String),
+        "Bug with Attachments",
+        expect.not.stringContaining("/purged"),
+        expect.any(Array),
+        "dummy-token-from-test",
+      );
+    });
+
+    it("should approve a bug and not append priority if it is missing", async () => {
+      const bugId = "local-10";
+      const requestPayload = {
+        id: bugId,
+        status: "open",
+        adminId: "admin-123",
+      };
+
+      const bugEntity = Bug.builder()
+        .setId(bugId)
+        .setTitle("Bug Without Priority")
+        .setDescription("Test description")
+        .setCategory("Editor")
+        .setStatus("pending")
+        .setReporterEmail("user@test.com")
+        .setGithubRepo("VariaMos/VariaMosAdmin")
+        .build();
+
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug | null>("tx-id").withResponse(bugEntity),
+      );
+
+      mockIssueTrackerService.createIssue.mockResolvedValue(890);
+
+      mockBugRepository.updateStatus.mockResolvedValue(
+        new ResponseModel<Bug>("tx-id").withResponse(bugEntity),
+      );
+
+      const request = new RequestModel("tx-id", requestPayload);
+      await bugUseCases.updateStatus(request);
+
+      expect(mockIssueTrackerService.createIssue).toHaveBeenCalledWith(
+        expect.any(String),
+        "Bug Without Priority",
+        expect.not.stringContaining("Priority:"),
+        expect.any(Array),
+        "dummy-token-from-test",
+      );
+    });
+
+    it("should bypass github issue call if status is closed but gitIssueNumber is missing", async () => {
+      const bugId = "local-10";
+      const bugEntity = Bug.builder()
+        .setId(bugId)
+        .setStatus("open")
+        .setGithubRepo("VariaMos/VariaMosAdmin")
+        .build();
+
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug | null>("tx-id").withResponse(bugEntity),
+      );
+
+      mockBugRepository.updateStatus.mockResolvedValue(
+        new ResponseModel<Bug>("tx-id").withResponse(bugEntity),
+      );
+
+      await bugUseCases.updateStatus(
+        new RequestModel("tx-id", {
+          id: bugId,
+          status: "closed",
+          adminId: "admin-1",
+        }),
+      );
+
+      expect(mockIssueTrackerService.closeIssue).not.toHaveBeenCalled();
+      expect(mockConfig.getGitHubToken).not.toHaveBeenCalled();
+    });
+
+    it("should bypass GitHub issue creation when status change is closed and bug has no issue number", async () => {
+      const bugId = "local-10";
+      const bugEntity = Bug.builder()
+        .setId(bugId)
+        .setStatus("pending")
+        .setGithubRepo("VariaMos/VariaMosAdmin")
+        .build();
+
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug | null>("tx-id").withResponse(bugEntity),
+      );
+
+      mockBugRepository.updateStatus.mockResolvedValue(
+        new ResponseModel<Bug>("tx-id").withResponse(bugEntity),
+      );
+
+      await bugUseCases.updateStatus(
+        new RequestModel("tx-id", {
+          id: bugId,
+          status: "closed",
+          adminId: "admin-1",
+        }),
+      );
+
+      expect(mockIssueTrackerService.createIssue).not.toHaveBeenCalled();
+    });
+
+    it("should not create GitHub issue on approval if bug already has gitIssueNumber", async () => {
+      const bugId = "local-10";
+      const bugEntity = Bug.builder()
+        .setId(bugId)
+        .setStatus("pending")
+        .setGithubRepo("VariaMos/VariaMosAdmin")
+        .setGitIssueNumber(555)
+        .build();
+
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug | null>("tx-id").withResponse(bugEntity),
+      );
+
+      mockBugRepository.updateStatus.mockResolvedValue(
+        new ResponseModel<Bug>("tx-id").withResponse(bugEntity),
+      );
+
+      await bugUseCases.updateStatus(
+        new RequestModel("tx-id", {
+          id: bugId,
+          status: "open",
+          adminId: "admin-1",
+        }),
+      );
+
+      expect(mockIssueTrackerService.createIssue).not.toHaveBeenCalled();
+    });
+
+    it("should return error if GitHub token is missing when approving a bug", async () => {
+      const noTokenBugUseCases = new BugUseCases(
+        mockIssueTrackerService,
+        mockStorageService,
+        mockBugRepository,
+        mockUserRepository,
+        { getGitHubToken: () => "", getGitHubManagedRepos: () => [] },
+      );
+
+      const bugId = "local-10";
+      const bugEntity = Bug.builder()
+        .setId(bugId)
+        .setStatus("pending")
+        .setGithubRepo("VariaMos/VariaMosAdmin")
+        .build();
+
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug | null>("tx-id").withResponse(bugEntity),
+      );
+
+      const response = await noTokenBugUseCases.updateStatus(
+        new RequestModel("tx-id", {
+          id: bugId,
+          status: "open",
+          adminId: "admin-123",
+        }),
+      );
+
+      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.message).toContain(
+        "GitHub integration token is not configured",
+      );
+    });
+
+    it("should return error if GitHub push fails when approving a bug", async () => {
+      const bugId = "local-10";
+      const bugEntity = Bug.builder()
+        .setId(bugId)
+        .setStatus("pending")
+        .setGithubRepo("VariaMos/VariaMosAdmin")
+        .build();
+
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug | null>("tx-id").withResponse(bugEntity),
+      );
+
+      mockIssueTrackerService.createIssue.mockResolvedValue(undefined as any);
+
+      const response = await bugUseCases.updateStatus(
+        new RequestModel("tx-id", {
+          id: bugId,
+          status: "open",
+          adminId: "admin-123",
+        }),
+      );
+
+      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.message).toContain(
+        "Failed to push bug to GitHub repository",
+      );
+    });
   });
 
   describe("rejectBug", () => {
@@ -526,10 +1125,10 @@ describe("BugUseCases Unit Tests", () => {
       const bugId = "123";
       const pendingBug = createMockBug(bugId, "Test Bug", "pending");
 
-      mockLocalBugRepository.findById.mockResolvedValue(
+      mockBugRepository.findById.mockResolvedValue(
         new ResponseModel<Bug>("tx-id").withResponse(pendingBug),
       );
-      mockLocalBugRepository.rejectBug.mockResolvedValue(
+      mockBugRepository.rejectBug.mockResolvedValue(
         new ResponseModel<Bug>("tx-id").withResponse({
           ...pendingBug,
           status: "rejected",
@@ -542,10 +1141,10 @@ describe("BugUseCases Unit Tests", () => {
       });
       const response = await bugUseCases.rejectBug(request);
 
-      expect(mockLocalBugRepository.findById).toHaveBeenCalledWith(
+      expect(mockBugRepository.findById).toHaveBeenCalledWith(
         expect.objectContaining({ data: bugId }),
       );
-      expect(mockLocalBugRepository.rejectBug).toHaveBeenCalledWith(
+      expect(mockBugRepository.rejectBug).toHaveBeenCalledWith(
         expect.objectContaining({
           data: { id: bugId, adminId: "admin-1", logComment: "Bug rejected." },
         }),
@@ -555,7 +1154,7 @@ describe("BugUseCases Unit Tests", () => {
 
     it("should return error if bug is not found", async () => {
       const bugId = "missing";
-      mockLocalBugRepository.findById.mockResolvedValue(
+      mockBugRepository.findById.mockResolvedValue(
         new ResponseModel<Bug | null>("tx-id").withResponse(null),
       );
 
@@ -573,7 +1172,7 @@ describe("BugUseCases Unit Tests", () => {
       const bugId = "123";
       const activeBug = createMockBug(bugId, "Test Bug", "open");
 
-      mockLocalBugRepository.findById.mockResolvedValue(
+      mockBugRepository.findById.mockResolvedValue(
         new ResponseModel<Bug>("tx-id").withResponse(activeBug),
       );
 
@@ -585,7 +1184,7 @@ describe("BugUseCases Unit Tests", () => {
 
       expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
       expect(response.message).toContain("Only pending bugs can be rejected");
-      expect(mockLocalBugRepository.rejectBug).not.toHaveBeenCalled();
+      expect(mockBugRepository.rejectBug).not.toHaveBeenCalled();
     });
 
     it("should return error if ID is missing in request", async () => {
@@ -602,10 +1201,10 @@ describe("BugUseCases Unit Tests", () => {
       const bugId = "123";
       const rejectedBug = createMockBug(bugId, "Test Bug", "rejected");
 
-      mockLocalBugRepository.findById.mockResolvedValue(
+      mockBugRepository.findById.mockResolvedValue(
         new ResponseModel<Bug>("tx-id").withResponse(rejectedBug),
       );
-      mockLocalBugRepository.restoreBug.mockResolvedValue(
+      mockBugRepository.restoreBug.mockResolvedValue(
         new ResponseModel<Bug>("tx-id").withResponse({
           ...rejectedBug,
           status: "pending",
@@ -618,7 +1217,7 @@ describe("BugUseCases Unit Tests", () => {
       });
       const response = await bugUseCases.restoreBug(request);
 
-      expect(mockLocalBugRepository.restoreBug).toHaveBeenCalledWith(
+      expect(mockBugRepository.restoreBug).toHaveBeenCalledWith(
         expect.objectContaining({
           data: { id: bugId, adminId: "admin-1", logComment: "Bug restored." },
         }),
@@ -628,7 +1227,7 @@ describe("BugUseCases Unit Tests", () => {
 
     it("should return error if bug is not found", async () => {
       const bugId = "missing";
-      mockLocalBugRepository.findById.mockResolvedValue(
+      mockBugRepository.findById.mockResolvedValue(
         new ResponseModel<Bug | null>("tx-id").withResponse(null),
       );
 
@@ -646,7 +1245,7 @@ describe("BugUseCases Unit Tests", () => {
       const bugId = "123";
       const pendingBug = createMockBug(bugId, "Test Bug", "pending");
 
-      mockLocalBugRepository.findById.mockResolvedValue(
+      mockBugRepository.findById.mockResolvedValue(
         new ResponseModel<Bug>("tx-id").withResponse(pendingBug),
       );
 
@@ -658,7 +1257,7 @@ describe("BugUseCases Unit Tests", () => {
 
       expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
       expect(response.message).toContain("Only rejected bugs can be restored");
-      expect(mockLocalBugRepository.restoreBug).not.toHaveBeenCalled();
+      expect(mockBugRepository.restoreBug).not.toHaveBeenCalled();
     });
 
     it("should return error if ID is missing in request", async () => {
@@ -679,15 +1278,15 @@ describe("BugUseCases Unit Tests", () => {
         .spyOn(logger, "info")
         .mockImplementation(() => {});
 
-      mockLocalBugRepository.findExpiredRejectedBugs.mockResolvedValue(
+      mockBugRepository.findExpiredRejectedBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([expiredBug]),
       );
 
       await bugUseCases.purgeExpiredRejectedBugs();
 
-      expect(mockLocalBugRepository.findExpiredRejectedBugs).toHaveBeenCalled();
+      expect(mockBugRepository.findExpiredRejectedBugs).toHaveBeenCalled();
       const dateArg =
-        mockLocalBugRepository.findExpiredRejectedBugs.mock.calls[0][0].data;
+        mockBugRepository.findExpiredRejectedBugs.mock.calls[0][0].data;
       expect(dateArg).toBeDefined();
       const now = new Date();
       const differenceInDays =
@@ -697,26 +1296,26 @@ describe("BugUseCases Unit Tests", () => {
       expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
         "/uploads/old.png",
       );
-      expect(mockLocalBugRepository.updateAttachmentPath).toHaveBeenCalledWith(
+      expect(mockBugRepository.updateAttachmentPath).toHaveBeenCalledWith(
         expect.objectContaining({
           transactionId: "purgeExpiredBugs",
           data: { id: 1, filePath: "/purged" },
         }),
       );
-      expect(mockLocalBugRepository.updateStatus).toHaveBeenCalledWith(
+      expect(mockBugRepository.updateStatus).toHaveBeenCalledWith(
         expect.objectContaining({
           transactionId: "purgeExpiredBugs",
           data: { id: "999", status: "purged", adminId: "" },
         }),
       );
-      expect(mockLocalBugRepository.createLog).toHaveBeenCalledWith(
+      expect(mockBugRepository.createLog).toHaveBeenCalledWith(
         expect.objectContaining({
           transactionId: "purgeExpiredBugs",
           data: {
             action: "purge",
             comment:
               "Bug status changed to purged. Physical attachments deleted due to retention policy.",
-            localBugId: "999",
+            bugId: "999",
           },
         }),
       );
@@ -734,23 +1333,23 @@ describe("BugUseCases Unit Tests", () => {
       const expiredBug = createMockBug("1", "New Bug", "rejected");
       expiredBug.attachments = undefined; // No attachments
 
-      mockLocalBugRepository.findExpiredRejectedBugs.mockResolvedValue(
+      mockBugRepository.findExpiredRejectedBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([expiredBug]),
       );
 
       await bugUseCases.purgeExpiredRejectedBugs();
 
-      expect(mockLocalBugRepository.updateStatus).toHaveBeenCalledWith(
+      expect(mockBugRepository.updateStatus).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ id: "1", status: "purged" }),
         }),
       );
-      expect(mockLocalBugRepository.createLog).toHaveBeenCalledWith(
+      expect(mockBugRepository.createLog).toHaveBeenCalledWith(
         expect.objectContaining({
           data: {
             action: "purge",
             comment: "Bug status changed to purged. No attachments to delete.",
-            localBugId: "1",
+            bugId: "1",
           },
         }),
       );
@@ -760,13 +1359,13 @@ describe("BugUseCases Unit Tests", () => {
       const expiredBug = createMockBug("1-non-array", "New Bug", "rejected");
       expiredBug.attachments = { key: "value" } as any; // Pass truthy non-iterable object to verify Array.isArray safeguard
 
-      mockLocalBugRepository.findExpiredRejectedBugs.mockResolvedValue(
+      mockBugRepository.findExpiredRejectedBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([expiredBug]),
       );
 
       await bugUseCases.purgeExpiredRejectedBugs();
 
-      expect(mockLocalBugRepository.updateStatus).toHaveBeenCalledWith(
+      expect(mockBugRepository.updateStatus).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             id: "1-non-array",
@@ -774,7 +1373,7 @@ describe("BugUseCases Unit Tests", () => {
           }),
         }),
       );
-      expect(mockLocalBugRepository.createLog).toHaveBeenCalledWith(
+      expect(mockBugRepository.createLog).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             comment: "Bug status changed to purged. No attachments to delete.",
@@ -784,22 +1383,22 @@ describe("BugUseCases Unit Tests", () => {
     });
 
     it("should handle logical branches when expiredResponse.data is null", async () => {
-      mockLocalBugRepository.findExpiredRejectedBugs.mockResolvedValue(
+      mockBugRepository.findExpiredRejectedBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse(null), // data is null
       );
       await bugUseCases.purgeExpiredRejectedBugs();
-      expect(mockLocalBugRepository.updateStatus).not.toHaveBeenCalled();
+      expect(mockBugRepository.updateStatus).not.toHaveBeenCalled();
     });
 
     it("should return early when expiredBugs is empty", async () => {
       const infoLogSpy = jest
         .spyOn(logger, "info")
         .mockImplementation(() => {});
-      mockLocalBugRepository.findExpiredRejectedBugs.mockResolvedValue(
+      mockBugRepository.findExpiredRejectedBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([]),
       );
       await bugUseCases.purgeExpiredRejectedBugs();
-      expect(mockLocalBugRepository.updateStatus).not.toHaveBeenCalled();
+      expect(mockBugRepository.updateStatus).not.toHaveBeenCalled();
       expect(infoLogSpy).not.toHaveBeenCalled(); // Verify no logs are written to confirm immediate early exit
       infoLogSpy.mockRestore();
     });
@@ -808,23 +1407,21 @@ describe("BugUseCases Unit Tests", () => {
       const expiredBug = createMockBug("2", "New Bug", "rejected");
       expiredBug.attachments = [{ id: 1, filePath: "/purged" }];
 
-      mockLocalBugRepository.findExpiredRejectedBugs.mockResolvedValue(
+      mockBugRepository.findExpiredRejectedBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([expiredBug]),
       );
 
       await bugUseCases.purgeExpiredRejectedBugs();
 
       expect(mockStorageService.deleteFile).not.toHaveBeenCalled();
-      expect(
-        mockLocalBugRepository.updateAttachmentPath,
-      ).not.toHaveBeenCalled();
+      expect(mockBugRepository.updateAttachmentPath).not.toHaveBeenCalled();
     });
 
     it("should catch error and log it if repository function throws", async () => {
       const errorLogSpy = jest
         .spyOn(logger, "err")
         .mockImplementation(() => {});
-      mockLocalBugRepository.findExpiredRejectedBugs.mockRejectedValue(
+      mockBugRepository.findExpiredRejectedBugs.mockRejectedValue(
         new Error("DB failure"),
       );
 
@@ -854,8 +1451,7 @@ describe("BugUseCases Unit Tests", () => {
       const customBugUseCases = new BugUseCases(
         mockIssueTrackerService,
         mockStorageService,
-        mockGitHubBugRepository,
-        mockLocalBugRepository,
+        mockBugRepository,
         mockUserRepository,
         errorConfig,
       );
@@ -873,7 +1469,7 @@ describe("BugUseCases Unit Tests", () => {
     it("should ignore issues if issue tracker returns null or empty list", async () => {
       mockIssueTrackerService.getIssues.mockResolvedValue(null);
       await bugUseCases.syncBugs(new RequestModel("tx-id"));
-      expect(mockGitHubBugRepository.saveOrUpdateBug).not.toHaveBeenCalled();
+      expect(mockBugRepository.saveOrUpdateBug).not.toHaveBeenCalled();
     });
 
     it("should bypass pull requests issues", async () => {
@@ -881,7 +1477,7 @@ describe("BugUseCases Unit Tests", () => {
         { number: 1, title: "Bug PR", pull_request: {} }, // is a PR
       ]);
       await bugUseCases.syncBugs(new RequestModel("tx-id"));
-      expect(mockGitHubBugRepository.saveOrUpdateBug).not.toHaveBeenCalled();
+      expect(mockBugRepository.saveOrUpdateBug).not.toHaveBeenCalled();
     });
 
     it("should map issue priority correctly (high, medium, default, low cases with varied labels)", async () => {
@@ -908,7 +1504,7 @@ describe("BugUseCases Unit Tests", () => {
         { number: 7, title: "Bug 7", labels: [{ name: "urg" }] },
       ]);
 
-      mockGitHubBugRepository.saveOrUpdateBug
+      mockBugRepository.saveOrUpdateBug
         .mockResolvedValueOnce(
           new ResponseModel<any>("tx-id").withResponse({ created: true }),
         )
@@ -941,48 +1537,47 @@ describe("BugUseCases Unit Tests", () => {
       );
       infoLogSpy.mockRestore();
 
-      expect(mockGitHubBugRepository.saveOrUpdateBug).toHaveBeenNthCalledWith(
+      expect(mockBugRepository.saveOrUpdateBug).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({
           data: expect.objectContaining({ priority: "low", title: "Bug 1" }),
         }),
       );
-      expect(mockGitHubBugRepository.saveOrUpdateBug).toHaveBeenNthCalledWith(
+      expect(mockBugRepository.saveOrUpdateBug).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
           data: expect.objectContaining({ priority: "medium", title: "Bug 2" }),
         }),
       );
-      expect(mockGitHubBugRepository.saveOrUpdateBug).toHaveBeenNthCalledWith(
+      expect(mockBugRepository.saveOrUpdateBug).toHaveBeenNthCalledWith(
         3,
         expect.objectContaining({
           data: expect.objectContaining({
-            id: "gh-VariaMos-VariaMosAdmin-3",
             priority: "high",
             title: "Bug 3",
             status: "closed",
           }),
         }),
       );
-      expect(mockGitHubBugRepository.saveOrUpdateBug).toHaveBeenNthCalledWith(
+      expect(mockBugRepository.saveOrUpdateBug).toHaveBeenNthCalledWith(
         4,
         expect.objectContaining({
           data: expect.objectContaining({ priority: "low", title: "Bug 4" }),
         }),
       );
-      expect(mockGitHubBugRepository.saveOrUpdateBug).toHaveBeenNthCalledWith(
+      expect(mockBugRepository.saveOrUpdateBug).toHaveBeenNthCalledWith(
         5,
         expect.objectContaining({
           data: expect.objectContaining({ priority: "low", title: "Bug 5" }),
         }),
       );
-      expect(mockGitHubBugRepository.saveOrUpdateBug).toHaveBeenNthCalledWith(
+      expect(mockBugRepository.saveOrUpdateBug).toHaveBeenNthCalledWith(
         6,
         expect.objectContaining({
           data: expect.objectContaining({ priority: "high", title: "Bug 6" }),
         }),
       );
-      expect(mockGitHubBugRepository.saveOrUpdateBug).toHaveBeenNthCalledWith(
+      expect(mockBugRepository.saveOrUpdateBug).toHaveBeenNthCalledWith(
         7,
         expect.objectContaining({
           data: expect.objectContaining({ priority: "high", title: "Bug 7" }),
@@ -1001,8 +1596,7 @@ describe("BugUseCases Unit Tests", () => {
       const customBugUseCases = new BugUseCases(
         mockIssueTrackerService,
         mockStorageService,
-        mockGitHubBugRepository,
-        mockLocalBugRepository,
+        mockBugRepository,
         mockUserRepository,
         mockConfigNoToken,
       );
@@ -1035,21 +1629,21 @@ describe("BugUseCases Unit Tests", () => {
         },
       ]);
 
-      mockGitHubBugRepository.saveOrUpdateBug.mockResolvedValue(
+      mockBugRepository.saveOrUpdateBug.mockResolvedValue(
         new ResponseModel<any>("tx-id").withResponse({ created: true }),
       );
 
       await bugUseCases.syncBugs(new RequestModel("tx-id"));
 
-      expect(mockGitHubBugRepository.saveOrUpdateBug).toHaveBeenCalledWith(
+      expect(mockBugRepository.saveOrUpdateBug).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             description: "No description provided.",
             githubCreator: "System", // falls back to System
             status: "open",
             githubAssignee: undefined, // falls back to undefined
-            githubHtmlUrl: "", // checks htmlUrl fallback! (Kills mutant on line 391!)
-            updatedAt: new Date("2026-06-17T00:00:00Z"), // checks updatedAt fallback! (Kills mutant on line 394!)
+            githubHtmlUrl: "", // checks htmlUrl fallback!
+            updatedAt: new Date("2026-06-17T00:00:00Z"), // checks updatedAt fallback!
           }),
         }),
       );
@@ -1072,13 +1666,13 @@ describe("BugUseCases Unit Tests", () => {
         },
       ]);
 
-      mockGitHubBugRepository.saveOrUpdateBug.mockResolvedValue(
+      mockBugRepository.saveOrUpdateBug.mockResolvedValue(
         new ResponseModel<any>("tx-id").withResponse({ created: true }),
       );
 
       await bugUseCases.syncBugs(new RequestModel("tx-id"));
 
-      expect(mockGitHubBugRepository.saveOrUpdateBug).toHaveBeenCalledWith(
+      expect(mockBugRepository.saveOrUpdateBug).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             priority: "medium",
@@ -1100,13 +1694,13 @@ describe("BugUseCases Unit Tests", () => {
         },
       ]);
 
-      mockGitHubBugRepository.saveOrUpdateBug.mockResolvedValue(
+      mockBugRepository.saveOrUpdateBug.mockResolvedValue(
         new ResponseModel<any>("tx-id").withResponse({ created: true }),
       );
 
       await bugUseCases.syncBugs(new RequestModel("tx-id"));
 
-      expect(mockGitHubBugRepository.saveOrUpdateBug).toHaveBeenCalledWith(
+      expect(mockBugRepository.saveOrUpdateBug).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             githubCreator: "octocat",
@@ -1129,7 +1723,7 @@ describe("BugUseCases Unit Tests", () => {
         },
       ]);
 
-      mockGitHubBugRepository.saveOrUpdateBug.mockResolvedValue(
+      mockBugRepository.saveOrUpdateBug.mockResolvedValue(
         new ResponseModel<any>("tx-id").withResponse(null), // returns null data
       );
 
@@ -1149,13 +1743,13 @@ describe("BugUseCases Unit Tests", () => {
         },
       ]);
 
-      mockGitHubBugRepository.saveOrUpdateBug.mockResolvedValue(
+      mockBugRepository.saveOrUpdateBug.mockResolvedValue(
         new ResponseModel<any>("tx-id").withResponse({ created: true }),
       );
 
       await bugUseCases.syncBugs(new RequestModel("tx-id"));
 
-      expect(mockGitHubBugRepository.saveOrUpdateBug).toHaveBeenCalledWith(
+      expect(mockBugRepository.saveOrUpdateBug).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             priority: "medium", // falls back to medium
@@ -1176,6 +1770,182 @@ describe("BugUseCases Unit Tests", () => {
       expect(response.errorCode).toBe(DomainErrorCodes.INTERNAL_ERROR);
       expect(response.message).toBe("Network loss");
       errorLogSpy.mockRestore();
+    });
+
+    it("should map issue label matching category to bug category", async () => {
+      mockIssueTrackerService.getIssues.mockResolvedValue([
+        {
+          number: 10,
+          title: "Editor Bug",
+          body: "Desc",
+          labels: [{ name: "Editor" }],
+          created_at: "2026-06-17T00:00:00Z",
+        },
+      ]);
+
+      mockBugRepository.saveOrUpdateBug.mockResolvedValue(
+        new ResponseModel<any>("tx-id").withResponse({ created: true }),
+      );
+
+      await bugUseCases.syncBugs(new RequestModel("tx-id"));
+
+      expect(mockBugRepository.saveOrUpdateBug).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            category: "Editor",
+          }),
+        }),
+      );
+    });
+
+    it("should map issue category correctly when there are multiple labels and the matching label is not the first one", async () => {
+      mockIssueTrackerService.getIssues.mockResolvedValue([
+        {
+          number: 11,
+          title: "Simulation Bug With Extra Labels",
+          body: "Desc",
+          labels: [{ name: "unrelated-label" }, { name: "simulation" }],
+          created_at: "2026-06-17T00:00:00Z",
+        },
+      ]);
+
+      mockBugRepository.saveOrUpdateBug.mockResolvedValue(
+        new ResponseModel<any>("tx-id").withResponse({ created: true }),
+      );
+
+      await bugUseCases.syncBugs(new RequestModel("tx-id"));
+
+      expect(mockBugRepository.saveOrUpdateBug).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            category: "Simulation",
+          }),
+        }),
+      );
+    });
+  });
+
+  describe("queryCategories", () => {
+    it("should return ALLOWED_CATEGORIES successfully", async () => {
+      const response = await bugUseCases.queryCategories(
+        new RequestModel("tx-id"),
+      );
+      expect(response.data).toEqual(ALLOWED_CATEGORIES);
+    });
+  });
+
+  describe("addAttachment", () => {
+    it("should return error if file is missing in request", async () => {
+      const request = new RequestModel("tx-id", {
+        bugId: "local-1",
+        file: null,
+      });
+      const response = await bugUseCases.addAttachment(request);
+
+      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.message).toContain("File is required.");
+    });
+
+    it("should call repository createAttachment successfully when file is present", async () => {
+      const fileData = { filename: "test.png", mimetype: "image/png" };
+      mockBugRepository.createAttachment.mockResolvedValue(
+        new ResponseModel<any>("tx-id").withResponse({ id: 99 }),
+      );
+
+      const request = new RequestModel("tx-id", {
+        bugId: "local-1",
+        file: fileData,
+      });
+      const response = await bugUseCases.addAttachment(request);
+
+      expect(mockBugRepository.createAttachment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: {
+            filePath: "/uploads/test.png",
+            fileType: "image/png",
+            bugId: "local-1",
+          },
+        }),
+      );
+      expect(response.data.id).toBe(99);
+    });
+  });
+
+  describe("deleteAttachment", () => {
+    it("should return error if attachment is not found in database", async () => {
+      mockBugRepository.findAttachmentById.mockResolvedValue(
+        new ResponseModel<any>("tx-id").withResponse(null),
+      );
+
+      const response = await bugUseCases.deleteAttachment(
+        new RequestModel("tx-id", "att-invalid"),
+      );
+      expect(response.errorCode).toBe(DomainErrorCodes.NOT_FOUND);
+      expect(response.message).toContain("Attachment not found.");
+    });
+
+    it("should delete physical file and record if attachment is found", async () => {
+      mockBugRepository.findAttachmentById.mockResolvedValue(
+        new ResponseModel<any>("tx-id").withResponse({
+          id: "att-123",
+          filePath: "/uploads/img.png",
+        }),
+      );
+      mockBugRepository.deleteAttachment.mockResolvedValue(
+        new ResponseModel<void>("tx-id").withResponse(undefined),
+      );
+
+      const response = await bugUseCases.deleteAttachment(
+        new RequestModel("tx-id", "att-123"),
+      );
+
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
+        "/uploads/img.png",
+      );
+      expect(mockBugRepository.deleteAttachment).toHaveBeenCalledWith(
+        expect.objectContaining({ data: "att-123" }),
+      );
+      expect(response.errorCode).toBeUndefined();
+    });
+
+    it("should bypass physical file deletion if path is /purged", async () => {
+      mockBugRepository.findAttachmentById.mockResolvedValue(
+        new ResponseModel<any>("tx-id").withResponse({
+          id: "att-123",
+          filePath: "/purged",
+        }),
+      );
+      mockBugRepository.deleteAttachment.mockResolvedValue(
+        new ResponseModel<void>("tx-id").withResponse(undefined),
+      );
+
+      await bugUseCases.deleteAttachment(new RequestModel("tx-id", "att-123"));
+
+      expect(mockStorageService.deleteFile).not.toHaveBeenCalled();
+      expect(mockBugRepository.deleteAttachment).toHaveBeenCalled();
+    });
+
+    it("should handle error when storage service deleteFile throws", async () => {
+      mockBugRepository.findAttachmentById.mockResolvedValue(
+        new ResponseModel<any>("tx-id").withResponse({
+          id: "att-123",
+          filePath: "/uploads/img.png",
+        }),
+      );
+      mockStorageService.deleteFile.mockRejectedValue(new Error("Disk error"));
+      mockBugRepository.deleteAttachment.mockResolvedValue(
+        new ResponseModel<void>("tx-id").withResponse(undefined),
+      );
+
+      const response = await bugUseCases.deleteAttachment(
+        new RequestModel("tx-id", "att-123"),
+      );
+
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
+        "/uploads/img.png",
+      );
+      expect(mockBugRepository.deleteAttachment).toHaveBeenCalled();
+      expect(response.errorCode).toBeUndefined();
     });
   });
 });

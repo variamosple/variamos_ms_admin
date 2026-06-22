@@ -4,6 +4,7 @@ import { BugFilter } from "@src/Domain/Bug/Entity/BugFilter";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import logger from "jet-logger";
+import { validateSession } from "@variamosple/variamos-security";
 
 /**
  * Maps semantic Domain error codes to standard HTTP Status codes
@@ -47,12 +48,13 @@ export function createBugRouter(
   // Get all bugs
   router.get("/", authMiddleware, async (req: Request, res: Response) => {
     const transactionId = "queryBugs";
-    const { repo, status, priority } = req.query;
+    const { repo, status, priority, search } = req.query;
     try {
       const filter = new BugFilter(
         repo as string,
         status as string,
         priority as string,
+        search as string,
       );
       const request = new RequestModel<BugFilter>(transactionId, filter);
       const response = await bugUseCases.queryBugs(request);
@@ -68,12 +70,13 @@ export function createBugRouter(
   // Get local bugs (Inbox)
   router.get("/local", authMiddleware, async (req: Request, res: Response) => {
     const transactionId = "queryLocalBugs";
-    const { status, priority } = req.query;
+    const { repo, status, priority, search } = req.query;
     try {
       const filter = new BugFilter(
-        undefined,
+        repo as string,
         status as string,
         priority as string,
+        search as string,
       );
       const request = new RequestModel<BugFilter>(transactionId, filter);
       const response = await bugUseCases.queryLocalBugs(request);
@@ -101,6 +104,21 @@ export function createBugRouter(
     }
   });
 
+  // Get allowed categories
+  router.get("/categories", async (req: Request, res: Response) => {
+    const transactionId = "queryCategories";
+    try {
+      const request = new RequestModel<void>(transactionId);
+      const response = await bugUseCases.queryCategories(request);
+
+      const code = mapDomainErrorToHttp(response.errorCode);
+      res.status(code).json(response);
+    } catch (error) {
+      logger.err(error);
+      res.status(HttpStatusCodes.BAD_REQUEST).json({ error: error.message });
+    }
+  });
+
   // Create a new bug
   router.post(
     "/",
@@ -116,8 +134,33 @@ export function createBugRouter(
         reporterEmail,
       } = req.body;
       let adminId: string | undefined = undefined;
-      if ((req as any).sessionUser) {
-        adminId = (req as any).sessionUser.id;
+      if ((req as any).user) {
+        adminId = (req as any).user.id;
+      } else {
+        const token =
+          req.cookies?.authToken || req.headers.authorization?.split(" ")[1];
+        console.log(
+          "POST /bugs: Extracted token:",
+          token ? token.substring(0, 15) + "..." : "none",
+        );
+        if (token) {
+          try {
+            const session = await validateSession(token);
+            console.log(
+              "POST /bugs: Session validation result:",
+              JSON.stringify(session),
+            );
+            if (session && session.data) {
+              const sessionData = session.data as { id?: string; sub?: string };
+              const resolvedId = sessionData.id || sessionData.sub;
+              if (resolvedId) {
+                adminId = resolvedId;
+              }
+            }
+          } catch (e) {
+            console.error("POST /bugs: Error during session validation:", e);
+          }
+        }
       }
 
       try {
@@ -177,11 +220,29 @@ export function createBugRouter(
     async (req: Request, res: Response) => {
       const transactionId = "updateStatus";
       const { id } = req.params;
-      const { status, comment } = req.body;
-      const adminId = (req as any).sessionUser.id;
+      const {
+        status,
+        comment,
+        title,
+        description,
+        priority,
+        category,
+        githubRepo,
+      } = req.body;
+      const adminId = (req as any).user.id;
 
       try {
-        const payload = { id, status, comment, adminId };
+        const payload = {
+          id,
+          status,
+          comment,
+          adminId,
+          title,
+          description,
+          priority,
+          category,
+          githubRepo,
+        };
         const request = new RequestModel<typeof payload>(
           transactionId,
           payload,
@@ -204,7 +265,7 @@ export function createBugRouter(
     async (req: Request, res: Response) => {
       const transactionId = "restoreBug";
       const { id } = req.params;
-      const adminId = (req as any).sessionUser.id;
+      const adminId = (req as any).user.id;
 
       try {
         const payload = { id, adminId };
@@ -230,7 +291,7 @@ export function createBugRouter(
     async (req: Request, res: Response) => {
       const transactionId = "rejectBug";
       const { id } = req.params;
-      const adminId = (req as any).sessionUser.id;
+      const adminId = (req as any).user.id;
 
       try {
         const payload = { id, adminId };
@@ -269,6 +330,52 @@ export function createBugRouter(
       res.status(HttpStatusCodes.BAD_REQUEST).json({ error: error.message });
     }
   });
+
+  // Add attachment to bug
+  router.post(
+    "/:id/attachments",
+    authMiddleware,
+    upload.single("file"),
+    async (req: Request, res: Response) => {
+      const transactionId = "addAttachment";
+      const { id } = req.params;
+      try {
+        const payload = { bugId: id, file: req.file };
+        const request = new RequestModel<typeof payload>(
+          transactionId,
+          payload,
+        );
+        const response = await bugUseCases.addAttachment(request);
+        const code = mapDomainErrorToHttp(
+          response.errorCode,
+          HttpStatusCodes.CREATED,
+        );
+        res.status(code).json(response);
+      } catch (error) {
+        logger.err(error);
+        res.status(HttpStatusCodes.BAD_REQUEST).json({ error: error.message });
+      }
+    },
+  );
+
+  // Delete attachment
+  router.delete(
+    "/attachments/:id",
+    authMiddleware,
+    async (req: Request, res: Response) => {
+      const transactionId = "deleteAttachment";
+      const { id } = req.params;
+      try {
+        const request = new RequestModel<string>(transactionId, id);
+        const response = await bugUseCases.deleteAttachment(request);
+        const code = mapDomainErrorToHttp(response.errorCode);
+        res.status(code).json(response);
+      } catch (error) {
+        logger.err(error);
+        res.status(HttpStatusCodes.BAD_REQUEST).json({ error: error.message });
+      }
+    },
+  );
 
   return router;
 }

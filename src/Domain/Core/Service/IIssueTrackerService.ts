@@ -3,7 +3,7 @@ export interface IIssueTrackerService {
     repo: string,
     title: string,
     body: string,
-    category: string,
+    labels: string[],
     token: string,
   ): Promise<number | null>;
   updateIssue(
@@ -11,7 +11,7 @@ export interface IIssueTrackerService {
     issueNumber: number,
     title: string,
     body: string,
-    category: string,
+    labels: string[],
     token: string,
   ): Promise<boolean>;
   closeIssue(

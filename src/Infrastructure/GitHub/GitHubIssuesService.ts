@@ -14,13 +14,10 @@ export class GitHubIssuesService implements IIssueTrackerService {
     repo: string,
     title: string,
     body: string,
-    category: string,
+    labels: string[],
     token: string,
   ): Promise<number | null> {
     const url = `https://api.github.com/repos/${repo}/issues`;
-    let label = "bug";
-    if (category === "Question") label = "question";
-    else if (category === "Enhancement") label = "enhancement";
 
     try {
       const response = await axios.post(
@@ -28,7 +25,7 @@ export class GitHubIssuesService implements IIssueTrackerService {
         {
           title,
           body,
-          labels: [label],
+          labels,
         },
         {
           headers: this.getHeaders(token),
@@ -49,13 +46,10 @@ export class GitHubIssuesService implements IIssueTrackerService {
     issueNumber: number,
     title: string,
     body: string,
-    category: string,
+    labels: string[],
     token: string,
   ): Promise<boolean> {
     const url = `https://api.github.com/repos/${repo}/issues/${issueNumber}`;
-    let label = "bug";
-    if (category === "Question") label = "question";
-    else if (category === "Enhancement") label = "enhancement";
 
     try {
       await axios.patch(
@@ -63,7 +57,7 @@ export class GitHubIssuesService implements IIssueTrackerService {
         {
           title,
           body,
-          labels: [label],
+          labels,
         },
         {
           headers: this.getHeaders(token),

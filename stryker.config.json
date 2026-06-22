@@ -1,8 +1,6 @@
 {
   "$schema": "https://schema.stryker-mutator.io/stryker-config.json",
-  "mutate": [
-    "src/Domain/Bug/BugUseCases.ts"
-  ],
+  "mutate": ["src/Domain/Bug/BugUseCases.ts"],
   "testRunner": "jest",
   "checkers": ["typescript"],
   "tsconfigFile": "tsconfig.json",
@@ -13,11 +11,8 @@
       "testMatch": ["**/BugUseCases.spec.ts"]
     }
   },
-  "reporters": [
-    "progress",
-    "clear-text",
-    "html"
-  ],
+  "reporters": ["progress", "clear-text", "html"],
   "concurrency": 2,
+  "incremental": true,
   "coverageAnalysis": "perTest"
 }

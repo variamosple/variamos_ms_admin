@@ -4,5 +4,6 @@ export class BugFilter {
     public readonly status?: string,
     public readonly priority?: string,
     public readonly search?: string,
+    public readonly managedRepos?: string[],
   ) {}
 }
