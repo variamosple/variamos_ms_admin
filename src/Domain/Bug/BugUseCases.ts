@@ -10,6 +10,8 @@ import { IBugRepository } from "./Repository/IBugRepository";
 import { IUserRepository } from "./Repository/IUserRepository";
 import { IBugTrackerConfig } from "./Config/IBugTrackerConfig";
 import { DomainErrorCodes } from "../Core/Error/DomainErrorCodes";
+import crypto from "crypto";
+import axios from "axios";
 
 export const ALLOWED_CATEGORIES = [
   "Editor",
@@ -29,6 +31,82 @@ export class BugUseCases {
     private readonly userRepository: IUserRepository,
     private readonly githubConfig: IBugTrackerConfig,
   ) {}
+
+  private readonly tokenCache = new Map<
+    string,
+    { token: string; expiresAt: number }
+  >();
+
+  private async resolveGitHubToken(repo: string): Promise<string> {
+    const appId = this.githubConfig.getGitHubAppId?.()?.trim();
+    const privateKey = this.githubConfig.getGitHubPrivateKey?.()?.trim();
+
+    if (appId && privateKey) {
+      try {
+        const cached = this.tokenCache.get(repo);
+        if (cached && cached.expiresAt > Date.now() + 120000) {
+          return cached.token;
+        }
+
+        const jwt = this.generateAppJwt(appId, privateKey);
+
+        const installUrl = `https://api.github.com/repos/${repo}/installation`;
+        const installResponse = await axios.get(installUrl, {
+          headers: {
+            Authorization: `Bearer ${jwt}`,
+            Accept: "application/vnd.github+json",
+            "User-Agent": "VariaMos-MS-Admin",
+          },
+        });
+        const installationId = installResponse.data.id;
+
+        const tokenUrl = `https://api.github.com/app/installations/${installationId}/access_tokens`;
+        const tokenResponse = await axios.post(
+          tokenUrl,
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${jwt}`,
+              Accept: "application/vnd.github+json",
+              "User-Agent": "VariaMos-MS-Admin",
+            },
+          },
+        );
+
+        const token = tokenResponse.data.token as string;
+        const expiresAt = new Date(tokenResponse.data.expires_at).getTime();
+
+        this.tokenCache.set(repo, { token, expiresAt });
+        return token;
+      } catch (error) {
+        logger.err(
+          `Failed to resolve GitHub App token for ${repo}: ` +
+            (error.response?.data?.message || error.message),
+        );
+      }
+    }
+
+    return this.githubConfig.getGitHubToken()?.trim() || "";
+  }
+
+  private generateAppJwt(appId: string, privateKey: string): string {
+    const header = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9"; // base64url for {"alg":"RS256","typ":"JWT"}
+    const now = Math.floor(Date.now() / 1000) - 60; // 1 min clock skew
+    const payload = Buffer.from(
+      JSON.stringify({
+        iat: now,
+        exp: now + 600, // 10 minutes
+        iss: appId,
+      }),
+    ).toString("base64url");
+
+    const sign = crypto.createSign("RSA-SHA256");
+    sign.update(`${header}.${payload}`);
+    const formattedKey = privateKey.replace(/\\n/g, "\n");
+    const signature = sign.sign(formattedKey, "base64url");
+
+    return `${header}.${payload}.${signature}`;
+  }
 
   queryBugs(request: RequestModel<BugFilter>): Promise<ResponseModel<Bug[]>> {
     const filter = request.data || new BugFilter();
@@ -114,25 +192,20 @@ export class BugUseCases {
     let githubHtmlUrl: string | undefined = undefined;
 
     if (data.githubRepo && data.createdById) {
-      const gitHubToken = this.githubConfig.getGitHubToken();
+      const gitHubToken = await this.resolveGitHubToken(data.githubRepo);
       if (gitHubToken) {
         let issueBody = data.description || "No description provided.";
         issueBody += "\n\n---\n*Reported directly by Admin*";
         if (data.priority) {
           issueBody += `\n*Priority: ${data.priority}*`;
         }
-        if (data.category) {
-          issueBody += `\n*Category: ${data.category}*`;
-        }
+        issueBody += `\n*Category: ${data.category}*`;
         if (resolvedFile) {
           const fileUrl = `${process.env.API_BASE_URL || "http://localhost:4000"}${resolvedFile.filePath}`;
           issueBody += `\n\n### Attachments\n- [Attachment](${fileUrl}) (Type: ${resolvedFile.fileType})`;
         }
 
-        const labels = ["bug"];
-        if (data.category) {
-          labels.push(data.category.toLowerCase());
-        }
+        const labels = ["bug", data.category.toLowerCase()];
         if (data.priority) {
           labels.push(data.priority.toLowerCase());
         }
@@ -239,7 +312,7 @@ export class BugUseCases {
     let githubHtmlUrl: string | undefined = undefined;
 
     if (data.status === "open" && !bug.gitIssueNumber && bug.githubRepo) {
-      const gitHubToken = this.githubConfig.getGitHubToken();
+      const gitHubToken = await this.resolveGitHubToken(bug.githubRepo);
       if (gitHubToken) {
         let issueBody = bug.description || "No description provided.";
         issueBody += `\n\n---\n*Reported locally by: ${bug.reporterEmail || "Guest"}*`;
@@ -319,7 +392,7 @@ export class BugUseCases {
       bug.githubRepo &&
       (bug.gitIssueNumber || gitIssueNumber)
     ) {
-      const gitHubToken = this.githubConfig.getGitHubToken();
+      const gitHubToken = await this.resolveGitHubToken(bug.githubRepo);
       const resolvedIssueNumber = bug.gitIssueNumber || gitIssueNumber;
       if (gitHubToken && resolvedIssueNumber) {
         if (data.status === "closed") {
@@ -506,8 +579,14 @@ export class BugUseCases {
   async syncBugs(request: RequestModel<void>): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
     try {
-      const token = this.githubConfig.getGitHubToken();
-      if (!token) {
+      const appId = this.githubConfig.getGitHubAppId?.()?.trim();
+      const privateKey = this.githubConfig.getGitHubPrivateKey?.()?.trim();
+      const patToken = this.githubConfig.getGitHubToken()?.trim();
+
+      const hasAppConfig = !!(appId && privateKey);
+      const hasPatConfig = !!patToken;
+
+      if (!hasAppConfig && !hasPatConfig) {
         logger.warn(
           "GitHub token is not defined in environment variables. Synchronization aborted.",
         );
@@ -524,6 +603,13 @@ export class BugUseCases {
       let totalUpdated = 0;
 
       for (const repo of repos) {
+        const token = await this.resolveGitHubToken(repo);
+        if (!token) {
+          logger.warn(
+            `GitHub token could not be resolved for repo: ${repo}. Skipping.`,
+          );
+          continue;
+        }
         const issues = await this.issueTrackerService.getIssues(repo, token);
         if (!issues) continue;
 

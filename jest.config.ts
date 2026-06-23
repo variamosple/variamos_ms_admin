@@ -12,6 +12,7 @@ const config: Config = {
     '^@src/(.*)$': '<rootDir>/src/$1',
   },
   testMatch: ['**/src/**/*.spec.ts', '**/src/**/*.test.ts'],
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/.stryker-tmp/'],
   verbose: true,
   forceExit: true,
   clearMocks: true,

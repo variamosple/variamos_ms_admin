@@ -24,6 +24,13 @@ import { BugRepositoryInstance } from "@src/DataProviders/Bug/BugRepository";
 import { UserRepositoryInstance } from "@src/DataProviders/User/UserRepository";
 import multer from "multer";
 import path from "path";
+import fs from "fs";
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, "../public/uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 // Initialize production dependencies for BugUseCases
 export const productionBugUseCases = new BugUseCases(
@@ -34,13 +41,15 @@ export const productionBugUseCases = new BugUseCases(
   {
     getGitHubToken: () => EnvVars.GITHUB.TOKEN,
     getGitHubManagedRepos: () => EnvVars.GITHUB.MANAGED_REPOS,
+    getGitHubAppId: () => EnvVars.GITHUB.APP_ID,
+    getGitHubPrivateKey: () => EnvVars.GITHUB.PRIVATE_KEY,
   },
 );
 
 // Multer storage configuration
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
-    cb(null, path.join(__dirname, "../public/uploads"));
+    cb(null, uploadsDir);
   },
   filename: (_req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);

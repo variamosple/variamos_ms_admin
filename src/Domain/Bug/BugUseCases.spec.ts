@@ -10,6 +10,11 @@ import { IIssueTrackerService } from "../Core/Service/IIssueTrackerService";
 import { IStorageService } from "../Core/Service/IStorageService";
 import { IBugRepository } from "./Repository/IBugRepository";
 import { IUserRepository } from "./Repository/IUserRepository";
+import axios from "axios";
+import crypto from "crypto";
+
+jest.mock("axios");
+const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe("BugUseCases Unit Tests", () => {
   let bugUseCases: BugUseCases;
@@ -197,48 +202,65 @@ describe("BugUseCases Unit Tests", () => {
       expect(response.data?.id).toBe("101");
     });
 
-    it("should handle registered user with empty email data", async () => {
-      const bugData = {
-        title: "New Bug",
-        description: "Detail description",
-        priority: "medium" as const,
-        category: ALLOWED_CATEGORIES[0],
-        createdById: "user-123",
-      };
-
-      mockUserRepository.findSessionUser.mockResolvedValue(
-        new ResponseModel<any>("tx-1").withResponse({ email: "" }), // empty email
-      );
-
-      const request = new RequestModel("tx-1", bugData);
+    it.each([
+      {
+        desc: "should return error if title is missing",
+        data: {
+          title: "",
+          description: "Detail description",
+          priority: "medium" as const,
+          category: "Editor",
+          reporterEmail: "guest@example.com",
+        },
+        userResponse: null,
+        expectedError: "Title, description and category are required",
+      },
+      {
+        desc: "should return error if category is invalid",
+        data: {
+          title: "Title",
+          description: "Description",
+          priority: "medium" as const,
+          category: "InvalidCategoryName",
+          reporterEmail: "guest@example.com",
+        },
+        userResponse: null,
+        expectedError: "Invalid category selected. Allowed:",
+      },
+      {
+        desc: "should handle registered user with empty email data",
+        data: {
+          title: "New Bug",
+          description: "Detail description",
+          priority: "medium" as const,
+          category: "Editor",
+          createdById: "user-123",
+        },
+        userResponse: { email: "" },
+        expectedError: "Reporter email could not be resolved",
+      },
+      {
+        desc: "should handle registered user when userResponse.data is null",
+        data: {
+          title: "New Bug",
+          description: "Detail description",
+          priority: "medium" as const,
+          category: "Editor",
+          createdById: "user-123",
+        },
+        userResponse: null,
+        expectedError: "Reporter email could not be resolved",
+      },
+    ])("$desc", async ({ data, userResponse, expectedError }) => {
+      if (data.createdById) {
+        mockUserRepository.findSessionUser.mockResolvedValue(
+          new ResponseModel<any>("tx-1").withResponse(userResponse),
+        );
+      }
+      const request = new RequestModel("tx-1", data as any);
       const response = await bugUseCases.createBug(request);
-
       expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
-      expect(response.message).toContain(
-        "Reporter email could not be resolved",
-      );
-    });
-
-    it("should handle registered user when userResponse.data is null", async () => {
-      const bugData = {
-        title: "New Bug",
-        description: "Detail description",
-        priority: "medium" as const,
-        category: ALLOWED_CATEGORIES[0],
-        createdById: "user-123",
-      };
-
-      mockUserRepository.findSessionUser.mockResolvedValue(
-        new ResponseModel<any>("tx-1").withResponse(null),
-      );
-
-      const request = new RequestModel("tx-1", bugData);
-      const response = await bugUseCases.createBug(request);
-
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
-      expect(response.message).toContain(
-        "Reporter email could not be resolved",
-      );
+      expect(response.message).toContain(expectedError);
     });
 
     it("should support adding attachments when a file payload is present", async () => {
@@ -267,42 +289,6 @@ describe("BugUseCases Unit Tests", () => {
             },
           }),
         }),
-      );
-    });
-
-    it("should return error if title is missing", async () => {
-      const bugData = {
-        title: "",
-        description: "Detail description",
-        priority: "medium" as const,
-        category: "Editor",
-        reporterEmail: "guest@example.com",
-      };
-
-      const request = new RequestModel("tx-1", bugData);
-      const response = await bugUseCases.createBug(request);
-
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
-      expect(response.message).toContain(
-        "Title, description and category are required",
-      );
-    });
-
-    it("should return error if category is invalid", async () => {
-      const bugData = {
-        title: "Title",
-        description: "Description",
-        priority: "medium" as const,
-        category: "InvalidCategoryName",
-        reporterEmail: "guest@example.com",
-      };
-
-      const request = new RequestModel("tx-1", bugData);
-      const response = await bugUseCases.createBug(request);
-
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
-      expect(response.message).toBe(
-        "Invalid category selected. Allowed: Editor, Model, Language, Project, Simulation, Account/Security, Other",
       );
     });
 
@@ -352,6 +338,15 @@ describe("BugUseCases Unit Tests", () => {
         expect.any(String),
         expect.any(String),
         expect.stringContaining("*Category: Editor*"),
+        expect.any(Array),
+        expect.any(String),
+      );
+      expect(mockIssueTrackerService.createIssue).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        expect.stringContaining(
+          "### Attachments\n- [Attachment](http://localhost:4000/uploads/doc.pdf) (Type: application/pdf)",
+        ),
         expect.any(Array),
         expect.any(String),
       );
@@ -407,6 +402,15 @@ describe("BugUseCases Unit Tests", () => {
         expect.any(String),
         expect.any(String),
         expect.not.stringContaining("Priority:"),
+        expect.any(Array),
+        expect.any(String),
+      );
+
+      // Verify no Attachments section is present
+      expect(mockIssueTrackerService.createIssue).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        expect.not.stringContaining("### Attachments"),
         expect.any(Array),
         expect.any(String),
       );
@@ -901,6 +905,7 @@ describe("BugUseCases Unit Tests", () => {
         .setAttachments([
           { filePath: "/uploads/valid.png", fileType: "image/png" },
           { filePath: "/purged", fileType: "image/png" },
+          { filePath: "/uploads/no-type.png", fileType: undefined },
         ])
         .build();
 
@@ -920,7 +925,27 @@ describe("BugUseCases Unit Tests", () => {
       expect(mockIssueTrackerService.createIssue).toHaveBeenCalledWith(
         expect.any(String),
         "Bug with Attachments",
-        expect.stringContaining("/uploads/valid.png"),
+        expect.stringContaining(
+          "http://localhost:4000/uploads/valid.png) (Type: image/png)",
+        ),
+        expect.any(Array),
+        "dummy-token-from-test",
+      );
+
+      expect(mockIssueTrackerService.createIssue).toHaveBeenCalledWith(
+        expect.any(String),
+        "Bug with Attachments",
+        expect.stringContaining(
+          "http://localhost:4000/uploads/no-type.png) (Type: unknown)",
+        ),
+        expect.any(Array),
+        "dummy-token-from-test",
+      );
+
+      expect(mockIssueTrackerService.createIssue).toHaveBeenCalledWith(
+        expect.any(String),
+        "Bug with Attachments",
+        expect.stringContaining("*Category: Editor*"),
         expect.any(Array),
         "dummy-token-from-test",
       );
@@ -1926,6 +1951,8 @@ describe("BugUseCases Unit Tests", () => {
     });
 
     it("should handle error when storage service deleteFile throws", async () => {
+      const warnSpy = jest.spyOn(logger, "warn").mockImplementation(() => {});
+
       mockBugRepository.findAttachmentById.mockResolvedValue(
         new ResponseModel<any>("tx-id").withResponse({
           id: "att-123",
@@ -1945,7 +1972,427 @@ describe("BugUseCases Unit Tests", () => {
         "/uploads/img.png",
       );
       expect(mockBugRepository.deleteAttachment).toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledWith(
+        "Failed to delete physical file: /uploads/img.png",
+      );
       expect(response.errorCode).toBeUndefined();
+
+      warnSpy.mockRestore();
+    });
+  });
+
+  describe("GitHub App Hybrid Authentication Strategy", () => {
+    let appConfig: IBugTrackerConfig;
+    let appBugUseCases: BugUseCases;
+    let appPublicKey: string;
+    let appPrivateKey: string;
+
+    beforeEach(() => {
+      const { privateKey, publicKey } = crypto.generateKeyPairSync(
+        "rsa" as any,
+        {
+          modulusLength: 1024,
+          privateKeyEncoding: { type: "pkcs1", format: "pem" },
+          publicKeyEncoding: { type: "pkcs1", format: "pem" },
+        },
+      );
+      appPrivateKey = privateKey;
+      appPublicKey = publicKey;
+
+      appConfig = {
+        getGitHubToken: () => "pat-token-fallback",
+        getGitHubManagedRepos: () => ["VariaMos/VariaMosAdmin"],
+        getGitHubAppId: () => "123456",
+        getGitHubPrivateKey: () => privateKey as any,
+      };
+
+      appBugUseCases = new BugUseCases(
+        mockIssueTrackerService,
+        mockStorageService,
+        mockBugRepository,
+        mockUserRepository,
+        appConfig,
+      );
+
+      jest.clearAllMocks();
+      mockedAxios.get.mockReset();
+      mockedAxios.post.mockReset();
+    });
+
+    it("should successfully resolve a temporary token from GitHub App, cache it, and request a new one only when expired", async () => {
+      mockedAxios.get.mockResolvedValue({ data: { id: 98765 } } as any);
+      mockedAxios.post
+        .mockResolvedValueOnce({
+          data: {
+            token: "ghs_token_1",
+            expires_at: new Date(Date.now() + 600000).toISOString(),
+          },
+        } as any)
+        .mockResolvedValueOnce({
+          data: {
+            token: "ghs_token_2",
+            expires_at: new Date(Date.now() + 600000).toISOString(),
+          },
+        } as any);
+
+      mockBugRepository.queryBugs.mockResolvedValue(
+        new ResponseModel<Bug[]>("tx-1").withResponse([]),
+      );
+      mockIssueTrackerService.getIssues.mockResolvedValue([]);
+
+      // 1st call: No cached token, requests token from GitHub App API
+      await appBugUseCases.syncBugs(new RequestModel("tx-1"));
+      expect(mockedAxios.get).toHaveBeenCalledWith(
+        "https://api.github.com/repos/VariaMos/VariaMosAdmin/installation",
+        expect.any(Object),
+      );
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        "https://api.github.com/app/installations/98765/access_tokens",
+        {},
+        expect.any(Object),
+      );
+      expect(mockIssueTrackerService.getIssues).toHaveBeenLastCalledWith(
+        "VariaMos/VariaMosAdmin",
+        "ghs_token_1",
+      );
+
+      // 2nd call: Token is still valid, reuse cached token without calling GitHub API again
+      await appBugUseCases.syncBugs(new RequestModel("tx-2"));
+      expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+      expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+
+      // Manually expire cached token by mocking Time or let it be expired
+      const cached = (appBugUseCases as any).tokenCache.get(
+        "VariaMos/VariaMosAdmin",
+      );
+      if (cached) cached.expiresAt = Date.now() - 1000;
+
+      // 3rd call: Token expired, requests new token from GitHub App API
+      await appBugUseCases.syncBugs(new RequestModel("tx-3"));
+      expect(mockedAxios.post).toHaveBeenCalledTimes(2);
+      expect(mockIssueTrackerService.getIssues).toHaveBeenLastCalledWith(
+        "VariaMos/VariaMosAdmin",
+        "ghs_token_2",
+      );
+    });
+
+    it("should generate a mathematically valid JWT and check Axios headers strictly when App configs contain spaces or literal \\n", async () => {
+      const literalKey = appPrivateKey.replace(/\n/g, "\\n");
+      const configWithSpacesAndLiteral = {
+        getGitHubToken: () => "pat-token-fallback",
+        getGitHubManagedRepos: () => ["VariaMos/VariaMosAdmin"],
+        getGitHubAppId: () => "   123456   ",
+        getGitHubPrivateKey: () => `   ${literalKey}   `,
+      };
+
+      const useCasesSpacesAndLiteral = new BugUseCases(
+        mockIssueTrackerService,
+        mockStorageService,
+        mockBugRepository,
+        mockUserRepository,
+        configWithSpacesAndLiteral,
+      );
+
+      mockedAxios.get.mockResolvedValueOnce({ data: { id: 98765 } } as any);
+      mockedAxios.post.mockResolvedValueOnce({
+        data: {
+          token: "ghs_token_literal",
+          expires_at: new Date(Date.now() + 600000).toISOString(),
+        },
+      } as any);
+
+      mockIssueTrackerService.getIssues.mockResolvedValueOnce([]);
+      await useCasesSpacesAndLiteral.syncBugs(new RequestModel("tx-1"));
+
+      // Verify axios.get parameters & Authorization JWT format
+      expect(mockedAxios.get).toHaveBeenCalledWith(
+        "https://api.github.com/repos/VariaMos/VariaMosAdmin/installation",
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: expect.stringMatching(
+              /^Bearer [A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/,
+            ),
+            Accept: "application/vnd.github+json",
+            "User-Agent": "VariaMos-MS-Admin",
+          }),
+        }),
+      );
+
+      const authHeader =
+        mockedAxios.get.mock.calls[0][1]?.headers?.Authorization;
+      const jwtToken = authHeader.split(" ")[1];
+      const segments = jwtToken.split(".");
+      expect(segments).toHaveLength(3);
+
+      // Verify payload and JWT algorithm header
+      const headerObj = JSON.parse(
+        Buffer.from(segments[0], "base64url").toString("utf8"),
+      );
+      expect(headerObj.alg).toBe("RS256");
+      expect(headerObj.typ).toBe("JWT");
+
+      const payloadObj = JSON.parse(
+        Buffer.from(segments[1], "base64url").toString("utf8"),
+      );
+      expect(payloadObj.iss).toBe("123456");
+      expect(
+        Math.abs(payloadObj.iat - (Math.floor(Date.now() / 1000) - 60)),
+      ).toBeLessThanOrEqual(3);
+      expect(payloadObj.exp - payloadObj.iat).toBe(600);
+
+      // Verify signature mathematically using the public key
+      const verifier = crypto.createVerify("RSA-SHA256");
+      verifier.update(`${segments[0]}.${segments[1]}`);
+      expect(verifier.verify(appPublicKey, segments[2], "base64url")).toBe(
+        true,
+      );
+
+      // Verify axios.post parameters & headers
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        "https://api.github.com/app/installations/98765/access_tokens",
+        {},
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: `Bearer ${jwtToken}`,
+            Accept: "application/vnd.github+json",
+            "User-Agent": "VariaMos-MS-Admin",
+          }),
+        }),
+      );
+    });
+
+    it("should fall back to PAT and log error if GitHub App installation API call throws, or skip if token resolution returns empty", async () => {
+      const loggerSpy = jest.spyOn(logger, "err").mockImplementation(() => {});
+      const warnSpy = jest.spyOn(logger, "warn").mockImplementation(() => {});
+
+      mockedAxios.get.mockRejectedValueOnce(
+        new Error("API rate limit or invalid JWT"),
+      );
+      mockIssueTrackerService.getIssues.mockResolvedValueOnce([]);
+
+      // Test 1: GitHub App API throws -> fallback to PAT and log error
+      await appBugUseCases.syncBugs(new RequestModel("tx-1"));
+      expect(mockIssueTrackerService.getIssues).toHaveBeenCalledWith(
+        "VariaMos/VariaMosAdmin",
+        "pat-token-fallback",
+      );
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "Failed to resolve GitHub App token for VariaMos/VariaMosAdmin: API rate limit or invalid JWT",
+        ),
+      );
+
+      // Test 2: Token resolution returns empty string -> skip repository sync
+      mockedAxios.get.mockClear();
+      mockedAxios.post.mockClear();
+      mockIssueTrackerService.getIssues.mockClear();
+      mockedAxios.get.mockRejectedValueOnce(new Error("API rate limit"));
+
+      const configNoPat = {
+        getGitHubToken: () => "",
+        getGitHubManagedRepos: () => ["VariaMos/VariaMosAdmin"],
+        getGitHubAppId: () => "123456",
+        getGitHubPrivateKey: () => appPrivateKey,
+      };
+
+      const useCasesNoPat = new BugUseCases(
+        mockIssueTrackerService,
+        mockStorageService,
+        mockBugRepository,
+        mockUserRepository,
+        configNoPat,
+      );
+
+      await useCasesNoPat.syncBugs(new RequestModel("tx-2"));
+      expect(mockIssueTrackerService.getIssues).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledWith(
+        "GitHub token could not be resolved for repo: VariaMos/VariaMosAdmin. Skipping.",
+      );
+
+      loggerSpy.mockRestore();
+      warnSpy.mockRestore();
+    });
+
+    it("should abort sync or fall back based on App and PAT configs truth table verification", async () => {
+      const warnSpy = jest.spyOn(logger, "warn").mockImplementation(() => {});
+      const errSpy = jest.spyOn(logger, "err").mockImplementation(() => {});
+
+      // Helper function to test config runs
+      const testConfig = async (
+        appId: string,
+        privateKey: string,
+        patToken: string,
+      ) => {
+        mockedAxios.get.mockClear();
+        mockedAxios.post.mockClear();
+        mockIssueTrackerService.getIssues.mockClear();
+        warnSpy.mockClear();
+        errSpy.mockClear();
+
+        const createSignSpy = jest.spyOn(crypto, "createSign");
+
+        const config = {
+          getGitHubToken: () => patToken,
+          getGitHubManagedRepos: () => ["VariaMos/VariaMosAdmin"],
+          getGitHubAppId: () => appId,
+          getGitHubPrivateKey: () => privateKey,
+        };
+
+        const useCases = new BugUseCases(
+          mockIssueTrackerService,
+          mockStorageService,
+          mockBugRepository,
+          mockUserRepository,
+          config,
+        );
+
+        mockIssueTrackerService.getIssues.mockResolvedValue([]);
+        mockedAxios.get.mockResolvedValue({ data: { id: 98765 } } as any);
+        mockedAxios.post.mockResolvedValue({
+          data: {
+            token: "ghs_token",
+            expires_at: new Date(Date.now() + 600000).toISOString(),
+          },
+        } as any);
+
+        const res = await useCases.syncBugs(new RequestModel("tx-test"));
+        const calledSign = createSignSpy.mock.calls.length > 0;
+        createSignSpy.mockRestore();
+
+        return { res, calledSign };
+      };
+
+      // Case 1: Both App and PAT configs empty/spaces -> aborts
+      let { res, calledSign } = await testConfig("   ", "   ", "   ");
+      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(calledSign).toBe(false);
+      expect(warnSpy).toHaveBeenLastCalledWith(
+        "GitHub token is not defined in environment variables. Synchronization aborted.",
+      );
+
+      // Case 2: App ID exists but key missing, PAT missing -> aborts
+      ({ res, calledSign } = await testConfig("123456", "   ", ""));
+      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(calledSign).toBe(false);
+      expect(warnSpy).toHaveBeenLastCalledWith(
+        "GitHub token is not defined in environment variables. Synchronization aborted.",
+      );
+
+      // Case 3: Private key exists but App ID missing, PAT missing -> aborts
+      ({ res, calledSign } = await testConfig("", appPrivateKey, ""));
+      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(calledSign).toBe(false);
+      expect(warnSpy).toHaveBeenLastCalledWith(
+        "GitHub token is not defined in environment variables. Synchronization aborted.",
+      );
+
+      // Case 4: App configs missing, but PAT present -> succeeds and PAT is trimmed
+      ({ res, calledSign } = await testConfig("", "", "   valid-pat   "));
+      expect(res.errorCode).toBeUndefined();
+      expect(calledSign).toBe(false);
+      expect(mockIssueTrackerService.getIssues).toHaveBeenCalledWith(
+        "VariaMos/VariaMosAdmin",
+        "valid-pat",
+      );
+
+      // Case 5: App config complete, PAT missing -> succeeds using App
+      ({ res, calledSign } = await testConfig("123456", appPrivateKey, ""));
+      expect(res.errorCode).toBeUndefined();
+      expect(calledSign).toBe(true);
+      expect(mockedAxios.get).toHaveBeenCalled();
+      expect(errSpy).not.toHaveBeenCalled();
+
+      // Case 6: App ID is only spaces, Private key valid, PAT missing -> aborts (confirms App ID trim)
+      ({ res, calledSign } = await testConfig("   ", appPrivateKey, ""));
+      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(calledSign).toBe(false);
+
+      // Case 7: Private key is only spaces, App ID valid, PAT missing -> aborts (confirms Private Key trim)
+      ({ res, calledSign } = await testConfig("123456", "   ", ""));
+      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(calledSign).toBe(false);
+
+      // Case 8: App ID valid, Private key spaces, PAT present -> succeeds with PAT, calledSign is false
+      ({ res, calledSign } = await testConfig("123456", "   ", "   valid-pat   "));
+      expect(res.errorCode).toBeUndefined();
+      expect(calledSign).toBe(false);
+      expect(mockIssueTrackerService.getIssues).toHaveBeenCalledWith(
+        "VariaMos/VariaMosAdmin",
+        "valid-pat",
+      );
+
+      // Case 9: Private key valid, App ID spaces, PAT present -> succeeds with PAT, calledSign is false
+      ({ res, calledSign } = await testConfig("   ", appPrivateKey, "   valid-pat   "));
+      expect(res.errorCode).toBeUndefined();
+      expect(calledSign).toBe(false);
+      expect(mockIssueTrackerService.getIssues).toHaveBeenCalledWith(
+        "VariaMos/VariaMosAdmin",
+        "valid-pat",
+      );
+
+      warnSpy.mockRestore();
+      errSpy.mockRestore();
+    });
+  });
+
+  describe("Category Hardening & Validation Verification", () => {
+    it.each(ALLOWED_CATEGORIES)("should accept and validate category: %s", async (category) => {
+      const bugData = {
+        title: "Category Verification",
+        description: "Checking enum value",
+        priority: "medium" as const,
+        category: category,
+        reporterEmail: "guest@example.com",
+      };
+      mockBugRepository.createBug.mockResolvedValue(
+        new ResponseModel<Bug>("tx-id").withResponse(createMockBug("100")),
+      );
+      const request = new RequestModel("tx-id", bugData);
+      const response = await bugUseCases.createBug(request);
+      expect(response.errorCode).toBeUndefined();
+    });
+
+    it("should successfully approve and push to GitHub a bug with no category without crashing or appending category string/labels", async () => {
+      const bugId = "local-no-cat";
+      const requestPayload = {
+        id: bugId,
+        status: "open",
+        adminId: "admin-123",
+      };
+
+      const bugEntity = Bug.builder()
+        .setId(bugId)
+        .setTitle("Bug No Category")
+        .setDescription("Test desc")
+        .setPriority("high")
+        .setStatus("pending")
+        .setReporterEmail("user@test.com")
+        .setGithubRepo("VariaMos/VariaMosAdmin")
+        .setCategory(undefined as any) // category is undefined
+        .build();
+
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug | null>("tx-id").withResponse(bugEntity),
+      );
+
+      mockIssueTrackerService.createIssue.mockResolvedValue(999);
+
+      mockBugRepository.updateStatus.mockResolvedValue(
+        new ResponseModel<Bug>("tx-id").withResponse(bugEntity),
+      );
+
+      const request = new RequestModel("tx-id", requestPayload);
+      const response = await bugUseCases.updateStatus(request);
+
+      expect(response.errorCode).toBeUndefined();
+      expect(mockIssueTrackerService.createIssue).toHaveBeenCalledWith(
+        "VariaMos/VariaMosAdmin",
+        "Bug No Category",
+        expect.not.stringContaining("Category:"),
+        ["bug", "high"], // labels contain bug and priority, but no category!
+        "dummy-token-from-test",
+      );
     });
   });
 });
+

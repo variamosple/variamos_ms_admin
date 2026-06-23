@@ -52,5 +52,7 @@ export default {
       .split(",")
       .map((repo) => repo.trim())
       .filter((repo) => repo !== ""),
+    APP_ID: process.env.GITHUB_APP_ID ?? "",
+    PRIVATE_KEY: process.env.GITHUB_PRIVATE_KEY ?? "",
   },
 } as const;
