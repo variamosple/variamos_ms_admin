@@ -46,6 +46,7 @@ jobs:
             export GITHUB_TOKEN="${{ secrets.ISSUES_PAT_TOKEN }}"
             export GITHUB_APP_ID="${{ vars.ISSUES_BOT_APP_ID }}"
             export GITHUB_PRIVATE_KEY="${{ secrets.ISSUES_BOT_PRIVATE_KEY }}"
+            export GITHUB_MANAGED_REPOS="${{ vars.ISSUES_MANAGED_REPOS }}"
 
             echo "Executing command on remote server..."
             sudo -E docker compose --env-file .env.aws.develop -f docker-compose-aws-develop-nginx.yml pull
