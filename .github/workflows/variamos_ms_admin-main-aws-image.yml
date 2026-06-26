@@ -49,5 +49,6 @@ jobs:
             export GITHUB_MANAGED_REPOS="${{ vars.ISSUES_MANAGED_REPOS }}"
 
             echo "Executing command on remote server..."
-            docker compose --env-file .env.aws.develop -f docker-compose-aws-develop-nginx.yml pull
-            docker compose --env-file .env.aws.develop -f docker-compose-aws-develop-nginx.yml up -d
+            docker compose --env-file .env.aws.develop -f docker-compose-aws-develop-nginx.yml pull variamos_ms_admin
+            docker compose --env-file .env.aws.develop -f docker-compose-aws-develop-nginx.yml up -d variamos_ms_admin
+            docker image prune -f
