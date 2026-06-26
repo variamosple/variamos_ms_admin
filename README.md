@@ -32,7 +32,24 @@
      VARIAMOS_PUBLIC_KEY_PATH=./jwtRS256.key.pub
      ```
 
-3. **Install Dependencies:**
+3. **Configure GitHub Integration (Bot or PAT):**
+
+   To allow the microservice to synchronize issues and manage bug reports on GitHub, define the following variables in your `.env` files:
+   - `GITHUB_TOKEN`: A Personal Access Token (PAT) for fallback authentication.
+   - `GITHUB_MANAGED_REPOS`: A comma-separated list of GitHub repositories (e.g. `owner/repo-name`) to monitor.
+   - `GITHUB_APP_ID`: The App ID of your GitHub App bot.
+   - `GITHUB_PRIVATE_KEY`: The RSA private key of your GitHub App, formatted on a single line. Replace all real newlines with `\n` characters, surrounded by double quotes.
+      
+     You can format your downloaded `.pem` file with this command:
+     ```shell
+     awk '{printf "%s\\n", $0}' path/to/key.pem
+     ```
+     Example format:
+     ```env
+     GITHUB_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\nMIIEogIBAAKCAQ...\n-----END RSA PRIVATE KEY-----"
+     ```
+
+4. **Install Dependencies:**
 
    - Run the following command:
      ```shell

@@ -12,12 +12,44 @@ import { MicroServiceUseCases } from "./Domain/MicroService/MicroServiceCases";
 import app from "./server";
 // **** Run **** //
 
+import { productionBugUseCases as bugUseCases } from "./EntryPoints";
+import { BugModel } from "./DataProviders/Bug/Bug";
+import { BugAttachmentModel } from "./DataProviders/Bug/BugAttachment";
+import { BugLogModel } from "./DataProviders/Bug/BugLog";
+import "./DataProviders/Bug/BugAssociations";
+
 const SERVER_START_MSG =
   "Express server started on port: " + EnvVars.Port.toString();
 
-const server = app.listen(EnvVars.Port, () => {
+const server = app.listen(EnvVars.Port, async () => {
   initKeyStore().then();
   logger.info(SERVER_START_MSG);
+
+  // Sync Bug tracker models to guarantee tables exist
+  try {
+    logger.info("Synchronizing Bug Tracker Database models...");
+    await BugModel.sync();
+    await BugAttachmentModel.sync();
+    await BugLogModel.sync();
+    logger.info("Bug Tracker Database models synchronized successfully.");
+
+    // Purge expired rejected bugs (older than 7 days) on startup
+    await bugUseCases.purgeExpiredRejectedBugs();
+  } catch (e) {
+    logger.err("Failed to synchronize Bug tracker models: " + e.message);
+  }
+
+  // Run periodic bugs sync every 15 minutes
+  const SYNC_INTERVAL = 15 * 60 * 1000;
+  setInterval(async () => {
+    try {
+      logger.info("Executing periodic bugs synchronization...");
+      const request = new RequestModel<void>("periodicSyncBugs");
+      await bugUseCases.syncBugs(request);
+    } catch (e) {
+      logger.err("Failed to execute periodic bugs sync: " + e.message);
+    }
+  }, SYNC_INTERVAL);
 });
 
 const webSocketServer = new WebSocketServer({ server });
@@ -43,11 +75,11 @@ webSocketServer.on("connection", async (ws, req) => {
 
       const request = new RequestModel<string>(
         transactionId,
-        microserviceId as string
+        microserviceId as string,
       );
 
       const response = await new MicroServiceUseCases().watchMicroServiceLogs(
-        request
+        request,
       );
 
       if (response.errorCode) {
@@ -59,13 +91,13 @@ webSocketServer.on("connection", async (ws, req) => {
           JSON.stringify(
             response.withError(
               HttpStatusCodes.NOT_FOUND,
-              "No Logs found for microservice with id: " + microserviceId
-            )
-          )
+              "No Logs found for microservice with id: " + microserviceId,
+            ),
+          ),
         );
       }
 
-      const logStream = response.data!;
+      const logStream = response.data;
 
       logStream.on("data", (chunk) => {
         if (ws.readyState === WebSocket.OPEN) {
