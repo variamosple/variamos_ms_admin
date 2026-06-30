@@ -230,6 +230,7 @@ export function createBugRouter(
         githubRepo,
       } = req.body;
       const adminId = (req as any).user.id;
+      const adminEmail = (req as any).user.email;
 
       try {
         const payload = {
@@ -237,6 +238,7 @@ export function createBugRouter(
           status,
           comment,
           adminId,
+          adminEmail,
           title,
           description,
           priority,
@@ -368,6 +370,49 @@ export function createBugRouter(
       try {
         const request = new RequestModel<string>(transactionId, id);
         const response = await bugUseCases.deleteAttachment(request);
+        const code = mapDomainErrorToHttp(response.errorCode);
+        res.status(code).json(response);
+      } catch (error) {
+        logger.err(error);
+        res.status(HttpStatusCodes.BAD_REQUEST).json({ error: error.message });
+      }
+    },
+  );
+
+  // Create bug note
+  router.post(
+    "/:id/notes",
+    authMiddleware,
+    async (req: Request, res: Response) => {
+      const transactionId = "createBugNote";
+      const { id } = req.params;
+      const { body } = req.body;
+      const authorId = (req as any).user.id;
+
+      try {
+        const payload = { bugId: id, body, authorId };
+        const request = new RequestModel(transactionId, payload);
+        const response = await bugUseCases.createNote(request);
+        const code = mapDomainErrorToHttp(response.errorCode);
+        res.status(code).json(response);
+      } catch (error) {
+        logger.err(error);
+        res.status(HttpStatusCodes.BAD_REQUEST).json({ error: error.message });
+      }
+    },
+  );
+
+  // Query bug notes
+  router.get(
+    "/:id/notes",
+    authMiddleware,
+    async (req: Request, res: Response) => {
+      const transactionId = "queryBugNotes";
+      const { id } = req.params;
+
+      try {
+        const request = new RequestModel(transactionId, id);
+        const response = await bugUseCases.queryNotes(request);
         const code = mapDomainErrorToHttp(response.errorCode);
         res.status(code).json(response);
       } catch (error) {

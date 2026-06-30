@@ -3,6 +3,7 @@ import { ResponseModel } from "../Core/Entity/ResponseModel";
 import { Bug } from "./Entity/Bug";
 import { BugStatusLog } from "./Entity/BugStatusLog";
 import { BugFilter } from "./Entity/BugFilter";
+import { BugNote } from "./Entity/BugNote";
 import logger from "jet-logger";
 import { IIssueTrackerService } from "../Core/Service/IIssueTrackerService";
 import { IStorageService } from "../Core/Service/IStorageService";
@@ -271,6 +272,7 @@ export class BugUseCases {
       status: string;
       comment?: string;
       adminId: string;
+      adminEmail?: string;
       title?: string;
       description?: string;
       priority?: "low" | "medium" | "high";
@@ -302,6 +304,29 @@ export class BugUseCases {
     const bug = bugResponse.data;
 
     // Apply optional edits if supplied (allowing admins to review and correct details)
+    const modifiedFields: string[] = [];
+    if (data.title && data.title !== bug.title) {
+      modifiedFields.push(`* Title: "${bug.title}" -> "${data.title}"`);
+    }
+    if (data.description && data.description !== bug.description) {
+      modifiedFields.push(
+        `* Description: "${bug.description}" -> "${data.description}"`,
+      );
+    }
+    if (data.category && data.category !== bug.category) {
+      modifiedFields.push(
+        `* Category: "${bug.category || "None"}" -> "${data.category}"`,
+      );
+    }
+    if (data.priority && data.priority !== bug.priority) {
+      modifiedFields.push(
+        `* Priority: "${bug.priority || "medium"}" -> "${data.priority}"`,
+      );
+    }
+    if (data.githubRepo && data.githubRepo !== bug.githubRepo) {
+      modifiedFields.push(`* Target repository set to "${data.githubRepo}"`);
+    }
+
     if (data.title) bug.title = data.title;
     if (data.description) bug.description = data.description;
     if (data.priority) bug.priority = data.priority;
@@ -316,6 +341,12 @@ export class BugUseCases {
       if (gitHubToken) {
         let issueBody = bug.description || "No description provided.";
         issueBody += `\n\n---\n*Reported locally by: ${bug.reporterEmail || "Guest"}*`;
+        if (data.adminEmail) {
+          const approvalComment = data.comment
+            ? ` (Comment: "${data.comment}")`
+            : "";
+          issueBody += `\n*Approved and pushed to GitHub by: ${data.adminEmail}${approvalComment}*`;
+        }
         if (bug.priority) {
           issueBody += `\n*Priority: ${bug.priority}*`;
         }
@@ -369,6 +400,27 @@ export class BugUseCases {
           "GitHub integration token is not configured.",
         );
       }
+    }
+
+    const approvalCommentStr = data.comment
+      ? `\n\nAdmin Comment: "${data.comment}"`
+      : "";
+
+    if (data.status === "open" && modifiedFields.length > 0) {
+      const auditBody = `[Audit] The administrator modified the following fields:\n${modifiedFields.join("\n")}${approvalCommentStr}`;
+      await this.bugRepository.createNote(
+        new RequestModel(request.transactionId, {
+          bugId: bug.id,
+          body: auditBody,
+        }),
+      );
+    } else if (data.status === "open") {
+      await this.bugRepository.createNote(
+        new RequestModel(request.transactionId, {
+          bugId: bug.id,
+          body: `[Audit] The bug was approved and sent to GitHub. The fields were not modified by the administrator.${approvalCommentStr}`,
+        }),
+      );
     }
 
     const dbResponse = await this.bugRepository.updateStatus(
@@ -736,5 +788,15 @@ export class BugUseCases {
       }
     }
     return this.bugRepository.deleteAttachment(request);
+  }
+
+  createNote(
+    request: RequestModel<{ bugId: string; body: string; authorId?: string }>,
+  ): Promise<ResponseModel<BugNote>> {
+    return this.bugRepository.createNote(request);
+  }
+
+  queryNotes(request: RequestModel<string>): Promise<ResponseModel<BugNote[]>> {
+    return this.bugRepository.queryNotes(request);
   }
 }

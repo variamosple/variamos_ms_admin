@@ -34,6 +34,8 @@ const mockRejectBug = jest.fn();
 const mockSyncBugs = jest.fn();
 const mockAddAttachment = jest.fn();
 const mockDeleteAttachment = jest.fn();
+const mockCreateNote = jest.fn();
+const mockQueryNotes = jest.fn();
 
 // Mock the BugUseCases instances that the BugRouter imports, enforcing type safety on interface boundaries
 const mockBugUseCases = {
@@ -49,6 +51,8 @@ const mockBugUseCases = {
   syncBugs: mockSyncBugs,
   addAttachment: mockAddAttachment,
   deleteAttachment: mockDeleteAttachment,
+  createNote: mockCreateNote,
+  queryNotes: mockQueryNotes,
 } as unknown as BugUseCases;
 
 // Use memory storage for testing to bypass physical disk writes and keep tests clean
@@ -318,6 +322,7 @@ describe("BugRouter HTTP Integration Tests", () => {
             status: "closed",
             comment: "Issue resolved.",
             adminId: "admin-123",
+            adminEmail: "admin@example.com",
           },
         }),
       );
@@ -633,6 +638,17 @@ describe("BugRouter HTTP Integration Tests", () => {
           }),
         );
       });
+
+      it("should handle unexpected errors during attachment upload and return 400", async () => {
+        mockAddAttachment.mockRejectedValue(new Error("Upload failed"));
+
+        const res = await request(app)
+          .post("/bugs/local-1/attachments")
+          .attach("file", Buffer.from("fake png"), "test-image.png");
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe("Upload failed");
+      });
     });
 
     describe("DELETE /bugs/attachments/:id", () => {
@@ -649,6 +665,88 @@ describe("BugRouter HTTP Integration Tests", () => {
             data: "1",
           }),
         );
+      });
+
+      it("should handle unexpected errors during attachment deletion and return 400", async () => {
+        mockDeleteAttachment.mockRejectedValue(new Error("Delete failed"));
+
+        const res = await request(app).delete("/bugs/attachments/1");
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe("Delete failed");
+      });
+    });
+  });
+
+  describe("Bug Notes Integration Tests", () => {
+    describe("POST /bugs/:id/notes", () => {
+      it("should successfully create a new note for a bug", async () => {
+        const mockNote = {
+          id: 10,
+          bugId: "local-1",
+          body: "Hello note",
+          authorId: "admin-123",
+        };
+        mockCreateNote.mockResolvedValue(
+          new ResponseModel("tx-id").withResponse(mockNote),
+        );
+
+        const res = await request(app)
+          .post("/bugs/local-1/notes")
+          .send({ body: "Hello note" });
+
+        expect(res.status).toBe(200);
+        expect(res.body.data.id).toBe(10);
+        expect(mockCreateNote).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: {
+              bugId: "local-1",
+              body: "Hello note",
+              authorId: "admin-123",
+            },
+          }),
+        );
+      });
+
+      it("should handle unexpected errors during note creation and return 400", async () => {
+        mockCreateNote.mockRejectedValue(new Error("Note creation failed"));
+
+        const res = await request(app)
+          .post("/bugs/local-1/notes")
+          .send({ body: "Hello note" });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe("Note creation failed");
+      });
+    });
+
+    describe("GET /bugs/:id/notes", () => {
+      it("should successfully fetch notes for a bug", async () => {
+        mockQueryNotes.mockResolvedValue(
+          new ResponseModel("tx-id").withResponse([
+            { id: 10, body: "Hello note" },
+          ]),
+        );
+
+        const res = await request(app).get("/bugs/local-1/notes");
+
+        expect(res.status).toBe(200);
+        expect(res.body.data).toHaveLength(1);
+        expect(res.body.data[0].id).toBe(10);
+        expect(mockQueryNotes).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: "local-1",
+          }),
+        );
+      });
+
+      it("should handle unexpected errors during notes query and return 400", async () => {
+        mockQueryNotes.mockRejectedValue(new Error("Notes query failed"));
+
+        const res = await request(app).get("/bugs/local-1/notes");
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe("Notes query failed");
       });
     });
   });

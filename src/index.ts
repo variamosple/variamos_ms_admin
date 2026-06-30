@@ -50,6 +50,17 @@ const server = app.listen(EnvVars.Port, async () => {
       logger.err("Failed to execute periodic bugs sync: " + e.message);
     }
   }, SYNC_INTERVAL);
+
+  // Run periodic expired bugs purge (default: every 24 hours)
+  const PURGE_INTERVAL = 24 * 60 * 60 * 1000;
+  setInterval(async () => {
+    try {
+      logger.info("Executing periodic expired bugs purge...");
+      await bugUseCases.purgeExpiredRejectedBugs();
+    } catch (e) {
+      logger.err("Failed to execute periodic expired bugs purge: " + e.message);
+    }
+  }, PURGE_INTERVAL);
 });
 
 const webSocketServer = new WebSocketServer({ server });

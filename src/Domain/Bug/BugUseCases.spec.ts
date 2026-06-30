@@ -50,11 +50,19 @@ describe("BugUseCases Unit Tests", () => {
       createAttachment: jest.fn(),
       deleteAttachment: jest.fn(),
       findAttachmentById: jest.fn(),
+      createNote: jest.fn(),
+      queryNotes: jest.fn(),
     } as unknown as jest.Mocked<IBugRepository>;
     mockBugRepository.findById.mockResolvedValue(
       new ResponseModel<Bug | null>("tx-id").withResponse(
         Bug.builder().setId("123").setStatus("pending").build(),
       ),
+    );
+    mockBugRepository.createNote.mockResolvedValue(
+      new ResponseModel<any>("tx-id"),
+    );
+    mockBugRepository.queryNotes.mockResolvedValue(
+      new ResponseModel<any[]>("tx-id").withResponse([]),
     );
     mockUserRepository = {
       findSessionUser: jest.fn(),
@@ -813,6 +821,21 @@ describe("BugUseCases Unit Tests", () => {
         expect.any(String),
       );
 
+      expect(mockBugRepository.createNote).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            bugId: bugId,
+            body:
+              "[Audit] The administrator modified the following fields:\n" +
+              '* Title: "Original Title" -> "Revised Admin Title"\n' +
+              '* Description: "Original Description" -> "Revised Admin Description"\n' +
+              '* Category: "Editor" -> "Other"\n' +
+              '* Priority: "low" -> "high"\n' +
+              '* Target repository set to "VariaMos/VariaMosAdmin"',
+          }),
+        }),
+      );
+
       expect(mockBugRepository.updateStatus).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
@@ -879,10 +902,108 @@ describe("BugUseCases Unit Tests", () => {
       expect(mockIssueTrackerService.createIssue).toHaveBeenCalledWith(
         expect.any(String),
         expect.any(String),
+        expect.not.stringContaining("Approved and pushed to GitHub by:"),
+        expect.any(Array),
+        expect.any(String),
+      );
+
+      expect(mockIssueTrackerService.createIssue).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
         expect.not.stringContaining("### Attachments"),
         expect.any(Array),
         expect.any(String),
       );
+
+      expect(mockBugRepository.createNote).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            bugId: bugId,
+            body: "[Audit] The bug was approved and sent to GitHub. The fields were not modified by the administrator.",
+          }),
+        }),
+      );
+    });
+
+    it("should log no modifications if fields are supplied in payload but match current bug values", async () => {
+      const bugId = "local-10";
+      const requestPayload = {
+        id: bugId,
+        status: "open",
+        adminId: "admin-123",
+        title: "Keep Original Title",
+        description: "Keep Original Description",
+        priority: "medium" as const,
+        category: "Editor",
+        githubRepo: "VariaMos/VariaMosAdmin",
+      };
+
+      const bugEntity = Bug.builder()
+        .setId(bugId)
+        .setTitle("Keep Original Title")
+        .setDescription("Keep Original Description")
+        .setPriority("medium")
+        .setCategory("Editor")
+        .setStatus("pending")
+        .setReporterEmail("user@test.com")
+        .setGithubRepo("VariaMos/VariaMosAdmin")
+        .setAttachments([])
+        .build();
+
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug | null>("tx-id").withResponse(bugEntity),
+      );
+
+      mockIssueTrackerService.createIssue.mockResolvedValue(888);
+
+      mockBugRepository.updateStatus.mockResolvedValue(
+        new ResponseModel<Bug>("tx-id").withResponse(bugEntity),
+      );
+
+      const request = new RequestModel("tx-id", requestPayload);
+      await bugUseCases.updateStatus(request);
+
+      // Verify that createNote gets the "no modifications" message because values did not change
+      expect(mockBugRepository.createNote).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            bugId: bugId,
+            body: "[Audit] The bug was approved and sent to GitHub. The fields were not modified by the administrator.",
+          }),
+        }),
+      );
+    });
+
+    it("should not create a note when updating status to closed", async () => {
+      const bugId = "local-10";
+      const requestPayload = {
+        id: bugId,
+        status: "closed",
+        adminId: "admin-123",
+        title: "Changed Title",
+      };
+
+      const bugEntity = Bug.builder()
+        .setId(bugId)
+        .setTitle("Keep Original Title")
+        .setDescription("Keep Original Description")
+        .setPriority("medium")
+        .setStatus("pending")
+        .build();
+
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug | null>("tx-id").withResponse(bugEntity),
+      );
+
+      mockBugRepository.updateStatus.mockResolvedValue(
+        new ResponseModel<Bug>("tx-id").withResponse(bugEntity),
+      );
+
+      const request = new RequestModel("tx-id", requestPayload);
+      await bugUseCases.updateStatus(request);
+
+      // Verify that createNote is NOT called because status is closed (not open)
+      expect(mockBugRepository.createNote).not.toHaveBeenCalled();
     });
 
     it("should filter out /purged attachments when approving and pushing to GitHub", async () => {
@@ -2313,7 +2434,11 @@ describe("BugUseCases Unit Tests", () => {
       expect(calledSign).toBe(false);
 
       // Case 8: App ID valid, Private key spaces, PAT present -> succeeds with PAT, calledSign is false
-      ({ res, calledSign } = await testConfig("123456", "   ", "   valid-pat   "));
+      ({ res, calledSign } = await testConfig(
+        "123456",
+        "   ",
+        "   valid-pat   ",
+      ));
       expect(res.errorCode).toBeUndefined();
       expect(calledSign).toBe(false);
       expect(mockIssueTrackerService.getIssues).toHaveBeenCalledWith(
@@ -2322,7 +2447,11 @@ describe("BugUseCases Unit Tests", () => {
       );
 
       // Case 9: Private key valid, App ID spaces, PAT present -> succeeds with PAT, calledSign is false
-      ({ res, calledSign } = await testConfig("   ", appPrivateKey, "   valid-pat   "));
+      ({ res, calledSign } = await testConfig(
+        "   ",
+        appPrivateKey,
+        "   valid-pat   ",
+      ));
       expect(res.errorCode).toBeUndefined();
       expect(calledSign).toBe(false);
       expect(mockIssueTrackerService.getIssues).toHaveBeenCalledWith(
@@ -2336,21 +2465,24 @@ describe("BugUseCases Unit Tests", () => {
   });
 
   describe("Category Hardening & Validation Verification", () => {
-    it.each(ALLOWED_CATEGORIES)("should accept and validate category: %s", async (category) => {
-      const bugData = {
-        title: "Category Verification",
-        description: "Checking enum value",
-        priority: "medium" as const,
-        category: category,
-        reporterEmail: "guest@example.com",
-      };
-      mockBugRepository.createBug.mockResolvedValue(
-        new ResponseModel<Bug>("tx-id").withResponse(createMockBug("100")),
-      );
-      const request = new RequestModel("tx-id", bugData);
-      const response = await bugUseCases.createBug(request);
-      expect(response.errorCode).toBeUndefined();
-    });
+    it.each(ALLOWED_CATEGORIES)(
+      "should accept and validate category: %s",
+      async (category) => {
+        const bugData = {
+          title: "Category Verification",
+          description: "Checking enum value",
+          priority: "medium" as const,
+          category: category,
+          reporterEmail: "guest@example.com",
+        };
+        mockBugRepository.createBug.mockResolvedValue(
+          new ResponseModel<Bug>("tx-id").withResponse(createMockBug("100")),
+        );
+        const request = new RequestModel("tx-id", bugData);
+        const response = await bugUseCases.createBug(request);
+        expect(response.errorCode).toBeUndefined();
+      },
+    );
 
     it("should successfully approve and push to GitHub a bug with no category without crashing or appending category string/labels", async () => {
       const bugId = "local-no-cat";
@@ -2393,6 +2525,81 @@ describe("BugUseCases Unit Tests", () => {
         "dummy-token-from-test",
       );
     });
+
+    it("should include admin comment in the GitHub issue description and the system note when approving a bug", async () => {
+      const bugId = "local-comment-10";
+      const requestPayload = {
+        id: bugId,
+        status: "open",
+        adminId: "admin-123",
+        adminEmail: "admin@example.com",
+        comment: "This is a verification note",
+      };
+
+      const bugEntity = Bug.builder()
+        .setId(bugId)
+        .setTitle("Original Title")
+        .setDescription("Original Description")
+        .setPriority("medium")
+        .setStatus("pending")
+        .setReporterEmail("user@test.com")
+        .setGithubRepo("VariaMos/VariaMosAdmin")
+        .build();
+
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug | null>("tx-id").withResponse(bugEntity),
+      );
+
+      mockIssueTrackerService.createIssue.mockResolvedValue(1001);
+
+      mockBugRepository.updateStatus.mockResolvedValue(
+        new ResponseModel<Bug>("tx-id").withResponse(bugEntity),
+      );
+
+      const request = new RequestModel("tx-id", requestPayload);
+      await bugUseCases.updateStatus(request);
+
+      // Verify validation comment is appended to GitHub issue signature
+      expect(mockIssueTrackerService.createIssue).toHaveBeenCalledWith(
+        "VariaMos/VariaMosAdmin",
+        "Original Title",
+        expect.stringContaining(
+          '*Approved and pushed to GitHub by: admin@example.com (Comment: "This is a verification note")*',
+        ),
+        expect.any(Array),
+        "dummy-token-from-test",
+      );
+
+      // Verify validation comment is appended to the system audit note
+      expect(mockBugRepository.createNote).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            bugId: bugId,
+            body: expect.stringContaining(
+              'Admin Comment: "This is a verification note"',
+            ),
+          }),
+        }),
+      );
+    });
+  });
+
+  describe("Bug Notes Use Cases", () => {
+    it("should successfully delegate createNote to the repository", async () => {
+      const payload = { bugId: "123", body: "Hello", authorId: "admin-1" };
+      const request = new RequestModel("tx-id", payload);
+
+      await bugUseCases.createNote(request);
+
+      expect(mockBugRepository.createNote).toHaveBeenCalledWith(request);
+    });
+
+    it("should successfully delegate queryNotes to the repository", async () => {
+      const request = new RequestModel("tx-id", "123");
+
+      await bugUseCases.queryNotes(request);
+
+      expect(mockBugRepository.queryNotes).toHaveBeenCalledWith(request);
+    });
   });
 });
-

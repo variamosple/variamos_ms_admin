@@ -7,11 +7,13 @@ import { BugFilter } from "@src/Domain/Bug/Entity/BugFilter";
 import { BugModel } from "./Bug";
 import { BugAttachmentModel } from "./BugAttachment";
 import { BugLogModel } from "./BugLog";
+import { BugNoteModel } from "./BugNote";
 import { UserModel } from "../User/User";
 import { Op } from "sequelize";
 import logger from "jet-logger";
 import { IBugRepository } from "@src/Domain/Bug/Repository/IBugRepository";
 import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
+import { BugNote } from "@src/Domain/Bug/Entity/BugNote";
 
 export class BugRepositoryImpl implements IBugRepository {
   async queryBugs(
@@ -47,7 +49,10 @@ export class BugRepositoryImpl implements IBugRepository {
 
       const dbBugs = await BugModel.findAll({
         where: whereClause,
-        include: [{ model: BugAttachmentModel, as: "attachments" }],
+        include: [
+          { model: BugAttachmentModel, as: "attachments" },
+          { model: UserModel, as: "createdBy", attributes: ["name", "email"] },
+        ],
         order: [["createdAt", "DESC"]],
       });
 
@@ -64,8 +69,19 @@ export class BugRepositoryImpl implements IBugRepository {
           .setGithubCreator(dbBug.githubCreator || undefined)
           .setGithubHtmlUrl(dbBug.githubHtmlUrl || undefined)
           .setGithubAssignee(dbBug.githubAssignee || undefined)
+          .setCreatedById(dbBug.createdById || undefined)
+          .setReporterEmail(dbBug.reporterEmail || undefined)
           .setCreatedAt(dbBug.createdAt)
           .setUpdatedAt(dbBug.updatedAt)
+          .setCreatedBy(
+            (dbBug as any).createdBy
+              ? {
+                  id: dbBug.createdById || "",
+                  name: (dbBug as any).createdBy.name,
+                  email: (dbBug as any).createdBy.email || dbBug.reporterEmail,
+                }
+              : undefined,
+          )
           .setAttachments((dbBug as any).attachments)
           .build(),
       );
@@ -254,6 +270,12 @@ export class BugRepositoryImpl implements IBugRepository {
           dbBug.githubAssignee = bug.githubAssignee;
           changed = true;
         }
+        if (
+          dbBug.githubCreatedAt?.toISOString() !== bug.createdAt?.toISOString()
+        ) {
+          dbBug.githubCreatedAt = bug.createdAt;
+          changed = true;
+        }
 
         if (changed) {
           await dbBug.save();
@@ -286,12 +308,14 @@ export class BugRepositoryImpl implements IBugRepository {
         dbBug.status = "rejected";
         await dbBug.save({ transaction: t });
 
+        const resolvedOperatorId = await this.resolveOperatorId(adminId, t);
+
         await BugLogModel.create(
           {
             action: "reject",
             comment: logComment,
             bugId: dbBug.id!,
-            operatorId: adminId,
+            operatorId: resolvedOperatorId,
           },
           { transaction: t },
         );
@@ -325,12 +349,14 @@ export class BugRepositoryImpl implements IBugRepository {
         dbBug.status = "pending";
         await dbBug.save({ transaction: t });
 
+        const resolvedOperatorId = await this.resolveOperatorId(adminId, t);
+
         await BugLogModel.create(
           {
             action: "restore",
             comment: logComment,
             bugId: dbBug.id!,
-            operatorId: adminId,
+            operatorId: resolvedOperatorId,
           },
           { transaction: t },
         );
@@ -635,12 +661,14 @@ export class BugRepositoryImpl implements IBugRepository {
         }
         await dbBug.save({ transaction: t });
 
+        const resolvedOperatorId = await this.resolveOperatorId(adminId, t);
+
         await BugLogModel.create(
           {
             action: status,
             comment,
             bugId: dbBug.id!,
-            operatorId: adminId,
+            operatorId: resolvedOperatorId,
           },
           { transaction: t },
         );
@@ -703,6 +731,83 @@ export class BugRepositoryImpl implements IBugRepository {
       const attachment = await BugAttachmentModel.findByPk(id);
       response.data = attachment || null;
     } catch (error) {
+      logger.err(error);
+      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, error.message);
+    }
+    return response;
+  }
+
+  private async resolveOperatorId(
+    adminId?: string,
+    transaction?: any,
+  ): Promise<string | undefined> {
+    if (!adminId) return undefined;
+    const userExists = await UserModel.findByPk(adminId, { transaction });
+    return userExists ? adminId : undefined;
+  }
+
+  async createNote(
+    request: RequestModel<{ bugId: string; body: string; authorId?: string }>,
+  ): Promise<ResponseModel<BugNote>> {
+    const response = new ResponseModel<BugNote>(request.transactionId);
+    try {
+      const { bugId, body, authorId } = request.data!;
+
+      // Prevent FK violation by ensuring authorId exists in local user table
+      const resolvedAuthorId = authorId
+        ? await this.resolveOperatorId(authorId)
+        : undefined;
+
+      const dbNote = await BugNoteModel.create({
+        bugId,
+        body,
+        authorId: resolvedAuthorId,
+      });
+
+      let authorName = "System";
+      if (resolvedAuthorId) {
+        const user = await UserModel.findByPk(resolvedAuthorId);
+        if (user) authorName = user.name;
+      }
+
+      response.data = BugNote.builder()
+        .setId(dbNote.id)
+        .setBugId(dbNote.bugId)
+        .setBody(dbNote.body)
+        .setAuthorId(dbNote.authorId || "")
+        .setAuthor({ name: authorName })
+        .setCreatedAt(dbNote.createdAt)
+        .build();
+    } catch (error: any) {
+      logger.err(error);
+      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, error.message);
+    }
+    return response;
+  }
+
+  async queryNotes(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<BugNote[]>> {
+    const response = new ResponseModel<BugNote[]>(request.transactionId);
+    try {
+      const bugId = request.data!;
+      const dbNotes = await BugNoteModel.findAll({
+        where: { bugId },
+        include: [{ model: UserModel, as: "author", attributes: ["name"] }],
+        order: [["createdAt", "ASC"]],
+      });
+
+      response.data = dbNotes.map((dbNote) =>
+        BugNote.builder()
+          .setId(dbNote.id)
+          .setBugId(dbNote.bugId)
+          .setBody(dbNote.body)
+          .setAuthorId(dbNote.authorId || "")
+          .setAuthor({ name: (dbNote as any).author?.name || "System" })
+          .setCreatedAt(dbNote.createdAt)
+          .build(),
+      );
+    } catch (error: any) {
       logger.err(error);
       response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, error.message);
     }

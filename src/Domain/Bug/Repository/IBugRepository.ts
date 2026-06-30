@@ -3,6 +3,7 @@ import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { Bug } from "../Entity/Bug";
 import { BugFilter } from "../Entity/BugFilter";
 import { BugStatusLog } from "../Entity/BugStatusLog";
+import { BugNote } from "../Entity/BugNote";
 
 export interface IBugRepository {
   queryBugs(request: RequestModel<BugFilter>): Promise<ResponseModel<Bug[]>>;
@@ -84,4 +85,8 @@ export interface IBugRepository {
   findAttachmentById(
     request: RequestModel<string>,
   ): Promise<ResponseModel<any | null>>;
+  createNote(
+    request: RequestModel<{ bugId: string; body: string; authorId?: string }>,
+  ): Promise<ResponseModel<BugNote>>;
+  queryNotes(request: RequestModel<string>): Promise<ResponseModel<BugNote[]>>;
 }

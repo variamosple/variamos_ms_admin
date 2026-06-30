@@ -35,3 +35,21 @@ BugLogModel.belongsTo(UserModel, {
   foreignKey: "operator_id",
   as: "changedBy",
 });
+
+import { BugNoteModel } from "./BugNote";
+
+BugModel.hasMany(BugNoteModel, {
+  foreignKey: "bug_id",
+  as: "notes",
+  onDelete: "CASCADE",
+});
+
+BugNoteModel.belongsTo(BugModel, {
+  foreignKey: "bug_id",
+  as: "bug",
+});
+
+BugNoteModel.belongsTo(UserModel, {
+  foreignKey: "author_id",
+  as: "author",
+});
