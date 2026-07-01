@@ -8,6 +8,7 @@ import { Credentials } from "@src/Domain/User/Entity/Credentials";
 import { PasswordUpdate } from "@src/Domain/User/Entity/PasswordUpdate";
 import { PersonalInformationUpdate } from "@src/Domain/User/Entity/PersonalInformationUpdate";
 import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration";
+import { IUserRepository } from "@src/Domain/User/IUserRepository";
 import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
 import bcrypt from "bcrypt";
 import logger from "jet-logger";
@@ -33,7 +34,7 @@ const initilizeReplacements = (filter: Replacements) => {
   }, {});
 };
 
-export class UserRepositoryImpl {
+export class UserRepositoryImpl implements IUserRepository {
   async queryUsers(
     request: RequestModel<UserFilter>,
   ): Promise<ResponseModel<User[]>> {
@@ -624,6 +625,7 @@ export class UserRepositoryImpl {
       );
     } catch (error) {
       logger.err("Error in savePasswordResetToken: " + error);
+      throw error;
     }
   }
 

@@ -1,9 +1,10 @@
 import nodemailer from "nodemailer";
 import logger from "jet-logger";
 import EnvVars from "@src/common/EnvVars";
+import { IMailService } from "@src/Domain/Mail/IMailService";
 
-export class MailService {
-  private static transporter = nodemailer.createTransport({
+export class MailServiceImpl implements IMailService {
+  private transporter = nodemailer.createTransport({
     host: EnvVars.SMTP.HOST,
     port: EnvVars.SMTP.PORT,
     secure: EnvVars.SMTP.PORT === 465, // true for port 465 (SSL), false for other ports (TLS/STARTTLS)
@@ -19,11 +20,7 @@ export class MailService {
   /**
    * Sends an email in text or HTML format
    */
-  static async sendMail(
-    to: string,
-    subject: string,
-    html: string,
-  ): Promise<boolean> {
+  async sendMail(to: string, subject: string, html: string): Promise<boolean> {
     try {
       // If in development/testing mode and no SMTP credentials are provided, simulate the email sending
       if (
@@ -56,7 +53,7 @@ export class MailService {
   /**
    * Sends a password reset email containing the recovery link
    */
-  static async sendPasswordResetMail(
+  async sendPasswordResetMail(
     to: string,
     recoveryLink: string,
   ): Promise<boolean> {
@@ -67,13 +64,13 @@ export class MailService {
       <div style="background-color: #f8f9fa; padding: 40px 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333;">
         <div style="max-width: 550px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #e9ecef;">
           
-          <!-- Header (Logo / Titre) -->
+          <!-- Header (Logo / Title) -->
           <div style="background-color: #ffffff; padding: 30px; text-align: center; border-bottom: 1px solid #e9ecef;">
             <img src="${logoUrl}" alt="VariaMos Logo" style="max-height: 45px; display: block; margin: 0 auto;" />
             <p style="color: #6c757d; margin: 8px 0 0 0; font-size: 13px; font-weight: 500; letter-spacing: 0.5px;">Platform Admin Panel</p>
           </div>
 
-          <!-- Contenu principal -->
+          <!-- Main content -->
           <div style="padding: 40px 30px;">
             <h2 style="color: #212529; font-size: 20px; margin-top: 0; font-weight: 600;">Hello,</h2>
             <p style="font-size: 15px; line-height: 1.6; color: #495057;">
@@ -83,7 +80,7 @@ export class MailService {
               Please click the button below to choose a new password. This secure link is valid for the next <strong>24 hours</strong>:
             </p>
 
-            <!-- Bouton d'action principal -->
+            <!-- Main action button -->
             <div style="text-align: center; margin: 35px 0;">
               <a href="${recoveryLink}" style="background-color: #0d6efd; color: #ffffff; padding: 14px 30px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; display: inline-block; box-shadow: 0 2px 5px rgba(13, 110, 253, 0.2); transition: background-color 0.2s;">
                 Reset Password
@@ -121,3 +118,5 @@ export class MailService {
     return this.sendMail(to, subject, html);
   }
 }
+
+export const MailServiceInstance = new MailServiceImpl();

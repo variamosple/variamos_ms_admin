@@ -15,25 +15,32 @@ import { UserFilter } from "./Entity/UserFilter";
 import { UserRegistration } from "./Entity/UserRegistration";
 import crypto from "crypto";
 import logger from "jet-logger";
-import { MailService } from "@src/Infrastructure/Mail/MailService";
+import { MailServiceInstance } from "@src/Infrastructure/Mail/MailService";
+import { IUserRepository } from "@src/Domain/User/IUserRepository";
+import { IMailService } from "@src/Domain/Mail/IMailService";
 
 export class UsersUseCases {
+  constructor(
+    private userRepository: IUserRepository = UserRepositoryInstance,
+    private mailService: IMailService = MailServiceInstance,
+  ) {}
+
   queryUsers(
     request: RequestModel<UserFilter>,
   ): Promise<ResponseModel<User[]>> {
-    return UserRepositoryInstance.queryUsers(request);
+    return this.userRepository.queryUsers(request);
   }
 
   findSessionUser(request: RequestModel<string>): Promise<ResponseModel<User>> {
-    return UserRepositoryInstance.findSessionUser(request);
+    return this.userRepository.findSessionUser(request);
   }
 
   findOrCreateUser(request: RequestModel<User>): Promise<ResponseModel<User>> {
-    return UserRepositoryInstance.findOrCreateUser(request);
+    return this.userRepository.findOrCreateUser(request);
   }
 
   signIn(request: RequestModel<Credentials>): Promise<ResponseModel<User>> {
-    return UserRepositoryInstance.signIn(request);
+    return this.userRepository.signIn(request);
   }
 
   signUp(
@@ -70,27 +77,27 @@ export class UsersUseCases {
       );
     }
 
-    return UserRepositoryInstance.signUp(request);
+    return this.userRepository.signUp(request);
   }
 
   queryById(request: RequestModel<string>): Promise<ResponseModel<User>> {
-    return UserRepositoryInstance.queryById(request);
+    return this.userRepository.queryById(request);
   }
 
   disableUser(request: RequestModel<string>): Promise<ResponseModel<unknown>> {
-    return UserRepositoryInstance.disableUser(request);
+    return this.userRepository.disableUser(request);
   }
 
   enableUser(request: RequestModel<string>): Promise<ResponseModel<unknown>> {
-    return UserRepositoryInstance.enableUser(request);
+    return this.userRepository.enableUser(request);
   }
 
   deleteUser(request: RequestModel<string>): Promise<ResponseModel<unknown>> {
-    return UserRepositoryInstance.deleteUser(request);
+    return this.userRepository.deleteUser(request);
   }
 
   getMyAccount(request: RequestModel<string>): Promise<ResponseModel<User>> {
-    return UserRepositoryInstance.queryById(request).then((response) => {
+    return this.userRepository.queryById(request).then((response) => {
       if (response.data) {
         response.data = User.builder()
           .setId(response.data.id)
@@ -137,13 +144,13 @@ export class UsersUseCases {
       );
     }
 
-    return UserRepositoryInstance.updateUserPassword(request);
+    return this.userRepository.updateUserPassword(request);
   }
 
   updatePersonalInformation(
     request: RequestModel<PersonalInformationUpdate>,
   ): Promise<ResponseModel<void>> {
-    return UserRepositoryInstance.updatePersonalInformation(request);
+    return this.userRepository.updatePersonalInformation(request);
   }
 
   async getGuestData(
@@ -154,7 +161,7 @@ export class UsersUseCases {
     const response = new ResponseModel<User>(request.transactionId);
 
     do {
-      const existsReponse = await UserRepositoryInstance.userExists(
+      const existsReponse = await this.userRepository.userExists(
         new RequestModel<string>(request.transactionId, guestId),
       );
 
@@ -193,7 +200,7 @@ export class UsersUseCases {
     const response = new ResponseModel<void>(request.transactionId);
     try {
       const email = request.data!;
-      const user = await UserRepositoryInstance.getUserByEmail(email);
+      const user = await this.userRepository.getUserByEmail(email);
 
       if (!user || !user.isEnabled || user.isDeleted) {
         logger.warn(
@@ -205,14 +212,14 @@ export class UsersUseCases {
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
       const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
-      await UserRepositoryInstance.savePasswordResetToken(
+      await this.userRepository.savePasswordResetToken(
         user.id!,
         tokenHash,
         expiresAt,
       );
 
       const recoveryLink = `${EnvVars.Auth.APP.HOME_REDIRECT_URI}/#/reset-password?token=${token}`;
-      const emailSent = await MailService.sendPasswordResetMail(
+      const emailSent = await this.mailService.sendPasswordResetMail(
         email,
         recoveryLink,
       );
@@ -241,7 +248,7 @@ export class UsersUseCases {
       const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
       const dbToken =
-        await UserRepositoryInstance.getPasswordResetToken(tokenHash);
+        await this.userRepository.getPasswordResetToken(tokenHash);
 
       if (!dbToken) {
         return response.withError(
@@ -296,11 +303,11 @@ export class UsersUseCases {
 
       const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
       const dbToken =
-        await UserRepositoryInstance.getPasswordResetToken(tokenHash);
-      const userId = dbToken.userId;
+        await this.userRepository.getPasswordResetToken(tokenHash);
+      const userId = dbToken!.userId;
 
       // 2. Save to database (which will check if new password is identical to the current one and hash it internally)
-      await UserRepositoryInstance.resetPasswordAndUpdateToken(
+      await this.userRepository.resetPasswordAndUpdateToken(
         userId,
         password,
         tokenHash,
@@ -337,7 +344,7 @@ export class UsersUseCases {
     );
     try {
       const { userId, adminId } = request.data!;
-      const userResponse = await UserRepositoryInstance.queryById(
+      const userResponse = await this.userRepository.queryById(
         new RequestModel<string>(request.transactionId, userId),
       );
 
@@ -360,7 +367,7 @@ export class UsersUseCases {
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
       const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
-      await UserRepositoryInstance.savePasswordResetToken(
+      await this.userRepository.savePasswordResetToken(
         targetUser.id!,
         tokenHash,
         expiresAt,
