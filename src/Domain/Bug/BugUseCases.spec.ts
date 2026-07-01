@@ -70,6 +70,7 @@ describe("BugUseCases Unit Tests", () => {
     mockConfig = {
       getGitHubToken: jest.fn().mockReturnValue("dummy-token-from-test"),
       getGitHubManagedRepos: () => ["VariaMos/VariaMosAdmin"],
+      getApiBaseUrl: jest.fn().mockReturnValue("http://localhost:4000"),
     };
 
     bugUseCases = new BugUseCases(
@@ -1738,6 +1739,7 @@ describe("BugUseCases Unit Tests", () => {
       const mockConfigNoToken = {
         getGitHubToken: () => "",
         getGitHubManagedRepos: () => ["VariaMos/VariaMosAdmin"],
+        getApiBaseUrl: () => "http://localhost:4000",
       };
       const customBugUseCases = new BugUseCases(
         mockIssueTrackerService,

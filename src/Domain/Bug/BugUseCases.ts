@@ -202,7 +202,7 @@ export class BugUseCases {
         }
         issueBody += `\n*Category: ${data.category}*`;
         if (resolvedFile) {
-          const fileUrl = `${process.env.API_BASE_URL || "http://localhost:4000"}${resolvedFile.filePath}`;
+          const fileUrl = `${this.githubConfig.getApiBaseUrl?.() || "http://localhost:4000"}${resolvedFile.filePath}`;
           issueBody += `\n\n### Attachments\n- [Attachment](${fileUrl}) (Type: ${resolvedFile.fileType})`;
         }
 
@@ -358,7 +358,7 @@ export class BugUseCases {
           issueBody += "\n\n### Attachments\n";
           for (const attachment of bug.attachments) {
             if (attachment.filePath && attachment.filePath !== "/purged") {
-              const fileUrl = `${process.env.API_BASE_URL || "http://localhost:4000"}${attachment.filePath}`;
+               const fileUrl = `${this.githubConfig.getApiBaseUrl?.() || "http://localhost:4000"}${attachment.filePath}`;
               issueBody += `- [Attachment](${fileUrl}) (Type: ${attachment.fileType || "unknown"})\n`;
             }
           }

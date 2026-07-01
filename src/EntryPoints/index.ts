@@ -43,6 +43,7 @@ export const productionBugUseCases = new BugUseCases(
     getGitHubManagedRepos: () => EnvVars.GITHUB.MANAGED_REPOS,
     getGitHubAppId: () => EnvVars.GITHUB.APP_ID,
     getGitHubPrivateKey: () => EnvVars.GITHUB.PRIVATE_KEY,
+    getApiBaseUrl: () => EnvVars.ApiBaseUrl,
   },
 );
 

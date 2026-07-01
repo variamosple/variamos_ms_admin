@@ -55,4 +55,5 @@ export default {
     APP_ID: process.env.GITHUB_APP_ID ?? "",
     PRIVATE_KEY: process.env.GITHUB_PRIVATE_KEY ?? "",
   },
+  ApiBaseUrl: process.env.API_BASE_URL ?? "http://localhost:4000",
 } as const;

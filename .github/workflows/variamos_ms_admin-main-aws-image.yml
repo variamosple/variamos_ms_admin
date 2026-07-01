@@ -51,6 +51,7 @@ jobs:
             export GOOGLE_REDIRECT_URI="${{vars.REACT_APP_GOOGLE_REDIRECT_URI}}"
             export LOGIN_REDIRECT_URI="${{vars.REACT_APP_LOGIN_URL}}"
             export HOME_REDIRECT_URI="${{vars.REACT_APP_HOME_PAGE}}"
+            export API_BASE_URL="${{vars.REACT_APP_ADMIN_API_URL}}"
 
             echo "Executing command on remote server..."
             docker compose --env-file .env.aws.develop -f docker-compose-aws-develop-nginx.yml pull variamos_ms_admin
