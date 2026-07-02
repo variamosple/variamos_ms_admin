@@ -42,6 +42,23 @@ jobs:
           username: ${{ secrets.AWS_USERNAME }}
           key: ${{ secrets.VARIAMOS_AWS_PEM }}
           script: |
+            echo "Injecting GitHub Secrets into environment..."
+            export GITHUB_TOKEN="${{ secrets.ISSUES_PAT_TOKEN }}"
+            export GITHUB_APP_ID="${{ vars.ISSUES_BOT_APP_ID }}"
+            export GITHUB_PRIVATE_KEY="${{ secrets.ISSUES_BOT_PRIVATE_KEY }}"
+            export GITHUB_MANAGED_REPOS="${{ vars.ISSUES_MANAGED_REPOS }}"
+            export GOOGLE_CLIENT_ID="${{vars.REACT_APP_GOOGLE_CLIENT_ID}}"
+            export GOOGLE_REDIRECT_URI="${{vars.REACT_APP_GOOGLE_REDIRECT_URI}}"
+            export LOGIN_REDIRECT_URI="${{vars.REACT_APP_LOGIN_URL}}"
+            export HOME_REDIRECT_URI="${{vars.REACT_APP_HOME_PAGE}}"
+            export API_BASE_URL="${{vars.REACT_APP_ADMIN_API_URL}}"
+            export SMTP_PASSWORD="${{secrets.SMTP_PASSWORD}}"
+            export SMTP_USER="${{secrets.SMTP_USER}}"
+            export SMTP_HOST="${{vars.SMTP_HOST}}"
+            export SMTP_PORT="${{vars.SMTP_PORT}}"
+            export SMTP_FROM="${{vars.SMTP_FROM}}"
+
             echo "Executing command on remote server..."
-            sudo docker compose --env-file .env.aws.develop -f docker-compose-aws-develop-nginx.yml pull
-            sudo docker compose --env-file .env.aws.develop -f docker-compose-aws-develop-nginx.yml up -d
+            docker compose --env-file .env.aws.develop -f docker-compose-aws-develop-nginx.yml pull variamos_ms_admin
+            docker compose --env-file .env.aws.develop -f docker-compose-aws-develop-nginx.yml up -d variamos_ms_admin
+            docker image prune -f

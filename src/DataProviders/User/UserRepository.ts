@@ -12,6 +12,7 @@ import { IUserRepository } from "@src/Domain/User/IUserRepository";
 import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
 import bcrypt from "bcrypt";
 import logger from "jet-logger";
+import EnvVars from "@src/common/EnvVars";
 import { Op, QueryTypes, WhereOptions } from "sequelize";
 import { CountryModel } from "../Countries/Country";
 import { PermissionModel } from "../Permission/Permission";
@@ -585,8 +586,6 @@ export class UserRepositoryImpl implements IUserRepository {
       if (!dbUser) {
         return null;
       }
-
-      // On ne construit l'objet qu'avec le strict nécessaire :
       return User.builder()
         .setId(dbUser.id)
         .setUser(dbUser.user)
@@ -666,7 +665,6 @@ export class UserRepositoryImpl implements IUserRepository {
         throw new Error("User not found.");
       }
 
-      // Verify that the new password is not the same as the current password
       const isSamePassword = await bcrypt.compare(
         passwordPlain,
         dbUser.password || "",
@@ -675,14 +673,15 @@ export class UserRepositoryImpl implements IUserRepository {
         throw new Error("New password cannot be the same as the old password.");
       }
 
-      // Hash the new password and update user's credentials
-      const passwordHash = await bcrypt.hash(passwordPlain, 10);
+      const passwordHash = await bcrypt.hash(
+        passwordPlain,
+        EnvVars.Auth.APP.BCRYPT_SALT_ROUNDS,
+      );
       await UserModel.update(
         { password: passwordHash },
         { where: { id: userId }, transaction },
       );
 
-      // Mark the token as used
       await VARIAMOS_ORM.query(
         `
         UPDATE "variamos"."password_reset_tokens"

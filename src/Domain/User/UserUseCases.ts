@@ -202,14 +202,28 @@ export class UsersUseCases {
       const email = request.data!;
       const user = await this.userRepository.getUserByEmail(email);
 
-      if (!user || !user.isEnabled || user.isDeleted) {
+      if (!user) {
+        logger.warn("[PASSWORD RESET ATTEMPT] Failed: Email not found.");
+        return response;
+      }
+
+      if (!user.isEnabled) {
         logger.warn(
-          "[PASSWORD RESET ATTEMPT] Failed: Email not found or user inactive.",
+          `[PASSWORD RESET ATTEMPT] Failed: User account is disabled (ID: ${user.id}).`,
+        );
+        return response;
+      }
+
+      if (user.isDeleted) {
+        logger.warn(
+          `[PASSWORD RESET ATTEMPT] Failed: User account is marked as deleted (ID: ${user.id}).`,
         );
         return response;
       }
       const token = uuidv4();
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const expiresAt = new Date(
+        Date.now() + EnvVars.Auth.APP.PASSWORD_RESET_EXPIRY_IN_MS,
+      );
       const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
       await this.userRepository.savePasswordResetToken(
@@ -357,14 +371,30 @@ export class UsersUseCases {
 
       const targetUser = userResponse.data;
 
-      if (!targetUser || !targetUser.isEnabled || targetUser.isDeleted) {
+      if (!targetUser) {
         logger.warn(
-          `[ADMIN PASSWORD RESET ATTEMPT] Failed: Admin (ID: ${adminId}) tried to generate a recovery link for a User (ID: ${userId}) but user is inactive or deleted.`,
+          `[ADMIN PASSWORD RESET ATTEMPT] Failed: Admin (ID: ${adminId}) tried to generate a recovery link for a User (ID: ${userId}) but user was not found.`,
+        );
+        return response;
+      }
+
+      if (!targetUser.isEnabled) {
+        logger.warn(
+          `[ADMIN PASSWORD RESET ATTEMPT] Failed: Admin (ID: ${adminId}) tried to generate a recovery link for User (ID: ${userId}) but user is disabled.`,
+        );
+        return response;
+      }
+
+      if (targetUser.isDeleted) {
+        logger.warn(
+          `[ADMIN PASSWORD RESET ATTEMPT] Failed: Admin (ID: ${adminId}) tried to generate a recovery link for User (ID: ${userId}) but user is marked as deleted.`,
         );
         return response;
       }
       const token = uuidv4();
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const expiresAt = new Date(
+        Date.now() + EnvVars.Auth.APP.PASSWORD_RESET_EXPIRY_IN_MS,
+      );
       const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
       await this.userRepository.savePasswordResetToken(
