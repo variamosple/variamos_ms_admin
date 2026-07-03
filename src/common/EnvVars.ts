@@ -49,10 +49,20 @@ export default {
     SOCKET_PATH: process.env.DOCKER_SOCKET_PATH ?? "",
   },
   SMTP: {
-    HOST: process.env.SMTP_HOST ?? "smtp.ethereal.email",
+    HOST: process.env.SMTP_HOST ?? "smtp-relay.brevo.com",
     PORT: Number(process.env.SMTP_PORT ?? 587),
     USER: process.env.SMTP_USER ?? "",
     PASSWORD: process.env.SMTP_PASSWORD ?? "",
-    FROM: process.env.SMTP_FROM ?? '"VariaMos Admin" <noreply@variamos.org>',
+    FROM: process.env.SMTP_FROM ?? '"VariaMos" <noreply@variamos.com>',
   },
+  GITHUB: {
+    TOKEN: process.env.GITHUB_TOKEN ?? "",
+    MANAGED_REPOS: (process.env.GITHUB_MANAGED_REPOS ?? "")
+      .split(",")
+      .map((repo) => repo.trim())
+      .filter((repo) => repo !== ""),
+    APP_ID: process.env.GITHUB_APP_ID ?? "",
+    PRIVATE_KEY: process.env.GITHUB_PRIVATE_KEY ?? "",
+  },
+  ApiBaseUrl: process.env.API_BASE_URL ?? "http://localhost:4000",
 } as const;
