@@ -8,6 +8,8 @@
     "start": "node -r module-alias/register ./dist --env=production",
     "dev": "nodemon",
     "test": "jest",
+    "test:unit": "jest src/Domain",
+    "test:integration": "jest src/EntryPoints",
     "test:coverage": "jest --coverage",
     "prepare": "husky",
     "check-arch": "dependency-cruiser --config .dependency-cruiser.js src/",
