@@ -33,7 +33,7 @@ usersV1Router.get("/", hasPermissions(["users::query"]), async (req, res) => {
     const response = new ResponseModel(
       transactionId,
       500,
-      "Internal Server Error"
+      "Internal Server Error",
     );
     res.status(500).json(response);
   }
@@ -53,8 +53,8 @@ usersV1Router.get(
           .json(
             new ResponseModel<unknown>(transactionId).withError(
               HttpStatusCodes.BAD_REQUEST,
-              "userId is required."
-            )
+              "userId is required.",
+            ),
           );
       }
 
@@ -68,11 +68,51 @@ usersV1Router.get(
       const response = new ResponseModel(
         transactionId,
         500,
-        "Internal Server Error"
+        "Internal Server Error",
       );
       res.status(500).json(response);
     }
-  }
+  },
+);
+
+usersV1Router.post(
+  "/:userId/recovery-link",
+  hasPermissions(["users::update"]),
+  async (req, res) => {
+    const transactionId = "generateRecoveryLink";
+    const userId = req.params.userId;
+    const adminId = req.user!.id;
+
+    try {
+      if (!userId) {
+        res
+          .status(HttpStatusCodes.BAD_REQUEST)
+          .json(
+            new ResponseModel<unknown>(transactionId).withError(
+              HttpStatusCodes.BAD_REQUEST,
+              "userId is required.",
+            ),
+          );
+      }
+
+      const request = new RequestModel<{ userId: string; adminId: string }>(
+        transactionId,
+        { userId, adminId },
+      );
+      const response = await new UsersUseCases().generateRecoveryLink(request);
+
+      const status = response.errorCode || 200;
+      res.status(status).json(response);
+    } catch (error) {
+      logger.err(error);
+      const response = new ResponseModel(
+        transactionId,
+        500,
+        "Internal Server Error",
+      );
+      res.status(500).json(response);
+    }
+  },
 );
 
 usersV1Router.put(
@@ -89,8 +129,8 @@ usersV1Router.put(
           .json(
             new ResponseModel<unknown>(transactionId).withError(
               HttpStatusCodes.BAD_REQUEST,
-              "userId is required."
-            )
+              "userId is required.",
+            ),
           );
       }
 
@@ -104,11 +144,11 @@ usersV1Router.put(
       const response = new ResponseModel(
         transactionId,
         500,
-        "Internal Server Error"
+        "Internal Server Error",
       );
       res.status(500).json(response);
     }
-  }
+  },
 );
 
 usersV1Router.put(
@@ -125,8 +165,8 @@ usersV1Router.put(
           .json(
             new ResponseModel<unknown>(transactionId).withError(
               HttpStatusCodes.BAD_REQUEST,
-              "userId is required."
-            )
+              "userId is required.",
+            ),
           );
       }
 
@@ -140,11 +180,11 @@ usersV1Router.put(
       const response = new ResponseModel(
         transactionId,
         500,
-        "Internal Server Error"
+        "Internal Server Error",
       );
       res.status(500).json(response);
     }
-  }
+  },
 );
 
 usersV1Router.delete(
@@ -161,8 +201,8 @@ usersV1Router.delete(
           .json(
             new ResponseModel<unknown>(transactionId).withError(
               HttpStatusCodes.BAD_REQUEST,
-              "userId is required."
-            )
+              "userId is required.",
+            ),
           );
       }
 
@@ -176,11 +216,11 @@ usersV1Router.delete(
       const response = new ResponseModel(
         transactionId,
         500,
-        "Internal Server Error"
+        "Internal Server Error",
       );
       res.status(500).json(response);
     }
-  }
+  },
 );
 
 usersV1Router.use(USER_ROLES_V1_ROUTE, userRolesV1Router);

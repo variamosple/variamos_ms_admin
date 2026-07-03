@@ -41,10 +41,19 @@ export default {
     APP: {
       HOME_REDIRECT_URI: process.env.HOME_REDIRECT_URI,
       LOGIN_REDIRECT_URI: process.env.LOGIN_REDIRECT_URI,
+      PASSWORD_RESET_EXPIRY_IN_MS: Number(process.env.PASSWORD_RESET_EXPIRY_IN_MS ?? 24 * 60 * 60 * 1000),
+      BCRYPT_SALT_ROUNDS: Number(process.env.BCRYPT_SALT_ROUNDS ?? 10),
     },
   },
   DOCKER: {
     SOCKET_PATH: process.env.DOCKER_SOCKET_PATH ?? "",
+  },
+  SMTP: {
+    HOST: process.env.SMTP_HOST ?? "smtp-relay.brevo.com",
+    PORT: Number(process.env.SMTP_PORT ?? 587),
+    USER: process.env.SMTP_USER ?? "",
+    PASSWORD: process.env.SMTP_PASSWORD ?? "",
+    FROM: process.env.SMTP_FROM ?? '"VariaMos" <noreply@variamos.com>',
   },
   GITHUB: {
     TOKEN: process.env.GITHUB_TOKEN ?? "",

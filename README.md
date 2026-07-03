@@ -32,7 +32,16 @@
      VARIAMOS_PUBLIC_KEY_PATH=./jwtRS256.key.pub
      ```
 
-3. **Configure GitHub Integration (Bot or PAT):**
+3. **Configure SMTP Variables for Emails (Optional for Dev):**
+   
+   Configure the following environment variables in `./env/development.env` (or let them blank to simulate emails in console logs):
+   - `SMTP_HOST`: Host address of the SMTP server.
+   - `SMTP_PORT`: SMTP port (e.g., 587 for TLS, 465 for SSL).
+   - `SMTP_USER`: SMTP username or authentication email.
+   - `SMTP_PASSWORD`: SMTP authentication password.
+   - `SMTP_FROM`: Sender name and address (e.g., `"VariaMos" <noreply@variamos.com>`).
+
+4. **Configure GitHub Integration (Bot or PAT):**
 
    To allow the microservice to synchronize issues and manage bug reports on GitHub, define the following variables in your `.env` files:
    - `GITHUB_TOKEN`: A Personal Access Token (PAT) for fallback authentication.
@@ -49,7 +58,7 @@
      GITHUB_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\nMIIEogIBAAKCAQ...\n-----END RSA PRIVATE KEY-----"
      ```
 
-4. **Install Dependencies:**
+5. **Install Dependencies:**
 
    - Run the following command:
      ```shell

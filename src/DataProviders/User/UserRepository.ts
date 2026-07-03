@@ -8,9 +8,11 @@ import { Credentials } from "@src/Domain/User/Entity/Credentials";
 import { PasswordUpdate } from "@src/Domain/User/Entity/PasswordUpdate";
 import { PersonalInformationUpdate } from "@src/Domain/User/Entity/PersonalInformationUpdate";
 import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration";
+import { IUserRepository } from "@src/Domain/User/IUserRepository";
 import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
 import bcrypt from "bcrypt";
 import logger from "jet-logger";
+import EnvVars from "@src/common/EnvVars";
 import { Op, QueryTypes, WhereOptions } from "sequelize";
 import { CountryModel } from "../Countries/Country";
 import { PermissionModel } from "../Permission/Permission";
@@ -33,9 +35,9 @@ const initilizeReplacements = (filter: Replacements) => {
   }, {});
 };
 
-export class UserRepositoryImpl {
+export class UserRepositoryImpl implements IUserRepository {
   async queryUsers(
-    request: RequestModel<UserFilter>
+    request: RequestModel<UserFilter>,
   ): Promise<ResponseModel<User[]>> {
     const response = new ResponseModel<User[]>(request.transactionId);
 
@@ -96,8 +98,8 @@ export class UserRepositoryImpl {
               .setIsDeleted(isDeleted!)
               .setCreatedAt(createdAt!)
               .setLastLogin(lastLogin)
-              .build()
-        )
+              .build(),
+        ),
       );
     } catch (error) {
       logger.err("Error in getUsers:");
@@ -105,7 +107,7 @@ export class UserRepositoryImpl {
       logger.err(error);
       response.withError(
         HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
+        "Internal server error",
       );
     }
 
@@ -113,7 +115,7 @@ export class UserRepositoryImpl {
   }
 
   async findSessionUser(
-    request: RequestModel<string>
+    request: RequestModel<string>,
   ): Promise<ResponseModel<User>> {
     const response = new ResponseModel<User>(request.transactionId);
 
@@ -123,7 +125,7 @@ export class UserRepositoryImpl {
       if (!userId) {
         return response.withError(
           HttpStatusCodes.BAD_REQUEST,
-          "UserId is required"
+          "UserId is required",
         );
       }
 
@@ -134,14 +136,14 @@ export class UserRepositoryImpl {
       if (!dbUser?.isEnabled) {
         return response.withError(
           HttpStatusCodes.BAD_REQUEST,
-          "Your account is disabled."
+          "Your account is disabled.",
         );
       }
 
       if (dbUser?.isDeleted) {
         return response.withError(
           HttpStatusCodes.BAD_REQUEST,
-          "Your account is deleted."
+          "Your account is deleted.",
         );
       }
 
@@ -159,7 +161,7 @@ export class UserRepositoryImpl {
       logger.err(error);
       response.withError(
         HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
+        "Internal server error",
       );
     }
 
@@ -167,7 +169,7 @@ export class UserRepositoryImpl {
   }
 
   async findOrCreateUser(
-    request: RequestModel<User>
+    request: RequestModel<User>,
   ): Promise<ResponseModel<User>> {
     const response = new ResponseModel<User>(request.transactionId);
 
@@ -177,7 +179,7 @@ export class UserRepositoryImpl {
       if (!data) {
         return response.withError(
           HttpStatusCodes.NOT_FOUND,
-          "User information is required"
+          "User information is required",
         );
       }
 
@@ -199,14 +201,14 @@ export class UserRepositoryImpl {
       if (!dbUser.isEnabled) {
         return response.withError(
           HttpStatusCodes.BAD_REQUEST,
-          "Your account is disabled."
+          "Your account is disabled.",
         );
       }
 
       if (dbUser.isDeleted) {
         return response.withError(
           HttpStatusCodes.BAD_REQUEST,
-          "Your account is deleted."
+          "Your account is deleted.",
         );
       }
 
@@ -217,7 +219,7 @@ export class UserRepositoryImpl {
             where: {
               id: dbUser.id,
             },
-          }
+          },
         );
       }
 
@@ -235,7 +237,7 @@ export class UserRepositoryImpl {
       logger.err(error);
       response.withError(
         HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
+        "Internal server error",
       );
     }
 
@@ -243,7 +245,7 @@ export class UserRepositoryImpl {
   }
 
   async signIn(
-    request: RequestModel<Credentials>
+    request: RequestModel<Credentials>,
   ): Promise<ResponseModel<User>> {
     const response = new ResponseModel<User>(request.transactionId);
 
@@ -279,7 +281,7 @@ export class UserRepositoryImpl {
           where: {
             id: dbUser.id,
           },
-        }
+        },
       );
 
       response.data = User.builder()
@@ -296,7 +298,7 @@ export class UserRepositoryImpl {
       logger.err(error);
       response.withError(
         HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
+        "Internal server error",
       );
     }
 
@@ -304,7 +306,7 @@ export class UserRepositoryImpl {
   }
 
   async signUp(
-    request: RequestModel<UserRegistration>
+    request: RequestModel<UserRegistration>,
   ): Promise<ResponseModel<User>> {
     const response = new ResponseModel<User>(request.transactionId);
 
@@ -346,7 +348,7 @@ export class UserRepositoryImpl {
       logger.err(error);
       response.withError(
         HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
+        "Internal server error",
       );
     }
 
@@ -381,7 +383,7 @@ export class UserRepositoryImpl {
               .setIsDeleted(response.isDeleted!)
               .setCreatedAt(response.createdAt!)
               .setLastLogin(response.lastLogin)
-              .build()
+              .build(),
       );
     } catch (error) {
       logger.err("Error in queryById:");
@@ -389,7 +391,7 @@ export class UserRepositoryImpl {
       logger.err(error);
       response.withError(
         HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
+        "Internal server error",
       );
     }
 
@@ -397,7 +399,7 @@ export class UserRepositoryImpl {
   }
 
   async disableUser(
-    request: RequestModel<string>
+    request: RequestModel<string>,
   ): Promise<ResponseModel<unknown>> {
     const response = new ResponseModel<unknown>(request.transactionId);
 
@@ -410,7 +412,7 @@ export class UserRepositoryImpl {
         },
         {
           where: { id: data },
-        }
+        },
       );
     } catch (error) {
       logger.err("Error in disableUser:");
@@ -418,7 +420,7 @@ export class UserRepositoryImpl {
       logger.err(error);
       response.withError(
         HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
+        "Internal server error",
       );
     }
 
@@ -426,7 +428,7 @@ export class UserRepositoryImpl {
   }
 
   async enableUser(
-    request: RequestModel<string>
+    request: RequestModel<string>,
   ): Promise<ResponseModel<unknown>> {
     const response = new ResponseModel<unknown>(request.transactionId);
 
@@ -439,7 +441,7 @@ export class UserRepositoryImpl {
         },
         {
           where: { id: data },
-        }
+        },
       );
     } catch (error) {
       logger.err("Error in enableUser:");
@@ -447,7 +449,7 @@ export class UserRepositoryImpl {
       logger.err(error);
       response.withError(
         HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
+        "Internal server error",
       );
     }
 
@@ -455,7 +457,7 @@ export class UserRepositoryImpl {
   }
 
   async deleteUser(
-    request: RequestModel<string>
+    request: RequestModel<string>,
   ): Promise<ResponseModel<unknown>> {
     const response = new ResponseModel<unknown>(request.transactionId);
 
@@ -468,7 +470,7 @@ export class UserRepositoryImpl {
         },
         {
           where: { id: data },
-        }
+        },
       );
     } catch (error) {
       logger.err("Error in deleteUser:");
@@ -476,7 +478,7 @@ export class UserRepositoryImpl {
       logger.err(error);
       response.withError(
         HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
+        "Internal server error",
       );
     }
 
@@ -500,7 +502,7 @@ export class UserRepositoryImpl {
       {
         type: QueryTypes.SELECT,
         replacements,
-      }
+      },
     ).then((response) => response.map(({ name }) => name));
 
     user.permissions = await VARIAMOS_ORM.query<PermissionModel>(
@@ -514,12 +516,12 @@ export class UserRepositoryImpl {
       {
         type: QueryTypes.SELECT,
         replacements,
-      }
+      },
     ).then((response) => response.map(({ name }) => name));
   }
 
   async updateUserPassword(
-    request: RequestModel<PasswordUpdate>
+    request: RequestModel<PasswordUpdate>,
   ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
 
@@ -536,19 +538,19 @@ export class UserRepositoryImpl {
 
       const passwordMatch = await bcrypt.compare(
         passwordUpdate.getCurrentPassword(),
-        dbUser.password!
+        dbUser.password!,
       );
 
       if (!passwordMatch) {
         return response.withError(
           HttpStatusCodes.BAD_REQUEST,
-          "Current password is incorrect."
+          "Current password is incorrect.",
         );
       }
 
       const newHashedPassword = await bcrypt.hash(
         passwordUpdate.getNewPassword(),
-        10
+        10,
       );
 
       await UserModel.update(
@@ -557,25 +559,151 @@ export class UserRepositoryImpl {
           where: {
             id: dbUser.id,
           },
-        }
+        },
       );
     } catch (error) {
       logger.err("Error in updateUserPassword:");
       logger.err(
-        "Error trying to update user password with id: " + request.data!.getId()
+        "Error trying to update user password with id: " +
+          request.data!.getId(),
       );
       logger.err(error);
       response.withError(
         HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
+        "Internal server error",
       );
     }
 
     return response;
   }
 
+  async getUserByEmail(email: string): Promise<User | null> {
+    try {
+      const dbUser = await UserModel.findOne({
+        where: { email },
+      });
+
+      if (!dbUser) {
+        return null;
+      }
+      return User.builder()
+        .setId(dbUser.id)
+        .setUser(dbUser.user)
+        .setName(dbUser.name)
+        .setEmail(dbUser.email)
+        .setIsEnabled(dbUser.isEnabled ?? true)
+        .setIsDeleted(dbUser.isDeleted ?? false)
+        .setCreatedAt(dbUser.createdAt || new Date())
+        .build();
+    } catch (error) {
+      logger.err("Error in getUserByEmail: " + error);
+      return null;
+    }
+  }
+
+  async savePasswordResetToken(
+    userId: string,
+    tokenHash: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    try {
+      await VARIAMOS_ORM.query(
+        `
+        INSERT INTO "variamos"."password_reset_tokens"
+        ("user_id", "token_hash", "expires_at")
+        VALUES
+        (:userId, :tokenHash, :expiresAt)
+        `,
+        {
+          replacements: {
+            userId,
+            tokenHash,
+            expiresAt,
+          },
+        },
+      );
+    } catch (error) {
+      logger.err("Error in savePasswordResetToken: " + error);
+      throw error;
+    }
+  }
+
+  async getPasswordResetToken(tokenHash: string): Promise<any | null> {
+    try {
+      const results = await VARIAMOS_ORM.query<any>(
+        `
+        SELECT "user_id" AS "userId", "expires_at" AS "expiresAt", "used_at" AS "usedAt"
+        FROM "variamos"."password_reset_tokens"
+        WHERE "token_hash" = :tokenHash
+        LIMIT 1
+        `,
+        {
+          replacements: { tokenHash },
+          type: QueryTypes.SELECT,
+        },
+      );
+      return results.length > 0 ? results[0] : null;
+    } catch (error) {
+      logger.err("Error in getPasswordResetToken: " + error);
+      return null;
+    }
+  }
+
+  async resetPasswordAndUpdateToken(
+    userId: string,
+    passwordPlain: string,
+    tokenHash: string,
+  ): Promise<void> {
+    const transaction = await VARIAMOS_ORM.transaction();
+    try {
+      const dbUser = await UserModel.findOne({
+        where: { id: userId },
+        transaction,
+      });
+
+      if (!dbUser) {
+        throw new Error("User not found.");
+      }
+
+      const isSamePassword = await bcrypt.compare(
+        passwordPlain,
+        dbUser.password || "",
+      );
+      if (isSamePassword) {
+        throw new Error("New password cannot be the same as the old password.");
+      }
+
+      const passwordHash = await bcrypt.hash(
+        passwordPlain,
+        EnvVars.Auth.APP.BCRYPT_SALT_ROUNDS,
+      );
+      await UserModel.update(
+        { password: passwordHash },
+        { where: { id: userId }, transaction },
+      );
+
+      await VARIAMOS_ORM.query(
+        `
+        UPDATE "variamos"."password_reset_tokens"
+        SET "used_at" = NOW()
+        WHERE "token_hash" = :tokenHash
+        `,
+        {
+          replacements: { tokenHash },
+          transaction,
+        },
+      );
+
+      await transaction.commit();
+    } catch (error) {
+      await transaction.rollback();
+      logger.err("Error in resetPasswordAndUpdateToken: " + error);
+      throw error;
+    }
+  }
+
   async updatePersonalInformation(
-    request: RequestModel<PersonalInformationUpdate>
+    request: RequestModel<PersonalInformationUpdate>,
   ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
 
@@ -588,18 +716,18 @@ export class UserRepositoryImpl {
           where: {
             id: personalInformation.getUserId(),
           },
-        }
+        },
       );
     } catch (error) {
       logger.err("Error in updatePersonalInformation:");
       logger.err(
         "Error trying to update user infromation with id: " +
-          request.data!.getUserId()
+          request.data!.getUserId(),
       );
       logger.err(error);
       response.withError(
         HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
+        "Internal server error",
       );
     }
 
@@ -607,7 +735,7 @@ export class UserRepositoryImpl {
   }
 
   async userExists(
-    request: RequestModel<string>
+    request: RequestModel<string>,
   ): Promise<ResponseModel<boolean>> {
     const response = new ResponseModel<boolean>(request.transactionId);
 
@@ -623,7 +751,7 @@ export class UserRepositoryImpl {
       logger.err(error);
       response.withError(
         HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
+        "Internal server error",
       );
     }
 

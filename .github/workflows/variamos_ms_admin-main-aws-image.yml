@@ -52,7 +52,11 @@ jobs:
             export LOGIN_REDIRECT_URI="${{vars.REACT_APP_LOGIN_URL}}"
             export HOME_REDIRECT_URI="${{vars.REACT_APP_HOME_PAGE}}"
             export API_BASE_URL="${{vars.REACT_APP_ADMIN_API_URL}}"
-
+            export SMTP_PASSWORD="${{secrets.SMTP_PASSWORD}}"
+            export SMTP_USER="${{secrets.SMTP_USER}}"
+            export SMTP_HOST="${{vars.SMTP_HOST}}"
+            export SMTP_PORT="${{vars.SMTP_PORT}}"
+            export SMTP_FROM="${{vars.SMTP_FROM}}"
             echo "Executing command on remote server..."
             docker compose --env-file .env.aws.develop -f docker-compose-aws-develop-nginx.yml pull variamos_ms_admin
             docker compose --env-file .env.aws.develop -f docker-compose-aws-develop-nginx.yml up -d variamos_ms_admin
