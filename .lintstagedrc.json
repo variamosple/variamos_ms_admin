@@ -2,7 +2,8 @@
   "src/**/*.ts": [
     "prettier --write",
     "eslint --fix",
-    "cspell"
+    "cspell",
+    "jest --findRelatedTests --passWithNoTests"
   ],
   "src/**/*.{js,json,md}": [
     "prettier --write",
