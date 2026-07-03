@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/explicit-member-accessibility, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-non-null-assertion */
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
@@ -12,14 +13,14 @@ import { PermissionAttributes, PermissionModel } from "./Permission";
 
 export class PermissionRepositoryImpl extends BaseRepository {
   async queryPermissions(
-    request: RequestModel<PermissionFilter>
+    request: RequestModel<PermissionFilter>,
   ): Promise<ResponseModel<Permission[]>> {
     const response = new ResponseModel<Permission[]>(request.transactionId);
 
     try {
       const { data: filter = new PermissionFilter() } = request;
 
-      const replacements = super.initilizeReplacements(filter);
+      const replacements = super.initializeReplacements(filter);
 
       response.totalCount = await VARIAMOS_ORM.query(
         `
@@ -27,7 +28,7 @@ export class PermissionRepositoryImpl extends BaseRepository {
             FROM variamos.permission
             WHERE (:name IS NULL OR name ILIKE '%' || :name || '%');
         `,
-        { type: QueryTypes.SELECT, replacements }
+        { type: QueryTypes.SELECT, replacements },
       ).then((result: any) => +result?.[0]?.count || 0);
 
       const where: WhereOptions<PermissionAttributes> = {};
@@ -41,32 +42,25 @@ export class PermissionRepositoryImpl extends BaseRepository {
         limit: filter.pageSize!,
         offset: (filter.pageNumber! - 1) * filter.pageSize!,
         order: [["name", "ASC"]],
-      }).then((response) =>
-        response.map(({ id, name }) => new Permission(id, name))
-      );
+      }).then((response) => response.map(({ id, name }) => new Permission(id, name)));
     } catch (error) {
       logger.err("Error in queryPermissions:");
       logger.err(request);
       logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async createPermission(
-    request: RequestModel<Permission>
-  ): Promise<ResponseModel<Permission>> {
+  async createPermission(request: RequestModel<Permission>): Promise<ResponseModel<Permission>> {
     const response = new ResponseModel<Permission>(request.transactionId);
 
     try {
       const { data } = request;
 
       const newPermission = await PermissionModel.create({
-        name: data!.name!,
+        name: data!.name,
       });
 
       response.data = new Permission(newPermission.id, newPermission.name);
@@ -74,18 +68,13 @@ export class PermissionRepositoryImpl extends BaseRepository {
       logger.err("Error in createPermission:");
       logger.err(request);
       logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async deletePermission(
-    request: RequestModel<number>
-  ): Promise<ResponseModel<void>> {
+  async deletePermission(request: RequestModel<number>): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
 
     try {
@@ -97,18 +86,13 @@ export class PermissionRepositoryImpl extends BaseRepository {
       logger.err("Error in deletePermission:");
       logger.err(request);
       logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async queryById(
-    request: RequestModel<number>
-  ): Promise<ResponseModel<Permission>> {
+  async queryById(request: RequestModel<number>): Promise<ResponseModel<Permission>> {
     const response = new ResponseModel<Permission>(request.transactionId);
 
     try {
@@ -116,25 +100,18 @@ export class PermissionRepositoryImpl extends BaseRepository {
 
       response.data = await PermissionModel.findOne({
         where: { id: data },
-      }).then((response) =>
-        !response ? undefined : new Permission(response.id, response.name)
-      );
+      }).then((response) => (!response ? undefined : new Permission(response.id, response.name)));
     } catch (error) {
       logger.err("Error in queryById:");
       logger.err(request);
       logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async updatePermission(
-    request: RequestModel<Permission>
-  ): Promise<ResponseModel<Permission>> {
+  async updatePermission(request: RequestModel<Permission>): Promise<ResponseModel<Permission>> {
     const response = new ResponseModel<Permission>(request.transactionId);
 
     try {
@@ -142,9 +119,9 @@ export class PermissionRepositoryImpl extends BaseRepository {
 
       await PermissionModel.update(
         {
-          name: data!.name!,
+          name: data!.name,
         },
-        { where: { id: data!.id! } }
+        { where: { id: data!.id! } },
       );
 
       response.data = data;
@@ -152,10 +129,7 @@ export class PermissionRepositoryImpl extends BaseRepository {
       logger.err("Error in updatePermission:");
       logger.err(request);
       logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
     }
 
     return response;

@@ -14,22 +14,16 @@ export interface IUserRepository {
   signIn(request: RequestModel<Credentials>): Promise<ResponseModel<User>>;
   signUp(request: RequestModel<UserRegistration>): Promise<ResponseModel<User>>;
   queryById(request: RequestModel<string>): Promise<ResponseModel<User>>;
-  disableUser(request: RequestModel<string>): Promise<ResponseModel<unknown>>;
-  enableUser(request: RequestModel<string>): Promise<ResponseModel<unknown>>;
-  deleteUser(request: RequestModel<string>): Promise<ResponseModel<unknown>>;
-  updateUserPassword(
-    request: RequestModel<PasswordUpdate>,
-  ): Promise<ResponseModel<void>>;
+  disableUser(request: RequestModel<string>): Promise<ResponseModel<void>>;
+  enableUser(request: RequestModel<string>): Promise<ResponseModel<void>>;
+  deleteUser(request: RequestModel<string>): Promise<ResponseModel<void>>;
+  updateUserPassword(request: RequestModel<PasswordUpdate>): Promise<ResponseModel<void>>;
   updatePersonalInformation(
     request: RequestModel<PersonalInformationUpdate>,
   ): Promise<ResponseModel<void>>;
   userExists(request: RequestModel<string>): Promise<ResponseModel<boolean>>;
   getUserByEmail(email: string): Promise<User | null>;
-  savePasswordResetToken(
-    userId: string,
-    tokenHash: string,
-    expiresAt: Date,
-  ): Promise<void>;
+  savePasswordResetToken(userId: string, tokenHash: string, expiresAt: Date): Promise<void>;
   getPasswordResetToken(tokenHash: string): Promise<{
     userId: string;
     expiresAt: Date;

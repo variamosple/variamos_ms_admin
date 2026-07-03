@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/explicit-member-accessibility, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-non-null-assertion, @typescript-eslint/no-non-null-asserted-optional-chain */
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
@@ -13,14 +14,14 @@ import { RolePermissionModel } from "./RolePermission";
 
 export class RolePermissionRepositoryImpl extends BaseRepository {
   async queryRolePermissions(
-    request: RequestModel<RolePermissionFilter>
+    request: RequestModel<RolePermissionFilter>,
   ): Promise<ResponseModel<Permission[]>> {
     const response = new ResponseModel<Permission[]>(request.transactionId);
 
     try {
       const { data: filter } = request;
 
-      const replacements = super.initilizeReplacements({
+      const replacements = super.initializeReplacements({
         roleId: filter?.roleId,
         limit: filter?.pageSize,
         offset: (filter?.pageNumber! - 1) * filter?.pageSize!,
@@ -33,7 +34,7 @@ export class RolePermissionRepositoryImpl extends BaseRepository {
             INNER JOIN variamos.role_permission rp ON (p.id = rp.permission_id)
             WHERE rp.role_id = :roleId;   
         `,
-        { type: QueryTypes.SELECT, replacements }
+        { type: QueryTypes.SELECT, replacements },
       ).then((result: any) => +result?.[0]?.count || 0);
 
       response.data = await VARIAMOS_ORM.query<PermissionModel>(
@@ -47,25 +48,20 @@ export class RolePermissionRepositoryImpl extends BaseRepository {
         {
           type: QueryTypes.SELECT,
           replacements,
-        }
-      ).then((response) =>
-        response.map(({ id, name }) => new Permission(id, name))
-      );
+        },
+      ).then((response) => response.map(({ id, name }) => new Permission(id, name)));
     } catch (error) {
       logger.err("Error in queryRolePermissions:");
       logger.err(request);
       logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
     }
 
     return response;
   }
 
   async createRolePermission(
-    request: RequestModel<RolePermission>
+    request: RequestModel<RolePermission>,
   ): Promise<ResponseModel<RolePermission>> {
     const response = new ResponseModel<RolePermission>(request.transactionId);
 
@@ -89,25 +85,20 @@ export class RolePermissionRepositoryImpl extends BaseRepository {
 
         response.data = new RolePermission(
           newRolePermission.roleId,
-          newRolePermission.permissionId
+          newRolePermission.permissionId,
         );
       }
     } catch (error) {
       logger.err("Error in createRolePermission:");
       logger.err(request);
       logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async deleteRolePermission(
-    request: RequestModel<RolePermission>
-  ): Promise<ResponseModel<void>> {
+  async deleteRolePermission(request: RequestModel<RolePermission>): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
 
     try {
@@ -120,15 +111,11 @@ export class RolePermissionRepositoryImpl extends BaseRepository {
       logger.err("Error in deleteRolePermission:");
       logger.err(request);
       logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
     }
 
     return response;
   }
 }
 
-export const RolePermissionRepositoryInstance =
-  new RolePermissionRepositoryImpl();
+export const RolePermissionRepositoryInstance = new RolePermissionRepositoryImpl();

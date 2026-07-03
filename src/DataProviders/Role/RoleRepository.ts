@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { Permission } from "@src/Domain/Permission/Entity/Permission";
 import { Role } from "@src/Domain/Role/Entity/Role";
 import { RoleFilter } from "@src/Domain/Role/Entity/RoleFilter";
+import { IRoleRepository } from "@src/Domain/Role/IRoleRepository";
 import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
 import logger from "jet-logger";
 import { Op, QueryTypes, WhereOptions } from "sequelize";
@@ -13,25 +15,23 @@ import { UserRoleModel } from "../User/UserRole";
 import { RoleAttributes, RoleModel } from "./Role";
 import { RolePermissionModel } from "./RolePermission";
 
-export class RoleRepositoryImpl extends BaseRepository {
-  async queryRoles(
-    request: RequestModel<RoleFilter>
-  ): Promise<ResponseModel<Role[]>> {
+export class RoleRepositoryImpl extends BaseRepository implements IRoleRepository {
+  public async queryRoles(request: RequestModel<RoleFilter>): Promise<ResponseModel<Role[]>> {
     const response = new ResponseModel<Role[]>(request.transactionId);
 
     try {
       const { data: filter = new RoleFilter() } = request;
 
-      const replacements = super.initilizeReplacements(filter);
+      const replacements = super.initializeReplacements(filter);
 
-      response.totalCount = await VARIAMOS_ORM.query(
+      response.totalCount = await VARIAMOS_ORM.query<{ count: string }>(
         `
-            SELECT COUNT(1)
+            SELECT COUNT(1) AS count
             FROM variamos.role
             WHERE (:name IS NULL OR name ILIKE '%' || :name || '%');   
         `,
-        { type: QueryTypes.SELECT, replacements }
-      ).then((result: any) => +result?.[0]?.count || 0);
+        { type: QueryTypes.SELECT, replacements },
+      ).then((result) => +result[0]?.count || 0);
 
       const where: WhereOptions<RoleAttributes> = {};
 
@@ -49,23 +49,20 @@ export class RoleRepositoryImpl extends BaseRepository {
       logger.err("Error in getRoles:");
       logger.err(request);
       logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async createRole(request: RequestModel<Role>): Promise<ResponseModel<Role>> {
+  public async createRole(request: RequestModel<Role>): Promise<ResponseModel<Role>> {
     const response = new ResponseModel<Role>(request.transactionId);
 
     try {
       const { data } = request;
 
       const newRole = await RoleModel.create({
-        name: data!.name!,
+        name: data!.name,
       });
 
       response.data = new Role(newRole.id, newRole.name);
@@ -73,18 +70,13 @@ export class RoleRepositoryImpl extends BaseRepository {
       logger.err("Error in createRole:");
       logger.err(request);
       logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async deleteRole(
-    request: RequestModel<number>
-  ): Promise<ResponseModel<void>> {
+  public async deleteRole(request: RequestModel<string>): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
 
     try {
@@ -97,16 +89,13 @@ export class RoleRepositoryImpl extends BaseRepository {
       logger.err("Error in deleteRole:");
       logger.err(request);
       logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async queryById(request: RequestModel<number>): Promise<ResponseModel<Role>> {
+  public async queryById(request: RequestModel<string>): Promise<ResponseModel<Role>> {
     const response = new ResponseModel<Role>(request.transactionId);
 
     try {
@@ -114,23 +103,18 @@ export class RoleRepositoryImpl extends BaseRepository {
 
       response.data = await RoleModel.findOne({
         where: { id: data },
-      }).then((response) =>
-        !response ? undefined : new Role(response.id, response.name)
-      );
+      }).then((response) => (!response ? undefined : new Role(response.id, response.name)));
     } catch (error) {
       logger.err("Error in queryById:");
       logger.err(request);
       logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async updateRole(request: RequestModel<Role>): Promise<ResponseModel<Role>> {
+  public async updateRole(request: RequestModel<Role>): Promise<ResponseModel<Role>> {
     const response = new ResponseModel<Role>(request.transactionId);
 
     try {
@@ -138,9 +122,9 @@ export class RoleRepositoryImpl extends BaseRepository {
 
       await RoleModel.update(
         {
-          name: data!.name!,
+          name: data!.name,
         },
-        { where: { id: data!.id! } }
+        { where: { id: data!.id! } },
       );
 
       response.data = data;
@@ -148,18 +132,13 @@ export class RoleRepositoryImpl extends BaseRepository {
       logger.err("Error in updateRole:");
       logger.err(request);
       logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async queryGuestRole(
-    request: RequestModel<any>
-  ): Promise<ResponseModel<Role>> {
+  public async queryGuestRole(request: RequestModel<void>): Promise<ResponseModel<Role>> {
     const response = new ResponseModel<Role>(request.transactionId);
 
     try {
@@ -182,22 +161,23 @@ export class RoleRepositoryImpl extends BaseRepository {
         if (!role) {
           return null;
         }
-        const { id: roleId, name: roleName, permissions = [] } = role as any;
+        const {
+          id: roleId,
+          name: roleName,
+          permissions = [],
+        } = role as RoleModel & { permissions?: PermissionModel[] };
 
         return new Role(
           roleId,
           roleName,
-          permissions.map(({ id, name }: any) => new Permission(id, name))
+          permissions.map(({ id, name }) => new Permission(id, name)),
         );
       });
     } catch (error) {
       logger.err("Error in queryGuestRole:");
       logger.err(request);
       logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
     }
 
     return response;

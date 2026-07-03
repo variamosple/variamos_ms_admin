@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/explicit-member-accessibility, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-non-null-assertion, @typescript-eslint/no-non-null-asserted-optional-chain */
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
@@ -15,15 +16,13 @@ import { UserModel } from "./User";
 import { UserRoleModel } from "./UserRole";
 
 export class UserRoleRepositoryImpl extends BaseRepository {
-  async queryUserRoles(
-    request: RequestModel<UserRoleFilter>
-  ): Promise<ResponseModel<Role[]>> {
+  async queryUserRoles(request: RequestModel<UserRoleFilter>): Promise<ResponseModel<Role[]>> {
     const response = new ResponseModel<Role[]>(request.transactionId);
 
     try {
       const { data: filter } = request;
 
-      const replacements = super.initilizeReplacements({
+      const replacements = super.initializeReplacements({
         userId: filter?.userId,
         limit: filter?.pageSize,
         offset: (filter?.pageNumber! - 1) * filter?.pageSize!,
@@ -36,7 +35,7 @@ export class UserRoleRepositoryImpl extends BaseRepository {
             INNER JOIN variamos.user_role ur ON (r.id = ur.role_id)
             WHERE ur.user_id = :userId;   
         `,
-        { type: QueryTypes.SELECT, replacements }
+        { type: QueryTypes.SELECT, replacements },
       ).then((result: any) => +result?.[0]?.count || 0);
 
       response.data = await VARIAMOS_ORM.query<RoleModel>(
@@ -50,23 +49,20 @@ export class UserRoleRepositoryImpl extends BaseRepository {
         {
           type: QueryTypes.SELECT,
           replacements,
-        }
+        },
       ).then((response) => response.map(({ id, name }) => new Role(id, name)));
     } catch (error) {
       logger.err("Error in queryUserRoles:");
       logger.err(request);
       logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
     }
 
     return response;
   }
 
   async queryUserRolesDetails(
-    request: RequestModel<UserRoleFilter>
+    request: RequestModel<UserRoleFilter>,
   ): Promise<ResponseModel<Role[]>> {
     const response = new ResponseModel<Role[]>(request.transactionId);
 
@@ -91,26 +87,19 @@ export class UserRoleRepositoryImpl extends BaseRepository {
         ],
         attributes: ["id", "name"],
       }).then((roles) =>
-        roles.map(
-          ({ id, name, permissions }: any) => new Role(id, name, permissions)
-        )
+        roles.map(({ id, name, permissions }: any) => new Role(id, name, permissions)),
       );
     } catch (error) {
       logger.err("Error in queryUserRolesDetails:");
       logger.err(request);
       logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async createUserRole(
-    request: RequestModel<UserRole>
-  ): Promise<ResponseModel<UserRole>> {
+  async createUserRole(request: RequestModel<UserRole>): Promise<ResponseModel<UserRole>> {
     const response = new ResponseModel<UserRole>(request.transactionId);
 
     try {
@@ -137,18 +126,13 @@ export class UserRoleRepositoryImpl extends BaseRepository {
       logger.err("Error in createUserRole:");
       logger.err(request);
       logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async deleteUserRole(
-    request: RequestModel<UserRole>
-  ): Promise<ResponseModel<void>> {
+  async deleteUserRole(request: RequestModel<UserRole>): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
 
     try {
@@ -161,10 +145,7 @@ export class UserRoleRepositoryImpl extends BaseRepository {
       logger.err("Error in deleteUserRole:");
       logger.err(request);
       logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
     }
 
     return response;

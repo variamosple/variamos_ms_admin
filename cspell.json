@@ -21,7 +21,12 @@
     "bcrypt",
     "nodemon",
     "supertest",
-    "express"
+    "express",
+    "variamosple",
+    "ILIKE",
+    "testuser",
+    "uuidv4",
+    "uuidv"
   ],
   "ignorePaths": [
     "node_modules/**",

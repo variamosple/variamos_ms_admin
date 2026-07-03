@@ -1,4 +1,6 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import EnvVars from "@src/common/EnvVars";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import { Nullable } from "@src/Domain/Core/Entity/Nullable";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
@@ -23,27 +25,36 @@ import {
 import { CookieOptions, Request, Response, Router } from "express";
 import { OAuth2Client } from "google-auth-library";
 import logger from "jet-logger";
+import { UserRepositoryInstance } from "@src/DataProviders/User/UserRepository";
+import { MailServiceInstance } from "@src/Infrastructure/Mail/MailService";
+import { RoleRepositoryInstance } from "@src/DataProviders/Role/RoleRepository";
+import { mapDomainErrorToHttpStatus } from "./errorMapper";
 
 export const AUTH_ROUTE = "/auth";
 
 const authRouter = Router();
 
+const usersUseCases = new UsersUseCases(
+  UserRepositoryInstance,
+  MailServiceInstance,
+  RoleRepositoryInstance,
+  {
+    passwordResetExpiryInMs: EnvVars.Auth.APP.PASSWORD_RESET_EXPIRY_IN_MS,
+    homeRedirectUri: EnvVars.Auth.APP.HOME_REDIRECT_URI as string,
+  },
+);
+
 const HOME_URL = new URL(EnvVars.Auth.APP.HOME_REDIRECT_URI!);
 const HOME_URL_HOST_REGEX = new RegExp(`^${HOME_URL.hostname}$`);
 
-const isExternalDomain = (host?: string): boolean =>
-  !!host && !HOME_URL_HOST_REGEX.test(host);
+const isExternalDomain = (host?: string): boolean => !!host && !HOME_URL_HOST_REGEX.test(host);
 
 const isAllowedOrigin = (origin: string | undefined): boolean => {
   if (!origin || "null" === origin) {
     return true;
   }
 
-  return (
-    EnvVars.CORS.AllowedOriginsPatterns.findIndex((pattern) =>
-      pattern.test(origin),
-    ) !== -1
-  );
+  return EnvVars.CORS.AllowedOriginsPatterns.findIndex((pattern) => pattern.test(origin)) !== -1;
 };
 
 const getRedirectUrl = (
@@ -52,17 +63,14 @@ const getRedirectUrl = (
   res: Response,
   remove: boolean = true,
 ): URL | undefined => {
-  const redirectUrl = req.cookies.redirectTo;
+  const redirectUrl = req.cookies.redirectTo as string | undefined;
 
   if (!redirectUrl) {
     return undefined;
   }
 
   if (remove) {
-    res.clearCookie(
-      "redirectTo",
-      getCookieOptions({ sameSite: "none", maxAge: false }),
-    );
+    res.clearCookie("redirectTo", getCookieOptions({ sameSite: "none", maxAge: false }));
   }
 
   return getUrl(transactionId, redirectUrl);
@@ -79,7 +87,7 @@ const getUrl = (transactionId: string, url?: string): URL | undefined => {
     return isAllowedOrigin(redirect.origin) ? redirect : undefined;
   } catch (error) {
     logger.err(`${transactionId} Invalid URL: ${url}`);
-    logger.err(error, true);
+    logger.err(error as Error, true);
   }
 
   return undefined;
@@ -159,8 +167,7 @@ authRouter.get("/session-info", async (req: Request, res) => {
     const currentDateInMs = Date.now();
 
     // Get max refresh time
-    const refreshTimeInMs =
-      user.iat * 1000 + EnvVars.CookieProps.Options.maxAge;
+    const refreshTimeInMs = user.iat * 1000 + EnvVars.CookieProps.Options.maxAge;
 
     if (currentDateInMs > refreshTimeInMs) {
       return res
@@ -175,25 +182,16 @@ authRouter.get("/session-info", async (req: Request, res) => {
 
     const userRoles = user.roles || [];
 
-    const isGuest = userRoles.find(
-      (role: string) => role.toLowerCase() === "guest",
-    );
+    const isGuest = userRoles.find((role: string) => role.toLowerCase() === "guest");
 
-    const findeSessionUserRequest = new RequestModel<string>(
-      "getSessionInfo",
-      user.sub,
-    );
+    const findSessionUserRequest = new RequestModel<string>("getSessionInfo", user.sub);
 
     let refreshedUser: ResponseModel<User>;
 
     if (isGuest) {
-      refreshedUser = await new UsersUseCases().getGuestData(
-        findeSessionUserRequest,
-      );
+      refreshedUser = await usersUseCases.getGuestData(findSessionUserRequest);
     } else {
-      refreshedUser = await new UsersUseCases().findSessionUser(
-        findeSessionUserRequest,
-      );
+      refreshedUser = await usersUseCases.findSessionUser(findSessionUserRequest);
     }
 
     if (!!refreshedUser.errorCode || !refreshedUser.data) {
@@ -207,14 +205,7 @@ authRouter.get("/session-info", async (req: Request, res) => {
         );
     }
 
-    const {
-      id,
-      name,
-      user: userName,
-      email,
-      roles,
-      permissions,
-    } = refreshedUser.data;
+    const { id, name, user: userName, email, roles, permissions } = refreshedUser.data;
 
     const sessionUser: SessionUser = {
       id: id!,
@@ -224,7 +215,7 @@ authRouter.get("/session-info", async (req: Request, res) => {
       roles,
       permissions,
     };
-    const token = await createJwt(sessionUser, user.aud);
+    const token = (await createJwt(sessionUser, user.aud)) as string;
 
     const redirect = getRedirectUrl("getSessionInfo", req, res);
     setRedirectAuthToken(redirect, authToken);
@@ -237,64 +228,45 @@ authRouter.get("/session-info", async (req: Request, res) => {
           user: sessionUser,
           authToken:
             isExternalDomain(user.aud) &&
-            isExternalDomain(
-              getUrl(response.transactionId!, req.headers.origin)?.hostname,
-            )
+            isExternalDomain(getUrl(response.transactionId!, req.headers.origin)?.hostname)
               ? token
               : undefined,
           redirect: redirect?.toString?.(),
         }),
       );
   } catch (error) {
-    console.error("Error verifying JWT:", error);
+    logger.err("Error verifying JWT:");
+    logger.err(error as Error);
     res
       .status(HttpStatusCodes.UNAUTHORIZED)
-      .json(
-        response.withError(
-          HttpStatusCodes.UNAUTHORIZED,
-          "Session validation error",
-        ),
-      );
+      .json(response.withError(HttpStatusCodes.UNAUTHORIZED, "Session validation error"));
   }
 });
 
 authRouter.post("/sign-in", async (req, res) => {
   const transactionId = "signIn";
   const response = new ResponseModel<SingInResponse>(transactionId);
-  const { email, password } = req.body || {};
+  const { email, password } = (req.body || {}) as Record<string, string>;
 
   try {
     if (!email || !password) {
       res
         .status(HttpStatusCodes.BAD_REQUEST)
-        .json(
-          response.withError(
-            HttpStatusCodes.BAD_REQUEST,
-            "Email and password are required.",
-          ),
-        );
+        .json(response.withError(HttpStatusCodes.BAD_REQUEST, "Email and password are required."));
     }
 
     const credentials = new Credentials(email, password);
 
     const request = new RequestModel<Credentials>(transactionId, credentials);
-    const singInResponse = await new UsersUseCases().signIn(request);
+    const singInResponse = await usersUseCases.signIn(request);
 
     if (singInResponse.errorCode) {
       return res
-        .status(
-          singInResponse.errorCode || HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        )
+        .status(mapDomainErrorToHttpStatus(singInResponse.errorCode as DomainErrorCodes))
         .json(singInResponse);
     }
 
-    const {
-      id,
-      name,
-      user: username,
-      roles,
-      permissions,
-    } = singInResponse.data!;
+    const { id, name, user: username, roles, permissions } = singInResponse.data!;
 
     const sessionUser: SessionUser = {
       id: id!,
@@ -307,27 +279,25 @@ authRouter.post("/sign-in", async (req, res) => {
 
     const redirect = getRedirectUrl(transactionId, req, res);
 
-    const token = await createJwt(
+    const token = (await createJwt(
       sessionUser,
       redirect?.hostname || EnvVars.CookieProps.Options.domain,
-    );
+    )) as string;
 
     res.cookie("authToken", token, getCookieOptions());
     setRedirectAuthToken(redirect, token);
 
     response.data = {
-      redirect: redirect
-        ? redirect.toString()
-        : `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`,
+      redirect: redirect ? redirect.toString() : `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`,
     };
 
     res.status(200).json(response);
   } catch (err) {
-    logger.err(err, true);
+    logger.err(err as Error, true);
     res
       .status(500)
       .json(
-        new ResponseModel<unknown>(transactionId).withError(
+        new ResponseModel<void>(transactionId).withError(
           HttpStatusCodes.INTERNAL_SERVER_ERROR,
           "Sign in error. Please try again later.",
         ),
@@ -337,44 +307,39 @@ authRouter.post("/sign-in", async (req, res) => {
 
 authRouter.post("/sign-up", async (req, res) => {
   const transactionId = "signUp";
-  const { name, email, password, passwordConfirmation } = req.body || {};
-  const successfullResponse = new ResponseModel<unknown>(
+  const { name, email, password, passwordConfirmation } = (req.body || {}) as Record<
+    string,
+    string
+  >;
+  const successfulResponse = new ResponseModel<void>(
     transactionId,
     undefined,
     "You have successfully signed up!",
   );
 
   try {
-    const registration = new UserRegistration(
-      name,
-      email,
-      password,
-      passwordConfirmation,
-    );
+    const registration = new UserRegistration(name, email, password, passwordConfirmation);
 
-    const request = new RequestModel<UserRegistration>(
-      transactionId,
-      registration,
-    );
-    const response = await new UsersUseCases().signUp(request);
+    const request = new RequestModel<UserRegistration>(transactionId, registration);
+    const response = await usersUseCases.signUp(request);
 
     if (HttpStatusCodes.CONFLICT.valueOf() === response.errorCode) {
-      return res.status(HttpStatusCodes.OK).json(successfullResponse);
+      return res.status(HttpStatusCodes.OK).json(successfulResponse);
     }
 
     if (response.errorCode) {
       return res
-        .status(response.errorCode || HttpStatusCodes.INTERNAL_SERVER_ERROR)
+        .status(mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes))
         .json(response);
     }
 
-    res.status(HttpStatusCodes.OK).json(successfullResponse);
+    res.status(HttpStatusCodes.OK).json(successfulResponse);
   } catch (err) {
-    logger.err(err, true);
+    logger.err(err as Error, true);
     res
       .status(500)
       .json(
-        new ResponseModel<unknown>(transactionId).withError(
+        new ResponseModel<void>(transactionId).withError(
           HttpStatusCodes.INTERNAL_SERVER_ERROR,
           "Sign in error. Please try again later.",
         ),
@@ -382,7 +347,7 @@ authRouter.post("/sign-up", async (req, res) => {
   }
 });
 
-authRouter.post("/logout", async (_, res) => {
+authRouter.post("/logout", (_, res) => {
   const cookieOptions = getCookieOptions({
     maxAge: false,
   });
@@ -409,27 +374,23 @@ const validateGoogleCode = async (token: string): Promise<User | undefined> => {
     const name = payload?.name;
     const email = payload?.email;
 
-    const user: User = User.builder()
-      .setUser(name!)
-      .setName(name!)
-      .setEmail(email!)
-      .build();
+    const user: User = User.builder().setUser(name!).setName(name!).setEmail(email!).build();
 
     return user;
   } catch (err) {
-    console.error(err);
+    logger.err(err as Error);
     throw new Error("Error when validating Google's user data.");
   }
 };
 
 authRouter.post("/google/callback", async (req, res) => {
   const transactionId = "loginWithGoogle";
-  const { credential } = req.body || {};
+  const { credential } = (req.body || {}) as Record<string, string>;
   try {
     const user = await validateGoogleCode(credential);
 
     const request = new RequestModel<User>(transactionId, user);
-    const response = await new UsersUseCases().findOrCreateUser(request);
+    const response = await usersUseCases.findOrCreateUser(request);
 
     if (response.errorCode) {
       return res.redirect(
@@ -438,14 +399,7 @@ authRouter.post("/google/callback", async (req, res) => {
       );
     }
 
-    const {
-      id,
-      name,
-      user: username,
-      email,
-      roles,
-      permissions,
-    } = response.data! || {};
+    const { id, name, user: username, email, roles, permissions } = response.data! || {};
 
     const sessionUser: SessionUser = {
       id: id!,
@@ -457,55 +411,44 @@ authRouter.post("/google/callback", async (req, res) => {
     };
 
     const redirect = getRedirectUrl(transactionId, req, res, false);
-    const token = await createJwt(
+    const token = (await createJwt(
       sessionUser,
       redirect?.hostname || EnvVars.CookieProps.Options.domain,
-    );
+    )) as string;
 
     res.cookie("authToken", token, getCookieOptions());
 
     res.redirect(302, `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`);
   } catch (err) {
-    logger.err(err, true);
-    res.redirect(
-      302,
-      `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?errorMessage=Login error.`,
-    );
+    logger.err(err as Error, true);
+    res.redirect(302, `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?errorMessage=Login error.`);
   }
 });
 
-authRouter.get(
-  "/my-account",
-  hasPermissions(["my-account::query"]),
-  async (req, res) => {
-    const transactionId = "myAccount";
-    const user = req.user!;
-    try {
-      const request = new RequestModel<string>(transactionId, user.id);
+authRouter.get("/my-account", hasPermissions(["my-account::query"]), async (req, res) => {
+  const transactionId = "myAccount";
+  const user = req.user as SessionUser;
+  try {
+    const request = new RequestModel<string>(transactionId, user.id);
 
-      const response = await new UsersUseCases().getMyAccount(request);
+    const response = await usersUseCases.getMyAccount(request);
 
-      const status = response.errorCode || 200;
-      res.status(status).json(response);
-    } catch (error) {
-      logger.err(error, true);
-      const response = new ResponseModel(
-        transactionId,
-        500,
-        "Internal Server Error",
-      );
-      res.status(500).json(response);
-    }
-  },
-);
+    const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
+    res.status(status).json(response);
+  } catch (error) {
+    logger.err(error as Error, true);
+    const response = new ResponseModel(transactionId, 500, "Internal Server Error");
+    res.status(500).json(response);
+  }
+});
 
 authRouter.put(
   "/my-account/information",
   hasPermissions(["my-account::update"]),
   async (req, res) => {
     const transactionId = "updateMyAccountInformation";
-    const user = req.user!;
-    const personalInformation = req.body!;
+    const user = req.user as SessionUser;
+    const personalInformation = (req.body || {}) as { countryCode?: string | null };
 
     try {
       const personalInformationUpdate = PersonalInformationUpdate.builder()
@@ -518,72 +461,58 @@ authRouter.put(
         personalInformationUpdate,
       );
 
-      const response = await new UsersUseCases().updatePersonalInformation(
-        request,
-      );
+      const response = await usersUseCases.updatePersonalInformation(request);
 
-      const status = response.errorCode || 200;
+      const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
       res.status(status).json(response);
     } catch (error) {
-      logger.err(error, true);
-      const response = new ResponseModel(
-        transactionId,
-        500,
-        "Internal Server Error",
-      );
+      logger.err(error as Error, true);
+      const response = new ResponseModel(transactionId, 500, "Internal Server Error");
       res.status(500).json(response);
     }
   },
 );
 
-authRouter.put(
-  "/password-update",
-  hasPermissions(["my-account::update"]),
-  async (req, res) => {
-    const transactionId = "passwordUpdate";
-    const user = req.user!;
-    const { currentPassword, newPassword, passwordConfirmation } =
-      req.body || {};
-    try {
-      const passwordUpdate = PasswordUpdate.builder()
-        .setId(user.id)
-        .setCurrentPassword(currentPassword)
-        .setNewPassword(newPassword)
-        .setPasswordConfirmation(passwordConfirmation)
-        .build();
+authRouter.put("/password-update", hasPermissions(["my-account::update"]), async (req, res) => {
+  const transactionId = "passwordUpdate";
+  const user = req.user as SessionUser;
+  const { currentPassword, newPassword, passwordConfirmation } = (req.body || {}) as Record<
+    string,
+    string
+  >;
+  try {
+    const passwordUpdate = PasswordUpdate.builder()
+      .setId(user.id)
+      .setCurrentPassword(currentPassword)
+      .setNewPassword(newPassword)
+      .setPasswordConfirmation(passwordConfirmation)
+      .build();
 
-      const response = await new UsersUseCases().updatePassword(
-        new RequestModel(transactionId, passwordUpdate),
-      );
+    const response = await usersUseCases.updatePassword(
+      new RequestModel(transactionId, passwordUpdate),
+    );
 
-      const status = response.errorCode || 200;
-      res.status(status).json(response);
-    } catch (error) {
-      logger.err(error, true);
-      const response = new ResponseModel(
-        transactionId,
-        500,
-        "Internal Server Error",
-      );
-      res.status(500).json(response);
-    }
-  },
-);
+    const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
+    res.status(status).json(response);
+  } catch (error) {
+    logger.err(error as Error, true);
+    const response = new ResponseModel(transactionId, 500, "Internal Server Error");
+    res.status(500).json(response);
+  }
+});
 
 authRouter.post("/guest/sign-in", async (req, res) => {
   const transactionId = "signInAsGuest";
-  const { guestId = null } = req.body || {};
+  const { guestId = null } = (req.body || {}) as Record<string, string | null>;
 
   try {
     const response = new ResponseModel<SingInResponse>(transactionId);
-    const request = new RequestModel<string>(transactionId, guestId);
-    const guestResponse = await new UsersUseCases().getGuestData(request);
+    const request = new RequestModel<string>(transactionId, guestId || undefined);
+    const guestResponse = await usersUseCases.getGuestData(request);
 
     if (guestResponse.errorCode) {
       return res
-        .status(
-          guestResponse.errorCode || HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        )
+        .status(mapDomainErrorToHttpStatus(guestResponse.errorCode as DomainErrorCodes))
         .json(guestResponse);
     }
 
@@ -599,28 +528,26 @@ authRouter.post("/guest/sign-in", async (req, res) => {
     };
 
     const redirect = getRedirectUrl(transactionId, req, res);
-    const token = await createJwt(
+    const token = (await createJwt(
       sessionUser,
       redirect?.hostname || EnvVars.CookieProps.Options.domain,
-    );
+    )) as string;
 
     res.cookie("authToken", token, getCookieOptions());
     setRedirectAuthToken(redirect, token);
 
     response.data = {
       id: id!,
-      redirect: redirect
-        ? redirect.toString()
-        : `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`,
+      redirect: redirect ? redirect.toString() : `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`,
     };
 
     res.status(200).json(response);
   } catch (err) {
-    logger.err(err, true);
+    logger.err(err as Error, true);
     res
       .status(500)
       .json(
-        new ResponseModel<unknown>(transactionId).withError(
+        new ResponseModel<void>(transactionId).withError(
           HttpStatusCodes.INTERNAL_SERVER_ERROR,
           "Sign in error. Please try again later.",
         ),
@@ -628,9 +555,9 @@ authRouter.post("/guest/sign-in", async (req, res) => {
   }
 });
 
-authRouter.post("/redirects", async (request, res) => {
+authRouter.post("/redirects", (request, res) => {
   const response = new ResponseModel<void>("setRedirect");
-  const { url } = request.body || {};
+  const { url } = (request.body || {}) as Record<string, string>;
 
   if (!url) {
     res.status(200).json(response);
@@ -643,8 +570,9 @@ authRouter.post("/redirects", async (request, res) => {
     const redirect = new URL(url);
     isAllowed = isAllowedOrigin(redirect.origin);
   } catch (error) {
-    logger.err(`POST: ${AUTH_ROUTE}/redirects Invalid redirect URL: `, error);
-    logger.err(error, true);
+    logger.err(`POST: ${AUTH_ROUTE}/redirects Invalid redirect URL:`);
+    logger.err(error as Error);
+    logger.err(error as Error, true);
   }
 
   if (isAllowed) {
@@ -656,30 +584,26 @@ authRouter.post("/redirects", async (request, res) => {
 
 authRouter.post("/forgot-password", async (req, res) => {
   const transactionId = "forgotPassword";
-  const { email = "" } = req.body || {};
+  const { email = "" } = (req.body || {}) as Record<string, string>;
 
   try {
-    const forgotPasswordResponse =
-      await new UsersUseCases().requestPasswordReset(
-        new RequestModel<string>(transactionId, email),
-      );
+    const forgotPasswordResponse = await usersUseCases.requestPasswordReset(
+      new RequestModel<string>(transactionId, email),
+    );
 
     if (forgotPasswordResponse.errorCode) {
       return res
-        .status(
-          forgotPasswordResponse.errorCode ||
-            HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        )
+        .status(mapDomainErrorToHttpStatus(forgotPasswordResponse.errorCode as DomainErrorCodes))
         .json(forgotPasswordResponse);
     }
 
     res.status(200).json(forgotPasswordResponse);
   } catch (err) {
-    logger.err(err, true);
+    logger.err(err as Error, true);
     res
       .status(500)
       .json(
-        new ResponseModel<unknown>(transactionId).withError(
+        new ResponseModel<void>(transactionId).withError(
           HttpStatusCodes.INTERNAL_SERVER_ERROR,
           "Forgot password error. Please try again later.",
         ),
@@ -692,21 +616,23 @@ authRouter.get("/verify-token", async (req, res) => {
   const { token = "" } = req.query || {};
 
   try {
-    const verifyResponse = await new UsersUseCases().verifyPasswordResetToken(
+    const verifyResponse = await usersUseCases.verifyPasswordResetToken(
       new RequestModel<string>(transactionId, token as string),
     );
 
     if (verifyResponse.errorCode) {
-      return res.status(verifyResponse.errorCode).json(verifyResponse);
+      return res
+        .status(mapDomainErrorToHttpStatus(verifyResponse.errorCode as DomainErrorCodes))
+        .json(verifyResponse);
     }
 
     res.status(200).json(verifyResponse);
   } catch (err) {
-    logger.err(err, true);
+    logger.err(err as Error, true);
     res
       .status(500)
       .json(
-        new ResponseModel<unknown>(transactionId).withError(
+        new ResponseModel<void>(transactionId).withError(
           HttpStatusCodes.INTERNAL_SERVER_ERROR,
           "Token verification error.",
         ),
@@ -716,10 +642,10 @@ authRouter.get("/verify-token", async (req, res) => {
 
 authRouter.post("/reset-password", async (req, res) => {
   const transactionId = "resetPassword";
-  const { token = "", password = "" } = req.body || {};
+  const { token = "", password = "" } = (req.body || {}) as Record<string, string>;
 
   try {
-    const resetResponse = await new UsersUseCases().resetPassword(
+    const resetResponse = await usersUseCases.resetPassword(
       new RequestModel<{ token: string; password: string }>(transactionId, {
         token,
         password,
@@ -727,16 +653,18 @@ authRouter.post("/reset-password", async (req, res) => {
     );
 
     if (resetResponse.errorCode) {
-      return res.status(resetResponse.errorCode).json(resetResponse);
+      return res
+        .status(mapDomainErrorToHttpStatus(resetResponse.errorCode as DomainErrorCodes))
+        .json(resetResponse);
     }
 
     res.status(200).json(resetResponse);
   } catch (err) {
-    logger.err(err, true);
+    logger.err(err as Error, true);
     res
       .status(500)
       .json(
-        new ResponseModel<unknown>(transactionId).withError(
+        new ResponseModel<void>(transactionId).withError(
           HttpStatusCodes.INTERNAL_SERVER_ERROR,
           "Reset password error. Please try again later.",
         ),
