@@ -18,6 +18,20 @@ const config: Config = {
   clearMocks: true,
   resetMocks: true,
   restoreMocks: true,
+  coverageThreshold: {
+    global: {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80,
+    },
+    './src/EntryPoints/**/*.ts': {
+      branches: 50,
+      functions: 70,
+      lines: 80,
+      statements: 80,
+    },
+  },
 };
 
 export default config;

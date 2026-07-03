@@ -14,5 +14,8 @@
   "reporters": ["progress", "clear-text", "html"],
   "concurrency": 2,
   "incremental": true,
-  "coverageAnalysis": "perTest"
+  "coverageAnalysis": "perTest",
+  "thresholds": {
+    "break": 60
+  }
 }

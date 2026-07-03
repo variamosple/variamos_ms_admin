@@ -1,0 +1,11 @@
+{
+  "src/**/*.ts": [
+    "eslint --fix",
+    "prettier --write",
+    "cspell"
+  ],
+  "src/**/*.{js,json,md}": [
+    "prettier --write",
+    "cspell"
+  ]
+}
