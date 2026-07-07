@@ -19,8 +19,21 @@ const config: Config = {
   clearMocks: true,
   resetMocks: true,
   restoreMocks: true,
+  collectCoverageFrom: [
+    "src/Domain/**/*.ts",
+    "src/EntryPoints/**/*.ts",
+    "!src/Domain/**/Entity/*.ts",
+    "!src/EntryPoints/index.ts",
+    "!src/**/*.d.ts",
+  ],
   coverageThreshold: {
     global: {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80,
+    },
+    "./src/Domain/**/*.ts": {
       branches: 80,
       functions: 80,
       lines: 80,

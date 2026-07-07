@@ -71,10 +71,6 @@ export class UsersUseCases {
       );
     }
 
-    if (!PASSWORD_REGEXP.test(password)) {
-      return response.withErrorPromise(DomainErrorCodes.BAD_REQUEST, PASSWORD_FORMAT_ERROR);
-    }
-
     return this.userRepository.signUp(request);
   }
 
