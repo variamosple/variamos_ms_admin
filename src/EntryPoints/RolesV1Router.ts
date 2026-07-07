@@ -4,12 +4,13 @@ import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { Role } from "@src/Domain/Role/Entity/Role";
 import { RoleFilter } from "@src/Domain/Role/Entity/RoleFilter";
 import { RolesUseCases } from "@src/Domain/Role/RoleUseCases";
+import { RoleRepositoryInstance } from "@src/DataProviders/Role/RoleRepository";
 import { hasPermissions } from "@variamosple/variamos-security";
 import { Router } from "express";
 import logger from "jet-logger";
-import rolePermissionsV1Router, {
-  ROLE_PERMISSIONS_V1_ROUTE,
-} from "./RolePermissionsV1Router";
+import rolePermissionsV1Router, { ROLE_PERMISSIONS_V1_ROUTE } from "./RolePermissionsV1Router";
+import { mapDomainErrorToHttpStatus } from "./errorMapper";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 
 export const ROLES_V1_ROUTE = "/v1/roles";
 
@@ -21,21 +22,21 @@ rolesV1Router.get("/", hasPermissions(["roles::query"]), async (req, res) => {
   try {
     const filter: RoleFilter = RoleFilter.builder()
       .setName(name as string)
-      .setPageNumber(pageNumber as unknown as number)
-      .setPageSize(pageSize as unknown as number)
+      .setPageNumber(Number(pageNumber))
+      .setPageSize(Number(pageSize))
       .build();
 
     const request = new RequestModel<RoleFilter>(transactionId, filter);
-    const response = await new RolesUseCases().queryRoles(request);
+    const response = await new RolesUseCases(RoleRepositoryInstance).queryRoles(request);
 
-    const status = response.errorCode || HttpStatusCodes.OK;
+    const status = mapDomainErrorToHttpStatus(response.errorCode);
     res.status(status).json(response);
   } catch (error) {
     logger.err(error);
     const response = new ResponseModel(
       transactionId,
-      HttpStatusCodes.INTERNAL_SERVER_ERROR,
-      "Internal Server Error"
+      DomainErrorCodes.INTERNAL_ERROR,
+      "Internal Server Error",
     );
     res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
   }
@@ -43,159 +44,146 @@ rolesV1Router.get("/", hasPermissions(["roles::query"]), async (req, res) => {
 
 rolesV1Router.post("/", hasPermissions(["roles::create"]), async (req, res) => {
   const transactionId = "createRole";
-  const { name } = req.body;
+  const { name } = req.body as { name?: string };
   try {
     if (!name) {
-      res
+      return res
         .status(HttpStatusCodes.BAD_REQUEST)
         .json(
-          new ResponseModel<unknown>(transactionId).withError(
-            HttpStatusCodes.BAD_REQUEST,
-            "name is required."
-          )
+          new ResponseModel<void>(transactionId).withError(
+            DomainErrorCodes.BAD_REQUEST,
+            "name is required.",
+          ),
         );
     }
 
     const role: Role = new Role(null, name);
 
     const request = new RequestModel<Role>(transactionId, role);
-    const response = await new RolesUseCases().createRole(request);
+    const response = await new RolesUseCases(RoleRepositoryInstance).createRole(request);
 
-    const status = response.errorCode || HttpStatusCodes.CREATED;
+    const status = response.errorCode
+      ? mapDomainErrorToHttpStatus(response.errorCode)
+      : HttpStatusCodes.CREATED;
     res.status(status).json(response);
   } catch (error) {
     logger.err(error);
     const response = new ResponseModel(
       transactionId,
-      HttpStatusCodes.INTERNAL_SERVER_ERROR,
-      "Internal Server Error"
+      DomainErrorCodes.INTERNAL_ERROR,
+      "Internal Server Error",
     );
     res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
   }
 });
 
-rolesV1Router.delete(
-  "/:roleId",
-  hasPermissions(["roles::delete"]),
-  async (req, res) => {
-    const transactionId = "deleteRole";
-    const roleId = req.params.roleId;
-    try {
-      if (!roleId || Number.isNaN(+roleId)) {
-        res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json(
-            new ResponseModel<unknown>(transactionId).withError(
-              HttpStatusCodes.BAD_REQUEST,
-              "roleId is required."
-            )
-          );
-      }
-
-      const request = new RequestModel<number>(transactionId, +roleId);
-      const response = await new RolesUseCases().deleteRole(request);
-
-      const status = response.errorCode || HttpStatusCodes.OK;
-      res.status(status).json(response);
-    } catch (error) {
-      logger.err(error);
-      const response = new ResponseModel(
-        transactionId,
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal Server Error"
-      );
-      res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+rolesV1Router.delete("/:roleId", hasPermissions(["roles::delete"]), async (req, res) => {
+  const transactionId = "deleteRole";
+  const roleId = req.params.roleId;
+  try {
+    if (!roleId || Number.isNaN(+roleId)) {
+      return res
+        .status(HttpStatusCodes.BAD_REQUEST)
+        .json(
+          new ResponseModel<void>(transactionId).withError(
+            DomainErrorCodes.BAD_REQUEST,
+            "roleId is required.",
+          ),
+        );
     }
+
+    const request = new RequestModel<string>(transactionId, roleId);
+    const response = await new RolesUseCases(RoleRepositoryInstance).deleteRole(request);
+
+    const status = mapDomainErrorToHttpStatus(response.errorCode);
+    res.status(status).json(response);
+  } catch (error) {
+    logger.err(error);
+    const response = new ResponseModel(
+      transactionId,
+      DomainErrorCodes.INTERNAL_ERROR,
+      "Internal Server Error",
+    );
+    res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
   }
-);
+});
 
-rolesV1Router.get(
-  "/:roleId",
-  hasPermissions(["roles::query"]),
-  async (req, res) => {
-    const transactionId = "queryRoleById";
-    const roleId = req.params.roleId;
+rolesV1Router.get("/:roleId", hasPermissions(["roles::query"]), async (req, res) => {
+  const transactionId = "queryRoleById";
+  const roleId = req.params.roleId;
 
-    try {
-      if (!roleId || Number.isNaN(+roleId)) {
-        res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json(
-            new ResponseModel<unknown>(transactionId).withError(
-              HttpStatusCodes.BAD_REQUEST,
-              "roleId is required."
-            )
-          );
-      }
-
-      const request = new RequestModel<number>(
-        transactionId,
-        Number.parseInt(roleId)
-      );
-      const response = await new RolesUseCases().queryById(request);
-
-      const status = response.errorCode || 200;
-      res.status(status).json(response);
-    } catch (error) {
-      logger.err(error);
-      const response = new ResponseModel(
-        transactionId,
-        500,
-        "Internal Server Error"
-      );
-      res.status(500).json(response);
+  try {
+    if (!roleId || Number.isNaN(+roleId)) {
+      return res
+        .status(HttpStatusCodes.BAD_REQUEST)
+        .json(
+          new ResponseModel<void>(transactionId).withError(
+            DomainErrorCodes.BAD_REQUEST,
+            "roleId is required.",
+          ),
+        );
     }
+
+    const request = new RequestModel<string>(transactionId, roleId);
+    const response = await new RolesUseCases(RoleRepositoryInstance).queryById(request);
+
+    const status = mapDomainErrorToHttpStatus(response.errorCode);
+    res.status(status).json(response);
+  } catch (error) {
+    logger.err(error);
+    const response = new ResponseModel(
+      transactionId,
+      DomainErrorCodes.INTERNAL_ERROR,
+      "Internal Server Error",
+    );
+    res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
   }
-);
+});
 
-rolesV1Router.put(
-  "/:roleId",
-  hasPermissions(["roles::update"]),
-  async (req, res) => {
-    const transactionId = "updateRole";
-    const roleId = req.params.roleId;
-    const { name } = req.body;
-    try {
-      if (!roleId || Number.isNaN(+roleId)) {
-        res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json(
-            new ResponseModel<unknown>(transactionId).withError(
-              HttpStatusCodes.BAD_REQUEST,
-              "roleId is required."
-            )
-          );
-      }
-
-      if (!name) {
-        res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json(
-            new ResponseModel<unknown>(transactionId).withError(
-              HttpStatusCodes.BAD_REQUEST,
-              "name is required."
-            )
-          );
-      }
-
-      const permission: Role = new Role(Number.parseInt(roleId), name);
-
-      const request = new RequestModel<Role>(transactionId, permission);
-      const response = await new RolesUseCases().updateRole(request);
-
-      const status = response.errorCode || 200;
-      res.status(status).json(response);
-    } catch (error) {
-      logger.err(error);
-      const response = new ResponseModel(
-        transactionId,
-        500,
-        "Internal Server Error"
-      );
-      res.status(500).json(response);
+rolesV1Router.put("/:roleId", hasPermissions(["roles::update"]), async (req, res) => {
+  const transactionId = "updateRole";
+  const roleId = req.params.roleId;
+  const { name } = req.body as { name?: string };
+  try {
+    if (!roleId || Number.isNaN(+roleId)) {
+      return res
+        .status(HttpStatusCodes.BAD_REQUEST)
+        .json(
+          new ResponseModel<void>(transactionId).withError(
+            DomainErrorCodes.BAD_REQUEST,
+            "roleId is required.",
+          ),
+        );
     }
+
+    if (!name) {
+      return res
+        .status(HttpStatusCodes.BAD_REQUEST)
+        .json(
+          new ResponseModel<void>(transactionId).withError(
+            DomainErrorCodes.BAD_REQUEST,
+            "name is required.",
+          ),
+        );
+    }
+
+    const permission: Role = new Role(Number.parseInt(roleId), name);
+
+    const request = new RequestModel<Role>(transactionId, permission);
+    const response = await new RolesUseCases(RoleRepositoryInstance).updateRole(request);
+
+    const status = mapDomainErrorToHttpStatus(response.errorCode);
+    res.status(status).json(response);
+  } catch (error) {
+    logger.err(error);
+    const response = new ResponseModel(
+      transactionId,
+      DomainErrorCodes.INTERNAL_ERROR,
+      "Internal Server Error",
+    );
+    res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
   }
-);
+});
 
 rolesV1Router.use(ROLE_PERMISSIONS_V1_ROUTE, rolePermissionsV1Router);
 

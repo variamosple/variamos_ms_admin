@@ -1,29 +1,29 @@
-import { RoleRepositoryInstance } from "@src/DataProviders/Role/RoleRepository";
 import { RequestModel } from "../Core/Entity/RequestModel";
 import { ResponseModel } from "../Core/Entity/ResponseModel";
 import { Role } from "./Entity/Role";
 import { RoleFilter } from "./Entity/RoleFilter";
+import { IRoleRepository } from "./Repository/IRoleRepository";
 
 export class RolesUseCases {
-  queryRoles(
-    request: RequestModel<RoleFilter>
-  ): Promise<ResponseModel<Role[]>> {
-    return RoleRepositoryInstance.queryRoles(request);
+  public constructor(private readonly roleRepository: IRoleRepository) {}
+
+  public queryRoles(request: RequestModel<RoleFilter>): Promise<ResponseModel<Role[]>> {
+    return this.roleRepository.queryRoles(request);
   }
 
-  createRole(request: RequestModel<Role>): Promise<ResponseModel<Role>> {
-    return RoleRepositoryInstance.createRole(request);
+  public createRole(request: RequestModel<Role>): Promise<ResponseModel<Role>> {
+    return this.roleRepository.createRole(request);
   }
 
-  deleteRole(request: RequestModel<number>): Promise<ResponseModel<void>> {
-    return RoleRepositoryInstance.deleteRole(request);
+  public deleteRole(request: RequestModel<string>): Promise<ResponseModel<void>> {
+    return this.roleRepository.deleteRole(request);
   }
 
-  queryById(request: RequestModel<number>): Promise<ResponseModel<Role>> {
-    return RoleRepositoryInstance.queryById(request);
+  public queryById(request: RequestModel<string>): Promise<ResponseModel<Role>> {
+    return this.roleRepository.queryById(request);
   }
 
-  updateRole(request: RequestModel<Role>): Promise<ResponseModel<Role>> {
-    return RoleRepositoryInstance.updateRole(request);
+  public updateRole(request: RequestModel<Role>): Promise<ResponseModel<Role>> {
+    return this.roleRepository.updateRole(request);
   }
 }

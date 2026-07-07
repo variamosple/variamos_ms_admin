@@ -1,6 +1,9 @@
 {
   "$schema": "https://schema.stryker-mutator.io/stryker-config.json",
-  "mutate": ["src/Domain/Bug/BugUseCases.ts"],
+  "mutate": [
+    "src/EntryPoints/**/*.ts",
+    "!src/EntryPoints/**/*.{test,spec}.ts"
+  ],
   "testRunner": "jest",
   "checkers": ["typescript"],
   "tsconfigFile": "tsconfig.json",
@@ -8,12 +11,13 @@
     "projectType": "custom",
     "configFile": "jest.config.ts",
     "config": {
-      "testMatch": ["**/BugUseCases.spec.ts"]
+      "testMatch": ["**/EntryPoints/**/*.{test,spec}.ts"]
     }
   },
   "reporters": ["progress", "clear-text", "html"],
   "concurrency": 2,
   "incremental": true,
+  "ignoreStatic": true,
   "coverageAnalysis": "perTest",
   "thresholds": {
     "break": 60

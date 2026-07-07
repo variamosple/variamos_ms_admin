@@ -1,18 +1,17 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { UsersUseCases } from "./UserUseCases";
 import { RequestModel } from "../Core/Entity/RequestModel";
 import { ResponseModel } from "../Core/Entity/ResponseModel";
 import { DomainErrorCodes } from "../Core/Error/DomainErrorCodes";
 import { IUserRepository } from "./IUserRepository";
 import { IMailService } from "../Mail/IMailService";
-import { IRoleRepository } from "../Role/IRoleRepository";
+import { IGuestRoleRepository } from "../Role/Repository/IGuestRoleRepository";
 import { User } from "./Entity/User";
 
 describe("UsersUseCases - Unit Tests", () => {
   let useCases: UsersUseCases;
   let mockUserRepository: jest.Mocked<IUserRepository>;
   let mockMailService: jest.Mocked<IMailService>;
-  let mockRoleRepository: jest.Mocked<IRoleRepository>;
+  let mockRoleRepository: jest.Mocked<IGuestRoleRepository>;
   const mockConfig = {
     passwordResetExpiryInMs: 3600000, // 1 hour
     homeRedirectUri: "http://localhost:3000",
@@ -44,7 +43,7 @@ describe("UsersUseCases - Unit Tests", () => {
 
     mockRoleRepository = {
       queryGuestRole: jest.fn(),
-    } as jest.Mocked<IRoleRepository>;
+    } as jest.Mocked<IGuestRoleRepository>;
 
     useCases = new UsersUseCases(
       mockUserRepository,

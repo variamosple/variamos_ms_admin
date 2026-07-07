@@ -1,4 +1,3 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
@@ -46,7 +45,11 @@ usersV1Router.get("/", hasPermissions(["users::query"]), async (req, res) => {
     res.status(status).json(response);
   } catch (error) {
     logger.err(error as Error);
-    const response = new ResponseModel(transactionId, 500, "Internal Server Error");
+    const response = new ResponseModel(
+      transactionId,
+      DomainErrorCodes.INTERNAL_ERROR,
+      "Internal Server Error",
+    );
     res.status(500).json(response);
   }
 });
@@ -56,17 +59,6 @@ usersV1Router.get("/:userId", hasPermissions(["users::query"]), async (req, res)
   const userId = req.params.userId;
 
   try {
-    if (!userId) {
-      res
-        .status(HttpStatusCodes.BAD_REQUEST)
-        .json(
-          new ResponseModel<void>(transactionId).withError(
-            HttpStatusCodes.BAD_REQUEST,
-            "userId is required.",
-          ),
-        );
-    }
-
     const request = new RequestModel<string>(transactionId, userId);
     const response = await usersUseCases.queryById(request);
 
@@ -74,7 +66,11 @@ usersV1Router.get("/:userId", hasPermissions(["users::query"]), async (req, res)
     res.status(status).json(response);
   } catch (error) {
     logger.err(error as Error);
-    const response = new ResponseModel(transactionId, 500, "Internal Server Error");
+    const response = new ResponseModel(
+      transactionId,
+      DomainErrorCodes.INTERNAL_ERROR,
+      "Internal Server Error",
+    );
     res.status(500).json(response);
   }
 });
@@ -85,20 +81,9 @@ usersV1Router.post(
   async (req, res) => {
     const transactionId = "generateRecoveryLink";
     const userId = req.params.userId;
-    const adminId = req.user?.id || "";
+    const adminId = (req.user as { id: string }).id;
 
     try {
-      if (!userId) {
-        res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json(
-            new ResponseModel<void>(transactionId).withError(
-              HttpStatusCodes.BAD_REQUEST,
-              "userId is required.",
-            ),
-          );
-      }
-
       const request = new RequestModel<{ userId: string; adminId: string }>(transactionId, {
         userId,
         adminId,
@@ -109,7 +94,11 @@ usersV1Router.post(
       res.status(status).json(response);
     } catch (error) {
       logger.err(error as Error);
-      const response = new ResponseModel(transactionId, 500, "Internal Server Error");
+      const response = new ResponseModel(
+        transactionId,
+        DomainErrorCodes.INTERNAL_ERROR,
+        "Internal Server Error",
+      );
       res.status(500).json(response);
     }
   },
@@ -120,17 +109,6 @@ usersV1Router.put("/:userId/disable", hasPermissions(["users::update"]), async (
   const userId = req.params.userId;
 
   try {
-    if (!userId) {
-      res
-        .status(HttpStatusCodes.BAD_REQUEST)
-        .json(
-          new ResponseModel<void>(transactionId).withError(
-            HttpStatusCodes.BAD_REQUEST,
-            "userId is required.",
-          ),
-        );
-    }
-
     const request = new RequestModel<string>(transactionId, userId);
     const response = await usersUseCases.disableUser(request);
 
@@ -138,7 +116,11 @@ usersV1Router.put("/:userId/disable", hasPermissions(["users::update"]), async (
     res.status(status).json(response);
   } catch (error) {
     logger.err(error as Error);
-    const response = new ResponseModel(transactionId, 500, "Internal Server Error");
+    const response = new ResponseModel(
+      transactionId,
+      DomainErrorCodes.INTERNAL_ERROR,
+      "Internal Server Error",
+    );
     res.status(500).json(response);
   }
 });
@@ -148,17 +130,6 @@ usersV1Router.put("/:userId/enable", hasPermissions(["users::update"]), async (r
   const userId = req.params.userId;
 
   try {
-    if (!userId) {
-      res
-        .status(HttpStatusCodes.BAD_REQUEST)
-        .json(
-          new ResponseModel<void>(transactionId).withError(
-            HttpStatusCodes.BAD_REQUEST,
-            "userId is required.",
-          ),
-        );
-    }
-
     const request = new RequestModel<string>(transactionId, userId);
     const response = await usersUseCases.enableUser(request);
 
@@ -166,7 +137,11 @@ usersV1Router.put("/:userId/enable", hasPermissions(["users::update"]), async (r
     res.status(status).json(response);
   } catch (error) {
     logger.err(error as Error);
-    const response = new ResponseModel(transactionId, 500, "Internal Server Error");
+    const response = new ResponseModel(
+      transactionId,
+      DomainErrorCodes.INTERNAL_ERROR,
+      "Internal Server Error",
+    );
     res.status(500).json(response);
   }
 });
@@ -176,17 +151,6 @@ usersV1Router.delete("/:userId", hasPermissions(["users::delete"]), async (req, 
   const userId = req.params.userId;
 
   try {
-    if (!userId) {
-      res
-        .status(HttpStatusCodes.BAD_REQUEST)
-        .json(
-          new ResponseModel<void>(transactionId).withError(
-            HttpStatusCodes.BAD_REQUEST,
-            "userId is required.",
-          ),
-        );
-    }
-
     const request = new RequestModel<string>(transactionId, userId);
     const response = await usersUseCases.deleteUser(request);
 
@@ -194,7 +158,11 @@ usersV1Router.delete("/:userId", hasPermissions(["users::delete"]), async (req, 
     res.status(status).json(response);
   } catch (error) {
     logger.err(error as Error);
-    const response = new ResponseModel(transactionId, 500, "Internal Server Error");
+    const response = new ResponseModel(
+      transactionId,
+      DomainErrorCodes.INTERNAL_ERROR,
+      "Internal Server Error",
+    );
     res.status(500).json(response);
   }
 });

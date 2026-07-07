@@ -14,7 +14,7 @@ import crypto from "crypto";
 import logger from "jet-logger";
 import { IUserRepository } from "@src/Domain/User/IUserRepository";
 import { IMailService } from "@src/Domain/Mail/IMailService";
-import { IRoleRepository } from "@src/Domain/Role/IRoleRepository";
+import { IGuestRoleRepository } from "@src/Domain/Role/Repository/IGuestRoleRepository";
 
 export interface UserUseCasesConfig {
   passwordResetExpiryInMs: number;
@@ -25,7 +25,7 @@ export class UsersUseCases {
   public constructor(
     private userRepository: IUserRepository,
     private mailService: IMailService,
-    private roleRepository: IRoleRepository,
+    private roleRepository: IGuestRoleRepository,
     private config: UserUseCasesConfig,
   ) {}
 

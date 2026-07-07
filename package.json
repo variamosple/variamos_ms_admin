@@ -5,6 +5,10 @@
   "scripts": {
     "build": "npx ts-node build.ts",
     "lint": "eslint src/",
+    "lint:diff": "git diff HEAD --name-only | grep -E '\\.(ts|js)$' | xargs -r npx eslint",
+    "lint:diff:fix": "git diff HEAD --name-only | grep -E '\\.(ts|js)$' | xargs -r npx eslint --fix",
+    "prettier:diff": "git diff HEAD --name-only | grep -E '\\.(ts|js|json|css|md)$' | xargs -r npx prettier --write",
+    "fix:all": "npm run prettier:diff && npm run lint:diff:fix",
     "start": "node -r module-alias/register ./dist --env=production",
     "dev": "nodemon",
     "test": "jest",

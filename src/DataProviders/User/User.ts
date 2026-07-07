@@ -7,7 +7,7 @@ export interface UserAttributes {
   user: string;
   name: string;
   email: string;
-  countryCode?: string;
+  countryCode?: string | null;
   password?: string;
   isEnabled?: boolean;
   isDeleted?: boolean;
@@ -20,7 +20,7 @@ export class UserModel extends Model<UserAttributes> implements UserAttributes {
   public user!: string;
   public name!: string;
   public email!: string;
-  public countryCode?: string;
+  public countryCode?: string | null;
   public password?: string;
   public isEnabled?: boolean;
   public isDeleted?: boolean;
@@ -78,7 +78,7 @@ UserModel.init(
     sequelize: VARIAMOS_ORM,
     schema: "variamos",
     timestamps: false,
-  }
+  },
 );
 
 UserModel.hasOne(CountryModel, {

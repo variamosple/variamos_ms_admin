@@ -1,26 +1,26 @@
-import { RolePermissionRepositoryInstance } from "@src/DataProviders/Role/RolePermissionRepository";
 import { RequestModel } from "../Core/Entity/RequestModel";
 import { ResponseModel } from "../Core/Entity/ResponseModel";
 import { Permission } from "../Permission/Entity/Permission";
 import { RolePermission } from "./Entity/RolePermission";
 import { RolePermissionFilter } from "./Entity/RolePermissionFilter";
+import { IRolePermissionRepository } from "./Repository/IRolePermissionRepository";
 
 export class RolePermissionUseCases {
-  queryRolePermissions(
-    request: RequestModel<RolePermissionFilter>
+  public constructor(private readonly rolePermissionRepository: IRolePermissionRepository) {}
+
+  public queryRolePermissions(
+    request: RequestModel<RolePermissionFilter>,
   ): Promise<ResponseModel<Permission[]>> {
-    return RolePermissionRepositoryInstance.queryRolePermissions(request);
+    return this.rolePermissionRepository.queryRolePermissions(request);
   }
 
-  createRolePermission(
-    request: RequestModel<RolePermission>
+  public createRolePermission(
+    request: RequestModel<RolePermission>,
   ): Promise<ResponseModel<RolePermission>> {
-    return RolePermissionRepositoryInstance.createRolePermission(request);
+    return this.rolePermissionRepository.createRolePermission(request);
   }
 
-  deleteRolePermission(
-    request: RequestModel<RolePermission>
-  ): Promise<ResponseModel<void>> {
-    return RolePermissionRepositoryInstance.deleteRolePermission(request);
+  public deleteRolePermission(request: RequestModel<RolePermission>): Promise<ResponseModel<void>> {
+    return this.rolePermissionRepository.deleteRolePermission(request);
   }
 }

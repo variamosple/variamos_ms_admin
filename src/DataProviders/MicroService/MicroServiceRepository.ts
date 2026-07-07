@@ -1,5 +1,5 @@
 import EnvVars from "@src/common/EnvVars";
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { MicroService } from "@src/Domain/MicroService/Entity/MicroService";
@@ -8,17 +8,19 @@ import { MicroServiceFilter } from "@src/Domain/MicroService/Entity/MicroService
 import Docker from "dockerode";
 import logger from "jet-logger";
 
-export class MicroServiceRepositoryImpl {
+import { IMicroServiceRepository } from "@src/Domain/MicroService/Repository/IMicroServiceRepository";
+
+export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
   private dockerConnection: Docker;
 
-  constructor() {
+  public constructor() {
     this.dockerConnection = new Docker({
       socketPath: EnvVars.DOCKER.SOCKET_PATH,
     });
   }
 
-  async queryMicroServices(
-    request: RequestModel<MicroServiceFilter>
+  public async queryMicroServices(
+    request: RequestModel<MicroServiceFilter>,
   ): Promise<ResponseModel<MicroService[]>> {
     const response = new ResponseModel<MicroService[]>(request.transactionId);
 
@@ -34,13 +36,15 @@ export class MicroServiceRepositoryImpl {
             (container) =>
               !filter.name ||
               container.Names.findIndex((name) =>
-                name.toLowerCase().includes(filter.name!.toLowerCase())
-              ) !== -1
-          )
+                name.toLowerCase().includes(filter.name ? filter.name.toLowerCase() : ""),
+              ) !== -1,
+          ),
         );
 
-      const offset = (filter.pageNumber! - 1) * filter.pageSize!;
-      const limit = Math.min(offset + filter.pageSize!, containers.length);
+      const pageNumber = filter.pageNumber ?? 1;
+      const pageSize = filter.pageSize ?? 10;
+      const offset = (pageNumber - 1) * pageSize;
+      const limit = Math.min(offset + pageSize, containers.length);
 
       response.totalCount = containers.length;
 
@@ -57,30 +61,30 @@ export class MicroServiceRepositoryImpl {
           .setLabels(container.Labels)
           .setState(container.State)
           .setStatus(container.Status)
-          .build()
+          .build(),
       );
     } catch (error) {
       logger.err("Error in queryMicroServices:");
       logger.err(request);
       logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async queryById(
-    request: RequestModel<string>
-  ): Promise<ResponseModel<MicroService>> {
+  public async queryById(request: RequestModel<string>): Promise<ResponseModel<MicroService>> {
     const response = new ResponseModel<MicroService>(request.transactionId);
 
     try {
       const { data: id } = request;
 
-      const container = this.dockerConnection.getContainer(id!);
+      if (!id) {
+        response.withError(DomainErrorCodes.BAD_REQUEST, "Microservice ID is required");
+        return response;
+      }
+
+      const container = this.dockerConnection.getContainer(id);
       const containerInfo = await container.inspect();
 
       if (!!container) {
@@ -96,95 +100,95 @@ export class MicroServiceRepositoryImpl {
       logger.err("Error in queryMicroServiceById:");
       logger.err(request);
       logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async startMicroService(
-    request: RequestModel<string>
-  ): Promise<ResponseModel<void>> {
+  public async startMicroService(request: RequestModel<string>): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
 
     try {
       const { data: id } = request;
 
-      const container = this.dockerConnection.getContainer(id!);
+      if (!id) {
+        response.withError(DomainErrorCodes.BAD_REQUEST, "Microservice ID is required");
+        return response;
+      }
+
+      const container = this.dockerConnection.getContainer(id);
       await container.start();
     } catch (error) {
       logger.err("Error in startMicroService:");
       logger.err(request);
       logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async stopMicroService(
-    request: RequestModel<string>
-  ): Promise<ResponseModel<void>> {
+  public async stopMicroService(request: RequestModel<string>): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
 
     try {
       const { data: id } = request;
 
-      const container = this.dockerConnection.getContainer(id!);
+      if (!id) {
+        response.withError(DomainErrorCodes.BAD_REQUEST, "Microservice ID is required");
+        return response;
+      }
+
+      const container = this.dockerConnection.getContainer(id);
       await container.stop();
     } catch (error) {
       logger.err("Error in stopMicroService:");
       logger.err(request);
       logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async restartMicroService(
-    request: RequestModel<string>
-  ): Promise<ResponseModel<void>> {
+  public async restartMicroService(request: RequestModel<string>): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
 
     try {
       const { data: id } = request;
 
-      const container = this.dockerConnection.getContainer(id!);
+      if (!id) {
+        response.withError(DomainErrorCodes.BAD_REQUEST, "Microservice ID is required");
+        return response;
+      }
+
+      const container = this.dockerConnection.getContainer(id);
       await container.restart();
     } catch (error) {
       logger.err("Error in restartMicroService:");
       logger.err(request);
       logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async watchMicroServiceLogs(
-    request: RequestModel<string>
+  public async watchMicroServiceLogs(
+    request: RequestModel<string>,
   ): Promise<ResponseModel<NodeJS.ReadableStream>> {
-    const response = new ResponseModel<NodeJS.ReadableStream>(
-      request.transactionId
-    );
+    const response = new ResponseModel<NodeJS.ReadableStream>(request.transactionId);
 
     try {
       const { data: id } = request;
 
-      const container = this.dockerConnection.getContainer(id!);
+      if (!id) {
+        response.withError(DomainErrorCodes.BAD_REQUEST, "Microservice ID is required");
+        return response;
+      }
+
+      const container = this.dockerConnection.getContainer(id);
 
       response.data = await container.logs({
         stdout: true,
@@ -194,13 +198,10 @@ export class MicroServiceRepositoryImpl {
         timestamps: true,
       });
     } catch (error) {
-      logger.err("Error in restartMicroService:");
+      logger.err("Error in watchMicroServiceLogs:");
       logger.err(request);
       logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;

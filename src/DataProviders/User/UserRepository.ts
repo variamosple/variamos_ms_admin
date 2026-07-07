@@ -1,125 +1,108 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/explicit-member-accessibility, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-non-null-assertion */
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { User } from "@src/Domain/User/Entity/User";
 import { UserFilter } from "@src/Domain/User/Entity/UserFilter";
-
 import { Credentials } from "@src/Domain/User/Entity/Credentials";
+import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration";
 import { PasswordUpdate } from "@src/Domain/User/Entity/PasswordUpdate";
 import { PersonalInformationUpdate } from "@src/Domain/User/Entity/PersonalInformationUpdate";
-import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration";
 import { IUserRepository } from "@src/Domain/User/IUserRepository";
+
 import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
-import bcrypt from "bcrypt";
 import logger from "jet-logger";
-import EnvVars from "@src/common/EnvVars";
 import { Op, QueryTypes, WhereOptions } from "sequelize";
-import { CountryModel } from "../Countries/Country";
-import { PermissionModel } from "../Permission/Permission";
+import bcrypt from "bcrypt";
+import EnvVars from "@src/common/EnvVars";
+import { BaseRepository } from "../BaseRepository";
 import { RoleModel } from "../Role/Role";
+import { PermissionModel } from "../Permission/Permission";
+import { CountryModel } from "../Countries/Country";
 import { UserAttributes, UserModel } from "./User";
 
-interface Replacements {
-  [key: string]: any;
+interface UserModelWithCountry extends UserModel {
+  country?: CountryModel | null;
 }
 
-const initializeReplacements = (filter: Replacements) => {
-  if (!filter) {
-    return {};
-  }
-
-  return Object.entries(filter).reduce<Replacements>((result, [key, value]) => {
-    result[key] = value === undefined ? null : value;
-
-    return result;
-  }, {});
-};
-
-export class UserRepositoryImpl implements IUserRepository {
-  async queryUsers(request: RequestModel<UserFilter>): Promise<ResponseModel<User[]>> {
+export class UserRepositoryImpl extends BaseRepository implements IUserRepository {
+  public async queryUsers(request: RequestModel<UserFilter>): Promise<ResponseModel<User[]>> {
     const response = new ResponseModel<User[]>(request.transactionId);
 
     try {
       const { data: filter = new UserFilter() } = request;
 
-      const replacements = initializeReplacements(filter);
+      const replacements = super.initializeReplacements(filter);
 
-      const where: WhereOptions<UserAttributes> = {};
+      response.totalCount = await VARIAMOS_ORM.query<{ count: string }>(
+        `
+            SELECT COUNT(1) AS count
+            FROM variamos.user
+            WHERE (:search IS NULL OR name ILIKE '%' || :search || '%' OR email ILIKE '%' || :search || '%')
+              AND (:name IS NULL OR name ILIKE '%' || :name || '%');   
+        `,
+        { type: QueryTypes.SELECT, replacements },
+      ).then((result) => Number(result[0]?.count) || 0);
 
-      if (filter.name) {
-        where.name = { [Op.iLike]: `%${replacements.name}%` };
-      }
+      const where: WhereOptions<UserAttributes> = filter.search
+        ? {
+            [Op.or]: [
+              { name: { [Op.iLike]: `%${String(replacements.search)}%` } },
+              { email: { [Op.iLike]: `%${String(replacements.search)}%` } },
+            ],
+            ...(filter.name ? { name: { [Op.iLike]: `%${String(replacements.name)}%` } } : {}),
+          }
+        : filter.name
+          ? { name: { [Op.iLike]: `%${String(replacements.name)}%` } }
+          : {};
 
-      if (filter.user) {
-        where.user = { [Op.iLike]: `%${replacements.user}%` };
-      }
-
-      if (filter.email) {
-        where.email = { [Op.iLike]: `%${replacements.email}%` };
-      }
-
-      if (filter.search) {
-        Object.assign(where, {
-          [Op.or]: [
-            { name: { [Op.iLike]: `%${replacements.search}%` } },
-            { user: { [Op.iLike]: `%${replacements.search}%` } },
-            { email: { [Op.iLike]: `%${replacements.search}%` } },
-          ],
-        });
-      }
-
-      response.totalCount = await UserModel.count({ where });
+      const pageNumber = filter.pageNumber ?? 1;
+      const pageSize = filter.pageSize ?? 10;
 
       response.data = await UserModel.findAll({
         where,
-        limit: filter.pageSize!,
-        offset: (filter.pageNumber! - 1) * filter.pageSize!,
-        order: [["created_at", "desc"], "name", "email"],
-      }).then((response) =>
-        response.map(({ id, name, user, email, isEnabled, isDeleted, createdAt, lastLogin }) =>
-          User.builder()
-            .setId(id)
-            .setUser(user)
-            .setName(name)
-            .setEmail(email)
-            .setIsEnabled(isEnabled!)
-            .setIsDeleted(isDeleted!)
-            .setCreatedAt(createdAt!)
-            .setLastLogin(lastLogin)
-            .build(),
+        limit: pageSize,
+        offset: (pageNumber - 1) * pageSize,
+        order: [["name", "ASC"]],
+      }).then((res) =>
+        res.map(({ id, user, name, email }) =>
+          User.builder().setId(id).setUser(user).setName(name).setEmail(email).build(),
         ),
       );
     } catch (error) {
+      const err = error as Error;
       logger.err("Error in getUsers:");
       logger.err(request);
-      logger.err(error);
-      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
+      logger.err(err);
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async findSessionUser(request: RequestModel<string>): Promise<ResponseModel<User>> {
+  public async findSessionUser(request: RequestModel<string>): Promise<ResponseModel<User>> {
     const response = new ResponseModel<User>(request.transactionId);
 
     try {
       const { data: userId } = request;
 
       if (!userId) {
-        return response.withError(HttpStatusCodes.BAD_REQUEST, "UserId is required");
+        return response.withError(DomainErrorCodes.BAD_REQUEST, "UserId is required");
       }
 
       const dbUser = await UserModel.findOne({
         where: { id: userId },
       });
 
-      if (!dbUser?.isEnabled) {
-        return response.withError(HttpStatusCodes.BAD_REQUEST, "Your account is disabled.");
+      if (!dbUser) {
+        return response.withError(DomainErrorCodes.NOT_FOUND, "User not found.");
       }
 
-      if (dbUser?.isDeleted) {
-        return response.withError(HttpStatusCodes.BAD_REQUEST, "Your account is deleted.");
+      if (!dbUser.isEnabled) {
+        return response.withError(DomainErrorCodes.BAD_REQUEST, "Your account is disabled.");
+      }
+
+      if (dbUser.isDeleted) {
+        return response.withError(DomainErrorCodes.BAD_REQUEST, "Your account is deleted.");
       }
 
       response.data = User.builder()
@@ -131,29 +114,39 @@ export class UserRepositoryImpl implements IUserRepository {
 
       await this.enrichUserRolesAndPermissions(response.data);
     } catch (error) {
-      logger.err("Error in findUser:");
+      const err = error as Error;
+      logger.err("Error in findSessionUser:");
       logger.err(request);
-      logger.err(error);
-      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
+      logger.err(err);
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async findOrCreateUser(request: RequestModel<User>): Promise<ResponseModel<User>> {
+  public async findOrCreateUser(request: RequestModel<User>): Promise<ResponseModel<User>> {
     const response = new ResponseModel<User>(request.transactionId);
 
     try {
       const { data } = request;
 
       if (!data) {
-        return response.withError(HttpStatusCodes.NOT_FOUND, "User information is required");
+        return response.withError(DomainErrorCodes.NOT_FOUND, "User information is required");
       }
 
-      const { email, user, name } = data;
+      const email = data.email;
+      const user = data.user;
+      const name = data.name;
+
+      if (!email || !user || !name) {
+        return response.withError(
+          DomainErrorCodes.BAD_REQUEST,
+          "email, user, and name are required.",
+        );
+      }
 
       const [dbUser, crated] = await UserModel.findOrCreate({
-        where: { email: email },
+        where: { email },
         defaults: {
           user,
           email,
@@ -166,11 +159,11 @@ export class UserRepositoryImpl implements IUserRepository {
       });
 
       if (!dbUser.isEnabled) {
-        return response.withError(HttpStatusCodes.BAD_REQUEST, "Your account is disabled.");
+        return response.withError(DomainErrorCodes.BAD_REQUEST, "Your account is disabled.");
       }
 
       if (dbUser.isDeleted) {
-        return response.withError(HttpStatusCodes.BAD_REQUEST, "Your account is deleted.");
+        return response.withError(DomainErrorCodes.BAD_REQUEST, "Your account is deleted.");
       }
 
       if (!crated) {
@@ -193,37 +186,45 @@ export class UserRepositoryImpl implements IUserRepository {
 
       await this.enrichUserRolesAndPermissions(response.data);
     } catch (error) {
-      logger.err("Error in getUsers:");
+      const err = error as Error;
+      logger.err("Error in findOrCreateUser:");
       logger.err(request);
-      logger.err(error);
-      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
+      logger.err(err);
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async signIn(request: RequestModel<Credentials>): Promise<ResponseModel<User>> {
+  public async signIn(request: RequestModel<Credentials>): Promise<ResponseModel<User>> {
     const response = new ResponseModel<User>(request.transactionId);
 
     try {
       const { data } = request;
+      if (!data) {
+        return response.withError(DomainErrorCodes.BAD_REQUEST, "Credentials are required.");
+      }
 
-      const { email, password } = data!;
+      const email = data.email;
+      const password = data.password;
+      if (!email || !password) {
+        return response.withError(DomainErrorCodes.BAD_REQUEST, "email and password are required.");
+      }
 
       const dbUser = await UserModel.findOne({
-        where: { email: email },
+        where: { email },
       });
 
       const errorMessage = "Incorrect username or password.";
 
       if (!dbUser || !dbUser.password || !dbUser.isEnabled || dbUser.isDeleted) {
-        return response.withError(HttpStatusCodes.BAD_REQUEST, errorMessage);
+        return response.withError(DomainErrorCodes.BAD_REQUEST, errorMessage);
       }
 
       const passwordMatch = await bcrypt.compare(password, dbUser.password);
 
       if (!passwordMatch) {
-        return response.withError(HttpStatusCodes.BAD_REQUEST, errorMessage);
+        return response.withError(DomainErrorCodes.BAD_REQUEST, errorMessage);
       }
 
       await UserModel.update(
@@ -244,30 +245,46 @@ export class UserRepositoryImpl implements IUserRepository {
 
       await this.enrichUserRolesAndPermissions(response.data);
     } catch (error) {
+      const err = error as Error;
       logger.err("Error in signIn:");
       logger.err(request);
-      logger.err(error);
-      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
+      logger.err(err);
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async signUp(request: RequestModel<UserRegistration>): Promise<ResponseModel<User>> {
+  public async signUp(request: RequestModel<UserRegistration>): Promise<ResponseModel<User>> {
     const response = new ResponseModel<User>(request.transactionId);
 
     try {
       const { data } = request;
+      if (!data) {
+        return response.withError(
+          DomainErrorCodes.BAD_REQUEST,
+          "UserRegistration data is required.",
+        );
+      }
 
-      const { email, password, name } = data!;
+      const email = data.email;
+      const password = data.password;
+      const name = data.name;
+
+      if (!email || !password || !name) {
+        return response.withError(
+          DomainErrorCodes.BAD_REQUEST,
+          "email, password, and name are required.",
+        );
+      }
 
       const dbUser = await UserModel.findOne({
-        where: { email: email },
+        where: { email },
       });
 
-      if (!!dbUser) {
+      if (dbUser) {
         logger.warn("User already registered");
-        return response.withError(HttpStatusCodes.CONFLICT, "");
+        return response.withError(DomainErrorCodes.CONFLICT, "");
       }
       const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -289,20 +306,24 @@ export class UserRepositoryImpl implements IUserRepository {
         .setEmail(newUser.email)
         .build();
     } catch (error) {
+      const err = error as Error;
       logger.err("Error in signUp:");
       logger.err(request);
-      logger.err(error);
-      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
+      logger.err(err);
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async queryById(request: RequestModel<string>): Promise<ResponseModel<User>> {
+  public async queryById(request: RequestModel<string>): Promise<ResponseModel<User>> {
     const response = new ResponseModel<User>(request.transactionId);
 
     try {
       const { data } = request;
+      if (!data) {
+        return response.withError(DomainErrorCodes.BAD_REQUEST, "User ID is required.");
+      }
 
       response.data = await UserModel.findOne({
         where: { id: data },
@@ -312,37 +333,41 @@ export class UserRepositoryImpl implements IUserRepository {
             as: "country",
           },
         ],
-      }).then((response) =>
-        !response
-          ? undefined
-          : User.builder()
-              .setId(response.id)
-              .setUser(response.user)
-              .setName(response.name)
-              .setEmail(response.email)
-              .setCountryCode(response.countryCode)
-              .setCountryName((response as any).country?.name)
-              .setIsEnabled(response.isEnabled!)
-              .setIsDeleted(response.isDeleted!)
-              .setCreatedAt(response.createdAt!)
-              .setLastLogin(response.lastLogin)
-              .build(),
-      );
+      }).then((res) => {
+        if (!res) return undefined;
+        const typedRes = res as UserModelWithCountry;
+        return User.builder()
+          .setId(typedRes.id)
+          .setUser(typedRes.user)
+          .setName(typedRes.name)
+          .setEmail(typedRes.email)
+          .setCountryCode(typedRes.countryCode)
+          .setCountryName(typedRes.country?.name)
+          .setIsEnabled(typedRes.isEnabled ?? true)
+          .setIsDeleted(typedRes.isDeleted ?? false)
+          .setCreatedAt(typedRes.createdAt ?? new Date())
+          .setLastLogin(typedRes.lastLogin)
+          .build();
+      });
     } catch (error) {
+      const err = error as Error;
       logger.err("Error in queryById:");
       logger.err(request);
-      logger.err(error);
-      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
+      logger.err(err);
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async disableUser(request: RequestModel<string>): Promise<ResponseModel<void>> {
+  public async disableUser(request: RequestModel<string>): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
 
     try {
       const { data } = request;
+      if (!data) {
+        return response.withError(DomainErrorCodes.BAD_REQUEST, "User ID is required.");
+      }
 
       await UserModel.update(
         {
@@ -353,20 +378,24 @@ export class UserRepositoryImpl implements IUserRepository {
         },
       );
     } catch (error) {
+      const err = error as Error;
       logger.err("Error in disableUser:");
       logger.err(request);
-      logger.err(error);
-      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
+      logger.err(err);
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async enableUser(request: RequestModel<string>): Promise<ResponseModel<void>> {
+  public async enableUser(request: RequestModel<string>): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
 
     try {
       const { data } = request;
+      if (!data) {
+        return response.withError(DomainErrorCodes.BAD_REQUEST, "User ID is required.");
+      }
 
       await UserModel.update(
         {
@@ -377,20 +406,24 @@ export class UserRepositoryImpl implements IUserRepository {
         },
       );
     } catch (error) {
+      const err = error as Error;
       logger.err("Error in enableUser:");
       logger.err(request);
-      logger.err(error);
-      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
+      logger.err(err);
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async deleteUser(request: RequestModel<string>): Promise<ResponseModel<void>> {
+  public async deleteUser(request: RequestModel<string>): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
 
     try {
       const { data } = request;
+      if (!data) {
+        return response.withError(DomainErrorCodes.BAD_REQUEST, "User ID is required.");
+      }
 
       await UserModel.update(
         {
@@ -401,21 +434,22 @@ export class UserRepositoryImpl implements IUserRepository {
         },
       );
     } catch (error) {
+      const err = error as Error;
       logger.err("Error in deleteUser:");
       logger.err(request);
-      logger.err(error);
-      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
+      logger.err(err);
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;
   }
 
   private async enrichUserRolesAndPermissions(user: User) {
-    if (!user?.id) {
+    if (!user || !user.id) {
       return;
     }
 
-    const replacements = initializeReplacements({ userId: user.id });
+    const replacements = this.initializeReplacements({ userId: user.id });
 
     user.roles = await VARIAMOS_ORM.query<RoleModel>(
       `
@@ -428,7 +462,7 @@ export class UserRepositoryImpl implements IUserRepository {
         type: QueryTypes.SELECT,
         replacements,
       },
-    ).then((response) => response.map(({ name }) => name));
+    ).then((res) => res.map(({ name }) => name));
 
     user.permissions = await VARIAMOS_ORM.query<PermissionModel>(
       `
@@ -442,30 +476,38 @@ export class UserRepositoryImpl implements IUserRepository {
         type: QueryTypes.SELECT,
         replacements,
       },
-    ).then((response) => response.map(({ name }) => name));
+    ).then((res) => res.map(({ name }) => name));
   }
 
-  async updateUserPassword(request: RequestModel<PasswordUpdate>): Promise<ResponseModel<void>> {
+  public async updateUserPassword(
+    request: RequestModel<PasswordUpdate>,
+  ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
 
     try {
-      const passwordUpdate = request.data!;
+      const passwordUpdate = request.data;
+      if (!passwordUpdate) {
+        return response.withError(
+          DomainErrorCodes.BAD_REQUEST,
+          "Password update data is required.",
+        );
+      }
 
       const dbUser = await UserModel.findOne({
         where: { id: passwordUpdate.getId() },
       });
 
       if (!dbUser) {
-        return response.withError(HttpStatusCodes.NOT_FOUND, "User not found.");
+        return response.withError(DomainErrorCodes.NOT_FOUND, "User not found.");
       }
 
       const passwordMatch = await bcrypt.compare(
         passwordUpdate.getCurrentPassword(),
-        dbUser.password!,
+        dbUser.password ?? "",
       );
 
       if (!passwordMatch) {
-        return response.withError(HttpStatusCodes.BAD_REQUEST, "Current password is incorrect.");
+        return response.withError(DomainErrorCodes.BAD_REQUEST, "Current password is incorrect.");
       }
 
       const newHashedPassword = await bcrypt.hash(passwordUpdate.getNewPassword(), 10);
@@ -479,16 +521,20 @@ export class UserRepositoryImpl implements IUserRepository {
         },
       );
     } catch (error) {
+      const err = error as Error;
       logger.err("Error in updateUserPassword:");
-      logger.err("Error trying to update user password with id: " + request.data!.getId());
-      logger.err(error);
-      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
+      logger.err(
+        "Error trying to update user password with id: " +
+          (request.data ? request.data.getId() : ""),
+      );
+      logger.err(err);
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async getUserByEmail(email: string): Promise<User | null> {
+  public async getUserByEmail(email: string): Promise<User | null> {
     try {
       const dbUser = await UserModel.findOne({
         where: { email },
@@ -512,7 +558,11 @@ export class UserRepositoryImpl implements IUserRepository {
     }
   }
 
-  async savePasswordResetToken(userId: string, tokenHash: string, expiresAt: Date): Promise<void> {
+  public async savePasswordResetToken(
+    userId: string,
+    tokenHash: string,
+    expiresAt: Date,
+  ): Promise<void> {
     try {
       await VARIAMOS_ORM.query(
         `
@@ -535,13 +585,19 @@ export class UserRepositoryImpl implements IUserRepository {
     }
   }
 
-  async getPasswordResetToken(tokenHash: string): Promise<{
+  public async getPasswordResetToken(tokenHash: string): Promise<{
     userId: string;
     expiresAt: Date;
     usedAt?: Date | null;
   } | null> {
     try {
-      const results = await VARIAMOS_ORM.query<any>(
+      interface PasswordResetTokenRow {
+        userId: string;
+        expiresAt: Date;
+        usedAt?: Date | null;
+      }
+
+      const results = await VARIAMOS_ORM.query<PasswordResetTokenRow>(
         `
         SELECT "user_id" AS "userId", "expires_at" AS "expiresAt", "used_at" AS "usedAt"
         FROM "variamos"."password_reset_tokens"
@@ -560,7 +616,7 @@ export class UserRepositoryImpl implements IUserRepository {
     }
   }
 
-  async resetPasswordAndUpdateToken(
+  public async resetPasswordAndUpdateToken(
     userId: string,
     passwordPlain: string,
     tokenHash: string,
@@ -604,16 +660,22 @@ export class UserRepositoryImpl implements IUserRepository {
     }
   }
 
-  async updatePersonalInformation(
+  public async updatePersonalInformation(
     request: RequestModel<PersonalInformationUpdate>,
   ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
 
     try {
-      const personalInformation = request.data!;
+      const personalInformation = request.data;
+      if (!personalInformation) {
+        return response.withError(
+          DomainErrorCodes.BAD_REQUEST,
+          "Personal information data is required.",
+        );
+      }
 
       await UserModel.update(
-        { countryCode: personalInformation.getCountryCode() || (null as any) },
+        { countryCode: personalInformation.getCountryCode() ?? null },
         {
           where: {
             id: personalInformation.getUserId(),
@@ -621,29 +683,37 @@ export class UserRepositoryImpl implements IUserRepository {
         },
       );
     } catch (error) {
+      const err = error as Error;
       logger.err("Error in updatePersonalInformation:");
-      logger.err("Error trying to update user information with id: " + request.data!.getUserId());
-      logger.err(error);
-      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
+      logger.err(
+        "Error trying to update user information with id: " +
+          (request.data ? request.data.getUserId() : ""),
+      );
+      logger.err(err);
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async userExists(request: RequestModel<string>): Promise<ResponseModel<boolean>> {
+  public async userExists(request: RequestModel<string>): Promise<ResponseModel<boolean>> {
     const response = new ResponseModel<boolean>(request.transactionId);
 
     try {
       const { data: userId } = request;
+      if (!userId) {
+        return response.withError(DomainErrorCodes.BAD_REQUEST, "User ID is required.");
+      }
 
       response.data = await UserModel.count({
         where: { id: userId },
       }).then((count) => count > 0);
     } catch (error) {
+      const err = error as Error;
       logger.err("Error in userExists:");
       logger.err(request);
-      logger.err(error);
-      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
+      logger.err(err);
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/explicit-member-accessibility, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-non-null-assertion */
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { Permission } from "@src/Domain/Permission/Entity/Permission";
@@ -11,7 +11,9 @@ import { BaseRepository } from "../BaseRepository";
 import { RolePermissionModel } from "../Role/RolePermission";
 import { PermissionAttributes, PermissionModel } from "./Permission";
 
-export class PermissionRepositoryImpl extends BaseRepository {
+import { IPermissionRepository } from "@src/Domain/Permission/Repository/IPermissionRepository";
+
+export class PermissionRepositoryImpl extends BaseRepository implements IPermissionRepository {
   async queryPermissions(
     request: RequestModel<PermissionFilter>,
   ): Promise<ResponseModel<Permission[]>> {
@@ -47,7 +49,7 @@ export class PermissionRepositoryImpl extends BaseRepository {
       logger.err("Error in queryPermissions:");
       logger.err(request);
       logger.err(error);
-      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;
@@ -68,7 +70,7 @@ export class PermissionRepositoryImpl extends BaseRepository {
       logger.err("Error in createPermission:");
       logger.err(request);
       logger.err(error);
-      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;
@@ -86,7 +88,7 @@ export class PermissionRepositoryImpl extends BaseRepository {
       logger.err("Error in deletePermission:");
       logger.err(request);
       logger.err(error);
-      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;
@@ -105,7 +107,7 @@ export class PermissionRepositoryImpl extends BaseRepository {
       logger.err("Error in queryById:");
       logger.err(request);
       logger.err(error);
-      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;
@@ -129,7 +131,7 @@ export class PermissionRepositoryImpl extends BaseRepository {
       logger.err("Error in updatePermission:");
       logger.err(request);
       logger.err(error);
-      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;

@@ -100,19 +100,12 @@ interface CookieOptionsInput {
   maxAge?: boolean;
 }
 
-const getCookieOptions = (
-  {
-    domain = EnvVars.CookieProps.Options.domain,
-    httpOnly = EnvVars.CookieProps.Options.httpOnly,
-    sameSite = "strict",
-    maxAge = true,
-  }: CookieOptionsInput = {
-    domain: EnvVars.CookieProps.Options.domain,
-    httpOnly: EnvVars.CookieProps.Options.httpOnly,
-    sameSite: "strict",
-    maxAge: true,
-  },
-): CookieOptions => {
+const getCookieOptions = (options: CookieOptionsInput = {}): CookieOptions => {
+  const domain = options.domain ?? EnvVars.CookieProps.Options.domain;
+  const httpOnly = options.httpOnly ?? EnvVars.CookieProps.Options.httpOnly;
+  const sameSite = options.sameSite ?? "strict";
+  const maxAge = options.maxAge ?? true;
+
   const cookieOptions: CookieOptions = {
     domain,
     path: EnvVars.CookieProps.Options.path,
@@ -158,7 +151,7 @@ authRouter.get("/session-info", async (req: Request, res) => {
         .status(HttpStatusCodes.UNAUTHORIZED)
         .json(
           response.withError(
-            HttpStatusCodes.UNAUTHORIZED,
+            HttpStatusCodes.UNAUTHORIZED.toString(),
             "Your session has expired, please log in again.",
           ),
         );
@@ -174,7 +167,7 @@ authRouter.get("/session-info", async (req: Request, res) => {
         .status(HttpStatusCodes.UNAUTHORIZED)
         .json(
           response.withError(
-            HttpStatusCodes.UNAUTHORIZED,
+            HttpStatusCodes.UNAUTHORIZED.toString(),
             "Your session has expired, please log in again.",
           ),
         );
@@ -199,7 +192,7 @@ authRouter.get("/session-info", async (req: Request, res) => {
         .status(HttpStatusCodes.UNAUTHORIZED)
         .json(
           response.withError(
-            HttpStatusCodes.UNAUTHORIZED,
+            HttpStatusCodes.UNAUTHORIZED.toString(),
             "Your session has expired, please log in again.",
           ),
         );
@@ -239,7 +232,9 @@ authRouter.get("/session-info", async (req: Request, res) => {
     logger.err(error as Error);
     res
       .status(HttpStatusCodes.UNAUTHORIZED)
-      .json(response.withError(HttpStatusCodes.UNAUTHORIZED, "Session validation error"));
+      .json(
+        response.withError(HttpStatusCodes.UNAUTHORIZED.toString(), "Session validation error"),
+      );
   }
 });
 
@@ -250,9 +245,14 @@ authRouter.post("/sign-in", async (req, res) => {
 
   try {
     if (!email || !password) {
-      res
+      return res
         .status(HttpStatusCodes.BAD_REQUEST)
-        .json(response.withError(HttpStatusCodes.BAD_REQUEST, "Email and password are required."));
+        .json(
+          response.withError(
+            HttpStatusCodes.BAD_REQUEST.toString(),
+            "Email and password are required.",
+          ),
+        );
     }
 
     const credentials = new Credentials(email, password);
@@ -298,7 +298,7 @@ authRouter.post("/sign-in", async (req, res) => {
       .status(500)
       .json(
         new ResponseModel<void>(transactionId).withError(
-          HttpStatusCodes.INTERNAL_SERVER_ERROR,
+          HttpStatusCodes.INTERNAL_SERVER_ERROR.toString(),
           "Sign in error. Please try again later.",
         ),
       );
@@ -323,7 +323,7 @@ authRouter.post("/sign-up", async (req, res) => {
     const request = new RequestModel<UserRegistration>(transactionId, registration);
     const response = await usersUseCases.signUp(request);
 
-    if (HttpStatusCodes.CONFLICT.valueOf() === response.errorCode) {
+    if (DomainErrorCodes.CONFLICT === response.errorCode) {
       return res.status(HttpStatusCodes.OK).json(successfulResponse);
     }
 
@@ -340,7 +340,7 @@ authRouter.post("/sign-up", async (req, res) => {
       .status(500)
       .json(
         new ResponseModel<void>(transactionId).withError(
-          HttpStatusCodes.INTERNAL_SERVER_ERROR,
+          HttpStatusCodes.INTERNAL_SERVER_ERROR.toString(),
           "Sign in error. Please try again later.",
         ),
       );
@@ -371,8 +371,8 @@ const validateGoogleCode = async (token: string): Promise<User | undefined> => {
       throw new Error("Invalid JWT token format.");
     }
 
-    const name = payload?.name;
-    const email = payload?.email;
+    const name = payload.name;
+    const email = payload.email;
 
     const user: User = User.builder().setUser(name!).setName(name!).setEmail(email!).build();
 
@@ -437,7 +437,11 @@ authRouter.get("/my-account", hasPermissions(["my-account::query"]), async (req,
     res.status(status).json(response);
   } catch (error) {
     logger.err(error as Error, true);
-    const response = new ResponseModel(transactionId, 500, "Internal Server Error");
+    const response = new ResponseModel(
+      transactionId,
+      DomainErrorCodes.INTERNAL_ERROR,
+      "Internal Server Error",
+    );
     res.status(500).json(response);
   }
 });
@@ -467,7 +471,11 @@ authRouter.put(
       res.status(status).json(response);
     } catch (error) {
       logger.err(error as Error, true);
-      const response = new ResponseModel(transactionId, 500, "Internal Server Error");
+      const response = new ResponseModel(
+        transactionId,
+        DomainErrorCodes.INTERNAL_ERROR,
+        "Internal Server Error",
+      );
       res.status(500).json(response);
     }
   },
@@ -496,18 +504,22 @@ authRouter.put("/password-update", hasPermissions(["my-account::update"]), async
     res.status(status).json(response);
   } catch (error) {
     logger.err(error as Error, true);
-    const response = new ResponseModel(transactionId, 500, "Internal Server Error");
+    const response = new ResponseModel(
+      transactionId,
+      DomainErrorCodes.INTERNAL_ERROR,
+      "Internal Server Error",
+    );
     res.status(500).json(response);
   }
 });
 
 authRouter.post("/guest/sign-in", async (req, res) => {
   const transactionId = "signInAsGuest";
-  const { guestId = null } = (req.body || {}) as Record<string, string | null>;
+  const { guestId } = (req.body || {}) as Record<string, string>;
 
   try {
     const response = new ResponseModel<SingInResponse>(transactionId);
-    const request = new RequestModel<string>(transactionId, guestId || undefined);
+    const request = new RequestModel<string>(transactionId, guestId);
     const guestResponse = await usersUseCases.getGuestData(request);
 
     if (guestResponse.errorCode) {
@@ -548,7 +560,7 @@ authRouter.post("/guest/sign-in", async (req, res) => {
       .status(500)
       .json(
         new ResponseModel<void>(transactionId).withError(
-          HttpStatusCodes.INTERNAL_SERVER_ERROR,
+          HttpStatusCodes.INTERNAL_SERVER_ERROR.toString(),
           "Sign in error. Please try again later.",
         ),
       );
@@ -604,7 +616,7 @@ authRouter.post("/forgot-password", async (req, res) => {
       .status(500)
       .json(
         new ResponseModel<void>(transactionId).withError(
-          HttpStatusCodes.INTERNAL_SERVER_ERROR,
+          HttpStatusCodes.INTERNAL_SERVER_ERROR.toString(),
           "Forgot password error. Please try again later.",
         ),
       );
@@ -633,7 +645,7 @@ authRouter.get("/verify-token", async (req, res) => {
       .status(500)
       .json(
         new ResponseModel<void>(transactionId).withError(
-          HttpStatusCodes.INTERNAL_SERVER_ERROR,
+          HttpStatusCodes.INTERNAL_SERVER_ERROR.toString(),
           "Token verification error.",
         ),
       );
@@ -665,7 +677,7 @@ authRouter.post("/reset-password", async (req, res) => {
       .status(500)
       .json(
         new ResponseModel<void>(transactionId).withError(
-          HttpStatusCodes.INTERNAL_SERVER_ERROR,
+          HttpStatusCodes.INTERNAL_SERVER_ERROR.toString(),
           "Reset password error. Please try again later.",
         ),
       );

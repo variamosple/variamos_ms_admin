@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/explicit-member-accessibility, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-non-null-assertion, @typescript-eslint/no-non-null-asserted-optional-chain */
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { Permission } from "@src/Domain/Permission/Entity/Permission";
@@ -11,9 +10,13 @@ import { QueryTypes } from "sequelize";
 import { BaseRepository } from "../BaseRepository";
 import { PermissionModel } from "../Permission/Permission";
 import { RolePermissionModel } from "./RolePermission";
+import { IRolePermissionRepository } from "@src/Domain/Role/Repository/IRolePermissionRepository";
 
-export class RolePermissionRepositoryImpl extends BaseRepository {
-  async queryRolePermissions(
+export class RolePermissionRepositoryImpl
+  extends BaseRepository
+  implements IRolePermissionRepository
+{
+  public async queryRolePermissions(
     request: RequestModel<RolePermissionFilter>,
   ): Promise<ResponseModel<Permission[]>> {
     const response = new ResponseModel<Permission[]>(request.transactionId);
@@ -21,10 +24,13 @@ export class RolePermissionRepositoryImpl extends BaseRepository {
     try {
       const { data: filter } = request;
 
+      const pageNumber = filter?.pageNumber ?? 1;
+      const pageSize = filter?.pageSize ?? 10;
+
       const replacements = super.initializeReplacements({
         roleId: filter?.roleId,
-        limit: filter?.pageSize,
-        offset: (filter?.pageNumber! - 1) * filter?.pageSize!,
+        limit: pageSize,
+        offset: (pageNumber - 1) * pageSize,
       });
 
       response.totalCount = await VARIAMOS_ORM.query(
@@ -35,7 +41,10 @@ export class RolePermissionRepositoryImpl extends BaseRepository {
             WHERE rp.role_id = :roleId;   
         `,
         { type: QueryTypes.SELECT, replacements },
-      ).then((result: any) => +result?.[0]?.count || 0);
+      ).then((result: object[]) => {
+        const countObj = result?.[0] as { count?: string | number } | undefined;
+        return countObj ? Number(countObj.count) : 0;
+      });
 
       response.data = await VARIAMOS_ORM.query<PermissionModel>(
         `
@@ -49,18 +58,19 @@ export class RolePermissionRepositoryImpl extends BaseRepository {
           type: QueryTypes.SELECT,
           replacements,
         },
-      ).then((response) => response.map(({ id, name }) => new Permission(id, name)));
+      ).then((res) => res.map(({ id, name }) => new Permission(id, name)));
     } catch (error) {
+      const err = error as Error;
       logger.err("Error in queryRolePermissions:");
       logger.err(request);
-      logger.err(error);
-      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
+      logger.err(err);
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async createRolePermission(
+  public async createRolePermission(
     request: RequestModel<RolePermission>,
   ): Promise<ResponseModel<RolePermission>> {
     const response = new ResponseModel<RolePermission>(request.transactionId);
@@ -68,10 +78,24 @@ export class RolePermissionRepositoryImpl extends BaseRepository {
     try {
       const { data } = request;
 
+      if (!data) {
+        return response.withError(DomainErrorCodes.BAD_REQUEST, "RolePermission data is required.");
+      }
+
+      const roleId = data.roleId;
+      const permissionId = data.permissionId;
+
+      if (!roleId || !permissionId) {
+        return response.withError(
+          DomainErrorCodes.BAD_REQUEST,
+          "roleId and permissionId are required.",
+        );
+      }
+
       const foundRole = await RolePermissionModel.findOne({
         where: {
-          roleId: data?.roleId!,
-          permissionId: data?.permissionId!,
+          roleId,
+          permissionId,
         },
       });
 
@@ -79,8 +103,8 @@ export class RolePermissionRepositoryImpl extends BaseRepository {
         response.data = request.data;
       } else {
         const newRolePermission = await RolePermissionModel.create({
-          roleId: data?.roleId!,
-          permissionId: data?.permissionId!,
+          roleId,
+          permissionId,
         });
 
         response.data = new RolePermission(
@@ -89,29 +113,47 @@ export class RolePermissionRepositoryImpl extends BaseRepository {
         );
       }
     } catch (error) {
+      const err = error as Error;
       logger.err("Error in createRolePermission:");
       logger.err(request);
-      logger.err(error);
-      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
+      logger.err(err);
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async deleteRolePermission(request: RequestModel<RolePermission>): Promise<ResponseModel<void>> {
+  public async deleteRolePermission(
+    request: RequestModel<RolePermission>,
+  ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
 
     try {
       const { data } = request;
 
+      if (!data) {
+        return response.withError(DomainErrorCodes.BAD_REQUEST, "RolePermission data is required.");
+      }
+
+      const roleId = data.roleId;
+      const permissionId = data.permissionId;
+
+      if (!roleId || !permissionId) {
+        return response.withError(
+          DomainErrorCodes.BAD_REQUEST,
+          "roleId and permissionId are required.",
+        );
+      }
+
       await RolePermissionModel.destroy({
-        where: { roleId: data?.roleId!, permissionId: data?.permissionId! },
+        where: { roleId, permissionId },
       });
     } catch (error) {
+      const err = error as Error;
       logger.err("Error in deleteRolePermission:");
       logger.err(request);
-      logger.err(error);
-      response.withError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Internal server error");
+      logger.err(err);
+      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
     }
 
     return response;

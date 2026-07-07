@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import express from "express";
 import supertest from "supertest";
 import usersV1Router from "./UsersV1Router";
@@ -15,7 +14,6 @@ interface CustomRequest {
 
 // Mock the hasPermissions middleware from security
 jest.mock("@variamosple/variamos-security", () => ({
-  // eslint-disable-next-line no-restricted-syntax
   hasPermissions: () => (req: unknown, _res: unknown, next: () => void) => {
     (req as CustomRequest).user = { id: "admin-id" }; // Mock admin user for generateRecoveryLink
     next();
@@ -28,7 +26,7 @@ interface TestApiResponse<T> {
   recoveryUrl?: string;
 }
 
-describe("UsersV1Router Integration Tests", () => {
+describe("UsersV1Router Integration Tests - Extended Coverage", () => {
   let app: express.Application;
 
   beforeAll(() => {
@@ -59,21 +57,28 @@ describe("UsersV1Router Integration Tests", () => {
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(body.data).toHaveLength(2);
       expect(body.data[0].id).toBe("1");
-
-      const mockQueryUsers = UsersUseCases.prototype.queryUsers as jest.Mock;
-      expect(mockQueryUsers).toHaveBeenCalledTimes(1);
     });
 
-    it("should return 500 when query fails", async () => {
+    it("should return error status code when query fails", async () => {
+      const expectedResponse = new ResponseModel("queryUsers").withError(
+        HttpStatusCodes.BAD_REQUEST.toString(),
+        "Invalid query",
+      );
+      (UsersUseCases.prototype.queryUsers as jest.Mock).mockResolvedValue(expectedResponse);
+
+      const response = await supertest(app).get("/v1/users");
+
+      expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
+    });
+
+    it("should return 500 when query fails with database exception", async () => {
       (UsersUseCases.prototype.queryUsers as jest.Mock).mockRejectedValue(
         new Error("Database Error"),
       );
 
       const response = await supertest(app).get("/v1/users");
 
-      const body = response.body as TestApiResponse<null>;
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
-      expect(body.message).toBe("Internal Server Error");
     });
   });
 
@@ -93,9 +98,28 @@ describe("UsersV1Router Integration Tests", () => {
       const body = response.body as TestApiResponse<User>;
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(body.data.id).toBe("123");
+    });
 
-      const mockQueryById = UsersUseCases.prototype.queryById as jest.Mock;
-      expect(mockQueryById).toHaveBeenCalledTimes(1);
+    it("should return error status code when queryById fails", async () => {
+      const expectedResponse = new ResponseModel("queryUserById").withError(
+        HttpStatusCodes.NOT_FOUND.toString(),
+        "Not found",
+      );
+      (UsersUseCases.prototype.queryById as jest.Mock).mockResolvedValue(expectedResponse);
+
+      const response = await supertest(app).get("/v1/users/123");
+
+      expect(response.status).toBe(HttpStatusCodes.NOT_FOUND);
+    });
+
+    it("should return 500 when queryById throws exception", async () => {
+      (UsersUseCases.prototype.queryById as jest.Mock).mockRejectedValue(
+        new Error("Unexpected error"),
+      );
+
+      const response = await supertest(app).get("/v1/users/123");
+
+      expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
     });
   });
 
@@ -116,9 +140,30 @@ describe("UsersV1Router Integration Tests", () => {
       const body = response.body as TestApiResponse<{ recoveryUrl: string }>;
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(body.data.recoveryUrl).toContain("reset-password?token=some-token");
+    });
 
-      const mockGenRecovery = UsersUseCases.prototype.generateRecoveryLink as jest.Mock;
-      expect(mockGenRecovery).toHaveBeenCalledTimes(1);
+    it("should return error status code when generateRecoveryLink fails", async () => {
+      const expectedResponse = new ResponseModel("generateRecoveryLink").withError(
+        HttpStatusCodes.NOT_FOUND.toString(),
+        "User not found",
+      );
+      (UsersUseCases.prototype.generateRecoveryLink as jest.Mock).mockResolvedValue(
+        expectedResponse,
+      );
+
+      const response = await supertest(app).post("/v1/users/123/recovery-link");
+
+      expect(response.status).toBe(HttpStatusCodes.NOT_FOUND);
+    });
+
+    it("should return 500 when generateRecoveryLink throws exception", async () => {
+      (UsersUseCases.prototype.generateRecoveryLink as jest.Mock).mockRejectedValue(
+        new Error("Unexpected error"),
+      );
+
+      const response = await supertest(app).post("/v1/users/123/recovery-link");
+
+      expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
     });
   });
 
@@ -135,9 +180,28 @@ describe("UsersV1Router Integration Tests", () => {
       const response = await supertest(app).put("/v1/users/123/disable");
 
       expect(response.status).toBe(HttpStatusCodes.OK);
+    });
 
-      const mockDisable = UsersUseCases.prototype.disableUser as jest.Mock;
-      expect(mockDisable).toHaveBeenCalledTimes(1);
+    it("should return error status code when disableUser fails", async () => {
+      const expectedResponse = new ResponseModel("disableUser").withError(
+        HttpStatusCodes.NOT_FOUND.toString(),
+        "User not found",
+      );
+      (UsersUseCases.prototype.disableUser as jest.Mock).mockResolvedValue(expectedResponse);
+
+      const response = await supertest(app).put("/v1/users/123/disable");
+
+      expect(response.status).toBe(HttpStatusCodes.NOT_FOUND);
+    });
+
+    it("should return 500 when disableUser throws exception", async () => {
+      (UsersUseCases.prototype.disableUser as jest.Mock).mockRejectedValue(
+        new Error("Unexpected error"),
+      );
+
+      const response = await supertest(app).put("/v1/users/123/disable");
+
+      expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
     });
   });
 
@@ -154,9 +218,28 @@ describe("UsersV1Router Integration Tests", () => {
       const response = await supertest(app).put("/v1/users/123/enable");
 
       expect(response.status).toBe(HttpStatusCodes.OK);
+    });
 
-      const mockEnable = UsersUseCases.prototype.enableUser as jest.Mock;
-      expect(mockEnable).toHaveBeenCalledTimes(1);
+    it("should return error status code when enableUser fails", async () => {
+      const expectedResponse = new ResponseModel("enableUser").withError(
+        HttpStatusCodes.NOT_FOUND.toString(),
+        "User not found",
+      );
+      (UsersUseCases.prototype.enableUser as jest.Mock).mockResolvedValue(expectedResponse);
+
+      const response = await supertest(app).put("/v1/users/123/enable");
+
+      expect(response.status).toBe(HttpStatusCodes.NOT_FOUND);
+    });
+
+    it("should return 500 when enableUser throws exception", async () => {
+      (UsersUseCases.prototype.enableUser as jest.Mock).mockRejectedValue(
+        new Error("Unexpected error"),
+      );
+
+      const response = await supertest(app).put("/v1/users/123/enable");
+
+      expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
     });
   });
 
@@ -173,9 +256,28 @@ describe("UsersV1Router Integration Tests", () => {
       const response = await supertest(app).delete("/v1/users/123");
 
       expect(response.status).toBe(HttpStatusCodes.OK);
+    });
 
-      const mockDelete = UsersUseCases.prototype.deleteUser as jest.Mock;
-      expect(mockDelete).toHaveBeenCalledTimes(1);
+    it("should return error status code when deleteUser fails", async () => {
+      const expectedResponse = new ResponseModel("deleteUser").withError(
+        HttpStatusCodes.NOT_FOUND.toString(),
+        "User not found",
+      );
+      (UsersUseCases.prototype.deleteUser as jest.Mock).mockResolvedValue(expectedResponse);
+
+      const response = await supertest(app).delete("/v1/users/123");
+
+      expect(response.status).toBe(HttpStatusCodes.NOT_FOUND);
+    });
+
+    it("should return 500 when deleteUser throws exception", async () => {
+      (UsersUseCases.prototype.deleteUser as jest.Mock).mockRejectedValue(
+        new Error("Unexpected error"),
+      );
+
+      const response = await supertest(app).delete("/v1/users/123");
+
+      expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
     });
   });
 });

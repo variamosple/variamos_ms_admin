@@ -5,11 +5,11 @@ import { BugFilter } from "../Entity/BugFilter";
 import { BugStatusLog } from "../Entity/BugStatusLog";
 import { BugNote } from "../Entity/BugNote";
 
+import { BugAttachment } from "../Entity/BugAttachment";
+
 export interface IBugRepository {
   queryBugs(request: RequestModel<BugFilter>): Promise<ResponseModel<Bug[]>>;
-  queryLocalBugs(
-    request: RequestModel<BugFilter>,
-  ): Promise<ResponseModel<Bug[]>>;
+  queryLocalBugs(request: RequestModel<BugFilter>): Promise<ResponseModel<Bug[]>>;
   findById(request: RequestModel<string>): Promise<ResponseModel<Bug | null>>;
   saveOrUpdateBug(
     request: RequestModel<Bug>,
@@ -28,9 +28,7 @@ export interface IBugRepository {
       logComment: string;
     }>,
   ): Promise<ResponseModel<Bug>>;
-  findExpiredRejectedBugs(
-    request: RequestModel<Date>,
-  ): Promise<ResponseModel<Bug[]>>;
+  findExpiredRejectedBugs(request: RequestModel<Date>): Promise<ResponseModel<Bug[]>>;
   updateAttachmentPath(
     request: RequestModel<{ id: number; filePath: string }>,
   ): Promise<ResponseModel<void>>;
@@ -56,9 +54,7 @@ export interface IBugRepository {
       logComment: string;
     }>,
   ): Promise<ResponseModel<Bug>>;
-  queryHistory(
-    request: RequestModel<string>,
-  ): Promise<ResponseModel<BugStatusLog[]>>;
+  queryHistory(request: RequestModel<string>): Promise<ResponseModel<BugStatusLog[]>>;
   updateStatus(
     request: RequestModel<{
       id: string;
@@ -80,11 +76,9 @@ export interface IBugRepository {
       fileType: string;
       bugId: string;
     }>,
-  ): Promise<ResponseModel<any>>;
+  ): Promise<ResponseModel<BugAttachment>>;
   deleteAttachment(request: RequestModel<string>): Promise<ResponseModel<void>>;
-  findAttachmentById(
-    request: RequestModel<string>,
-  ): Promise<ResponseModel<any | null>>;
+  findAttachmentById(request: RequestModel<string>): Promise<ResponseModel<BugAttachment | null>>;
   createNote(
     request: RequestModel<{ bugId: string; body: string; authorId?: string }>,
   ): Promise<ResponseModel<BugNote>>;
