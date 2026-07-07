@@ -4,7 +4,7 @@ export class PersonalInformationUpdate {
   private userId: string;
   private countryCode: Nullable<string>;
 
-  constructor(userId: string, countryCode: Nullable<string>) {
+  public constructor(userId: string, countryCode: Nullable<string>) {
     this.userId = userId;
     this.countryCode = countryCode;
   }
@@ -21,13 +21,8 @@ export class PersonalInformationUpdate {
     return new PersonalInformationUpdateBuilder();
   }
 
-  public static build(
-    builder: PersonalInformationUpdateBuilder
-  ): PersonalInformationUpdate {
-    return new PersonalInformationUpdate(
-      builder.getUserId(),
-      builder.getCountryCode()
-    );
+  public static build(builder: PersonalInformationUpdateBuilder): PersonalInformationUpdate {
+    return new PersonalInformationUpdate(builder.getUserId(), builder.getCountryCode());
   }
 }
 
@@ -48,9 +43,7 @@ class PersonalInformationUpdateBuilder {
     return this.countryCode;
   }
 
-  public setCountryCode(
-    countryCode: Nullable<string>
-  ): PersonalInformationUpdateBuilder {
+  public setCountryCode(countryCode: Nullable<string>): PersonalInformationUpdateBuilder {
     this.countryCode = countryCode;
     return this;
   }

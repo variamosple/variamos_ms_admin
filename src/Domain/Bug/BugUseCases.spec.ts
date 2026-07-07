@@ -770,7 +770,7 @@ describe("BugUseCases Unit Tests", () => {
         .setCategory("Editor")
         .setStatus("pending")
         .setReporterEmail("user@test.com")
-        .setAttachments([{ filePath: "/uploads/my-file.png", fileType: "image/png" }])
+        .setAttachments([{ filePath: "/uploads/my-file.png", fileType: "image/png", bugId }])
         .build();
 
       mockBugRepository.findById.mockResolvedValue(
@@ -1012,9 +1012,9 @@ describe("BugUseCases Unit Tests", () => {
         .setReporterEmail("user@test.com")
         .setGithubRepo("VariaMos/VariaMosAdmin")
         .setAttachments([
-          { filePath: "/uploads/valid.png", fileType: "image/png" },
-          { filePath: "/purged", fileType: "image/png" },
-          { filePath: "/uploads/no-type.png", fileType: undefined },
+          { id: 1, filePath: "/uploads/valid.png", fileType: "image/png", bugId },
+          { id: 2, filePath: "/purged", fileType: "image/png", bugId },
+          { id: 3, filePath: "/uploads/no-type.png", fileType: "unknown", bugId },
         ])
         .build();
 
@@ -1398,7 +1398,9 @@ describe("BugUseCases Unit Tests", () => {
   describe("purgeExpiredRejectedBugs", () => {
     it("should process purge for expired bugs and delete attachments", async () => {
       const expiredBug = createMockBug("999", "Old rejected bug", "rejected");
-      expiredBug.attachments = [{ id: 1, filePath: "/uploads/old.png" }];
+      expiredBug.attachments = [
+        { id: 1, filePath: "/uploads/old.png", fileType: "image/png", bugId: "999" },
+      ];
 
       const infoLogSpy = jest.spyOn(logger, "info").mockImplementation(() => {});
 
@@ -1519,7 +1521,7 @@ describe("BugUseCases Unit Tests", () => {
 
     it("should ignore purge actions on attachments with purged filePath", async () => {
       const expiredBug = createMockBug("2", "New Bug", "rejected");
-      expiredBug.attachments = [{ id: 1, filePath: "/purged" }];
+      expiredBug.attachments = [{ id: 1, filePath: "/purged", fileType: "image/png", bugId: "2" }];
 
       mockBugRepository.findExpiredRejectedBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([expiredBug]),

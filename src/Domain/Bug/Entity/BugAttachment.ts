@@ -5,7 +5,7 @@ export class BugAttachment {
   public bugId!: string;
   public createdAt?: Date;
 
-  constructor(builder: BugAttachmentBuilder) {
+  public constructor(builder: BugAttachmentBuilder) {
     Object.assign(this, builder);
   }
 

@@ -10,10 +10,7 @@ export interface BugNoteAttributes {
   createdAt?: Date;
 }
 
-export class BugNoteModel
-  extends Model<BugNoteAttributes>
-  implements BugNoteAttributes
-{
+export class BugNoteModel extends Model<BugNoteAttributes> implements BugNoteAttributes {
   public id?: number;
   public body!: string;
   public bugId!: string;

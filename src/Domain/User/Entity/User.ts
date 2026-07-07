@@ -1,20 +1,20 @@
 import { Nullable } from "@src/Domain/Core/Entity/Nullable";
 
 export class User {
-  id: Nullable<string>;
-  user: string;
-  name: string;
-  email: string;
-  countryCode: Nullable<string>;
-  countryName: Nullable<string>;
-  isEnabled: boolean;
-  isDeleted: boolean;
-  createdAt: Date;
-  lastLogin?: Date;
-  roles?: string[];
-  permissions?: string[];
+  public id: Nullable<string>;
+  public user: string;
+  public name: string;
+  public email: string;
+  public countryCode: Nullable<string>;
+  public countryName: Nullable<string>;
+  public isEnabled: boolean;
+  public isDeleted: boolean;
+  public createdAt: Date;
+  public lastLogin?: Date;
+  public roles?: string[];
+  public permissions?: string[];
 
-  constructor(
+  public constructor(
     id: Nullable<string>,
     user: string,
     name: string,
@@ -26,7 +26,7 @@ export class User {
     createdAt: Date,
     lastLogin?: Date,
     roles?: string[],
-    permissions?: string[]
+    permissions?: string[],
   ) {
     this.id = id;
     this.name = name;
@@ -59,7 +59,7 @@ export class User {
       builder.getCreatedAt(),
       builder.getLastLogin(),
       builder.getRoles(),
-      builder.getPermissions()
+      builder.getPermissions(),
     );
   }
 }
@@ -199,7 +199,7 @@ class UserBuilder {
       this.createdAt,
       this.lastLogin,
       this.roles,
-      this.permissions
+      this.permissions,
     );
   }
 }

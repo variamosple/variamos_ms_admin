@@ -1,3 +1,9 @@
+export interface BugStatusLogUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
 export class BugStatusLog {
   public id?: number;
   public status!: string;
@@ -5,9 +11,9 @@ export class BugStatusLog {
   public changedAt?: Date;
   public bugId!: string;
   public changedById!: string;
-  public changedBy?: any;
+  public changedBy?: BugStatusLogUser;
 
-  constructor(builder: BugStatusLogBuilder) {
+  public constructor(builder: BugStatusLogBuilder) {
     Object.assign(this, builder);
   }
 
@@ -23,7 +29,7 @@ class BugStatusLogBuilder {
   public changedAt?: Date;
   public bugId!: string;
   public changedById!: string;
-  public changedBy?: any;
+  public changedBy?: BugStatusLogUser;
 
   public setId(id?: number) {
     this.id = id;
@@ -49,7 +55,7 @@ class BugStatusLogBuilder {
     this.changedById = changedById;
     return this;
   }
-  public setChangedBy(changedBy?: any) {
+  public setChangedBy(changedBy?: BugStatusLogUser) {
     this.changedBy = changedBy;
     return this;
   }

@@ -4,11 +4,11 @@ export class PasswordUpdate {
   private readonly newPassword: string;
   private readonly passwordConfirmation: string;
 
-  constructor(
+  public constructor(
     id: string,
     currentPassword: string,
     newPassword: string,
-    passwordConfirmation: string
+    passwordConfirmation: string,
   ) {
     this.id = id;
     this.currentPassword = currentPassword;
@@ -25,23 +25,23 @@ export class PasswordUpdate {
       builder.getId(),
       builder.getCurrentPassword(),
       builder.getNewPassword(),
-      builder.getPasswordConfirmation()
+      builder.getPasswordConfirmation(),
     );
   }
 
-  getId(): string {
+  public getId(): string {
     return this.id;
   }
 
-  getCurrentPassword(): string {
+  public getCurrentPassword(): string {
     return this.currentPassword;
   }
 
-  getNewPassword(): string {
+  public getNewPassword(): string {
     return this.newPassword;
   }
 
-  getPasswordConfirmation(): string {
+  public getPasswordConfirmation(): string {
     return this.passwordConfirmation;
   }
 }
@@ -52,39 +52,39 @@ class PasswordUpdateBuilder {
   private newPassword!: string;
   private passwordConfirmation!: string;
 
-  setId(id: string): PasswordUpdateBuilder {
+  public setId(id: string): PasswordUpdateBuilder {
     this.id = id;
     return this;
   }
 
-  setCurrentPassword(currentPassword: string): PasswordUpdateBuilder {
+  public setCurrentPassword(currentPassword: string): PasswordUpdateBuilder {
     this.currentPassword = currentPassword;
     return this;
   }
 
-  setNewPassword(newPassword: string): PasswordUpdateBuilder {
+  public setNewPassword(newPassword: string): PasswordUpdateBuilder {
     this.newPassword = newPassword;
     return this;
   }
 
-  setPasswordConfirmation(passwordConfirmation: string): PasswordUpdateBuilder {
+  public setPasswordConfirmation(passwordConfirmation: string): PasswordUpdateBuilder {
     this.passwordConfirmation = passwordConfirmation;
     return this;
   }
 
-  getId(): string {
+  public getId(): string {
     return this.id;
   }
 
-  getCurrentPassword(): string {
+  public getCurrentPassword(): string {
     return this.currentPassword;
   }
 
-  getNewPassword(): string {
+  public getNewPassword(): string {
     return this.newPassword;
   }
 
-  getPasswordConfirmation(): string {
+  public getPasswordConfirmation(): string {
     return this.passwordConfirmation;
   }
 

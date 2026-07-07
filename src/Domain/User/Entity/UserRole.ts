@@ -1,10 +1,10 @@
 import { Nullable } from "@src/Domain/Core/Entity/Nullable";
 
 export class UserRole {
-  userId: Nullable<string>;
-  roleId: Nullable<number>;
+  public userId: Nullable<string>;
+  public roleId: Nullable<number>;
 
-  constructor(userId: Nullable<string>, roleId: Nullable<number>) {
+  public constructor(userId: Nullable<string>, roleId: Nullable<number>) {
     this.userId = userId;
     this.roleId = roleId;
   }

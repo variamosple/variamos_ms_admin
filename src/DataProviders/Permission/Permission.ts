@@ -6,10 +6,7 @@ export interface PermissionAttributes {
   name: string;
 }
 
-export class PermissionModel
-  extends Model<PermissionAttributes>
-  implements PermissionAttributes
-{
+export class PermissionModel extends Model<PermissionAttributes> implements PermissionAttributes {
   public id?: number;
   public name!: string;
 }
@@ -30,5 +27,5 @@ PermissionModel.init(
     sequelize: VARIAMOS_ORM,
     schema: "variamos",
     timestamps: false,
-  }
+  },
 );

@@ -11,10 +11,7 @@ export interface BugLogAttributes {
   updatedAt?: Date;
 }
 
-export class BugLogModel
-  extends Model<BugLogAttributes>
-  implements BugLogAttributes
-{
+export class BugLogModel extends Model<BugLogAttributes> implements BugLogAttributes {
   public id?: number;
   public action!: string;
   public comment?: string;

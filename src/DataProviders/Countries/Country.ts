@@ -8,10 +8,7 @@ interface CountryAttributes {
   longitude: number;
 }
 
-export class CountryModel
-  extends Model<CountryAttributes>
-  implements CountryAttributes
-{
+export class CountryModel extends Model<CountryAttributes> implements CountryAttributes {
   public code!: string;
   public name!: string;
   public latitude!: number;
@@ -43,5 +40,5 @@ CountryModel.init(
     sequelize: VARIAMOS_ORM,
     schema: "variamos",
     timestamps: false,
-  }
+  },
 );

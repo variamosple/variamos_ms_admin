@@ -10,13 +10,13 @@ export class MicroService {
   private state: string;
   private status: string;
 
-  constructor(
+  public constructor(
     id: string,
     names: string[],
     created: Date,
     labels: Labels,
     state: string,
-    status: string
+    status: string,
   ) {
     this.id = id;
     this.names = names;
@@ -26,27 +26,27 @@ export class MicroService {
     this.status = status;
   }
 
-  getId(): string {
+  public getId(): string {
     return this.id;
   }
 
-  getNames(): string[] {
+  public getNames(): string[] {
     return this.names;
   }
 
-  getCreated(): Date {
+  public getCreated(): Date {
     return this.created;
   }
 
-  getLabels(): Labels {
+  public getLabels(): Labels {
     return this.labels;
   }
 
-  getState(): string {
+  public getState(): string {
     return this.state;
   }
 
-  getStatus(): string {
+  public getStatus(): string {
     return this.status;
   }
 
@@ -61,7 +61,7 @@ export class MicroService {
       builder.getCreated(),
       builder.getLabels(),
       builder.getState(),
-      builder.getStatus()
+      builder.getStatus(),
     );
   }
 }
@@ -135,7 +135,7 @@ class MicroServiceBuilder {
       this.created,
       this.labels,
       this.state,
-      this.status
+      this.status,
     );
   }
 }

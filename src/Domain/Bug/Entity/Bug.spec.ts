@@ -10,7 +10,7 @@ describe("Bug Entity", () => {
 
   describe("creatorName getter", () => {
     it("should return the name of the creator if createdBy is defined", () => {
-      const bug = Bug.builder().setCreatedBy({ name: "John Doe" }).build();
+      const bug = Bug.builder().setCreatedBy({ id: "user-123", name: "John Doe" }).build();
 
       expect(bug.creatorName).toBe("John Doe");
     });

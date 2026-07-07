@@ -8,10 +8,7 @@ interface UserRoleAttributes {
   roleId: number;
 }
 
-export class UserRoleModel
-  extends Model<UserRoleAttributes>
-  implements UserRoleAttributes
-{
+export class UserRoleModel extends Model<UserRoleAttributes> implements UserRoleAttributes {
   public userId!: string;
   public roleId!: number;
 }
@@ -38,7 +35,7 @@ UserRoleModel.init(
     sequelize: VARIAMOS_ORM,
     schema: "variamos",
     timestamps: false,
-  }
+  },
 );
 
 UserModel.belongsToMany(RoleModel, {

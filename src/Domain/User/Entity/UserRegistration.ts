@@ -1,15 +1,10 @@
 import { Credentials } from "./Credentials";
 
 export class UserRegistration extends Credentials {
-  name: string;
-  passwordConfirmation: string;
+  public name: string;
+  public passwordConfirmation: string;
 
-  constructor(
-    name: string,
-    email: string,
-    password: string,
-    passwordConfirmation: string
-  ) {
+  public constructor(name: string, email: string, password: string, passwordConfirmation: string) {
     super(email, password);
 
     this.name = name;

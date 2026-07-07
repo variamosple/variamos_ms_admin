@@ -1,7 +1,11 @@
 import { PagedModel } from "@src/Domain/Core/Entity/PagedModel";
 
 export class RolePermissionFilter extends PagedModel {
-  constructor(public roleId: number, pageNumber?: number, pageSize?: number) {
+  public constructor(
+    public roleId: number,
+    pageNumber?: number,
+    pageSize?: number,
+  ) {
     super(pageNumber, pageSize);
   }
 
@@ -9,14 +13,8 @@ export class RolePermissionFilter extends PagedModel {
     return new RolePermissionFilterBuilder();
   }
 
-  public static build(
-    builder: RolePermissionFilterBuilder
-  ): RolePermissionFilter {
-    return new RolePermissionFilter(
-      builder.roleId,
-      builder.pageNumber,
-      builder.pageSize
-    );
+  public static build(builder: RolePermissionFilterBuilder): RolePermissionFilter {
+    return new RolePermissionFilter(builder.roleId, builder.pageNumber, builder.pageSize);
   }
 }
 

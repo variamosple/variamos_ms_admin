@@ -2,17 +2,11 @@ import EnvVars from "@src/common/EnvVars";
 import { Router } from "express";
 import authRouter, { AUTH_ROUTE } from "./AuthRouter";
 
-import configurationV1Router, {
-  CONFIGURATION_V1_ROUTE,
-} from "./ConfigurationRouter";
+import configurationV1Router, { CONFIGURATION_V1_ROUTE } from "./ConfigurationRouter";
 import countriesV1Router, { COUNTRIES_V1_ROUTE } from "./CountriesV1Router";
 import metricsV1Router, { METRICS_V1_ROUTE } from "./MetricsV1Router";
-import microServicesV1Router, {
-  MICRO_SERVICES_V1_ROUTE,
-} from "./MicroServicesV1Router";
-import permissionsV1Router, {
-  PERMISSIONS_V1_ROUTE,
-} from "./PermissionsV1Router";
+import microServicesV1Router, { MICRO_SERVICES_V1_ROUTE } from "./MicroServicesV1Router";
+import permissionsV1Router, { PERMISSIONS_V1_ROUTE } from "./PermissionsV1Router";
 import rolesV1Router, { ROLES_V1_ROUTE } from "./RolesV1Router";
 import usersV1Router, { USERS_V1_ROUTE } from "./UsersV1Router";
 import visitsV1Router, { VISITS_V1_ROUTE } from "./VisitsV1Router";
@@ -60,11 +54,7 @@ const storage = multer.diskStorage({
 const productionUpload = multer({ storage });
 import { isAuthenticated } from "@variamosple/variamos-security";
 
-const bugV1Router = createBugRouter(
-  productionBugUseCases,
-  productionUpload,
-  isAuthenticated,
-);
+const bugV1Router = createBugRouter(productionBugUseCases, productionUpload, isAuthenticated);
 
 const baseRouter = Router();
 
@@ -79,7 +69,7 @@ baseRouter.use(METRICS_V1_ROUTE, metricsV1Router);
 baseRouter.use(COUNTRIES_V1_ROUTE, countriesV1Router);
 baseRouter.use(BUG_V1_ROUTE, bugV1Router);
 
-baseRouter.get("/version", async function (_, res) {
+baseRouter.get("/version", function (_, res) {
   try {
     const data = {
       message: "variamos_ms_admin",

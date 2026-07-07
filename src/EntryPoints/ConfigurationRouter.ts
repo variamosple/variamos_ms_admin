@@ -141,7 +141,7 @@ const MENU: Menu = {
   ],
 };
 
-configurationV1Router.get("/menu", async (_: Request, res) => {
+configurationV1Router.get("/menu", (_: Request, res) => {
   const response = new ResponseModel<Menu>("getMenu");
 
   res.status(200).json(response.withResponse(MENU));

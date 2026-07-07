@@ -31,16 +31,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser(EnvVars.CookieProps.Secret));
 
 const corsOptions = {
-  origin: (
-    origin: string | undefined,
-    callback: (err: Error | null, allow?: boolean) => void
-  ) => {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     if (!origin || "null" === origin) return callback(null, true);
 
     const isAllowed =
-      EnvVars.CORS.AllowedOriginsPatterns.findIndex((pattern) =>
-        pattern.test(origin)
-      ) !== -1;
+      EnvVars.CORS.AllowedOriginsPatterns.findIndex((pattern) => pattern.test(origin)) !== -1;
 
     if (isAllowed) {
       callback(null, true);
@@ -73,7 +68,7 @@ app.use(
     _: Request,
     res: Response,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    next: NextFunction
+    next: NextFunction,
   ) => {
     if (EnvVars.NodeEnv !== NodeEnvs.Test.valueOf()) {
       logger.err(err, true);
@@ -83,7 +78,7 @@ app.use(
       status = err.status;
     }
     return res.status(status).json({ error: err.message });
-  }
+  },
 );
 
 // **** Front-End Content **** //

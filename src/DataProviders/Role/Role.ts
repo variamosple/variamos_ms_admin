@@ -27,5 +27,5 @@ RoleModel.init(
     sequelize: VARIAMOS_ORM,
     schema: "variamos",
     timestamps: false,
-  }
+  },
 );

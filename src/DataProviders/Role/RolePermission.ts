@@ -36,7 +36,7 @@ RolePermissionModel.init(
     sequelize: VARIAMOS_ORM,
     schema: "variamos",
     timestamps: false,
-  }
+  },
 );
 
 RoleModel.belongsToMany(PermissionModel, {

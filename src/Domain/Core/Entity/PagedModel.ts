@@ -1,8 +1,8 @@
 import { Nullable } from "./Nullable";
 
 export class PagedModel {
-  constructor(
+  public constructor(
     public pageNumber: Nullable<number> = 1,
-    public pageSize: Nullable<number> = 20
+    public pageSize: Nullable<number> = 20,
   ) {}
 }

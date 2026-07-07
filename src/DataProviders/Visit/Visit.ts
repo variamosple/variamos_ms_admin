@@ -7,10 +7,7 @@ export interface VisitAttributes {
   countryCode?: string;
 }
 
-export class VisitModel
-  extends Model<VisitAttributes>
-  implements VisitAttributes
-{
+export class VisitModel extends Model<VisitAttributes> implements VisitAttributes {
   public pageId!: string;
   public userId!: string;
   public countryCode?: string;
@@ -37,7 +34,7 @@ VisitModel.init(
     sequelize: VARIAMOS_ORM,
     schema: "variamos",
     timestamps: false,
-  }
+  },
 );
 
 VisitModel.removeAttribute("id");

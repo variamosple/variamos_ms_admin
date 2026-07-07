@@ -1,3 +1,4 @@
+/* cspell:disable */
 /**
  * Environments variables declared here.
  */
@@ -41,7 +42,9 @@ export default {
     APP: {
       HOME_REDIRECT_URI: process.env.HOME_REDIRECT_URI,
       LOGIN_REDIRECT_URI: process.env.LOGIN_REDIRECT_URI,
-      PASSWORD_RESET_EXPIRY_IN_MS: Number(process.env.PASSWORD_RESET_EXPIRY_IN_MS ?? 24 * 60 * 60 * 1000),
+      PASSWORD_RESET_EXPIRY_IN_MS: Number(
+        process.env.PASSWORD_RESET_EXPIRY_IN_MS ?? 24 * 60 * 60 * 1000,
+      ),
       BCRYPT_SALT_ROUNDS: Number(process.env.BCRYPT_SALT_ROUNDS ?? 10),
     },
   },

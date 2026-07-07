@@ -5,16 +5,18 @@ export class Metric {
   private defaultFilter: string;
   private filters?: string[];
   private labelKey?: string;
-  private data: any;
+  // eslint-disable-next-line no-restricted-syntax
+  private data: unknown;
 
-  constructor(
+  public constructor(
     id: string,
     title: string,
     chartType: string,
     defaultFilter: string,
     filters?: string[],
     labelKey?: string,
-    data?: any
+    // eslint-disable-next-line no-restricted-syntax
+    data?: unknown,
   ) {
     this.id = id;
     this.title = title;
@@ -49,7 +51,8 @@ export class Metric {
     return this.labelKey;
   }
 
-  public getData(): any {
+  // eslint-disable-next-line no-restricted-syntax
+  public getData(): unknown {
     return this.data;
   }
 
@@ -65,7 +68,7 @@ export class Metric {
       builder.getDefaultFilter(),
       builder.getFilters(),
       builder.getLabelKey(),
-      builder.getData()
+      builder.getData(),
     );
   }
 }
@@ -77,7 +80,8 @@ class MetricBuilder {
   private defaultFilter!: string;
   private filters?: string[];
   private labelKey?: string;
-  private data!: any;
+  // eslint-disable-next-line no-restricted-syntax
+  private data!: unknown;
 
   public getId(): string {
     return this.id;
@@ -133,11 +137,13 @@ class MetricBuilder {
     return this;
   }
 
-  public getData(): any {
+  // eslint-disable-next-line no-restricted-syntax
+  public getData(): unknown {
     return this.data;
   }
 
-  public setData(data: any): MetricBuilder {
+  // eslint-disable-next-line no-restricted-syntax
+  public setData(data: unknown): MetricBuilder {
     this.data = data;
     return this;
   }
@@ -150,7 +156,7 @@ class MetricBuilder {
       this.defaultFilter,
       this.filters,
       this.labelKey,
-      this.data
+      this.data,
     );
   }
 }

@@ -2,14 +2,14 @@ import { Nullable } from "@src/Domain/Core/Entity/Nullable";
 import { PagedModel } from "@src/Domain/Core/Entity/PagedModel";
 
 export class UserFilter extends PagedModel {
-  constructor(
+  public constructor(
     public id?: Nullable<string>,
     public user?: Nullable<string>,
     public name?: Nullable<string>,
     public email?: Nullable<string>,
     public search?: Nullable<string>,
     pageNumber?: number,
-    pageSize?: number
+    pageSize?: number,
   ) {
     super(pageNumber, pageSize);
   }
@@ -26,7 +26,7 @@ export class UserFilter extends PagedModel {
       builder.email,
       builder.search,
       builder.pageNumber,
-      builder.pageSize
+      builder.pageSize,
     );
   }
 }
