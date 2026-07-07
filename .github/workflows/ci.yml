@@ -15,41 +15,34 @@ jobs:
       with:
         node-version: 18
         cache: 'npm'
-        cache-dependency-path: variamos_ms_admin/package-lock.json
+        cache-dependency-path: package-lock.json
 
     - name: Install dependencies
       run: |
-        cd variamos_ms_admin
         npm ci
 
     - name: Audit npm dependencies for high vulnerabilities
       run: |
-        cd variamos_ms_admin
         npm audit --audit-level=high
 
     - name: Check code formatting (Prettier)
       run: |
-        cd variamos_ms_admin
         npx prettier --check "src/**/*.ts"
 
     - name: Run linter (ESLint)
       run: |
-        cd variamos_ms_admin
         npm run lint
 
     - name: Verify TypeScript types
       run: |
-        cd variamos_ms_admin
         npm run typecheck
 
     - name: Verify Clean Architecture boundaries
       run: |
-        cd variamos_ms_admin
         npm run check-arch
 
     - name: Run unit tests
       run: |
-        cd variamos_ms_admin
         npm run test
 
     - name: Run Gitleaks secret scan
