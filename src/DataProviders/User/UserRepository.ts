@@ -12,9 +12,8 @@ import { IUserRepository } from "@src/Domain/User/IUserRepository";
 import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
 import logger from "jet-logger";
 import { Op, QueryTypes, WhereOptions } from "sequelize";
-import bcrypt from "bcrypt";
-import EnvVars from "@src/common/EnvVars";
 import { BaseRepository } from "../BaseRepository";
+import bcrypt from "bcrypt";
 import { RoleModel } from "../Role/Role";
 import { PermissionModel } from "../Permission/Permission";
 import { CountryModel } from "../Countries/Country";
@@ -25,6 +24,13 @@ interface UserModelWithCountry extends UserModel {
 }
 
 export class UserRepositoryImpl extends BaseRepository implements IUserRepository {
+  private readonly bcryptSaltRounds: number;
+
+  public constructor(config: { bcryptSaltRounds: number }) {
+    super();
+    this.bcryptSaltRounds = config.bcryptSaltRounds;
+  }
+
   public async queryUsers(request: RequestModel<UserFilter>): Promise<ResponseModel<User[]>> {
     const response = new ResponseModel<User[]>(request.transactionId);
 
@@ -73,7 +79,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       logger.err("Error in getUsers:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -86,7 +92,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       const { data: userId } = request;
 
       if (!userId) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "UserId is required");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "UserId is required");
       }
 
       const dbUser = await UserModel.findOne({
@@ -94,15 +100,15 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       });
 
       if (!dbUser) {
-        return response.withError(DomainErrorCodes.NOT_FOUND, "User not found.");
+        return response.withError(DomainErrorCodes.ENTITY_NOT_FOUND, "User not found.");
       }
 
       if (!dbUser.isEnabled) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Your account is disabled.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Your account is disabled.");
       }
 
       if (dbUser.isDeleted) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Your account is deleted.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Your account is deleted.");
       }
 
       response.data = User.builder()
@@ -118,7 +124,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       logger.err("Error in findSessionUser:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -131,7 +137,10 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       const { data } = request;
 
       if (!data) {
-        return response.withError(DomainErrorCodes.NOT_FOUND, "User information is required");
+        return response.withError(
+          DomainErrorCodes.ENTITY_NOT_FOUND,
+          "User information is required",
+        );
       }
 
       const email = data.email;
@@ -140,7 +149,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
 
       if (!email || !user || !name) {
         return response.withError(
-          DomainErrorCodes.BAD_REQUEST,
+          DomainErrorCodes.INVALID_INPUT,
           "email, user, and name are required.",
         );
       }
@@ -159,11 +168,11 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       });
 
       if (!dbUser.isEnabled) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Your account is disabled.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Your account is disabled.");
       }
 
       if (dbUser.isDeleted) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Your account is deleted.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Your account is deleted.");
       }
 
       if (!crated) {
@@ -190,7 +199,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       logger.err("Error in findOrCreateUser:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -202,13 +211,16 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
     try {
       const { data } = request;
       if (!data) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Credentials are required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Credentials are required.");
       }
 
       const email = data.email;
       const password = data.password;
       if (!email || !password) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "email and password are required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "email and password are required.",
+        );
       }
 
       const dbUser = await UserModel.findOne({
@@ -218,13 +230,13 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       const errorMessage = "Incorrect username or password.";
 
       if (!dbUser || !dbUser.password || !dbUser.isEnabled || dbUser.isDeleted) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, errorMessage);
+        return response.withError(DomainErrorCodes.INVALID_INPUT, errorMessage);
       }
 
       const passwordMatch = await bcrypt.compare(password, dbUser.password);
 
       if (!passwordMatch) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, errorMessage);
+        return response.withError(DomainErrorCodes.INVALID_INPUT, errorMessage);
       }
 
       await UserModel.update(
@@ -249,7 +261,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       logger.err("Error in signIn:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -262,7 +274,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       const { data } = request;
       if (!data) {
         return response.withError(
-          DomainErrorCodes.BAD_REQUEST,
+          DomainErrorCodes.INVALID_INPUT,
           "UserRegistration data is required.",
         );
       }
@@ -273,7 +285,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
 
       if (!email || !password || !name) {
         return response.withError(
-          DomainErrorCodes.BAD_REQUEST,
+          DomainErrorCodes.INVALID_INPUT,
           "email, password, and name are required.",
         );
       }
@@ -284,7 +296,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
 
       if (dbUser) {
         logger.warn("User already registered");
-        return response.withError(DomainErrorCodes.CONFLICT, "");
+        return response.withError(DomainErrorCodes.DUPLICATE_ENTITY, "");
       }
       const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -310,7 +322,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       logger.err("Error in signUp:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -322,7 +334,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
     try {
       const { data } = request;
       if (!data) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "User ID is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "User ID is required.");
       }
 
       response.data = await UserModel.findOne({
@@ -354,7 +366,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       logger.err("Error in queryById:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -366,7 +378,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
     try {
       const { data } = request;
       if (!data) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "User ID is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "User ID is required.");
       }
 
       await UserModel.update(
@@ -382,7 +394,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       logger.err("Error in disableUser:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -394,7 +406,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
     try {
       const { data } = request;
       if (!data) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "User ID is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "User ID is required.");
       }
 
       await UserModel.update(
@@ -410,7 +422,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       logger.err("Error in enableUser:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -422,7 +434,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
     try {
       const { data } = request;
       if (!data) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "User ID is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "User ID is required.");
       }
 
       await UserModel.update(
@@ -438,7 +450,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       logger.err("Error in deleteUser:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -488,7 +500,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       const passwordUpdate = request.data;
       if (!passwordUpdate) {
         return response.withError(
-          DomainErrorCodes.BAD_REQUEST,
+          DomainErrorCodes.INVALID_INPUT,
           "Password update data is required.",
         );
       }
@@ -498,7 +510,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       });
 
       if (!dbUser) {
-        return response.withError(DomainErrorCodes.NOT_FOUND, "User not found.");
+        return response.withError(DomainErrorCodes.ENTITY_NOT_FOUND, "User not found.");
       }
 
       const passwordMatch = await bcrypt.compare(
@@ -507,7 +519,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       );
 
       if (!passwordMatch) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Current password is incorrect.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Current password is incorrect.");
       }
 
       const newHashedPassword = await bcrypt.hash(passwordUpdate.getNewPassword(), 10);
@@ -528,7 +540,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
           (request.data ? request.data.getId() : ""),
       );
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -637,7 +649,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
         throw new Error("New password cannot be the same as the old password.");
       }
 
-      const passwordHash = await bcrypt.hash(passwordPlain, EnvVars.Auth.APP.BCRYPT_SALT_ROUNDS);
+      const passwordHash = await bcrypt.hash(passwordPlain, this.bcryptSaltRounds);
       await UserModel.update({ password: passwordHash }, { where: { id: userId }, transaction });
 
       await VARIAMOS_ORM.query(
@@ -669,7 +681,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       const personalInformation = request.data;
       if (!personalInformation) {
         return response.withError(
-          DomainErrorCodes.BAD_REQUEST,
+          DomainErrorCodes.INVALID_INPUT,
           "Personal information data is required.",
         );
       }
@@ -690,7 +702,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
           (request.data ? request.data.getUserId() : ""),
       );
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -702,7 +714,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
     try {
       const { data: userId } = request;
       if (!userId) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "User ID is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "User ID is required.");
       }
 
       response.data = await UserModel.count({
@@ -713,11 +725,9 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       logger.err("Error in userExists:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
   }
 }
-
-export const UserRepositoryInstance = new UserRepositoryImpl();

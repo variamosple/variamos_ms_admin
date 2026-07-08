@@ -9,7 +9,7 @@ import { WebSocket, WebSocketServer } from "ws";
 import HttpStatusCodes from "./common/HttpStatusCodes";
 import { RequestModel } from "./Domain/Core/Entity/RequestModel";
 import { MicroServiceUseCases } from "./Domain/MicroService/MicroServiceCases";
-import { MicroServiceRepositoryInstance } from "./DataProviders/MicroService/MicroServiceRepository";
+import { MicroServiceRepositoryInstance } from "./CompositionRoot";
 import app from "./server";
 // **** Run **** //
 

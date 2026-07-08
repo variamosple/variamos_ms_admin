@@ -81,7 +81,7 @@ export class MetricsRepositoryImpl extends BaseRepository implements IMetricsRep
       logger.err("Error in getMetrics:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return Promise.resolve(response);
@@ -93,14 +93,14 @@ export class MetricsRepositoryImpl extends BaseRepository implements IMetricsRep
     try {
       const data = request.data;
       if (!data) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Metrics filter is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Metrics filter is required.");
       }
       const replacements = this.initializeReplacements(data);
 
       const selectedFunction = METRICS_FUNCTIONS.get(String(replacements.id));
 
       if (!selectedFunction) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Invalid metric id");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Invalid metric id");
       }
 
       const result = await VARIAMOS_ORM.query(`SELECT ${selectedFunction} AS data`, {
@@ -148,7 +148,7 @@ export class MetricsRepositoryImpl extends BaseRepository implements IMetricsRep
       logger.err("Error in queryMetric:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;

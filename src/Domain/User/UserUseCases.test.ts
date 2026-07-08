@@ -171,7 +171,7 @@ describe("UsersUseCases - Unit Tests", () => {
       const req = new RequestModel("tx-1", "user@example.com");
       const res = await useCases.requestPasswordReset(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.INTERNAL_ERROR);
+      expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
       expect(res.message).toBe("Failed to send recovery email. Please try again later.");
     });
 
@@ -181,7 +181,7 @@ describe("UsersUseCases - Unit Tests", () => {
       const req = new RequestModel("tx-1", "user@example.com");
       const res = await useCases.requestPasswordReset(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.INTERNAL_ERROR);
+      expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
       expect(res.message).toBe("Error requesting password reset");
     });
   });
@@ -207,7 +207,7 @@ describe("UsersUseCases - Unit Tests", () => {
       const req = new RequestModel("tx-1", "invalid-token");
       const res = await useCases.verifyPasswordResetToken(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("Invalid token.");
     });
 
@@ -222,7 +222,7 @@ describe("UsersUseCases - Unit Tests", () => {
       const req = new RequestModel("tx-1", "used-token");
       const res = await useCases.verifyPasswordResetToken(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("Token already used.");
     });
 
@@ -237,7 +237,7 @@ describe("UsersUseCases - Unit Tests", () => {
       const req = new RequestModel("tx-1", "expired-token");
       const res = await useCases.verifyPasswordResetToken(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("Token expired.");
     });
 
@@ -247,7 +247,7 @@ describe("UsersUseCases - Unit Tests", () => {
       const req = new RequestModel("tx-1", "some-token");
       const res = await useCases.verifyPasswordResetToken(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.INTERNAL_ERROR);
+      expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
       expect(res.message).toBe("Error verifying reset token");
     });
   });
@@ -285,7 +285,7 @@ describe("UsersUseCases - Unit Tests", () => {
       });
       const res = await useCases.resetPassword(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("Invalid token.");
       expect(mockUserRepository.resetPasswordAndUpdateToken).not.toHaveBeenCalled();
     });
@@ -307,7 +307,7 @@ describe("UsersUseCases - Unit Tests", () => {
       });
       const res = await useCases.resetPassword(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toContain("New password cannot be the same as the old password");
     });
 
@@ -326,7 +326,7 @@ describe("UsersUseCases - Unit Tests", () => {
       });
       const res = await useCases.resetPassword(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.INTERNAL_ERROR);
+      expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
       expect(res.message).toBe("Error resetting password");
     });
 
@@ -336,7 +336,7 @@ describe("UsersUseCases - Unit Tests", () => {
         password: "NewPassword123!",
       });
       const res = await useCases.resetPassword(req);
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("Token and password are required.");
     });
 
@@ -354,7 +354,7 @@ describe("UsersUseCases - Unit Tests", () => {
         password: "NewPassword123!",
       });
       const res = await useCases.resetPassword(req);
-      expect(res.errorCode).toBe(DomainErrorCodes.INTERNAL_ERROR);
+      expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
       expect(res.message).toBe("Error resetting password");
     });
   });
@@ -394,7 +394,7 @@ describe("UsersUseCases - Unit Tests", () => {
     test("should return error if queryById fails", async () => {
       mockUserRepository.queryById.mockResolvedValue(
         new ResponseModel<User>("queryById").withError(
-          DomainErrorCodes.NOT_FOUND,
+          DomainErrorCodes.ENTITY_NOT_FOUND,
           "User not found.",
         ),
       );
@@ -405,7 +405,7 @@ describe("UsersUseCases - Unit Tests", () => {
       });
       const res = await useCases.generateRecoveryLink(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.NOT_FOUND);
+      expect(res.errorCode).toBe(DomainErrorCodes.ENTITY_NOT_FOUND);
       expect(res.message).toBe("User not found.");
       expect(mockUserRepository.savePasswordResetToken).not.toHaveBeenCalled();
     });
@@ -464,7 +464,7 @@ describe("UsersUseCases - Unit Tests", () => {
       });
       const res = await useCases.generateRecoveryLink(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.INTERNAL_ERROR);
+      expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
       expect(res.message).toBe("Error generating recovery link");
     });
 
@@ -474,7 +474,7 @@ describe("UsersUseCases - Unit Tests", () => {
         adminId: "admin-999",
       });
       const res = await useCases.generateRecoveryLink(req);
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("User ID and Admin ID are required.");
     });
   });
@@ -561,14 +561,14 @@ describe("UsersUseCases - Unit Tests", () => {
         const reg = new UserRegistration("", "", "", "");
         const req = new RequestModel<UserRegistration>("tx-1", reg);
         const res = await useCases.signUp(req);
-        expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+        expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       });
 
       test("should fail if password does not match confirmation", async () => {
         const reg = new UserRegistration("Name", "test@e.com", "Password123!", "OtherPass!");
         const req = new RequestModel<UserRegistration>("tx-1", reg);
         const res = await useCases.signUp(req);
-        expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+        expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
         expect(res.message).toBe("Password and password confirmation do not match.");
       });
 
@@ -576,7 +576,7 @@ describe("UsersUseCases - Unit Tests", () => {
         const reg = new UserRegistration("Name", "test@e.com", "simple", "simple");
         const req = new RequestModel<UserRegistration>("tx-1", reg);
         const res = await useCases.signUp(req);
-        expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+        expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       });
 
       test("should signup successfully if inputs are valid", async () => {
@@ -650,14 +650,14 @@ describe("UsersUseCases - Unit Tests", () => {
       test("should fail if request data is missing", async () => {
         const req = new RequestModel<PasswordUpdate>("tx-1", undefined);
         const res = await useCases.updatePassword(req);
-        expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+        expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       });
 
       test("should fail if required fields are missing", async () => {
         const update = PasswordUpdate.builder().setId("1").setCurrentPassword("").build();
         const req = new RequestModel<PasswordUpdate>("tx-1", update);
         const res = await useCases.updatePassword(req);
-        expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+        expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       });
 
       test("should fail if new password does not match confirmation", async () => {
@@ -669,7 +669,7 @@ describe("UsersUseCases - Unit Tests", () => {
           .build();
         const req = new RequestModel<PasswordUpdate>("tx-1", update);
         const res = await useCases.updatePassword(req);
-        expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+        expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       });
 
       test("should fail if new password fails regexp check", async () => {
@@ -681,7 +681,7 @@ describe("UsersUseCases - Unit Tests", () => {
           .build();
         const req = new RequestModel<PasswordUpdate>("tx-1", update);
         const res = await useCases.updatePassword(req);
-        expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+        expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       });
 
       test("should update successfully with valid input", async () => {

@@ -29,7 +29,7 @@ export class CountriesRepositoryImpl extends BaseRepository implements ICountrie
       logger.err("Error in getCountries:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -45,7 +45,7 @@ export class CountriesRepositoryImpl extends BaseRepository implements ICountrie
       logger.err("Error in getUserCountryCode:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -67,7 +67,7 @@ export class CountriesRepositoryImpl extends BaseRepository implements ICountrie
         logger.err("Error in getIpCountryCode:");
         logger.err(request);
         logger.err(err);
-        response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+        response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
       });
 
     return response;

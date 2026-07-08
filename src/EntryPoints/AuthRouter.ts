@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import EnvVars from "@src/common/EnvVars";
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
@@ -25,7 +24,7 @@ import {
 import { CookieOptions, Request, Response, Router } from "express";
 import { OAuth2Client } from "google-auth-library";
 import logger from "jet-logger";
-import { UserRepositoryInstance } from "@src/DataProviders/User/UserRepository";
+import { UserRepositoryInstance } from "@src/CompositionRoot";
 import { MailServiceInstance } from "@src/Infrastructure/Mail/MailService";
 import { RoleRepositoryInstance } from "@src/DataProviders/Role/RoleRepository";
 import { mapDomainErrorToHttpStatus } from "./errorMapper";
@@ -44,7 +43,7 @@ const usersUseCases = new UsersUseCases(
   },
 );
 
-const HOME_URL = new URL(EnvVars.Auth.APP.HOME_REDIRECT_URI!);
+const HOME_URL = new URL(EnvVars.Auth.APP.HOME_REDIRECT_URI || "http://localhost:3000");
 const HOME_URL_HOST_REGEX = new RegExp(`^${HOME_URL.hostname}$`);
 
 const isExternalDomain = (host?: string): boolean => !!host && !HOME_URL_HOST_REGEX.test(host);
@@ -140,7 +139,7 @@ authRouter.get("/session-info", async (req: Request, res) => {
 
       return res.status(200).json(
         response.withResponse({
-          user: sessionInfoToSessionUser(user)!,
+          user: sessionInfoToSessionUser(user) as SessionUser,
           redirect: redirect?.toString?.(),
         }),
       );
@@ -201,7 +200,7 @@ authRouter.get("/session-info", async (req: Request, res) => {
     const { id, name, user: userName, email, roles, permissions } = refreshedUser.data;
 
     const sessionUser: SessionUser = {
-      id: id!,
+      id: id || "",
       name,
       email,
       user: userName,
@@ -221,7 +220,7 @@ authRouter.get("/session-info", async (req: Request, res) => {
           user: sessionUser,
           authToken:
             isExternalDomain(user.aud) &&
-            isExternalDomain(getUrl(response.transactionId!, req.headers.origin)?.hostname)
+            isExternalDomain(getUrl(response.transactionId || "", req.headers.origin)?.hostname)
               ? token
               : undefined,
           redirect: redirect?.toString?.(),
@@ -266,10 +265,14 @@ authRouter.post("/sign-in", async (req, res) => {
         .json(singInResponse);
     }
 
-    const { id, name, user: username, roles, permissions } = singInResponse.data!;
+    if (!singInResponse.data) {
+      return res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(singInResponse);
+    }
+
+    const { id, name, user: username, roles, permissions } = singInResponse.data;
 
     const sessionUser: SessionUser = {
-      id: id!,
+      id: id || "",
       name,
       email,
       user: username,
@@ -323,7 +326,7 @@ authRouter.post("/sign-up", async (req, res) => {
     const request = new RequestModel<UserRegistration>(transactionId, registration);
     const response = await usersUseCases.signUp(request);
 
-    if (DomainErrorCodes.CONFLICT === response.errorCode) {
+    if (DomainErrorCodes.DUPLICATE_ENTITY === response.errorCode) {
       return res.status(HttpStatusCodes.OK).json(successfulResponse);
     }
 
@@ -374,7 +377,11 @@ const validateGoogleCode = async (token: string): Promise<User | undefined> => {
     const name = payload.name;
     const email = payload.email;
 
-    const user: User = User.builder().setUser(name!).setName(name!).setEmail(email!).build();
+    const user: User = User.builder()
+      .setUser(name || "")
+      .setName(name || "")
+      .setEmail(email || "")
+      .build();
 
     return user;
   } catch (err) {
@@ -399,10 +406,14 @@ authRouter.post("/google/callback", async (req, res) => {
       );
     }
 
-    const { id, name, user: username, email, roles, permissions } = response.data! || {};
+    if (!response.data) {
+      return res.redirect(302, `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?errorMessage=Login failed`);
+    }
+
+    const { id, name, user: username, email, roles, permissions } = response.data;
 
     const sessionUser: SessionUser = {
-      id: id!,
+      id: id || "",
       name,
       email,
       user: username,
@@ -439,7 +450,7 @@ authRouter.get("/my-account", hasPermissions(["my-account::query"]), async (req,
     logger.err(error as Error, true);
     const response = new ResponseModel(
       transactionId,
-      DomainErrorCodes.INTERNAL_ERROR,
+      DomainErrorCodes.SYSTEM_ERROR,
       "Internal Server Error",
     );
     res.status(500).json(response);
@@ -473,7 +484,7 @@ authRouter.put(
       logger.err(error as Error, true);
       const response = new ResponseModel(
         transactionId,
-        DomainErrorCodes.INTERNAL_ERROR,
+        DomainErrorCodes.SYSTEM_ERROR,
         "Internal Server Error",
       );
       res.status(500).json(response);
@@ -506,7 +517,7 @@ authRouter.put("/password-update", hasPermissions(["my-account::update"]), async
     logger.err(error as Error, true);
     const response = new ResponseModel(
       transactionId,
-      DomainErrorCodes.INTERNAL_ERROR,
+      DomainErrorCodes.SYSTEM_ERROR,
       "Internal Server Error",
     );
     res.status(500).json(response);
@@ -528,10 +539,14 @@ authRouter.post("/guest/sign-in", async (req, res) => {
         .json(guestResponse);
     }
 
-    const { id, name, user, email, roles, permissions } = guestResponse.data!;
+    if (!guestResponse.data) {
+      return res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(guestResponse);
+    }
+
+    const { id, name, user, email, roles, permissions } = guestResponse.data;
 
     const sessionUser: SessionUser = {
-      id: id!,
+      id: id || "",
       name,
       email,
       user,
@@ -549,7 +564,7 @@ authRouter.post("/guest/sign-in", async (req, res) => {
     setRedirectAuthToken(redirect, token);
 
     response.data = {
-      id: id!,
+      id: id || "",
       redirect: redirect ? redirect.toString() : `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`,
     };
 

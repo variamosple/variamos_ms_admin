@@ -1,18 +1,21 @@
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
 
-export function mapDomainErrorToHttpStatus(errorCode?: string | number | null): number {
-  if (!errorCode) return HttpStatusCodes.OK;
+export function mapDomainErrorToHttpStatus(
+  errorCode?: string | number | null,
+  defaultSuccessCode = HttpStatusCodes.OK,
+): number {
+  if (!errorCode) return defaultSuccessCode;
   switch (errorCode) {
-    case DomainErrorCodes.BAD_REQUEST:
+    case DomainErrorCodes.INVALID_INPUT:
       return HttpStatusCodes.BAD_REQUEST;
-    case DomainErrorCodes.NOT_FOUND:
+    case DomainErrorCodes.ENTITY_NOT_FOUND:
       return HttpStatusCodes.NOT_FOUND;
-    case DomainErrorCodes.UNAUTHORIZED:
+    case DomainErrorCodes.UNAUTHORIZED_ACCESS:
       return HttpStatusCodes.UNAUTHORIZED;
-    case DomainErrorCodes.INTERNAL_ERROR:
+    case DomainErrorCodes.SYSTEM_ERROR:
       return HttpStatusCodes.INTERNAL_SERVER_ERROR;
-    case DomainErrorCodes.CONFLICT:
+    case DomainErrorCodes.DUPLICATE_ENTITY:
       return HttpStatusCodes.CONFLICT;
     default:
       if (typeof errorCode === "number") return errorCode;

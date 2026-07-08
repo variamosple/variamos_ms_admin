@@ -108,7 +108,7 @@ describe("BugRouter HTTP Integration Tests", () => {
     it("should map domain error codes to correct HTTP error codes", async () => {
       mockQueryBugs.mockResolvedValue(
         new ResponseModel("tx-id").withError(
-          DomainErrorCodes.BAD_REQUEST,
+          DomainErrorCodes.INVALID_INPUT,
           "Invalid repository format",
         ),
       );
@@ -153,7 +153,10 @@ describe("BugRouter HTTP Integration Tests", () => {
 
     it("should return 404 if bug is not found", async () => {
       mockRejectBug.mockResolvedValue(
-        new ResponseModel("tx-id").withError(DomainErrorCodes.NOT_FOUND, "Local bug not found."),
+        new ResponseModel("tx-id").withError(
+          DomainErrorCodes.ENTITY_NOT_FOUND,
+          "Local bug not found.",
+        ),
       );
 
       const res = await request(app).post("/bugs/missing/reject").send();
@@ -361,7 +364,7 @@ describe("BugRouter HTTP Integration Tests", () => {
 
     it("should map defined domain error string to correct status code", async () => {
       mockQueryBugs.mockResolvedValue(
-        new ResponseModel("tx-id").withError(DomainErrorCodes.UNAUTHORIZED, "Unauthorized"),
+        new ResponseModel("tx-id").withError(DomainErrorCodes.UNAUTHORIZED_ACCESS, "Unauthorized"),
       );
       const res = await request(app).get("/bugs");
       expect(res.status).toBe(401);
@@ -416,7 +419,7 @@ describe("BugRouter HTTP Integration Tests", () => {
     it("should return error if token is missing", async () => {
       mockSyncBugs.mockResolvedValue(
         new ResponseModel("tx-id").withError(
-          DomainErrorCodes.BAD_REQUEST,
+          DomainErrorCodes.INVALID_INPUT,
           "GitHub Sync is not configured.",
         ),
       );

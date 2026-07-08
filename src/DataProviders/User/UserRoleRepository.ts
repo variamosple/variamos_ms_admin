@@ -66,7 +66,7 @@ export class UserRoleRepositoryImpl extends BaseRepository implements IUserRoleR
       logger.err("Error in queryUserRoles:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -114,7 +114,7 @@ export class UserRoleRepositoryImpl extends BaseRepository implements IUserRoleR
       logger.err("Error in queryUserRolesDetails:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -126,13 +126,16 @@ export class UserRoleRepositoryImpl extends BaseRepository implements IUserRoleR
     try {
       const { data } = request;
       if (!data) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "UserRole data is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "UserRole data is required.");
       }
 
       const userId = data.userId;
       const roleId = data.roleId;
       if (!userId || !roleId) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "userId and roleId are required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "userId and roleId are required.",
+        );
       }
 
       const foundUserRole = await UserRoleModel.findOne({
@@ -157,7 +160,7 @@ export class UserRoleRepositoryImpl extends BaseRepository implements IUserRoleR
       logger.err("Error in createUserRole:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -169,13 +172,16 @@ export class UserRoleRepositoryImpl extends BaseRepository implements IUserRoleR
     try {
       const { data } = request;
       if (!data) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "UserRole data is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "UserRole data is required.");
       }
 
       const userId = data.userId;
       const roleId = data.roleId;
       if (!userId || !roleId) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "userId and roleId are required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "userId and roleId are required.",
+        );
       }
 
       await UserRoleModel.destroy({
@@ -186,7 +192,7 @@ export class UserRoleRepositoryImpl extends BaseRepository implements IUserRoleR
       logger.err("Error in deleteUserRole:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;

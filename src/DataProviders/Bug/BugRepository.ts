@@ -120,7 +120,7 @@ export class BugRepositoryImpl implements IBugRepository {
     } catch (error) {
       const err = error as Error;
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, err.message);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, err.message);
     }
     return response;
   }
@@ -191,7 +191,7 @@ export class BugRepositoryImpl implements IBugRepository {
     } catch (error) {
       const err = error as Error;
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, err.message);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, err.message);
     }
     return response;
   }
@@ -201,7 +201,7 @@ export class BugRepositoryImpl implements IBugRepository {
     try {
       const id = request.data;
       if (!id) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Bug ID is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Bug ID is required.");
       }
       const dbBug = await BugModel.findByPk(id, {
         include: [
@@ -242,7 +242,7 @@ export class BugRepositoryImpl implements IBugRepository {
     } catch (error) {
       const err = error as Error;
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, err.message);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, err.message);
     }
     return response;
   }
@@ -256,7 +256,7 @@ export class BugRepositoryImpl implements IBugRepository {
     try {
       const bug = request.data;
       if (!bug) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Bug data is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Bug data is required.");
       }
       const dbBug = await BugModel.findOne({
         where: {
@@ -329,7 +329,7 @@ export class BugRepositoryImpl implements IBugRepository {
     } catch (error) {
       const err = error as Error;
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, err.message);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, err.message);
     }
     return response;
   }
@@ -341,14 +341,14 @@ export class BugRepositoryImpl implements IBugRepository {
     try {
       const data = request.data;
       if (!data) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Request data is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Request data is required.");
       }
       const { id, adminId, logComment } = data;
       await VARIAMOS_ORM.transaction(async (t) => {
         const dbBug = await BugModel.findByPk(id, { transaction: t });
 
         if (!dbBug) {
-          response.withError(DomainErrorCodes.NOT_FOUND, "Local bug not found");
+          response.withError(DomainErrorCodes.ENTITY_NOT_FOUND, "Local bug not found");
           return;
         }
 
@@ -372,7 +372,7 @@ export class BugRepositoryImpl implements IBugRepository {
     } catch (error) {
       const err = error as Error;
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, err.message);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, err.message);
     }
     return response;
   }
@@ -384,14 +384,14 @@ export class BugRepositoryImpl implements IBugRepository {
     try {
       const data = request.data;
       if (!data) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Request data is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Request data is required.");
       }
       const { id, adminId, logComment } = data;
       await VARIAMOS_ORM.transaction(async (t) => {
         const dbBug = await BugModel.findByPk(id, { transaction: t });
 
         if (!dbBug) {
-          response.withError(DomainErrorCodes.NOT_FOUND, "Local bug not found");
+          response.withError(DomainErrorCodes.ENTITY_NOT_FOUND, "Local bug not found");
           return;
         }
 
@@ -415,7 +415,7 @@ export class BugRepositoryImpl implements IBugRepository {
     } catch (error) {
       const err = error as Error;
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, err.message);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, err.message);
     }
     return response;
   }
@@ -425,7 +425,7 @@ export class BugRepositoryImpl implements IBugRepository {
     try {
       const thresholdDate = request.data;
       if (!thresholdDate) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Threshold date is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Threshold date is required.");
       }
       const dbBugs = await BugModel.findAll({
         where: {
@@ -456,7 +456,7 @@ export class BugRepositoryImpl implements IBugRepository {
     } catch (error) {
       const err = error as Error;
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, err.message);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, err.message);
     }
     return response;
   }
@@ -468,14 +468,14 @@ export class BugRepositoryImpl implements IBugRepository {
     try {
       const data = request.data;
       if (!data) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Request data is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Request data is required.");
       }
       const { id, filePath } = data;
       await BugAttachmentModel.update({ filePath }, { where: { id } });
     } catch (error) {
       const err = error as Error;
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, err.message);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, err.message);
     }
     return response;
   }
@@ -492,7 +492,7 @@ export class BugRepositoryImpl implements IBugRepository {
     try {
       const data = request.data;
       if (!data) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Log data is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Log data is required.");
       }
       const { action, comment, bugId, operatorId } = data;
       await BugLogModel.create({
@@ -504,7 +504,7 @@ export class BugRepositoryImpl implements IBugRepository {
     } catch (error) {
       const err = error as Error;
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, err.message);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, err.message);
     }
     return response;
   }
@@ -529,7 +529,7 @@ export class BugRepositoryImpl implements IBugRepository {
     try {
       const data = request.data;
       if (!data) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Request data is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Request data is required.");
       }
       const {
         title,
@@ -623,7 +623,7 @@ export class BugRepositoryImpl implements IBugRepository {
     } catch (error) {
       const err = error as Error;
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, err.message);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, err.message);
     }
     return response;
   }
@@ -633,7 +633,7 @@ export class BugRepositoryImpl implements IBugRepository {
     try {
       const bugId = request.data;
       if (!bugId) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Bug ID is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Bug ID is required.");
       }
       const logs = await BugLogModel.findAll({
         where: { bugId },
@@ -662,7 +662,7 @@ export class BugRepositoryImpl implements IBugRepository {
     } catch (error) {
       const err = error as Error;
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, err.message);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, err.message);
     }
     return response;
   }
@@ -686,7 +686,7 @@ export class BugRepositoryImpl implements IBugRepository {
     try {
       const data = request.data;
       if (!data) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Request data is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Request data is required.");
       }
       const {
         id,
@@ -704,7 +704,7 @@ export class BugRepositoryImpl implements IBugRepository {
       await VARIAMOS_ORM.transaction(async (t) => {
         const dbBug = await BugModel.findByPk(id, { transaction: t });
         if (!dbBug) {
-          response.withError(DomainErrorCodes.NOT_FOUND, "Bug not found");
+          response.withError(DomainErrorCodes.ENTITY_NOT_FOUND, "Bug not found");
           return;
         }
 
@@ -749,7 +749,7 @@ export class BugRepositoryImpl implements IBugRepository {
     } catch (error) {
       const err = error as Error;
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, err.message);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, err.message);
     }
     return response;
   }
@@ -765,7 +765,7 @@ export class BugRepositoryImpl implements IBugRepository {
     try {
       const data = request.data;
       if (!data) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Attachment data is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Attachment data is required.");
       }
       const { filePath, fileType, bugId } = data;
       const attachment = await BugAttachmentModel.create({
@@ -782,7 +782,7 @@ export class BugRepositoryImpl implements IBugRepository {
     } catch (error) {
       const err = error as Error;
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, err.message);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, err.message);
     }
     return response;
   }
@@ -792,13 +792,13 @@ export class BugRepositoryImpl implements IBugRepository {
     try {
       const id = request.data;
       if (!id) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Attachment ID is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Attachment ID is required.");
       }
       await BugAttachmentModel.destroy({ where: { id } });
     } catch (error) {
       const err = error as Error;
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, err.message);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, err.message);
     }
     return response;
   }
@@ -810,7 +810,7 @@ export class BugRepositoryImpl implements IBugRepository {
     try {
       const id = request.data;
       if (!id) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Attachment ID is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Attachment ID is required.");
       }
       const attachment = await BugAttachmentModel.findByPk(id);
       response.data = attachment
@@ -824,7 +824,7 @@ export class BugRepositoryImpl implements IBugRepository {
     } catch (error) {
       const err = error as Error;
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, err.message);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, err.message);
     }
     return response;
   }
@@ -845,7 +845,7 @@ export class BugRepositoryImpl implements IBugRepository {
     try {
       const data = request.data;
       if (!data) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Note data is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Note data is required.");
       }
       const { bugId, body, authorId } = data;
 
@@ -875,7 +875,7 @@ export class BugRepositoryImpl implements IBugRepository {
     } catch (error) {
       const err = error as Error;
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, err.message);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, err.message);
     }
     return response;
   }
@@ -885,7 +885,7 @@ export class BugRepositoryImpl implements IBugRepository {
     try {
       const bugId = request.data;
       if (!bugId) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Bug ID is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Bug ID is required.");
       }
       const dbNotes = await BugNoteModel.findAll({
         where: { bugId },
@@ -907,7 +907,7 @@ export class BugRepositoryImpl implements IBugRepository {
     } catch (error) {
       const err = error as Error;
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, err.message);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, err.message);
     }
     return response;
   }

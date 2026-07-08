@@ -36,7 +36,7 @@ permissionsV1Router.get("/", hasPermissions(["permissions::query"]), async (req,
     logger.err(error);
     const response = new ResponseModel(
       transactionId,
-      DomainErrorCodes.INTERNAL_ERROR,
+      DomainErrorCodes.SYSTEM_ERROR,
       "Internal Server Error",
     );
     res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
@@ -52,7 +52,7 @@ permissionsV1Router.post("/", hasPermissions(["permissions::create"]), async (re
         .status(HttpStatusCodes.BAD_REQUEST)
         .json(
           new ResponseModel<void>(transactionId).withError(
-            DomainErrorCodes.BAD_REQUEST,
+            DomainErrorCodes.INVALID_INPUT,
             "name is required.",
           ),
         );
@@ -71,7 +71,7 @@ permissionsV1Router.post("/", hasPermissions(["permissions::create"]), async (re
     logger.err(error);
     const response = new ResponseModel(
       transactionId,
-      DomainErrorCodes.INTERNAL_ERROR,
+      DomainErrorCodes.SYSTEM_ERROR,
       "Internal Server Error",
     );
     res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
@@ -90,7 +90,7 @@ permissionsV1Router.delete(
           .status(HttpStatusCodes.BAD_REQUEST)
           .json(
             new ResponseModel<void>(transactionId).withError(
-              DomainErrorCodes.BAD_REQUEST,
+              DomainErrorCodes.INVALID_INPUT,
               "permissionId is required.",
             ),
           );
@@ -107,7 +107,7 @@ permissionsV1Router.delete(
       logger.err(error);
       const response = new ResponseModel(
         transactionId,
-        DomainErrorCodes.INTERNAL_ERROR,
+        DomainErrorCodes.SYSTEM_ERROR,
         "Internal Server Error",
       );
       res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
@@ -128,7 +128,7 @@ permissionsV1Router.get(
           .status(HttpStatusCodes.BAD_REQUEST)
           .json(
             new ResponseModel<void>(transactionId).withError(
-              DomainErrorCodes.BAD_REQUEST,
+              DomainErrorCodes.INVALID_INPUT,
               "permissionId is required.",
             ),
           );
@@ -145,7 +145,7 @@ permissionsV1Router.get(
       logger.err(error);
       const response = new ResponseModel(
         transactionId,
-        DomainErrorCodes.INTERNAL_ERROR,
+        DomainErrorCodes.SYSTEM_ERROR,
         "Internal Server Error",
       );
       res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
@@ -166,7 +166,7 @@ permissionsV1Router.put(
           .status(HttpStatusCodes.BAD_REQUEST)
           .json(
             new ResponseModel<void>(transactionId).withError(
-              DomainErrorCodes.BAD_REQUEST,
+              DomainErrorCodes.INVALID_INPUT,
               "permissionId is required.",
             ),
           );
@@ -177,7 +177,7 @@ permissionsV1Router.put(
           .status(HttpStatusCodes.BAD_REQUEST)
           .json(
             new ResponseModel<void>(transactionId).withError(
-              DomainErrorCodes.BAD_REQUEST,
+              DomainErrorCodes.INVALID_INPUT,
               "name is required.",
             ),
           );
@@ -196,7 +196,7 @@ permissionsV1Router.put(
       logger.err(error);
       const response = new ResponseModel(
         transactionId,
-        DomainErrorCodes.INTERNAL_ERROR,
+        DomainErrorCodes.SYSTEM_ERROR,
         "Internal Server Error",
       );
       res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);

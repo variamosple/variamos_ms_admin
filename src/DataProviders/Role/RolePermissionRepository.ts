@@ -64,7 +64,7 @@ export class RolePermissionRepositoryImpl
       logger.err("Error in queryRolePermissions:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -79,7 +79,10 @@ export class RolePermissionRepositoryImpl
       const { data } = request;
 
       if (!data) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "RolePermission data is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "RolePermission data is required.",
+        );
       }
 
       const roleId = data.roleId;
@@ -87,7 +90,7 @@ export class RolePermissionRepositoryImpl
 
       if (!roleId || !permissionId) {
         return response.withError(
-          DomainErrorCodes.BAD_REQUEST,
+          DomainErrorCodes.INVALID_INPUT,
           "roleId and permissionId are required.",
         );
       }
@@ -117,7 +120,7 @@ export class RolePermissionRepositoryImpl
       logger.err("Error in createRolePermission:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -132,7 +135,10 @@ export class RolePermissionRepositoryImpl
       const { data } = request;
 
       if (!data) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "RolePermission data is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "RolePermission data is required.",
+        );
       }
 
       const roleId = data.roleId;
@@ -140,7 +146,7 @@ export class RolePermissionRepositoryImpl
 
       if (!roleId || !permissionId) {
         return response.withError(
-          DomainErrorCodes.BAD_REQUEST,
+          DomainErrorCodes.INVALID_INPUT,
           "roleId and permissionId are required.",
         );
       }
@@ -153,7 +159,7 @@ export class RolePermissionRepositoryImpl
       logger.err("Error in deleteRolePermission:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;

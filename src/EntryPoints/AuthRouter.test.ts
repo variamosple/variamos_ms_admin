@@ -682,7 +682,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("should return 200 with signup successful message even on conflict (already exists)", async () => {
       const expectedResponse = new ResponseModel("signUp").withError(
-        DomainErrorCodes.CONFLICT,
+        DomainErrorCodes.DUPLICATE_ENTITY,
         "User already exists",
       );
       (UsersUseCases.prototype.signUp as jest.Mock).mockResolvedValue(expectedResponse);
@@ -896,7 +896,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("should return 400 if validation or password parameters are invalid", async () => {
       const expectedResponse = new ResponseModel("passwordUpdate").withError(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "Invalid password",
       );
       (UsersUseCases.prototype.updatePassword as jest.Mock).mockResolvedValue(expectedResponse);

@@ -2,17 +2,17 @@ module.exports = {
   forbidden: [
     {
       name: 'domain-is-pure',
-      comment: 'The Domain folder must not depend on any external layers (Infrastructure, DataProviders, EntryPoints, or common/EnvVars).',
+      comment: 'The Domain folder must not depend on any external layers (Infrastructure, DataProviders, EntryPoints, or common).',
       severity: 'error',
       from: { path: '^src/Domain' },
-      to: { path: '^src/Infrastructure|^src/DataProviders|^src/EntryPoints|^src/common/EnvVars\\.ts$' }
+      to: { path: '^src/Infrastructure|^src/DataProviders|^src/EntryPoints|^src/common' }
     },
     {
-      name: 'usecases-do-not-import-http-directly',
-      comment: 'Use Cases must not import infrastructure HTTP codes.',
+      name: 'dataproviders-do-not-import-common',
+      comment: 'Data Providers must not import infrastructure utilities from common.',
       severity: 'error',
-      from: { path: '^src/Domain/.*UseCases\\.ts$' },
-      to: { path: '^src/common/HttpStatusCodes\\.ts$' }
+      from: { path: '^src/DataProviders' },
+      to: { path: '^src/common' }
     },
     {
       name: 'no-circular-dependencies',

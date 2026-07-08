@@ -28,7 +28,7 @@ metricsV1Router.get("/", hasPermissions(["metrics::query"]), async (_, res) => {
     logger.err(error);
     const response = new ResponseModel(
       transactionId,
-      DomainErrorCodes.INTERNAL_ERROR,
+      DomainErrorCodes.SYSTEM_ERROR,
       "Internal Server Error",
     );
     res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
@@ -57,7 +57,7 @@ metricsV1Router.get("/:metricId", hasPermissions(["metrics::query"]), async (req
     logger.err(error);
     const response = new ResponseModel(
       transactionId,
-      DomainErrorCodes.INTERNAL_ERROR,
+      DomainErrorCodes.SYSTEM_ERROR,
       "Internal Server Error",
     );
     res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);

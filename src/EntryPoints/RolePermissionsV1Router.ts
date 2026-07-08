@@ -25,7 +25,7 @@ rolePermissionsV1Router.get("/", hasPermissions(["roles::query"]), async (req, r
         .status(HttpStatusCodes.BAD_REQUEST)
         .json(
           new ResponseModel<void>(transactionId).withError(
-            DomainErrorCodes.BAD_REQUEST,
+            DomainErrorCodes.INVALID_INPUT,
             "roleId is required.",
           ),
         );
@@ -48,7 +48,7 @@ rolePermissionsV1Router.get("/", hasPermissions(["roles::query"]), async (req, r
     logger.err(error);
     const response = new ResponseModel(
       transactionId,
-      DomainErrorCodes.INTERNAL_ERROR,
+      DomainErrorCodes.SYSTEM_ERROR,
       "Internal Server Error",
     );
     res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
@@ -65,7 +65,7 @@ rolePermissionsV1Router.post("/", hasPermissions(["roles::update"]), async (req,
         .status(HttpStatusCodes.BAD_REQUEST)
         .json(
           new ResponseModel<void>(transactionId).withError(
-            DomainErrorCodes.BAD_REQUEST,
+            DomainErrorCodes.INVALID_INPUT,
             "roleId and permissionId are required.",
           ),
         );
@@ -89,7 +89,7 @@ rolePermissionsV1Router.post("/", hasPermissions(["roles::update"]), async (req,
     logger.err(error);
     const response = new ResponseModel(
       transactionId,
-      DomainErrorCodes.INTERNAL_ERROR,
+      DomainErrorCodes.SYSTEM_ERROR,
       "Internal Server Error",
     );
     res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
@@ -108,7 +108,7 @@ rolePermissionsV1Router.delete(
           .status(HttpStatusCodes.BAD_REQUEST)
           .json(
             new ResponseModel<void>(transactionId).withError(
-              DomainErrorCodes.BAD_REQUEST,
+              DomainErrorCodes.INVALID_INPUT,
               "roleId and permissionId are required.",
             ),
           );
@@ -130,7 +130,7 @@ rolePermissionsV1Router.delete(
       logger.err(error);
       const response = new ResponseModel(
         transactionId,
-        DomainErrorCodes.INTERNAL_ERROR,
+        DomainErrorCodes.SYSTEM_ERROR,
         "Internal Server Error",
       );
       res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);

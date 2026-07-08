@@ -50,7 +50,7 @@ describe("MetricsUseCases - Unit Tests", () => {
 
       const res = await useCases.queryMetric(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("id is required.");
       expect(mockMetricsRepository.queryMetric).not.toHaveBeenCalled();
     });
@@ -61,7 +61,7 @@ describe("MetricsUseCases - Unit Tests", () => {
 
       const res = await useCases.queryMetric(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("startDate and endDate are required.");
     });
 
@@ -71,7 +71,7 @@ describe("MetricsUseCases - Unit Tests", () => {
 
       const res = await useCases.queryMetric(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("startDate and endDate are required.");
     });
 
@@ -85,7 +85,7 @@ describe("MetricsUseCases - Unit Tests", () => {
 
       const res = await useCases.queryMetric(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("startDate must be less than endDate.");
     });
 
@@ -99,7 +99,7 @@ describe("MetricsUseCases - Unit Tests", () => {
 
       const res = await useCases.queryMetric(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe(
         "The difference between startDate and endDate must not be greater than 2 years.",
       );

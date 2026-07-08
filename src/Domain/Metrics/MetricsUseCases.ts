@@ -17,10 +17,10 @@ export class MetricsUseCases {
     const data = request.data;
 
     if (!data?.getId()) {
-      return defaultResponse.withErrorPromise(DomainErrorCodes.BAD_REQUEST, "id is required.");
+      return defaultResponse.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "id is required.");
     } else if (!data.getStartDate() || !data.getEndDate()) {
       return defaultResponse.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "startDate and endDate are required.",
       );
     }
@@ -30,7 +30,7 @@ export class MetricsUseCases {
 
     if (startDate > endDate) {
       return defaultResponse.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "startDate must be less than endDate.",
       );
     }
@@ -40,7 +40,7 @@ export class MetricsUseCases {
 
     if (diff > twoYearsInMs) {
       return defaultResponse.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "The difference between startDate and endDate must not be greater than 2 years.",
       );
     }

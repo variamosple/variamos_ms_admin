@@ -9,14 +9,16 @@ describe("errorMapper Unit Tests", () => {
   });
 
   it("should map known DomainErrorCodes to correct HttpStatusCodes", () => {
-    expect(mapDomainErrorToHttpStatus(DomainErrorCodes.BAD_REQUEST)).toBe(
+    expect(mapDomainErrorToHttpStatus(DomainErrorCodes.INVALID_INPUT)).toBe(
       HttpStatusCodes.BAD_REQUEST,
     );
-    expect(mapDomainErrorToHttpStatus(DomainErrorCodes.NOT_FOUND)).toBe(HttpStatusCodes.NOT_FOUND);
-    expect(mapDomainErrorToHttpStatus(DomainErrorCodes.UNAUTHORIZED)).toBe(
+    expect(mapDomainErrorToHttpStatus(DomainErrorCodes.ENTITY_NOT_FOUND)).toBe(
+      HttpStatusCodes.NOT_FOUND,
+    );
+    expect(mapDomainErrorToHttpStatus(DomainErrorCodes.UNAUTHORIZED_ACCESS)).toBe(
       HttpStatusCodes.UNAUTHORIZED,
     );
-    expect(mapDomainErrorToHttpStatus(DomainErrorCodes.INTERNAL_ERROR)).toBe(
+    expect(mapDomainErrorToHttpStatus(DomainErrorCodes.SYSTEM_ERROR)).toBe(
       HttpStatusCodes.INTERNAL_SERVER_ERROR,
     );
   });

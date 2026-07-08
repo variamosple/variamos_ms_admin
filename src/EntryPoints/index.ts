@@ -15,7 +15,7 @@ import { BugUseCases } from "@src/Domain/Bug/BugUseCases";
 import { GitHubIssuesServiceInstance } from "@src/Infrastructure/GitHub/GitHubIssuesService";
 import { DiskStorageServiceInstance } from "@src/Infrastructure/Storage/DiskStorageService";
 import { BugRepositoryInstance } from "@src/DataProviders/Bug/BugRepository";
-import { UserRepositoryInstance } from "@src/DataProviders/User/UserRepository";
+import { UserRepositoryInstance } from "@src/CompositionRoot";
 import multer from "multer";
 import path from "path";
 import fs from "fs";

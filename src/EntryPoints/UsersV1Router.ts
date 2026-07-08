@@ -8,7 +8,7 @@ import { Router } from "express";
 import logger from "jet-logger";
 import userRolesV1Router, { USER_ROLES_V1_ROUTE } from "./UserRolesV1Router";
 import EnvVars from "@src/common/EnvVars";
-import { UserRepositoryInstance } from "@src/DataProviders/User/UserRepository";
+import { UserRepositoryInstance } from "@src/CompositionRoot";
 import { MailServiceInstance } from "@src/Infrastructure/Mail/MailService";
 import { RoleRepositoryInstance } from "@src/DataProviders/Role/RoleRepository";
 import { mapDomainErrorToHttpStatus } from "./errorMapper";
@@ -47,7 +47,7 @@ usersV1Router.get("/", hasPermissions(["users::query"]), async (req, res) => {
     logger.err(error as Error);
     const response = new ResponseModel(
       transactionId,
-      DomainErrorCodes.INTERNAL_ERROR,
+      DomainErrorCodes.SYSTEM_ERROR,
       "Internal Server Error",
     );
     res.status(500).json(response);
@@ -68,7 +68,7 @@ usersV1Router.get("/:userId", hasPermissions(["users::query"]), async (req, res)
     logger.err(error as Error);
     const response = new ResponseModel(
       transactionId,
-      DomainErrorCodes.INTERNAL_ERROR,
+      DomainErrorCodes.SYSTEM_ERROR,
       "Internal Server Error",
     );
     res.status(500).json(response);
@@ -96,7 +96,7 @@ usersV1Router.post(
       logger.err(error as Error);
       const response = new ResponseModel(
         transactionId,
-        DomainErrorCodes.INTERNAL_ERROR,
+        DomainErrorCodes.SYSTEM_ERROR,
         "Internal Server Error",
       );
       res.status(500).json(response);
@@ -118,7 +118,7 @@ usersV1Router.put("/:userId/disable", hasPermissions(["users::update"]), async (
     logger.err(error as Error);
     const response = new ResponseModel(
       transactionId,
-      DomainErrorCodes.INTERNAL_ERROR,
+      DomainErrorCodes.SYSTEM_ERROR,
       "Internal Server Error",
     );
     res.status(500).json(response);
@@ -139,7 +139,7 @@ usersV1Router.put("/:userId/enable", hasPermissions(["users::update"]), async (r
     logger.err(error as Error);
     const response = new ResponseModel(
       transactionId,
-      DomainErrorCodes.INTERNAL_ERROR,
+      DomainErrorCodes.SYSTEM_ERROR,
       "Internal Server Error",
     );
     res.status(500).json(response);
@@ -160,7 +160,7 @@ usersV1Router.delete("/:userId", hasPermissions(["users::delete"]), async (req, 
     logger.err(error as Error);
     const response = new ResponseModel(
       transactionId,
-      DomainErrorCodes.INTERNAL_ERROR,
+      DomainErrorCodes.SYSTEM_ERROR,
       "Internal Server Error",
     );
     res.status(500).json(response);

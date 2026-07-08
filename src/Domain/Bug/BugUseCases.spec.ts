@@ -267,7 +267,7 @@ describe("BugUseCases Unit Tests", () => {
       }
       const request = new RequestModel("tx-1", data as any);
       const response = await bugUseCases.createBug(request);
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain(expectedError);
     });
 
@@ -444,7 +444,7 @@ describe("BugUseCases Unit Tests", () => {
       const request = new RequestModel("tx-1", bugData);
       const response = await bugUseCases.createBug(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain("Failed to push bug to GitHub repository");
     });
 
@@ -475,7 +475,7 @@ describe("BugUseCases Unit Tests", () => {
       const request = new RequestModel("tx-1", bugData);
       const response = await noTokenBugUseCases.createBug(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain("GitHub integration token is not configured");
     });
 
@@ -490,7 +490,7 @@ describe("BugUseCases Unit Tests", () => {
       const request = new RequestModel("tx-1", bugData);
       const response = await bugUseCases.createBug(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain("An email address is required for guest bug submissions.");
     });
   });
@@ -666,7 +666,7 @@ describe("BugUseCases Unit Tests", () => {
       const request = new RequestModel("tx-id", requestPayload);
       const response = await bugUseCases.updateStatus(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain("Bug ID and status are required");
     });
 
@@ -675,7 +675,7 @@ describe("BugUseCases Unit Tests", () => {
       const request = new RequestModel("tx-id", requestPayload);
       const response = await bugUseCases.updateStatus(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain("Bug ID and status are required");
     });
 
@@ -684,7 +684,7 @@ describe("BugUseCases Unit Tests", () => {
       const request = new RequestModel("tx-id", requestPayload);
       const response = await bugUseCases.updateStatus(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain("Bug ID and status are required");
     });
 
@@ -745,7 +745,7 @@ describe("BugUseCases Unit Tests", () => {
         }),
       );
 
-      expect(response.errorCode).toBe(DomainErrorCodes.NOT_FOUND);
+      expect(response.errorCode).toBe(DomainErrorCodes.ENTITY_NOT_FOUND);
       expect(response.message).toBe("Bug not found.");
     });
 
@@ -1215,7 +1215,7 @@ describe("BugUseCases Unit Tests", () => {
         }),
       );
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain("GitHub integration token is not configured");
     });
 
@@ -1241,7 +1241,7 @@ describe("BugUseCases Unit Tests", () => {
         }),
       );
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain("Failed to push bug to GitHub repository");
     });
   });
@@ -1290,7 +1290,7 @@ describe("BugUseCases Unit Tests", () => {
       });
       const response = await bugUseCases.rejectBug(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.NOT_FOUND);
+      expect(response.errorCode).toBe(DomainErrorCodes.ENTITY_NOT_FOUND);
       expect(response.message).toContain("Local bug not found");
     });
 
@@ -1308,7 +1308,7 @@ describe("BugUseCases Unit Tests", () => {
       });
       const response = await bugUseCases.rejectBug(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain("Only pending bugs can be rejected");
       expect(mockBugRepository.rejectBug).not.toHaveBeenCalled();
     });
@@ -1317,7 +1317,7 @@ describe("BugUseCases Unit Tests", () => {
       const request = new RequestModel("tx-id", { id: "", adminId: "admin-1" });
       const response = await bugUseCases.rejectBug(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain("Bug ID is required");
     });
   });
@@ -1363,7 +1363,7 @@ describe("BugUseCases Unit Tests", () => {
       });
       const response = await bugUseCases.restoreBug(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.NOT_FOUND);
+      expect(response.errorCode).toBe(DomainErrorCodes.ENTITY_NOT_FOUND);
       expect(response.message).toContain("Local bug not found");
     });
 
@@ -1381,7 +1381,7 @@ describe("BugUseCases Unit Tests", () => {
       });
       const response = await bugUseCases.restoreBug(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain("Only rejected bugs can be restored");
       expect(mockBugRepository.restoreBug).not.toHaveBeenCalled();
     });
@@ -1390,7 +1390,7 @@ describe("BugUseCases Unit Tests", () => {
       const request = new RequestModel("tx-id", { id: "", adminId: "admin-1" });
       const response = await bugUseCases.restoreBug(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain("Bug ID is required");
     });
   });
@@ -1565,7 +1565,7 @@ describe("BugUseCases Unit Tests", () => {
       );
 
       const response = await customBugUseCases.queryBugRepos(new RequestModel("tx-id"));
-      expect(response.errorCode).toBe(DomainErrorCodes.INTERNAL_ERROR);
+      expect(response.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
       expect(response.message).toBe("config fail");
       errorLogSpy.mockRestore();
     });
@@ -1695,7 +1695,7 @@ describe("BugUseCases Unit Tests", () => {
       const request = new RequestModel<void>("tx-id");
       const response = await customBugUseCases.syncBugs(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain("GitHub Sync is not configured.");
       expect(warnLogSpy).toHaveBeenCalledWith(
         "GitHub token is not defined in environment variables. Synchronization aborted.",
@@ -1852,7 +1852,7 @@ describe("BugUseCases Unit Tests", () => {
       mockIssueTrackerService.getIssues.mockRejectedValue(new Error("Network loss"));
 
       const response = await bugUseCases.syncBugs(new RequestModel("tx-id"));
-      expect(response.errorCode).toBe(DomainErrorCodes.INTERNAL_ERROR);
+      expect(response.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
       expect(response.message).toBe("Network loss");
       errorLogSpy.mockRestore();
     });
@@ -1925,7 +1925,7 @@ describe("BugUseCases Unit Tests", () => {
       });
       const response = await bugUseCases.addAttachment(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain("File is required.");
     });
 
@@ -1961,7 +1961,7 @@ describe("BugUseCases Unit Tests", () => {
       );
 
       const response = await bugUseCases.deleteAttachment(new RequestModel("tx-id", "att-invalid"));
-      expect(response.errorCode).toBe(DomainErrorCodes.NOT_FOUND);
+      expect(response.errorCode).toBe(DomainErrorCodes.ENTITY_NOT_FOUND);
       expect(response.message).toContain("Attachment not found.");
     });
 
@@ -2292,7 +2292,7 @@ describe("BugUseCases Unit Tests", () => {
 
       // Case 1: Both App and PAT configs empty/spaces -> aborts
       let { res, calledSign } = await testConfig("   ", "   ", "   ");
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(calledSign).toBe(false);
       expect(warnSpy).toHaveBeenLastCalledWith(
         "GitHub token is not defined in environment variables. Synchronization aborted.",
@@ -2300,7 +2300,7 @@ describe("BugUseCases Unit Tests", () => {
 
       // Case 2: App ID exists but key missing, PAT missing -> aborts
       ({ res, calledSign } = await testConfig("123456", "   ", ""));
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(calledSign).toBe(false);
       expect(warnSpy).toHaveBeenLastCalledWith(
         "GitHub token is not defined in environment variables. Synchronization aborted.",
@@ -2308,7 +2308,7 @@ describe("BugUseCases Unit Tests", () => {
 
       // Case 3: Private key exists but App ID missing, PAT missing -> aborts
       ({ res, calledSign } = await testConfig("", appPrivateKey, ""));
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(calledSign).toBe(false);
       expect(warnSpy).toHaveBeenLastCalledWith(
         "GitHub token is not defined in environment variables. Synchronization aborted.",
@@ -2332,12 +2332,12 @@ describe("BugUseCases Unit Tests", () => {
 
       // Case 6: App ID is only spaces, Private key valid, PAT missing -> aborts (confirms App ID trim)
       ({ res, calledSign } = await testConfig("   ", appPrivateKey, ""));
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(calledSign).toBe(false);
 
       // Case 7: Private key is only spaces, App ID valid, PAT missing -> aborts (confirms Private Key trim)
       ({ res, calledSign } = await testConfig("123456", "   ", ""));
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(calledSign).toBe(false);
 
       // Case 8: App ID valid, Private key spaces, PAT present -> succeeds with PAT, calledSign is false

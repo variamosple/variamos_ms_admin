@@ -27,7 +27,7 @@ visitsV1Router.post("/", isAuthenticated, async (req, res) => {
         .status(HttpStatusCodes.BAD_REQUEST)
         .json(
           new ResponseModel<void>(transactionId).withError(
-            DomainErrorCodes.BAD_REQUEST,
+            DomainErrorCodes.INVALID_INPUT,
             "pageId and userId are required.",
           ),
         );
@@ -47,7 +47,7 @@ visitsV1Router.post("/", isAuthenticated, async (req, res) => {
     logger.err(error);
     const response = new ResponseModel(
       transactionId,
-      DomainErrorCodes.INTERNAL_ERROR,
+      DomainErrorCodes.SYSTEM_ERROR,
       "Internal Server Error",
     );
     res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);

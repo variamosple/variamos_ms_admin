@@ -29,7 +29,7 @@ describe("VisitsUseCases - Unit Tests", () => {
     const req = new RequestModel<Visit>("tx-1", undefined);
     const res = await useCases.registerVisit(req);
 
-    expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+    expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
     expect(res.message).toBe("Visit data is required.");
     expect(mockVisitRepository.registerVisit).not.toHaveBeenCalled();
   });

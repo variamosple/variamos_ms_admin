@@ -15,7 +15,7 @@ export class VisitRepositoryImpl extends BaseRepository implements IVisitReposit
       const { data } = request;
 
       if (!data) {
-        response.withError(DomainErrorCodes.BAD_REQUEST, "Visit data is required");
+        response.withError(DomainErrorCodes.INVALID_INPUT, "Visit data is required");
         return response;
       }
 
@@ -31,7 +31,7 @@ export class VisitRepositoryImpl extends BaseRepository implements IVisitReposit
       logger.err("Error in registerVisit:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;

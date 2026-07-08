@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/explicit-member-accessibility, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-non-null-assertion */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/explicit-member-accessibility, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return */
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
@@ -39,17 +39,21 @@ export class PermissionRepositoryImpl extends BaseRepository implements IPermiss
         where.name = { [Op.iLike]: `%${replacements.name}%` };
       }
 
+      const pageSize = filter.pageSize ?? 10;
+      const pageNumber = filter.pageNumber ?? 1;
+      const offset = (pageNumber - 1) * pageSize;
+
       response.data = await PermissionModel.findAll({
         where,
-        limit: filter.pageSize!,
-        offset: (filter.pageNumber! - 1) * filter.pageSize!,
+        limit: pageSize,
+        offset,
         order: [["name", "ASC"]],
       }).then((response) => response.map(({ id, name }) => new Permission(id, name)));
     } catch (error) {
       logger.err("Error in queryPermissions:");
       logger.err(request);
       logger.err(error);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -61,8 +65,13 @@ export class PermissionRepositoryImpl extends BaseRepository implements IPermiss
     try {
       const { data } = request;
 
+      if (!data) {
+        response.withError(DomainErrorCodes.INVALID_INPUT, "Permission data is required.");
+        return response;
+      }
+
       const newPermission = await PermissionModel.create({
-        name: data!.name,
+        name: data.name,
       });
 
       response.data = new Permission(newPermission.id, newPermission.name);
@@ -70,7 +79,7 @@ export class PermissionRepositoryImpl extends BaseRepository implements IPermiss
       logger.err("Error in createPermission:");
       logger.err(request);
       logger.err(error);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -88,7 +97,7 @@ export class PermissionRepositoryImpl extends BaseRepository implements IPermiss
       logger.err("Error in deletePermission:");
       logger.err(request);
       logger.err(error);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -107,7 +116,7 @@ export class PermissionRepositoryImpl extends BaseRepository implements IPermiss
       logger.err("Error in queryById:");
       logger.err(request);
       logger.err(error);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -119,11 +128,16 @@ export class PermissionRepositoryImpl extends BaseRepository implements IPermiss
     try {
       const { data } = request;
 
+      if (!data || data.id === undefined) {
+        response.withError(DomainErrorCodes.INVALID_INPUT, "Permission data and ID are required.");
+        return response;
+      }
+
       await PermissionModel.update(
         {
-          name: data!.name,
+          name: data.name,
         },
-        { where: { id: data!.id! } },
+        { where: { id: data.id ?? undefined } },
       );
 
       response.data = data;
@@ -131,7 +145,7 @@ export class PermissionRepositoryImpl extends BaseRepository implements IPermiss
       logger.err("Error in updatePermission:");
       logger.err(request);
       logger.err(error);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;

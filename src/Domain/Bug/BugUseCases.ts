@@ -140,20 +140,20 @@ export class BugUseCases {
     const data = request.data;
     if (!data) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(DomainErrorCodes.BAD_REQUEST, "Request data is required.");
+      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "Request data is required.");
     }
 
     if (!data.title || !data.description || !data.category) {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "Title, description and category are required.",
       );
     }
     if (!ALLOWED_CATEGORIES.includes(data.category)) {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         `Invalid category selected. Allowed: ${ALLOWED_CATEGORIES.join(", ")}`,
       );
     }
@@ -161,7 +161,7 @@ export class BugUseCases {
     if (!data.createdById && !data.reporterEmail) {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "An email address is required for guest bug submissions.",
       );
     }
@@ -179,7 +179,7 @@ export class BugUseCases {
     if (!reporterEmail) {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "Reporter email could not be resolved.",
       );
     }
@@ -229,14 +229,14 @@ export class BugUseCases {
         } else {
           const response = new ResponseModel<Bug>(request.transactionId);
           return response.withErrorPromise(
-            DomainErrorCodes.BAD_REQUEST,
+            DomainErrorCodes.INVALID_INPUT,
             "Failed to push bug to GitHub repository. Please verify repository existence and permissions.",
           );
         }
       } else {
         const response = new ResponseModel<Bug>(request.transactionId);
         return response.withErrorPromise(
-          DomainErrorCodes.BAD_REQUEST,
+          DomainErrorCodes.INVALID_INPUT,
           "GitHub integration token is not configured.",
         );
       }
@@ -285,13 +285,13 @@ export class BugUseCases {
     const data = request.data;
     if (!data) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(DomainErrorCodes.BAD_REQUEST, "Request data is required.");
+      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "Request data is required.");
     }
 
     if (!data.id || !data.status) {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "Bug ID and status are required.",
       );
     }
@@ -302,7 +302,7 @@ export class BugUseCases {
 
     if (!bugResponse.data) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(DomainErrorCodes.NOT_FOUND, "Bug not found.");
+      return response.withErrorPromise(DomainErrorCodes.ENTITY_NOT_FOUND, "Bug not found.");
     }
 
     const bug = bugResponse.data;
@@ -387,14 +387,14 @@ export class BugUseCases {
         } else {
           const response = new ResponseModel<Bug>(request.transactionId);
           return response.withErrorPromise(
-            DomainErrorCodes.BAD_REQUEST,
+            DomainErrorCodes.INVALID_INPUT,
             "Failed to push bug to GitHub repository. Please verify repository existence and permissions.",
           );
         }
       } else {
         const response = new ResponseModel<Bug>(request.transactionId);
         return response.withErrorPromise(
-          DomainErrorCodes.BAD_REQUEST,
+          DomainErrorCodes.INVALID_INPUT,
           "GitHub integration token is not configured.",
         );
       }
@@ -464,12 +464,12 @@ export class BugUseCases {
     const data = request.data;
     if (!data) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(DomainErrorCodes.BAD_REQUEST, "Request data is required.");
+      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "Request data is required.");
     }
 
     if (!data.id) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(DomainErrorCodes.BAD_REQUEST, "Bug ID is required.");
+      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "Bug ID is required.");
     }
 
     const bugResponse = await this.bugRepository.findById(
@@ -478,13 +478,13 @@ export class BugUseCases {
 
     if (!bugResponse.data) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(DomainErrorCodes.NOT_FOUND, "Local bug not found.");
+      return response.withErrorPromise(DomainErrorCodes.ENTITY_NOT_FOUND, "Local bug not found.");
     }
 
     if (bugResponse.data.status !== "pending") {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "Only pending bugs can be rejected.",
       );
     }
@@ -504,12 +504,12 @@ export class BugUseCases {
     const data = request.data;
     if (!data) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(DomainErrorCodes.BAD_REQUEST, "Request data is required.");
+      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "Request data is required.");
     }
 
     if (!data.id) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(DomainErrorCodes.BAD_REQUEST, "Bug ID is required.");
+      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "Bug ID is required.");
     }
 
     const bugResponse = await this.bugRepository.findById(
@@ -518,13 +518,13 @@ export class BugUseCases {
 
     if (!bugResponse.data) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(DomainErrorCodes.NOT_FOUND, "Local bug not found.");
+      return response.withErrorPromise(DomainErrorCodes.ENTITY_NOT_FOUND, "Local bug not found.");
     }
 
     if (bugResponse.data.status !== "rejected") {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "Only rejected bugs can be restored.",
       );
     }
@@ -603,7 +603,7 @@ export class BugUseCases {
     } catch (error) {
       const err = error as Error;
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, err.message);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, err.message);
     }
     return Promise.resolve(response);
   }
@@ -628,7 +628,7 @@ export class BugUseCases {
         logger.warn(
           "GitHub token is not defined in environment variables. Synchronization aborted.",
         );
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "GitHub Sync is not configured.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "GitHub Sync is not configured.");
       }
 
       const repos = this.githubConfig.getGitHubManagedRepos();
@@ -713,7 +713,7 @@ export class BugUseCases {
     } catch (error) {
       const err = error as Error;
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, err.message);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, err.message);
     }
     return response;
   }
@@ -730,10 +730,10 @@ export class BugUseCases {
     const data = request.data;
     const response = new ResponseModel<BugAttachment>(request.transactionId);
     if (!data) {
-      return response.withErrorPromise(DomainErrorCodes.BAD_REQUEST, "Request data is required.");
+      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "Request data is required.");
     }
     if (!data.file) {
-      return response.withErrorPromise(DomainErrorCodes.BAD_REQUEST, "File is required.");
+      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "File is required.");
     }
     const resolvedFile = {
       filePath: `/uploads/${data.file.filename}`,
@@ -752,13 +752,16 @@ export class BugUseCases {
     const id = request.data;
     const response = new ResponseModel<void>(request.transactionId);
     if (!id) {
-      return response.withErrorPromise(DomainErrorCodes.BAD_REQUEST, "Attachment ID is required.");
+      return response.withErrorPromise(
+        DomainErrorCodes.INVALID_INPUT,
+        "Attachment ID is required.",
+      );
     }
     const attachmentResp = await this.bugRepository.findAttachmentById(
       new RequestModel(request.transactionId, id),
     );
     if (!attachmentResp.data) {
-      return response.withErrorPromise(DomainErrorCodes.NOT_FOUND, "Attachment not found.");
+      return response.withErrorPromise(DomainErrorCodes.ENTITY_NOT_FOUND, "Attachment not found.");
     }
     const filePath = attachmentResp.data.filePath;
     if (filePath && filePath !== "/purged") {

@@ -25,7 +25,7 @@ userRolesV1Router.get("/", hasPermissions(["users::query"]), async (req, res) =>
         .status(HttpStatusCodes.BAD_REQUEST)
         .json(
           new ResponseModel<void>(transactionId).withError(
-            DomainErrorCodes.BAD_REQUEST,
+            DomainErrorCodes.INVALID_INPUT,
             "userId is required.",
           ),
         );
@@ -46,7 +46,7 @@ userRolesV1Router.get("/", hasPermissions(["users::query"]), async (req, res) =>
     logger.err(error);
     const response = new ResponseModel(
       transactionId,
-      DomainErrorCodes.INTERNAL_ERROR,
+      DomainErrorCodes.SYSTEM_ERROR,
       "Internal Server Error",
     );
     res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
@@ -63,7 +63,7 @@ userRolesV1Router.get("/details", hasPermissions(["users::query"]), async (req, 
         .status(HttpStatusCodes.BAD_REQUEST)
         .json(
           new ResponseModel<void>(transactionId).withError(
-            DomainErrorCodes.BAD_REQUEST,
+            DomainErrorCodes.INVALID_INPUT,
             "userId is required.",
           ),
         );
@@ -86,7 +86,7 @@ userRolesV1Router.get("/details", hasPermissions(["users::query"]), async (req, 
     logger.err(error);
     const response = new ResponseModel(
       transactionId,
-      DomainErrorCodes.INTERNAL_ERROR,
+      DomainErrorCodes.SYSTEM_ERROR,
       "Internal Server Error",
     );
     res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
@@ -103,7 +103,7 @@ userRolesV1Router.post("/", hasPermissions(["users::update"]), async (req, res) 
         .status(HttpStatusCodes.BAD_REQUEST)
         .json(
           new ResponseModel<void>(transactionId).withError(
-            DomainErrorCodes.BAD_REQUEST,
+            DomainErrorCodes.INVALID_INPUT,
             "userId and roleId are required.",
           ),
         );
@@ -123,7 +123,7 @@ userRolesV1Router.post("/", hasPermissions(["users::update"]), async (req, res) 
     logger.err(error);
     const response = new ResponseModel(
       transactionId,
-      DomainErrorCodes.INTERNAL_ERROR,
+      DomainErrorCodes.SYSTEM_ERROR,
       "Internal Server Error",
     );
     res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
@@ -139,7 +139,7 @@ userRolesV1Router.delete("/:roleId", hasPermissions(["users::update"]), async (r
         .status(HttpStatusCodes.BAD_REQUEST)
         .json(
           new ResponseModel<void>(transactionId).withError(
-            DomainErrorCodes.BAD_REQUEST,
+            DomainErrorCodes.INVALID_INPUT,
             "userId and roleId are required.",
           ),
         );
@@ -156,7 +156,7 @@ userRolesV1Router.delete("/:roleId", hasPermissions(["users::update"]), async (r
     logger.err(error);
     const response = new ResponseModel(
       transactionId,
-      DomainErrorCodes.INTERNAL_ERROR,
+      DomainErrorCodes.SYSTEM_ERROR,
       "Internal Server Error",
     );
     res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);

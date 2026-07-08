@@ -17,7 +17,7 @@ export class VisitsUseCases {
   ): Promise<ResponseModel<Visit>> {
     if (!request.data) {
       return new ResponseModel<Visit>(request.transactionId).withError(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "Visit data is required.",
       );
     }

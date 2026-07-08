@@ -52,21 +52,21 @@ export class UsersUseCases {
 
     if (!name || !email || !password || !passwordConfirmation) {
       return response.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "Full name, Email and password, and password confirmation are required.",
       );
     }
 
     if (password !== passwordConfirmation) {
       return response.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "Password and password confirmation do not match.",
       );
     }
 
     if (!PASSWORD_REGEXP.test(password)) {
       return response.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "Password must be between 8 and 24 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character.",
       );
     }
@@ -113,7 +113,7 @@ export class UsersUseCases {
     const data = request.data;
     if (!data) {
       return response.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "Password update data is required.",
       );
     }
@@ -123,20 +123,20 @@ export class UsersUseCases {
 
     if (!currentPassword || !newPassword || !passwordConfirmation) {
       return response.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "Current password, new password and password confirmation are required.",
       );
     }
 
     if (newPassword !== passwordConfirmation) {
       return response.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "New password and password confirmation do not match.",
       );
     }
 
     if (!PASSWORD_REGEXP.test(newPassword)) {
-      return response.withErrorPromise(DomainErrorCodes.BAD_REQUEST, PASSWORD_FORMAT_ERROR);
+      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, PASSWORD_FORMAT_ERROR);
     }
 
     return this.userRepository.updateUserPassword(request);
@@ -221,7 +221,7 @@ export class UsersUseCases {
       const emailSent = await this.mailService.sendPasswordResetMail(email, recoveryLink);
       if (!emailSent) {
         return response.withErrorPromise(
-          DomainErrorCodes.INTERNAL_ERROR,
+          DomainErrorCodes.SYSTEM_ERROR,
           "Failed to send recovery email. Please try again later.",
         );
       }
@@ -230,7 +230,7 @@ export class UsersUseCases {
       logger.err("Error requesting password reset:");
       logger.err(error as Error);
       return response.withErrorPromise(
-        DomainErrorCodes.INTERNAL_ERROR,
+        DomainErrorCodes.SYSTEM_ERROR,
         "Error requesting password reset",
       );
     }
@@ -247,15 +247,15 @@ export class UsersUseCases {
       const dbToken = await this.userRepository.getPasswordResetToken(tokenHash);
 
       if (!dbToken) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Invalid token.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Invalid token.");
       }
 
       if (dbToken.usedAt) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Token already used.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Token already used.");
       }
 
       if (new Date() > new Date(dbToken.expiresAt)) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Token expired.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Token expired.");
       }
 
       return response;
@@ -263,7 +263,7 @@ export class UsersUseCases {
       logger.err("Error verifying reset token:");
       logger.err(error as Error);
       return response.withErrorPromise(
-        DomainErrorCodes.INTERNAL_ERROR,
+        DomainErrorCodes.SYSTEM_ERROR,
         "Error verifying reset token",
       );
     }
@@ -280,7 +280,7 @@ export class UsersUseCases {
       }>;
       if (!token || !password) {
         return response.withErrorPromise(
-          DomainErrorCodes.BAD_REQUEST,
+          DomainErrorCodes.INVALID_INPUT,
           "Token and password are required.",
         );
       }
@@ -295,7 +295,7 @@ export class UsersUseCases {
       const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
       const dbToken = await this.userRepository.getPasswordResetToken(tokenHash);
       if (!dbToken) {
-        return response.withErrorPromise(DomainErrorCodes.BAD_REQUEST, "Invalid token.");
+        return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "Invalid token.");
       }
       const userId = dbToken.userId;
 
@@ -309,10 +309,10 @@ export class UsersUseCases {
 
       const errorMessage = error instanceof Error ? error.message : "Error resetting password";
       if (errorMessage.includes("New password cannot be the same as the old password")) {
-        return response.withErrorPromise(DomainErrorCodes.BAD_REQUEST, errorMessage);
+        return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, errorMessage);
       }
 
-      return response.withErrorPromise(DomainErrorCodes.INTERNAL_ERROR, "Error resetting password");
+      return response.withErrorPromise(DomainErrorCodes.SYSTEM_ERROR, "Error resetting password");
     }
   }
 
@@ -326,7 +326,7 @@ export class UsersUseCases {
     }>;
     if (!userId || !adminId) {
       return response.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "User ID and Admin ID are required.",
       );
     }
@@ -377,7 +377,7 @@ export class UsersUseCases {
       logger.err("Error generating recovery link:");
       logger.err(error as Error);
       return response.withErrorPromise(
-        DomainErrorCodes.INTERNAL_ERROR,
+        DomainErrorCodes.SYSTEM_ERROR,
         "Error generating recovery link",
       );
     }

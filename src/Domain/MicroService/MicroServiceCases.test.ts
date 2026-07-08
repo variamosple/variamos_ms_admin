@@ -53,7 +53,7 @@ describe("MicroServiceUseCases - Unit Tests", () => {
       const req = new RequestModel<string>("tx-1", undefined);
       const res = await useCases.startMicroService(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("MicroService Id is required.");
       expect(mockMicroServiceRepository.startMicroService).not.toHaveBeenCalled();
     });
@@ -81,7 +81,7 @@ describe("MicroServiceUseCases - Unit Tests", () => {
       const req = new RequestModel<string>("tx-1", "ms-1");
       const res = await useCases.startMicroService(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("MicroService is not in exited state.");
       expect(mockMicroServiceRepository.startMicroService).not.toHaveBeenCalled();
     });
@@ -107,7 +107,7 @@ describe("MicroServiceUseCases - Unit Tests", () => {
       const req = new RequestModel<string>("tx-1", undefined);
       const res = await useCases.stopMicroService(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("MicroService Id is required.");
     });
 
@@ -132,7 +132,7 @@ describe("MicroServiceUseCases - Unit Tests", () => {
       const req = new RequestModel<string>("tx-1", "ms-1");
       const res = await useCases.stopMicroService(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("MicroService is not in running state.");
     });
 
@@ -157,7 +157,7 @@ describe("MicroServiceUseCases - Unit Tests", () => {
       const req = new RequestModel<string>("tx-1", undefined);
       const res = await useCases.restartMicroService(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("MicroService Id is required.");
     });
 
@@ -182,7 +182,7 @@ describe("MicroServiceUseCases - Unit Tests", () => {
       const req = new RequestModel<string>("tx-1", "ms-1");
       const res = await useCases.restartMicroService(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("MicroService is not in running state.");
     });
 
@@ -207,7 +207,7 @@ describe("MicroServiceUseCases - Unit Tests", () => {
       const req = new RequestModel<string>("tx-1", undefined);
       const res = await useCases.watchMicroServiceLogs(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("MicroService Id is required.");
     });
 

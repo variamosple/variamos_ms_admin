@@ -3,7 +3,7 @@ import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { MicroServiceFilter } from "@src/Domain/MicroService/Entity/MicroServiceFilter";
 import { MicroServiceUseCases } from "@src/Domain/MicroService/MicroServiceCases";
-import { MicroServiceRepositoryInstance } from "@src/DataProviders/MicroService/MicroServiceRepository";
+import { MicroServiceRepositoryInstance } from "@src/CompositionRoot";
 import { hasPermissions } from "@variamosple/variamos-security";
 import { Router } from "express";
 import logger from "jet-logger";
@@ -36,7 +36,7 @@ microServicesV1Router.get("/", hasPermissions(["micro-services::query"]), async 
     logger.err(error);
     const response = new ResponseModel(
       transactionId,
-      DomainErrorCodes.INTERNAL_ERROR,
+      DomainErrorCodes.SYSTEM_ERROR,
       "Internal Server Error",
     );
     res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
@@ -62,7 +62,7 @@ microServicesV1Router.put(
       logger.err(error);
       const response = new ResponseModel(
         transactionId,
-        DomainErrorCodes.INTERNAL_ERROR,
+        DomainErrorCodes.SYSTEM_ERROR,
         "Internal Server Error",
       );
       res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
@@ -89,7 +89,7 @@ microServicesV1Router.put(
       logger.err(error);
       const response = new ResponseModel(
         transactionId,
-        DomainErrorCodes.INTERNAL_ERROR,
+        DomainErrorCodes.SYSTEM_ERROR,
         "Internal Server Error",
       );
       res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
@@ -116,7 +116,7 @@ microServicesV1Router.put(
       logger.err(error);
       const response = new ResponseModel(
         transactionId,
-        DomainErrorCodes.INTERNAL_ERROR,
+        DomainErrorCodes.SYSTEM_ERROR,
         "Internal Server Error",
       );
       res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
@@ -148,7 +148,7 @@ microServicesV1Router.get(
           .status(HttpStatusCodes.NOT_FOUND)
           .json(
             response.withError(
-              DomainErrorCodes.NOT_FOUND,
+              DomainErrorCodes.ENTITY_NOT_FOUND,
               "No Logs found for microservice with id: " + microserviceId,
             ),
           );
@@ -179,7 +179,7 @@ microServicesV1Router.get(
       logger.err(error);
       const response = new ResponseModel(
         transactionId,
-        DomainErrorCodes.INTERNAL_ERROR,
+        DomainErrorCodes.SYSTEM_ERROR,
         "Internal Server Error",
       );
       res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);

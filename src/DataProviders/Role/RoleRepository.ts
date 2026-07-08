@@ -56,7 +56,7 @@ export class RoleRepositoryImpl
       logger.err("Error in getRoles:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -68,7 +68,7 @@ export class RoleRepositoryImpl
     try {
       const { data } = request;
       if (!data) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Role data is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Role data is required.");
       }
 
       const newRole = await RoleModel.create({
@@ -81,7 +81,7 @@ export class RoleRepositoryImpl
       logger.err("Error in createRole:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -93,7 +93,7 @@ export class RoleRepositoryImpl
     try {
       const { data: id } = request;
       if (!id) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Role ID is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Role ID is required.");
       }
 
       const numericId = Number(id);
@@ -106,7 +106,7 @@ export class RoleRepositoryImpl
       logger.err("Error in deleteRole:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -118,7 +118,7 @@ export class RoleRepositoryImpl
     try {
       const { data } = request;
       if (!data) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Role ID is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Role ID is required.");
       }
 
       const found = await RoleModel.findOne({
@@ -130,7 +130,7 @@ export class RoleRepositoryImpl
       logger.err("Error in queryById:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -142,7 +142,7 @@ export class RoleRepositoryImpl
     try {
       const { data } = request;
       if (!data || data.id === undefined || data.id === null) {
-        return response.withError(DomainErrorCodes.BAD_REQUEST, "Role data with ID is required.");
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Role data with ID is required.");
       }
 
       await RoleModel.update(
@@ -158,7 +158,7 @@ export class RoleRepositoryImpl
       logger.err("Error in updateRole:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
@@ -204,7 +204,7 @@ export class RoleRepositoryImpl
       logger.err("Error in queryGuestRole:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, "Internal server error");
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;

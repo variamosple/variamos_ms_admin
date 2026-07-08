@@ -18,7 +18,7 @@ export class MicroServiceUseCases {
     const defaultResponse = new ResponseModel<void>(request.transactionId);
     if (!request.data) {
       return defaultResponse.withError(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "MicroService Id is required.",
       );
     }
@@ -34,7 +34,7 @@ export class MicroServiceUseCases {
 
     if (microserviceResponse.data?.getState() !== "exited") {
       return defaultResponse.withError(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "MicroService is not in exited state.",
       );
     }
@@ -46,7 +46,7 @@ export class MicroServiceUseCases {
     const defaultResponse = new ResponseModel<void>(request.transactionId);
     if (!request.data) {
       return defaultResponse.withError(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "MicroService Id is required.",
       );
     }
@@ -62,7 +62,7 @@ export class MicroServiceUseCases {
 
     if (microserviceResponse.data?.getState() !== "running") {
       return defaultResponse.withError(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "MicroService is not in running state.",
       );
     }
@@ -74,7 +74,7 @@ export class MicroServiceUseCases {
     const defaultResponse = new ResponseModel<void>(request.transactionId);
     if (!request.data) {
       return defaultResponse.withError(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "MicroService Id is required.",
       );
     }
@@ -90,7 +90,7 @@ export class MicroServiceUseCases {
 
     if (microserviceResponse.data?.getState() !== "running") {
       return defaultResponse.withError(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "MicroService is not in running state.",
       );
     }
@@ -105,7 +105,7 @@ export class MicroServiceUseCases {
 
     if (!request.data) {
       return defaultResponse.withError(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "MicroService Id is required.",
       );
     }
