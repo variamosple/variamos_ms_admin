@@ -239,6 +239,102 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       });
     });
 
+    it("should allow data URLs with null origin in getRedirectUrl", async () => {
+      const mockToken = "valid-token";
+      const mockUserPayload = {
+        sub: "user-123",
+        aud: "allowed-origin.com",
+        exp: 9999999999,
+        iat: Math.floor(Date.now() / 1000),
+      } as SessionInfo;
+      const validationResponse = new SecurityResponseModel<SessionInfo>(
+        "getSessionInfo",
+      ).withResponse(mockUserPayload);
+      const sessionUser = {
+        id: "user-123",
+        name: "John Doe",
+        user: "john",
+        email: "john@example.com",
+      };
+
+      jest.mocked(getToken).mockReturnValue(mockToken);
+      jest.mocked(validateToken).mockResolvedValue(validationResponse);
+      jest.mocked(isSessionExpired).mockReturnValue(false);
+      jest.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
+
+      const response = await supertest(app)
+        .get("/auth/session-info")
+        .set("Cookie", ["redirectTo=data:text/html,Hello"]);
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+      const body = response.body as TestSessionApiResponse & { data: { redirect?: string } };
+      expect(body.data.redirect).toBe("data:text/html,Hello");
+    });
+
+    it("should handle invalid url throwing error in getUrl and return undefined redirect", async () => {
+      const mockToken = "valid-token";
+      const mockUserPayload = {
+        sub: "user-123",
+        exp: 9999999999,
+        iat: Math.floor(Date.now() / 1000),
+      } as SessionInfo;
+      const validationResponse = new SecurityResponseModel<SessionInfo>(
+        "getSessionInfo",
+      ).withResponse(mockUserPayload);
+      const sessionUser = {
+        id: "user-123",
+        name: "John Doe",
+        user: "john",
+        email: "john@example.com",
+      };
+
+      jest.mocked(getToken).mockReturnValue(mockToken);
+      jest.mocked(validateToken).mockResolvedValue(validationResponse);
+      jest.mocked(isSessionExpired).mockReturnValue(false);
+      jest.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
+
+      const response = await supertest(app)
+        .get("/auth/session-info")
+        .set("Cookie", ["redirectTo=not-a-valid-url"]);
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+      const body = response.body as TestSessionApiResponse & { data: { redirect?: string } };
+      expect(body.data.redirect).toBeUndefined();
+    });
+
+    it("should handle session user payload with missing roles defaulting to empty array", async () => {
+      const mockToken = "valid-token";
+      const mockUserPayload = {
+        sub: "user-123",
+        exp: 9999999999,
+        iat: Math.floor(Date.now() / 1000),
+      } as SessionInfo;
+      const validationResponse = new SecurityResponseModel<SessionInfo>(
+        "getSessionInfo",
+      ).withResponse(mockUserPayload);
+
+      const mockDomainUser = User.builder()
+        .setId("user-123")
+        .setName("John Doe")
+        .setUser("john")
+        .setEmail("john@example.com")
+        .setRoles([])
+        .setPermissions([])
+        .build();
+
+      jest.mocked(getToken).mockReturnValue(mockToken);
+      jest.mocked(validateToken).mockResolvedValue(validationResponse);
+      jest.mocked(isSessionExpired).mockReturnValue(true);
+      (UsersUseCases.prototype.findSessionUser as jest.Mock).mockResolvedValue(
+        new ResponseModel<User>("getSessionInfo").withResponse(mockDomainUser),
+      );
+
+      const response = await supertest(app).get("/auth/session-info");
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(UsersUseCases.prototype.findSessionUser).toHaveBeenCalled();
+    });
+
     it("should ignore disallowed redirect origin", async () => {
       const mockToken = "valid-token";
       const mockUserPayload = {
@@ -551,6 +647,19 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .send("hello");
 
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
+    });
+
+    it("should return 500 when sign-in throws an exception", async () => {
+      (UsersUseCases.prototype.signIn as jest.Mock).mockRejectedValue(
+        new Error("Unexpected sign-in error"),
+      );
+
+      const response = await supertest(app)
+        .post("/auth/sign-in")
+        .send({ email: "john@example.com", password: "Password123!" });
+
+      expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body.errorCode).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR.toString());
     });
   });
 
