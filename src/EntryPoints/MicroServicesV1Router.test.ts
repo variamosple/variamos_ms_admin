@@ -1,3 +1,4 @@
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import express from "express";
 import supertest from "supertest";
 import microServicesV1Router from "./MicroServicesV1Router";
@@ -44,7 +45,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when query fails", async () => {
       const expectedResponse = new ResponseModel("queryMicroService").withError(
-        HttpStatusCodes.BAD_REQUEST.toString(),
+        DomainErrorCodes.INVALID_INPUT,
         "Query failed",
       );
       (MicroServiceUseCases.prototype.queryMicroServices as jest.Mock).mockResolvedValue(
@@ -82,7 +83,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when start fails", async () => {
       const expectedResponse = new ResponseModel("startMicroService").withError(
-        HttpStatusCodes.BAD_REQUEST.toString(),
+        DomainErrorCodes.INVALID_INPUT,
         "Start failed",
       );
       (MicroServiceUseCases.prototype.startMicroService as jest.Mock).mockResolvedValue(
@@ -120,7 +121,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when restart fails", async () => {
       const expectedResponse = new ResponseModel("restartMicroService").withError(
-        HttpStatusCodes.BAD_REQUEST.toString(),
+        DomainErrorCodes.INVALID_INPUT,
         "Restart failed",
       );
       (MicroServiceUseCases.prototype.restartMicroService as jest.Mock).mockResolvedValue(
@@ -158,7 +159,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when stop fails", async () => {
       const expectedResponse = new ResponseModel("stopMicroService").withError(
-        HttpStatusCodes.BAD_REQUEST.toString(),
+        DomainErrorCodes.INVALID_INPUT,
         "Stop failed",
       );
       (MicroServiceUseCases.prototype.stopMicroService as jest.Mock).mockResolvedValue(
@@ -210,7 +211,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error code when use case watchMicroServiceLogs returns error code", async () => {
       const expectedResponse = new ResponseModel<Readable>("watchMicroServiceLogs").withError(
-        HttpStatusCodes.BAD_REQUEST.toString(),
+        DomainErrorCodes.INVALID_INPUT,
         "Failed to watch logs",
       );
       (MicroServiceUseCases.prototype.watchMicroServiceLogs as jest.Mock).mockResolvedValue(

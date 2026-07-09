@@ -150,7 +150,7 @@ authRouter.get("/session-info", async (req: Request, res) => {
         .status(HttpStatusCodes.UNAUTHORIZED)
         .json(
           response.withError(
-            HttpStatusCodes.UNAUTHORIZED.toString(),
+            DomainErrorCodes.UNAUTHORIZED_ACCESS,
             "Your session has expired, please log in again.",
           ),
         );
@@ -166,7 +166,7 @@ authRouter.get("/session-info", async (req: Request, res) => {
         .status(HttpStatusCodes.UNAUTHORIZED)
         .json(
           response.withError(
-            HttpStatusCodes.UNAUTHORIZED.toString(),
+            DomainErrorCodes.UNAUTHORIZED_ACCESS,
             "Your session has expired, please log in again.",
           ),
         );
@@ -191,7 +191,7 @@ authRouter.get("/session-info", async (req: Request, res) => {
         .status(HttpStatusCodes.UNAUTHORIZED)
         .json(
           response.withError(
-            HttpStatusCodes.UNAUTHORIZED.toString(),
+            DomainErrorCodes.UNAUTHORIZED_ACCESS,
             "Your session has expired, please log in again.",
           ),
         );
@@ -231,9 +231,7 @@ authRouter.get("/session-info", async (req: Request, res) => {
     logger.err(error as Error);
     res
       .status(HttpStatusCodes.UNAUTHORIZED)
-      .json(
-        response.withError(HttpStatusCodes.UNAUTHORIZED.toString(), "Session validation error"),
-      );
+      .json(response.withError(DomainErrorCodes.UNAUTHORIZED_ACCESS, "Session validation error"));
   }
 });
 
@@ -247,10 +245,7 @@ authRouter.post("/sign-in", async (req, res) => {
       return res
         .status(HttpStatusCodes.BAD_REQUEST)
         .json(
-          response.withError(
-            HttpStatusCodes.BAD_REQUEST.toString(),
-            "Email and password are required.",
-          ),
+          response.withError(DomainErrorCodes.INVALID_INPUT, "Email and password are required."),
         );
     }
 
@@ -260,9 +255,7 @@ authRouter.post("/sign-in", async (req, res) => {
     const singInResponse = await usersUseCases.signIn(request);
 
     if (singInResponse.errorCode) {
-      return res
-        .status(mapDomainErrorToHttpStatus(singInResponse.errorCode as DomainErrorCodes))
-        .json(singInResponse);
+      return res.status(mapDomainErrorToHttpStatus(singInResponse.errorCode)).json(singInResponse);
     }
 
     if (!singInResponse.data) {
@@ -301,7 +294,7 @@ authRouter.post("/sign-in", async (req, res) => {
       .status(500)
       .json(
         new ResponseModel<void>(transactionId).withError(
-          HttpStatusCodes.INTERNAL_SERVER_ERROR.toString(),
+          DomainErrorCodes.SYSTEM_ERROR,
           "Sign in error. Please try again later.",
         ),
       );
@@ -343,7 +336,7 @@ authRouter.post("/sign-up", async (req, res) => {
       .status(500)
       .json(
         new ResponseModel<void>(transactionId).withError(
-          HttpStatusCodes.INTERNAL_SERVER_ERROR.toString(),
+          DomainErrorCodes.SYSTEM_ERROR,
           "Sign in error. Please try again later.",
         ),
       );
@@ -534,9 +527,7 @@ authRouter.post("/guest/sign-in", async (req, res) => {
     const guestResponse = await usersUseCases.getGuestData(request);
 
     if (guestResponse.errorCode) {
-      return res
-        .status(mapDomainErrorToHttpStatus(guestResponse.errorCode as DomainErrorCodes))
-        .json(guestResponse);
+      return res.status(mapDomainErrorToHttpStatus(guestResponse.errorCode)).json(guestResponse);
     }
 
     if (!guestResponse.data) {
@@ -575,7 +566,7 @@ authRouter.post("/guest/sign-in", async (req, res) => {
       .status(500)
       .json(
         new ResponseModel<void>(transactionId).withError(
-          HttpStatusCodes.INTERNAL_SERVER_ERROR.toString(),
+          DomainErrorCodes.SYSTEM_ERROR,
           "Sign in error. Please try again later.",
         ),
       );
@@ -620,7 +611,7 @@ authRouter.post("/forgot-password", async (req, res) => {
 
     if (forgotPasswordResponse.errorCode) {
       return res
-        .status(mapDomainErrorToHttpStatus(forgotPasswordResponse.errorCode as DomainErrorCodes))
+        .status(mapDomainErrorToHttpStatus(forgotPasswordResponse.errorCode))
         .json(forgotPasswordResponse);
     }
 
@@ -631,7 +622,7 @@ authRouter.post("/forgot-password", async (req, res) => {
       .status(500)
       .json(
         new ResponseModel<void>(transactionId).withError(
-          HttpStatusCodes.INTERNAL_SERVER_ERROR.toString(),
+          DomainErrorCodes.SYSTEM_ERROR,
           "Forgot password error. Please try again later.",
         ),
       );
@@ -648,9 +639,7 @@ authRouter.get("/verify-token", async (req, res) => {
     );
 
     if (verifyResponse.errorCode) {
-      return res
-        .status(mapDomainErrorToHttpStatus(verifyResponse.errorCode as DomainErrorCodes))
-        .json(verifyResponse);
+      return res.status(mapDomainErrorToHttpStatus(verifyResponse.errorCode)).json(verifyResponse);
     }
 
     res.status(200).json(verifyResponse);
@@ -660,7 +649,7 @@ authRouter.get("/verify-token", async (req, res) => {
       .status(500)
       .json(
         new ResponseModel<void>(transactionId).withError(
-          HttpStatusCodes.INTERNAL_SERVER_ERROR.toString(),
+          DomainErrorCodes.SYSTEM_ERROR,
           "Token verification error.",
         ),
       );
@@ -680,9 +669,7 @@ authRouter.post("/reset-password", async (req, res) => {
     );
 
     if (resetResponse.errorCode) {
-      return res
-        .status(mapDomainErrorToHttpStatus(resetResponse.errorCode as DomainErrorCodes))
-        .json(resetResponse);
+      return res.status(mapDomainErrorToHttpStatus(resetResponse.errorCode)).json(resetResponse);
     }
 
     res.status(200).json(resetResponse);
@@ -692,7 +679,7 @@ authRouter.post("/reset-password", async (req, res) => {
       .status(500)
       .json(
         new ResponseModel<void>(transactionId).withError(
-          HttpStatusCodes.INTERNAL_SERVER_ERROR.toString(),
+          DomainErrorCodes.SYSTEM_ERROR,
           "Reset password error. Please try again later.",
         ),
       );

@@ -1,9 +1,10 @@
+import { DomainErrorCodes } from "../Error/DomainErrorCodes";
 import { Nullable } from "./Nullable";
 
 export class ResponseModel<Type> {
   public constructor(
     public transactionId?: string,
-    public errorCode?: string,
+    public errorCode?: DomainErrorCodes,
     public message?: string,
     public totalCount?: number,
     public data?: Nullable<Type>,
@@ -23,14 +24,14 @@ export class ResponseModel<Type> {
     return Promise.resolve(this);
   }
 
-  public withError(errorCode: string, errorMessage: string): this {
+  public withError(errorCode: DomainErrorCodes, errorMessage: string): this {
     this.errorCode = errorCode;
     this.message = errorMessage;
 
     return this;
   }
 
-  public withErrorPromise(errorCode: string, errorMessage: string): Promise<this> {
+  public withErrorPromise(errorCode: DomainErrorCodes, errorMessage: string): Promise<this> {
     this.errorCode = errorCode;
     this.message = errorMessage;
 

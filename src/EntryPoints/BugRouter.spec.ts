@@ -379,13 +379,17 @@ describe("BugRouter HTTP Integration Tests", () => {
     });
 
     it("should return the exact numeric code if it is an unknown number", async () => {
-      mockQueryBugs.mockResolvedValue(new ResponseModel("tx-id").withError("418", "Teapot"));
+      mockQueryBugs.mockResolvedValue(
+        new ResponseModel("tx-id").withError("418" as unknown as DomainErrorCodes, "Teapot"),
+      );
       const res = await request(app).get("/bugs");
       expect(res.status).toBe(418);
     });
 
     it("should map direct numeric error codes correctly", async () => {
-      mockQueryBugs.mockResolvedValue(new ResponseModel("tx-id").withError("404", "Not found"));
+      mockQueryBugs.mockResolvedValue(
+        new ResponseModel("tx-id").withError("404" as unknown as DomainErrorCodes, "Not found"),
+      );
       const res = await request(app).get("/bugs");
       expect(res.status).toBe(404);
     });

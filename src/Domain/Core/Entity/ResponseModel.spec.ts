@@ -1,3 +1,4 @@
+import { DomainErrorCodes } from "../Error/DomainErrorCodes";
 import { ResponseModel } from "./ResponseModel";
 
 describe("ResponseModel Entity", () => {
@@ -11,11 +12,11 @@ describe("ResponseModel Entity", () => {
 
     // Test copyErrorWithPromise
     const errorSource = new ResponseModel<unknown>("tx-source").withError(
-      "ERR_SOURCE",
+      DomainErrorCodes.SYSTEM_ERROR,
       "Source message",
     );
     await res.copyErrorWithPromise(errorSource);
-    expect(res.errorCode).toBe("ERR_SOURCE");
+    expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
     expect(res.message).toBe("Source message");
   });
 });

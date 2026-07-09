@@ -1,3 +1,4 @@
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import express from "express";
 import supertest from "supertest";
 import rolesV1Router from "./RolesV1Router";
@@ -40,7 +41,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when query fails", async () => {
       const expectedResponse = new ResponseModel("queryRoles").withError(
-        HttpStatusCodes.BAD_REQUEST.toString(),
+        DomainErrorCodes.INVALID_INPUT,
         "Query failed",
       );
       (RolesUseCases.prototype.queryRoles as jest.Mock).mockResolvedValue(expectedResponse);
@@ -81,7 +82,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when create fails", async () => {
       const expectedResponse = new ResponseModel("createRole").withError(
-        HttpStatusCodes.CONFLICT.toString(),
+        DomainErrorCodes.DUPLICATE_ENTITY,
         "Conflict",
       );
       (RolesUseCases.prototype.createRole as jest.Mock).mockResolvedValue(expectedResponse);
@@ -121,7 +122,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when delete fails", async () => {
       const expectedResponse = new ResponseModel("deleteRole").withError(
-        HttpStatusCodes.NOT_FOUND.toString(),
+        DomainErrorCodes.ENTITY_NOT_FOUND,
         "Not found",
       );
       (RolesUseCases.prototype.deleteRole as jest.Mock).mockResolvedValue(expectedResponse);
@@ -162,7 +163,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when queryById fails", async () => {
       const expectedResponse = new ResponseModel("queryRoleById").withError(
-        HttpStatusCodes.NOT_FOUND.toString(),
+        DomainErrorCodes.ENTITY_NOT_FOUND,
         "Not found",
       );
       (RolesUseCases.prototype.queryById as jest.Mock).mockResolvedValue(expectedResponse);
@@ -209,7 +210,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when update fails", async () => {
       const expectedResponse = new ResponseModel("updateRole").withError(
-        HttpStatusCodes.NOT_FOUND.toString(),
+        DomainErrorCodes.ENTITY_NOT_FOUND,
         "Not found",
       );
       (RolesUseCases.prototype.updateRole as jest.Mock).mockResolvedValue(expectedResponse);

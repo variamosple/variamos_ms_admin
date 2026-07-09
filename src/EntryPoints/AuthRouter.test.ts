@@ -460,7 +460,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         roles: ["guest"],
       };
       const refreshedResponse = new ResponseModel("getSessionInfo").withError(
-        HttpStatusCodes.UNAUTHORIZED.toString(),
+        DomainErrorCodes.UNAUTHORIZED_ACCESS,
         "Expired",
       );
 
@@ -584,7 +584,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("should return error status code when sign-in fails", async () => {
       const expectedResponse = new ResponseModel("signIn").withError(
-        HttpStatusCodes.UNAUTHORIZED.toString(),
+        DomainErrorCodes.UNAUTHORIZED_ACCESS,
         "Invalid credentials",
       );
       (UsersUseCases.prototype.signIn as jest.Mock).mockResolvedValue(expectedResponse);
@@ -659,7 +659,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .send({ email: "john@example.com", password: "Password123!" });
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
-      expect(response.body.errorCode).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR.toString());
+      expect(response.body.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
     });
   });
 
@@ -699,7 +699,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("should return 400 when password and passwordConfirmation do not match", async () => {
       const expectedResponse = new ResponseModel("signUp").withError(
-        HttpStatusCodes.BAD_REQUEST.toString(),
+        DomainErrorCodes.INVALID_INPUT,
         "Passwords do not match",
       );
       (UsersUseCases.prototype.signUp as jest.Mock).mockResolvedValue(expectedResponse);
@@ -716,7 +716,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("should return internal status code on validation failure", async () => {
       const expectedResponse = new ResponseModel("signUp").withError(
-        HttpStatusCodes.BAD_REQUEST.toString(),
+        DomainErrorCodes.INVALID_INPUT,
         "Invalid name",
       );
       (UsersUseCases.prototype.signUp as jest.Mock).mockResolvedValue(expectedResponse);
@@ -775,7 +775,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("should return error code when guest data retrieval fails", async () => {
       const expectedResponse = new ResponseModel("signInAsGuest").withError(
-        HttpStatusCodes.BAD_REQUEST.toString(),
+        DomainErrorCodes.INVALID_INPUT,
         "Invalid guest id",
       );
       (UsersUseCases.prototype.getGuestData as jest.Mock).mockResolvedValue(expectedResponse);
@@ -946,7 +946,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("should redirect to login with error query param if findOrCreateUser fails", async () => {
       const expectedResponse = new ResponseModel("loginWithGoogle").withError(
-        HttpStatusCodes.BAD_REQUEST.toString(),
+        DomainErrorCodes.INVALID_INPUT,
         "Creation failed",
       );
       (UsersUseCases.prototype.findOrCreateUser as jest.Mock).mockResolvedValue(expectedResponse);
@@ -1032,7 +1032,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("should return error status code when requestPasswordReset fails", async () => {
       const expectedResponse = new ResponseModel("forgotPassword").withError(
-        HttpStatusCodes.BAD_REQUEST.toString(),
+        DomainErrorCodes.INVALID_INPUT,
         "Email not found",
       );
       (UsersUseCases.prototype.requestPasswordReset as jest.Mock).mockResolvedValue(
@@ -1079,7 +1079,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("should return error status code when token verification fails", async () => {
       const expectedResponse = new ResponseModel("verifyToken").withError(
-        HttpStatusCodes.BAD_REQUEST.toString(),
+        DomainErrorCodes.INVALID_INPUT,
         "Token expired",
       );
       (UsersUseCases.prototype.verifyPasswordResetToken as jest.Mock).mockResolvedValue(
@@ -1122,7 +1122,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("should return error status code when resetPassword fails", async () => {
       const expectedResponse = new ResponseModel("resetPassword").withError(
-        HttpStatusCodes.BAD_REQUEST.toString(),
+        DomainErrorCodes.INVALID_INPUT,
         "Invalid token",
       );
       (UsersUseCases.prototype.resetPassword as jest.Mock).mockResolvedValue(expectedResponse);

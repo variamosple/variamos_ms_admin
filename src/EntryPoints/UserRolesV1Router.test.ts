@@ -1,3 +1,4 @@
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import express from "express";
 import supertest from "supertest";
 import userRolesV1Router from "./UserRolesV1Router";
@@ -42,7 +43,7 @@ describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when query fails", async () => {
       const expectedResponse = new ResponseModel("queryUserRoles").withError(
-        HttpStatusCodes.BAD_REQUEST.toString(),
+        DomainErrorCodes.INVALID_INPUT,
         "Query failed",
       );
       (UserRoleUseCases.prototype.queryUserRoles as jest.Mock).mockResolvedValue(expectedResponse);
@@ -80,7 +81,7 @@ describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when query details fails", async () => {
       const expectedResponse = new ResponseModel("queryUserRolesDetails").withError(
-        HttpStatusCodes.BAD_REQUEST.toString(),
+        DomainErrorCodes.INVALID_INPUT,
         "Query details failed",
       );
       (UserRoleUseCases.prototype.queryUserRolesDetails as jest.Mock).mockResolvedValue(
@@ -123,7 +124,7 @@ describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when create fails", async () => {
       const expectedResponse = new ResponseModel("createUserRole").withError(
-        HttpStatusCodes.CONFLICT.toString(),
+        DomainErrorCodes.DUPLICATE_ENTITY,
         "Conflict",
       );
       (UserRoleUseCases.prototype.createUserRole as jest.Mock).mockResolvedValue(expectedResponse);
@@ -163,7 +164,7 @@ describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when delete fails", async () => {
       const expectedResponse = new ResponseModel("deleteUserRole").withError(
-        HttpStatusCodes.NOT_FOUND.toString(),
+        DomainErrorCodes.ENTITY_NOT_FOUND,
         "Not found",
       );
       (UserRoleUseCases.prototype.deleteUserRole as jest.Mock).mockResolvedValue(expectedResponse);

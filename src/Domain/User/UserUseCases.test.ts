@@ -737,7 +737,7 @@ describe("UsersUseCases - Unit Tests", () => {
 
       test("should return error if userExists fails", async () => {
         const mockExistsResponse = new ResponseModel<boolean>("tx-1").withError(
-          "DB_ERROR",
+          DomainErrorCodes.SYSTEM_ERROR,
           "DB crashed",
         );
         mockUserRepository.userExists.mockResolvedValue(mockExistsResponse);
@@ -745,7 +745,7 @@ describe("UsersUseCases - Unit Tests", () => {
         const req = new RequestModel<string>("tx-1", "some-guest");
         const res = await useCases.getGuestData(req);
 
-        expect(res.errorCode).toBe("DB_ERROR");
+        expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
       });
     });
   });

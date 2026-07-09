@@ -1,3 +1,4 @@
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import express from "express";
 import supertest from "supertest";
 import usersV1Router from "./UsersV1Router";
@@ -61,7 +62,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when query fails", async () => {
       const expectedResponse = new ResponseModel("queryUsers").withError(
-        HttpStatusCodes.BAD_REQUEST.toString(),
+        DomainErrorCodes.INVALID_INPUT,
         "Invalid query",
       );
       (UsersUseCases.prototype.queryUsers as jest.Mock).mockResolvedValue(expectedResponse);
@@ -102,7 +103,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when queryById fails", async () => {
       const expectedResponse = new ResponseModel("queryUserById").withError(
-        HttpStatusCodes.NOT_FOUND.toString(),
+        DomainErrorCodes.ENTITY_NOT_FOUND,
         "Not found",
       );
       (UsersUseCases.prototype.queryById as jest.Mock).mockResolvedValue(expectedResponse);
@@ -144,7 +145,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when generateRecoveryLink fails", async () => {
       const expectedResponse = new ResponseModel("generateRecoveryLink").withError(
-        HttpStatusCodes.NOT_FOUND.toString(),
+        DomainErrorCodes.ENTITY_NOT_FOUND,
         "User not found",
       );
       (UsersUseCases.prototype.generateRecoveryLink as jest.Mock).mockResolvedValue(
@@ -184,7 +185,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when disableUser fails", async () => {
       const expectedResponse = new ResponseModel("disableUser").withError(
-        HttpStatusCodes.NOT_FOUND.toString(),
+        DomainErrorCodes.ENTITY_NOT_FOUND,
         "User not found",
       );
       (UsersUseCases.prototype.disableUser as jest.Mock).mockResolvedValue(expectedResponse);
@@ -222,7 +223,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when enableUser fails", async () => {
       const expectedResponse = new ResponseModel("enableUser").withError(
-        HttpStatusCodes.NOT_FOUND.toString(),
+        DomainErrorCodes.ENTITY_NOT_FOUND,
         "User not found",
       );
       (UsersUseCases.prototype.enableUser as jest.Mock).mockResolvedValue(expectedResponse);
@@ -260,7 +261,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when deleteUser fails", async () => {
       const expectedResponse = new ResponseModel("deleteUser").withError(
-        HttpStatusCodes.NOT_FOUND.toString(),
+        DomainErrorCodes.ENTITY_NOT_FOUND,
         "User not found",
       );
       (UsersUseCases.prototype.deleteUser as jest.Mock).mockResolvedValue(expectedResponse);

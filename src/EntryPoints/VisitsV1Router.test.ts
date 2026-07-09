@@ -1,3 +1,4 @@
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import express from "express";
 import supertest from "supertest";
 import visitsV1Router from "./VisitsV1Router";
@@ -66,7 +67,7 @@ describe("VisitsV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when register fails", async () => {
       const expectedResponse = new ResponseModel("createVisit").withError(
-        HttpStatusCodes.BAD_REQUEST.toString(),
+        DomainErrorCodes.INVALID_INPUT,
         "Register failed",
       );
       (VisitsUseCases.prototype.registerVisit as jest.Mock).mockResolvedValue(expectedResponse);

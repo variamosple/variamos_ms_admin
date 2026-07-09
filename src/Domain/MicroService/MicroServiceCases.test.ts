@@ -60,7 +60,7 @@ describe("MicroServiceUseCases - Unit Tests", () => {
 
     test("should return error if queryById returns error", async () => {
       const mockQueryResponse = new ResponseModel<MicroService>("tx-1").withError(
-        "NOT_FOUND",
+        DomainErrorCodes.ENTITY_NOT_FOUND,
         "Service not found",
       );
       mockMicroServiceRepository.queryById.mockResolvedValue(mockQueryResponse);
@@ -68,7 +68,7 @@ describe("MicroServiceUseCases - Unit Tests", () => {
       const req = new RequestModel<string>("tx-1", "ms-1");
       const res = await useCases.startMicroService(req);
 
-      expect(res.errorCode).toBe("NOT_FOUND");
+      expect(res.errorCode).toBe(DomainErrorCodes.ENTITY_NOT_FOUND);
       expect(res.message).toBe("Service not found");
       expect(mockMicroServiceRepository.startMicroService).not.toHaveBeenCalled();
     });
@@ -113,7 +113,7 @@ describe("MicroServiceUseCases - Unit Tests", () => {
 
     test("should return error if queryById returns error", async () => {
       const mockQueryResponse = new ResponseModel<MicroService>("tx-1").withError(
-        "NOT_FOUND",
+        DomainErrorCodes.ENTITY_NOT_FOUND,
         "Service not found",
       );
       mockMicroServiceRepository.queryById.mockResolvedValue(mockQueryResponse);
@@ -121,7 +121,7 @@ describe("MicroServiceUseCases - Unit Tests", () => {
       const req = new RequestModel<string>("tx-1", "ms-1");
       const res = await useCases.stopMicroService(req);
 
-      expect(res.errorCode).toBe("NOT_FOUND");
+      expect(res.errorCode).toBe(DomainErrorCodes.ENTITY_NOT_FOUND);
     });
 
     test("should return error if microservice state is not running", async () => {
@@ -163,7 +163,7 @@ describe("MicroServiceUseCases - Unit Tests", () => {
 
     test("should return error if queryById returns error", async () => {
       const mockQueryResponse = new ResponseModel<MicroService>("tx-1").withError(
-        "NOT_FOUND",
+        DomainErrorCodes.ENTITY_NOT_FOUND,
         "Service not found",
       );
       mockMicroServiceRepository.queryById.mockResolvedValue(mockQueryResponse);
@@ -171,7 +171,7 @@ describe("MicroServiceUseCases - Unit Tests", () => {
       const req = new RequestModel<string>("tx-1", "ms-1");
       const res = await useCases.restartMicroService(req);
 
-      expect(res.errorCode).toBe("NOT_FOUND");
+      expect(res.errorCode).toBe(DomainErrorCodes.ENTITY_NOT_FOUND);
     });
 
     test("should return error if microservice state is not running", async () => {

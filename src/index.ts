@@ -1,3 +1,4 @@
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import logger from "jet-logger";
 import "./pre-start"; // Must be the first import
 
@@ -103,7 +104,7 @@ webSocketServer.on("connection", async (ws, req) => {
         return ws.send(
           JSON.stringify(
             response.withError(
-              HttpStatusCodes.NOT_FOUND.toString(),
+              DomainErrorCodes.ENTITY_NOT_FOUND,
               "No Logs found for microservice with id: " + microserviceId,
             ),
           ),

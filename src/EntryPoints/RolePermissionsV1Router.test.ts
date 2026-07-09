@@ -1,3 +1,4 @@
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import express from "express";
 import supertest from "supertest";
 import rolePermissionsV1Router from "./RolePermissionsV1Router";
@@ -50,7 +51,7 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
 
     it("should return error status code when query fails", async () => {
       const expectedResponse = new ResponseModel("queryRolePermissions").withError(
-        HttpStatusCodes.BAD_REQUEST.toString(),
+        DomainErrorCodes.INVALID_INPUT,
         "Query failed",
       );
       (RolePermissionUseCases.prototype.queryRolePermissions as jest.Mock).mockResolvedValue(
@@ -105,7 +106,7 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
 
     it("should return error status code when create fails", async () => {
       const expectedResponse = new ResponseModel("createRolePermission").withError(
-        HttpStatusCodes.CONFLICT.toString(),
+        DomainErrorCodes.DUPLICATE_ENTITY,
         "Already exists",
       );
       (RolePermissionUseCases.prototype.createRolePermission as jest.Mock).mockResolvedValue(
@@ -159,7 +160,7 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
 
     it("should return error status code when delete fails", async () => {
       const expectedResponse = new ResponseModel("deleteRolePermission").withError(
-        HttpStatusCodes.NOT_FOUND.toString(),
+        DomainErrorCodes.ENTITY_NOT_FOUND,
         "Not found",
       );
       (RolePermissionUseCases.prototype.deleteRolePermission as jest.Mock).mockResolvedValue(

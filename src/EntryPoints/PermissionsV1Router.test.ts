@@ -1,3 +1,4 @@
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import express from "express";
 import supertest from "supertest";
 import permissionsV1Router from "./PermissionsV1Router";
@@ -44,7 +45,7 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when query fails", async () => {
       const expectedResponse = new ResponseModel("queryPermissions").withError(
-        HttpStatusCodes.BAD_REQUEST.toString(),
+        DomainErrorCodes.INVALID_INPUT,
         "Query failed",
       );
       (PermissionsUseCases.prototype.queryPermissions as jest.Mock).mockResolvedValue(
@@ -89,7 +90,7 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when create fails", async () => {
       const expectedResponse = new ResponseModel("createPermission").withError(
-        HttpStatusCodes.CONFLICT.toString(),
+        DomainErrorCodes.DUPLICATE_ENTITY,
         "Conflict",
       );
       (PermissionsUseCases.prototype.createPermission as jest.Mock).mockResolvedValue(
@@ -133,7 +134,7 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when delete fails", async () => {
       const expectedResponse = new ResponseModel("deletePermission").withError(
-        HttpStatusCodes.NOT_FOUND.toString(),
+        DomainErrorCodes.ENTITY_NOT_FOUND,
         "Not found",
       );
       (PermissionsUseCases.prototype.deletePermission as jest.Mock).mockResolvedValue(
@@ -176,7 +177,7 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when queryById fails", async () => {
       const expectedResponse = new ResponseModel("queryPermissionById").withError(
-        HttpStatusCodes.NOT_FOUND.toString(),
+        DomainErrorCodes.ENTITY_NOT_FOUND,
         "Not found",
       );
       (PermissionsUseCases.prototype.queryById as jest.Mock).mockResolvedValue(expectedResponse);
@@ -229,7 +230,7 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return error status code when update fails", async () => {
       const expectedResponse = new ResponseModel("updatePermission").withError(
-        HttpStatusCodes.NOT_FOUND.toString(),
+        DomainErrorCodes.ENTITY_NOT_FOUND,
         "Not found",
       );
       (PermissionsUseCases.prototype.updatePermission as jest.Mock).mockResolvedValue(

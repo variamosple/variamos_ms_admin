@@ -37,7 +37,7 @@ describe("VisitsUseCases - Unit Tests", () => {
   test("should return error if countryCodeRepository returns an error", async () => {
     const visit = new Visit("home", "user-123");
     const mockErrorResponse = new ResponseModel<string>("tx-1").withError(
-      "DB_ERROR",
+      DomainErrorCodes.SYSTEM_ERROR,
       "Database not responding",
     );
     mockCountriesRepository.getUserCountryCode.mockResolvedValue(mockErrorResponse);
@@ -45,7 +45,7 @@ describe("VisitsUseCases - Unit Tests", () => {
     const req = new RequestModel<Visit>("tx-1", visit);
     const res = await useCases.registerVisit(req);
 
-    expect(res.errorCode).toBe("DB_ERROR");
+    expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
     expect(res.message).toBe("Database not responding");
     expect(mockVisitRepository.registerVisit).not.toHaveBeenCalled();
   });
@@ -95,14 +95,14 @@ describe("VisitsUseCases - Unit Tests", () => {
   test("should register visit with default error message when countryCodeRepository returns error without message", async () => {
     const visit = new Visit("home", "user-123");
     const mockErrorResponse = new ResponseModel<string>("tx-1");
-    mockErrorResponse.errorCode = "DB_ERROR";
+    mockErrorResponse.errorCode = DomainErrorCodes.SYSTEM_ERROR;
     mockErrorResponse.message = undefined;
     mockCountriesRepository.getUserCountryCode.mockResolvedValue(mockErrorResponse);
 
     const req = new RequestModel<Visit>("tx-1", visit);
     const res = await useCases.registerVisit(req);
 
-    expect(res.errorCode).toBe("DB_ERROR");
+    expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
     expect(res.message).toBe("An unexpected error occurred");
   });
 
