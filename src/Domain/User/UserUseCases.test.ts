@@ -14,43 +14,22 @@ import { PersonalInformationUpdate } from "./Entity/PersonalInformationUpdate";
 import { Role } from "../Role/Entity/Role";
 import { Permission } from "../Permission/Entity/Permission";
 
+import { mock, MockProxy } from "jest-mock-extended";
+
 describe("UsersUseCases - Unit Tests", () => {
   let useCases: UsersUseCases;
-  let mockUserRepository: jest.Mocked<IUserRepository>;
-  let mockMailService: jest.Mocked<IMailService>;
-  let mockRoleRepository: jest.Mocked<IGuestRoleRepository>;
+  let mockUserRepository: MockProxy<IUserRepository>;
+  let mockMailService: MockProxy<IMailService>;
+  let mockRoleRepository: MockProxy<IGuestRoleRepository>;
   const mockConfig = {
     passwordResetExpiryInMs: 3600000, // 1 hour
     homeRedirectUri: "http://localhost:3000",
   };
 
   beforeEach(() => {
-    mockUserRepository = {
-      queryUsers: jest.fn(),
-      findSessionUser: jest.fn(),
-      findOrCreateUser: jest.fn(),
-      signIn: jest.fn(),
-      signUp: jest.fn(),
-      queryById: jest.fn(),
-      disableUser: jest.fn(),
-      enableUser: jest.fn(),
-      deleteUser: jest.fn(),
-      updateUserPassword: jest.fn(),
-      updatePersonalInformation: jest.fn(),
-      userExists: jest.fn(),
-      getUserByEmail: jest.fn(),
-      savePasswordResetToken: jest.fn(),
-      getPasswordResetToken: jest.fn(),
-      resetPasswordAndUpdateToken: jest.fn(),
-    } as jest.Mocked<IUserRepository>;
-
-    mockMailService = {
-      sendPasswordResetMail: jest.fn(),
-    } as jest.Mocked<IMailService>;
-
-    mockRoleRepository = {
-      queryGuestRole: jest.fn(),
-    } as jest.Mocked<IGuestRoleRepository>;
+    mockUserRepository = mock<IUserRepository>();
+    mockMailService = mock<IMailService>();
+    mockRoleRepository = mock<IGuestRoleRepository>();
 
     useCases = new UsersUseCases(
       mockUserRepository,

@@ -1,3 +1,4 @@
+import { mock, MockProxy } from "jest-mock-extended";
 import { RolesUseCases } from "./RoleUseCases";
 import { IRoleRepository } from "./Repository/IRoleRepository";
 import { RequestModel } from "../Core/Entity/RequestModel";
@@ -7,16 +8,10 @@ import { RoleFilter } from "./Entity/RoleFilter";
 
 describe("RolesUseCases - Unit Tests", () => {
   let useCases: RolesUseCases;
-  let mockRoleRepository: jest.Mocked<IRoleRepository>;
+  let mockRoleRepository: MockProxy<IRoleRepository>;
 
   beforeEach(() => {
-    mockRoleRepository = {
-      queryRoles: jest.fn(),
-      createRole: jest.fn(),
-      deleteRole: jest.fn(),
-      queryById: jest.fn(),
-      updateRole: jest.fn(),
-    } as jest.Mocked<IRoleRepository>;
+    mockRoleRepository = mock<IRoleRepository>();
 
     useCases = new RolesUseCases(mockRoleRepository);
   });

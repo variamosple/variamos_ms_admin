@@ -1,3 +1,4 @@
+import { mock, MockProxy } from "jest-mock-extended";
 import { VisitsUseCases } from "./VisitUseCases";
 import { IVisitRepository } from "./Repository/IVisitRepository";
 import { ICountriesRepository } from "../Countries/Repository/ICountriesRepository";
@@ -8,20 +9,12 @@ import { DomainErrorCodes } from "../Core/Error/DomainErrorCodes";
 
 describe("VisitsUseCases - Unit Tests", () => {
   let useCases: VisitsUseCases;
-  let mockVisitRepository: jest.Mocked<IVisitRepository>;
-  let mockCountriesRepository: jest.Mocked<ICountriesRepository>;
+  let mockVisitRepository: MockProxy<IVisitRepository>;
+  let mockCountriesRepository: MockProxy<ICountriesRepository>;
 
   beforeEach(() => {
-    mockVisitRepository = {
-      registerVisit: jest.fn(),
-    } as jest.Mocked<IVisitRepository>;
-
-    mockCountriesRepository = {
-      getCountries: jest.fn(),
-      getUserCountryCode: jest.fn(),
-      getIpCountryCode: jest.fn(),
-    } as jest.Mocked<ICountriesRepository>;
-
+    mockVisitRepository = mock<IVisitRepository>();
+    mockCountriesRepository = mock<ICountriesRepository>();
     useCases = new VisitsUseCases(mockVisitRepository, mockCountriesRepository);
   });
 

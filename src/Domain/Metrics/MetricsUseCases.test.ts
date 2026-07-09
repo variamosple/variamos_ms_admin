@@ -1,3 +1,4 @@
+import { mock, MockProxy } from "jest-mock-extended";
 import { MetricsUseCases } from "./MetricsUseCases";
 import { IMetricsRepository } from "./Repository/IMetricsRepository";
 import { RequestModel } from "../Core/Entity/RequestModel";
@@ -8,13 +9,10 @@ import { DomainErrorCodes } from "../Core/Error/DomainErrorCodes";
 
 describe("MetricsUseCases - Unit Tests", () => {
   let useCases: MetricsUseCases;
-  let mockMetricsRepository: jest.Mocked<IMetricsRepository>;
+  let mockMetricsRepository: MockProxy<IMetricsRepository>;
 
   beforeEach(() => {
-    mockMetricsRepository = {
-      getMetrics: jest.fn(),
-      queryMetric: jest.fn(),
-    } as jest.Mocked<IMetricsRepository>;
+    mockMetricsRepository = mock<IMetricsRepository>();
 
     useCases = new MetricsUseCases(mockMetricsRepository);
   });

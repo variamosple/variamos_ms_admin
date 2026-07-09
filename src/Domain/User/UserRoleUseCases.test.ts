@@ -1,3 +1,4 @@
+import { mock, MockProxy } from "jest-mock-extended";
 import { UserRoleUseCases } from "./UserRoleUseCases";
 import { IUserRoleRepository } from "./Repository/IUserRoleRepository";
 import { RequestModel } from "../Core/Entity/RequestModel";
@@ -8,15 +9,10 @@ import { UserRoleFilter } from "./Entity/UserRoleFilter";
 
 describe("UserRoleUseCases - Unit Tests", () => {
   let useCases: UserRoleUseCases;
-  let mockUserRoleRepository: jest.Mocked<IUserRoleRepository>;
+  let mockUserRoleRepository: MockProxy<IUserRoleRepository>;
 
   beforeEach(() => {
-    mockUserRoleRepository = {
-      queryUserRoles: jest.fn(),
-      queryUserRolesDetails: jest.fn(),
-      createUserRole: jest.fn(),
-      deleteUserRole: jest.fn(),
-    } as jest.Mocked<IUserRoleRepository>;
+    mockUserRoleRepository = mock<IUserRoleRepository>();
 
     useCases = new UserRoleUseCases(mockUserRoleRepository);
   });

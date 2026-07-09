@@ -1,3 +1,4 @@
+import { mock, MockProxy } from "jest-mock-extended";
 import { MicroServiceUseCases } from "./MicroServiceCases";
 import { IMicroServiceRepository } from "./Repository/IMicroServiceRepository";
 import { RequestModel } from "../Core/Entity/RequestModel";
@@ -9,17 +10,10 @@ import { Readable } from "stream";
 
 describe("MicroServiceUseCases - Unit Tests", () => {
   let useCases: MicroServiceUseCases;
-  let mockMicroServiceRepository: jest.Mocked<IMicroServiceRepository>;
+  let mockMicroServiceRepository: MockProxy<IMicroServiceRepository>;
 
   beforeEach(() => {
-    mockMicroServiceRepository = {
-      queryMicroServices: jest.fn(),
-      queryById: jest.fn(),
-      startMicroService: jest.fn(),
-      stopMicroService: jest.fn(),
-      restartMicroService: jest.fn(),
-      watchMicroServiceLogs: jest.fn(),
-    } as jest.Mocked<IMicroServiceRepository>;
+    mockMicroServiceRepository = mock<IMicroServiceRepository>();
 
     useCases = new MicroServiceUseCases(mockMicroServiceRepository);
   });

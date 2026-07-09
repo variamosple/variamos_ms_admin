@@ -1,3 +1,4 @@
+import { mock, MockProxy } from "jest-mock-extended";
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unused-vars, @typescript-eslint/no-non-null-assertion */
 import { BugUseCases, ALLOWED_CATEGORIES } from "./BugUseCases";
 import { RequestModel } from "../Core/Entity/RequestModel";
@@ -19,41 +20,16 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe("BugUseCases Unit Tests", () => {
   let bugUseCases: BugUseCases;
-  let mockIssueTrackerService: jest.Mocked<IIssueTrackerService>;
-  let mockStorageService: jest.Mocked<IStorageService>;
-  let mockBugRepository: jest.Mocked<IBugRepository>;
-  let mockUserRepository: jest.Mocked<IUserRepository>;
+  let mockIssueTrackerService: MockProxy<IIssueTrackerService>;
+  let mockStorageService: MockProxy<IStorageService>;
+  let mockBugRepository: MockProxy<IBugRepository>;
+  let mockUserRepository: MockProxy<IUserRepository>;
   let mockConfig: IBugTrackerConfig;
 
   beforeEach(() => {
-    mockIssueTrackerService = {
-      closeIssue: jest.fn(),
-      reopenIssue: jest.fn(),
-      getIssues: jest.fn(),
-      createIssue: jest.fn(),
-    } as unknown as jest.Mocked<IIssueTrackerService>;
-    mockStorageService = {
-      deleteFile: jest.fn(),
-    } as unknown as jest.Mocked<IStorageService>;
-    mockBugRepository = {
-      queryBugs: jest.fn(),
-      queryLocalBugs: jest.fn(),
-      findById: jest.fn(),
-      saveOrUpdateBug: jest.fn(),
-      rejectBug: jest.fn(),
-      restoreBug: jest.fn(),
-      findExpiredRejectedBugs: jest.fn(),
-      updateAttachmentPath: jest.fn(),
-      createLog: jest.fn(),
-      createBug: jest.fn(),
-      queryHistory: jest.fn(),
-      updateStatus: jest.fn(),
-      createAttachment: jest.fn(),
-      deleteAttachment: jest.fn(),
-      findAttachmentById: jest.fn(),
-      createNote: jest.fn(),
-      queryNotes: jest.fn(),
-    } as unknown as jest.Mocked<IBugRepository>;
+    mockIssueTrackerService = mock<IIssueTrackerService>();
+    mockStorageService = mock<IStorageService>();
+    mockBugRepository = mock<IBugRepository>();
     mockBugRepository.findById.mockResolvedValue(
       new ResponseModel<Bug | null>("tx-id").withResponse(
         Bug.builder().setId("123").setStatus("pending").build(),
@@ -63,9 +39,7 @@ describe("BugUseCases Unit Tests", () => {
     mockBugRepository.queryNotes.mockResolvedValue(
       new ResponseModel<any[]>("tx-id").withResponse([]),
     );
-    mockUserRepository = {
-      findSessionUser: jest.fn(),
-    } as unknown as jest.Mocked<IUserRepository>;
+    mockUserRepository = mock<IUserRepository>();
     mockConfig = {
       getGitHubToken: jest.fn().mockReturnValue("dummy-token-from-test"),
       getGitHubManagedRepos: () => ["VariaMos/VariaMosAdmin"],

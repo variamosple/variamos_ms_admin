@@ -1,3 +1,4 @@
+import { mock, MockProxy } from "jest-mock-extended";
 import { PermissionsUseCases } from "./PermissionUseCases";
 import { IPermissionRepository } from "./Repository/IPermissionRepository";
 import { RequestModel } from "../Core/Entity/RequestModel";
@@ -7,16 +8,10 @@ import { PermissionFilter } from "./Entity/PermissionFilter";
 
 describe("PermissionsUseCases - Unit Tests", () => {
   let useCases: PermissionsUseCases;
-  let mockPermissionRepository: jest.Mocked<IPermissionRepository>;
+  let mockPermissionRepository: MockProxy<IPermissionRepository>;
 
   beforeEach(() => {
-    mockPermissionRepository = {
-      queryPermissions: jest.fn(),
-      createPermission: jest.fn(),
-      deletePermission: jest.fn(),
-      queryById: jest.fn(),
-      updatePermission: jest.fn(),
-    } as jest.Mocked<IPermissionRepository>;
+    mockPermissionRepository = mock<IPermissionRepository>();
 
     useCases = new PermissionsUseCases(mockPermissionRepository);
   });

@@ -1,3 +1,4 @@
+import { mock, MockProxy } from "jest-mock-extended";
 import { RolePermissionUseCases } from "./RolePermissionUseCases";
 import { IRolePermissionRepository } from "./Repository/IRolePermissionRepository";
 import { RequestModel } from "../Core/Entity/RequestModel";
@@ -8,14 +9,10 @@ import { RolePermissionFilter } from "./Entity/RolePermissionFilter";
 
 describe("RolePermissionUseCases - Unit Tests", () => {
   let useCases: RolePermissionUseCases;
-  let mockRolePermissionRepository: jest.Mocked<IRolePermissionRepository>;
+  let mockRolePermissionRepository: MockProxy<IRolePermissionRepository>;
 
   beforeEach(() => {
-    mockRolePermissionRepository = {
-      queryRolePermissions: jest.fn(),
-      createRolePermission: jest.fn(),
-      deleteRolePermission: jest.fn(),
-    } as jest.Mocked<IRolePermissionRepository>;
+    mockRolePermissionRepository = mock<IRolePermissionRepository>();
 
     useCases = new RolePermissionUseCases(mockRolePermissionRepository);
   });
