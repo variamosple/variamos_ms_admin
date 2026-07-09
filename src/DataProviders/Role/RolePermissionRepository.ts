@@ -4,7 +4,7 @@ import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { Permission } from "@src/Domain/Permission/Entity/Permission";
 import { RolePermission } from "@src/Domain/Role/Entity/RolePermission";
 import { RolePermissionFilter } from "@src/Domain/Role/Entity/RolePermissionFilter";
-import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
 import logger from "jet-logger";
 import { QueryTypes } from "sequelize";
 import { BaseRepository } from "../BaseRepository";
@@ -36,8 +36,8 @@ export class RolePermissionRepositoryImpl
       response.totalCount = await VARIAMOS_ORM.query(
         `
             SELECT COUNT(1)
-            FROM variamos.permission p
-            INNER JOIN variamos.role_permission rp ON (p.id = rp.permission_id)
+            FROM ${DB_SCHEMA}.permission p
+            INNER JOIN ${DB_SCHEMA}.role_permission rp ON (p.id = rp.permission_id)
             WHERE rp.role_id = :roleId;   
         `,
         { type: QueryTypes.SELECT, replacements },
@@ -49,8 +49,8 @@ export class RolePermissionRepositoryImpl
       response.data = await VARIAMOS_ORM.query<PermissionModel>(
         `
         SELECT p.*
-        FROM variamos.permission p
-        INNER JOIN variamos.role_permission rp ON p.id = rp.permission_id
+        FROM ${DB_SCHEMA}.permission p
+        INNER JOIN ${DB_SCHEMA}.role_permission rp ON p.id = rp.permission_id
         WHERE rp.role_id = :roleId
         LIMIT :limit OFFSET :offset;
       `,

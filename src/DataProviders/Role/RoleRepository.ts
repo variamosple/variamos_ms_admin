@@ -6,7 +6,7 @@ import { Role } from "@src/Domain/Role/Entity/Role";
 import { RoleFilter } from "@src/Domain/Role/Entity/RoleFilter";
 import { IRoleRepository } from "@src/Domain/Role/Repository/IRoleRepository";
 import { IGuestRoleRepository } from "@src/Domain/Role/Repository/IGuestRoleRepository";
-import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
 import logger from "jet-logger";
 import { Op, QueryTypes, WhereOptions } from "sequelize";
 import { BaseRepository } from "../BaseRepository";
@@ -30,7 +30,7 @@ export class RoleRepositoryImpl
       response.totalCount = await VARIAMOS_ORM.query<{ count: string }>(
         `
             SELECT COUNT(1) AS count
-            FROM variamos.role
+            FROM ${DB_SCHEMA}.role
             WHERE (:name IS NULL OR name ILIKE '%' || :name || '%');   
         `,
         { type: QueryTypes.SELECT, replacements },

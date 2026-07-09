@@ -1,4 +1,4 @@
-import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
 import { Model, NUMBER, TEXT } from "sequelize";
 import { RoleModel } from "../Role/Role";
 import { UserModel } from "./User";
@@ -33,7 +33,7 @@ UserRoleModel.init(
   {
     tableName: "user_role",
     sequelize: VARIAMOS_ORM,
-    schema: "variamos",
+    schema: DB_SCHEMA,
     timestamps: false,
   },
 );

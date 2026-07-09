@@ -9,7 +9,7 @@ import { PasswordUpdate } from "@src/Domain/User/Entity/PasswordUpdate";
 import { PersonalInformationUpdate } from "@src/Domain/User/Entity/PersonalInformationUpdate";
 import { IUserRepository } from "@src/Domain/User/IUserRepository";
 
-import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
 import logger from "jet-logger";
 import { Op, QueryTypes, WhereOptions } from "sequelize";
 import { BaseRepository } from "../BaseRepository";
@@ -42,7 +42,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       response.totalCount = await VARIAMOS_ORM.query<{ count: string }>(
         `
             SELECT COUNT(1) AS count
-            FROM variamos.user
+            FROM ${DB_SCHEMA}.user
             WHERE (:search IS NULL OR name ILIKE '%' || :search || '%' OR email ILIKE '%' || :search || '%')
               AND (:name IS NULL OR name ILIKE '%' || :name || '%');   
         `,
@@ -466,8 +466,8 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
     user.roles = await VARIAMOS_ORM.query<RoleModel>(
       `
         SELECT r.name
-        FROM variamos.role r
-        INNER JOIN variamos.user_role ur ON r.id = ur.role_id
+        FROM ${DB_SCHEMA}.role r
+        INNER JOIN ${DB_SCHEMA}.user_role ur ON r.id = ur.role_id
         WHERE ur.user_id = :userId
       `,
       {
@@ -479,9 +479,9 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
     user.permissions = await VARIAMOS_ORM.query<PermissionModel>(
       `
         SELECT p.name
-        FROM variamos.user_role ur
-        INNER JOIN variamos.role_permission rp ON ur.role_id = rp.role_id
-        INNER JOIN variamos.permission p ON p.id = rp.permission_id
+        FROM ${DB_SCHEMA}.user_role ur
+        INNER JOIN ${DB_SCHEMA}.role_permission rp ON ur.role_id = rp.role_id
+        INNER JOIN ${DB_SCHEMA}.permission p ON p.id = rp.permission_id
         WHERE ur.user_id = :userId
       `,
       {
@@ -578,7 +578,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
     try {
       await VARIAMOS_ORM.query(
         `
-        INSERT INTO "variamos"."password_reset_tokens"
+        INSERT INTO "${DB_SCHEMA}"."password_reset_tokens"
         ("user_id", "token_hash", "expires_at")
         VALUES
         (:userId, :tokenHash, :expiresAt)
@@ -612,7 +612,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       const results = await VARIAMOS_ORM.query<PasswordResetTokenRow>(
         `
         SELECT "user_id" AS "userId", "expires_at" AS "expiresAt", "used_at" AS "usedAt"
-        FROM "variamos"."password_reset_tokens"
+        FROM "${DB_SCHEMA}"."password_reset_tokens"
         WHERE "token_hash" = :tokenHash
         LIMIT 1
         `,
@@ -654,7 +654,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
 
       await VARIAMOS_ORM.query(
         `
-        UPDATE "variamos"."password_reset_tokens"
+        UPDATE "${DB_SCHEMA}"."password_reset_tokens"
         SET "used_at" = NOW()
         WHERE "token_hash" = :tokenHash
         `,

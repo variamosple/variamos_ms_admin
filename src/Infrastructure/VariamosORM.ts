@@ -18,4 +18,5 @@ const VARIAMOS_ORM = new Sequelize(EnvVars.DB.DATABASE, EnvVars.DB.USER, EnvVars
     timestamps: true,
   },
 });
+export const DB_SCHEMA = EnvVars.DB.SCHEMA;
 export default VARIAMOS_ORM;

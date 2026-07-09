@@ -16,6 +16,7 @@ export default {
     DATABASE: process.env.DB_DATABASE ?? "db_database_test",
     PORT: process.env.DB_PORT ?? 5432,
     SSL: process.env.DB_SSL === "true",
+    SCHEMA: process.env.DB_SCHEMA ?? "variamos",
   },
   CORS: {
     AllowedOriginsPatterns: (process.env.CORS_ALLOWED_ORIGINS_PATTERNS ?? "")

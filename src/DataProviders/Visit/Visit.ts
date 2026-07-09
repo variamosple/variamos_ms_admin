@@ -1,4 +1,4 @@
-import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
 import { Model, TEXT, UUIDV4 } from "sequelize";
 
 export interface VisitAttributes {
@@ -32,7 +32,7 @@ VisitModel.init(
   {
     tableName: "page_visit",
     sequelize: VARIAMOS_ORM,
-    schema: "variamos",
+    schema: DB_SCHEMA,
     timestamps: false,
   },
 );

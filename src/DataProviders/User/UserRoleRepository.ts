@@ -6,7 +6,7 @@ import { Permission } from "@src/Domain/Permission/Entity/Permission";
 
 import { UserRole } from "@src/Domain/User/Entity/UserRole";
 import { UserRoleFilter } from "@src/Domain/User/Entity/UserRoleFilter";
-import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
 import logger from "jet-logger";
 import { QueryTypes } from "sequelize";
 import { BaseRepository } from "../BaseRepository";
@@ -37,8 +37,8 @@ export class UserRoleRepositoryImpl extends BaseRepository implements IUserRoleR
       response.totalCount = await VARIAMOS_ORM.query(
         `
             SELECT COUNT(1)
-            FROM variamos.role r
-            INNER JOIN variamos.user_role ur ON (r.id = ur.role_id)
+            FROM ${DB_SCHEMA}.role r
+            INNER JOIN ${DB_SCHEMA}.user_role ur ON (r.id = ur.role_id)
             WHERE ur.user_id = :userId;   
         `,
         { type: QueryTypes.SELECT, replacements },
@@ -51,8 +51,8 @@ export class UserRoleRepositoryImpl extends BaseRepository implements IUserRoleR
       response.data = await VARIAMOS_ORM.query<RoleModel>(
         `
         SELECT r.*
-        FROM variamos.role r
-        INNER JOIN variamos.user_role ur ON r.id = ur.role_id
+        FROM ${DB_SCHEMA}.role r
+        INNER JOIN ${DB_SCHEMA}.user_role ur ON r.id = ur.role_id
         WHERE ur.user_id = :userId
         LIMIT :limit OFFSET :offset;
       `,

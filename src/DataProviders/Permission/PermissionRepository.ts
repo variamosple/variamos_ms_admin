@@ -4,7 +4,7 @@ import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { Permission } from "@src/Domain/Permission/Entity/Permission";
 import { PermissionFilter } from "@src/Domain/Permission/Entity/PermissionFilter";
-import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
 import logger from "jet-logger";
 import { Op, QueryTypes, WhereOptions } from "sequelize";
 import { BaseRepository } from "../BaseRepository";
@@ -27,7 +27,7 @@ export class PermissionRepositoryImpl extends BaseRepository implements IPermiss
       response.totalCount = await VARIAMOS_ORM.query(
         `
             SELECT COUNT(1)
-            FROM variamos.permission
+            FROM ${DB_SCHEMA}.permission
             WHERE (:name IS NULL OR name ILIKE '%' || :name || '%');
         `,
         { type: QueryTypes.SELECT, replacements },

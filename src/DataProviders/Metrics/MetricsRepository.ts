@@ -4,21 +4,21 @@ import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { Metric } from "@src/Domain/Metrics/Entity/Metric";
 import { MetricsFilter } from "@src/Domain/Metrics/Entity/MetricsFilter";
 import { IMetricsRepository } from "@src/Domain/Metrics/Repository/IMetricsRepository";
-import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
 import logger from "jet-logger";
 import { QueryTypes } from "sequelize";
 import { BaseRepository } from "../BaseRepository";
 
 const METRICS_FUNCTIONS = new Map<string, string>([
-  ["visitsByDay", "variamos.get_visits_by_day()"],
-  ["visitsByUser", "variamos.get_visits_by_user()"],
-  ["operationsCount", "variamos.get_operations_count()"],
-  ["activeUsers", "variamos.get_active_users()"],
-  ["activeUsersCount", "variamos.get_active_users_count()"],
-  ["operationsBySystem", "variamos.get_operations_by_system()"],
-  ["averageExecutionTime", "variamos.get_average_execution_time()"],
-  ["errorRate", "variamos.get_error_rate()"],
-  ["errorRateBySystem", "variamos.get_error_rate_by_system()"],
+  ["visitsByDay", "${DB_SCHEMA}.get_visits_by_day()"],
+  ["visitsByUser", "${DB_SCHEMA}.get_visits_by_user()"],
+  ["operationsCount", "${DB_SCHEMA}.get_operations_count()"],
+  ["activeUsers", "${DB_SCHEMA}.get_active_users()"],
+  ["activeUsersCount", "${DB_SCHEMA}.get_active_users_count()"],
+  ["operationsBySystem", "${DB_SCHEMA}.get_operations_by_system()"],
+  ["averageExecutionTime", "${DB_SCHEMA}.get_average_execution_time()"],
+  ["errorRate", "${DB_SCHEMA}.get_error_rate()"],
+  ["errorRateBySystem", "${DB_SCHEMA}.get_error_rate_by_system()"],
 ]);
 
 export class MetricsRepositoryImpl extends BaseRepository implements IMetricsRepository {
@@ -33,7 +33,7 @@ export class MetricsRepositoryImpl extends BaseRepository implements IMetricsRep
     logger.info("Refreshing metrics...");
 
     try {
-      this.metrics = await VARIAMOS_ORM.query("SELECT variamos.get_metrics() AS data", {
+      this.metrics = await VARIAMOS_ORM.query("SELECT ${DB_SCHEMA}.get_metrics() AS data", {
         type: QueryTypes.SELECT,
       }).then(([result]: object[]) => {
         const resObj = result as

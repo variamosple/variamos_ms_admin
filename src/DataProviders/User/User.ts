@@ -1,4 +1,4 @@
-import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
 import { BOOLEAN, DATE, Model, TEXT, UUID, UUIDV4 } from "sequelize";
 import { CountryModel } from "../Countries/Country";
 
@@ -76,7 +76,7 @@ UserModel.init(
   {
     tableName: "user",
     sequelize: VARIAMOS_ORM,
-    schema: "variamos",
+    schema: DB_SCHEMA,
     timestamps: false,
   },
 );

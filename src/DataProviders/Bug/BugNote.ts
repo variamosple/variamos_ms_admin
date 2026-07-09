@@ -1,4 +1,4 @@
-import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
 import { DATE, INTEGER, Model, TEXT, UUID } from "sequelize";
 import { UserModel } from "../User/User";
 
@@ -50,7 +50,7 @@ BugNoteModel.init(
   {
     tableName: "bug_notes",
     sequelize: VARIAMOS_ORM,
-    schema: "variamos",
+    schema: DB_SCHEMA,
     timestamps: true,
     updatedAt: false,
     underscored: true,
