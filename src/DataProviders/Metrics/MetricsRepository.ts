@@ -33,7 +33,7 @@ export class MetricsRepositoryImpl extends BaseRepository implements IMetricsRep
     logger.info("Refreshing metrics...");
 
     try {
-      this.metrics = await VARIAMOS_ORM.query("SELECT ${DB_SCHEMA}.get_metrics() AS data", {
+      this.metrics = await VARIAMOS_ORM.query(`SELECT ${DB_SCHEMA}.get_metrics() AS data`, {
         type: QueryTypes.SELECT,
       }).then(([result]: object[]) => {
         const resObj = result as
