@@ -1,11 +1,13 @@
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import express from "express";
 import supertest from "supertest";
-import permissionsV1Router from "./PermissionsV1Router";
+import { createPermissionsRouter } from "./PermissionsV1Router";
 import { PermissionsUseCases } from "@src/Domain/Permission/PermissionUseCases";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import { Permission } from "@src/Domain/Permission/Entity/Permission";
+
+import { mock } from "jest-mock-extended";
 
 // Mock dependencies
 jest.mock("@src/Domain/Permission/PermissionUseCases");
@@ -15,13 +17,16 @@ jest.mock("@variamosple/variamos-security", () => ({
   },
 }));
 
+import { IPermissionRepository } from "@src/Domain/Permission/Repository/IPermissionRepository";
+
 describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
   let app: express.Application;
 
   beforeAll(() => {
     app = express();
     app.use(express.json());
-    app.use("/v1/permissions", permissionsV1Router);
+    const mockPermissionsUseCases = new PermissionsUseCases(mock<IPermissionRepository>());
+    app.use("/v1/permissions", createPermissionsRouter(mockPermissionsUseCases));
   });
 
   beforeEach(() => {

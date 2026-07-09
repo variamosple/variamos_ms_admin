@@ -1,10 +1,12 @@
 import express from "express";
 import supertest from "supertest";
-import metricsV1Router from "./MetricsV1Router";
+import { createMetricsRouter } from "./MetricsV1Router";
 import { MetricsUseCases } from "@src/Domain/Metrics/MetricsUseCases";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import { Metric } from "@src/Domain/Metrics/Entity/Metric";
+
+import { mock } from "jest-mock-extended";
 
 // Mock dependencies
 jest.mock("@src/Domain/Metrics/MetricsUseCases");
@@ -29,13 +31,16 @@ interface SingleMetricApiResponse {
   data: SerializedMetric;
 }
 
+import { IMetricsRepository } from "@src/Domain/Metrics/Repository/IMetricsRepository";
+
 describe("MetricsV1Router Integration Tests", () => {
   let app: express.Application;
 
   beforeAll(() => {
     app = express();
     app.use(express.json());
-    app.use("/v1/metrics", metricsV1Router);
+    const mockMetricsUseCases = new MetricsUseCases(mock<IMetricsRepository>());
+    app.use("/v1/metrics", createMetricsRouter(mockMetricsUseCases));
   });
 
   beforeEach(() => {

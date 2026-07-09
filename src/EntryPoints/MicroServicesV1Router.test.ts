@@ -1,11 +1,13 @@
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import express from "express";
 import supertest from "supertest";
-import microServicesV1Router from "./MicroServicesV1Router";
+import { createMicroServicesRouter } from "./MicroServicesV1Router";
 import { MicroServiceUseCases } from "@src/Domain/MicroService/MicroServiceCases";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import { Readable } from "stream";
+
+import { mock } from "jest-mock-extended";
 
 // Mock dependencies
 jest.mock("@src/Domain/MicroService/MicroServiceCases");
@@ -15,13 +17,16 @@ jest.mock("@variamosple/variamos-security", () => ({
   },
 }));
 
+import { IMicroServiceRepository } from "@src/Domain/MicroService/Repository/IMicroServiceRepository";
+
 describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
   let app: express.Application;
 
   beforeAll(() => {
     app = express();
     app.use(express.json());
-    app.use("/v1/micro-services", microServicesV1Router);
+    const mockMicroServicesUseCases = new MicroServiceUseCases(mock<IMicroServiceRepository>());
+    app.use("/v1/micro-services", createMicroServicesRouter(mockMicroServicesUseCases));
   });
 
   beforeEach(() => {

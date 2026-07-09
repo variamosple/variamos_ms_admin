@@ -1,6 +1,6 @@
 import express from "express";
 import supertest from "supertest";
-import configurationV1Router from "./ConfigurationRouter";
+import { createConfigurationRouter } from "./ConfigurationRouter";
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import { Menu } from "@src/Domain/Menu/Entity/Menu";
 
@@ -14,7 +14,7 @@ describe("ConfigurationRouter Integration Tests", () => {
   beforeAll(() => {
     app = express();
     app.use(express.json());
-    app.use("/v1/configurations", configurationV1Router);
+    app.use("/v1/configurations", createConfigurationRouter());
   });
 
   describe("GET /v1/configurations/menu", () => {

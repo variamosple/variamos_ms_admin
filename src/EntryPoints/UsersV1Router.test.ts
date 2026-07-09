@@ -1,11 +1,13 @@
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import express from "express";
 import supertest from "supertest";
-import usersV1Router from "./UsersV1Router";
+import { createUsersRouter } from "./UsersV1Router";
 import { UsersUseCases } from "@src/Domain/User/UserUseCases";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import { User } from "@src/Domain/User/Entity/User";
+
+import { mock } from "jest-mock-extended";
 
 jest.mock("@src/Domain/User/UserUseCases");
 
@@ -27,13 +29,25 @@ interface TestApiResponse<T> {
   recoveryUrl?: string;
 }
 
+import { IUserRepository } from "@src/Domain/User/IUserRepository";
+import { IMailService } from "@src/Domain/Mail/IMailService";
+import { IGuestRoleRepository } from "@src/Domain/Role/Repository/IGuestRoleRepository";
+import { UserUseCasesConfig } from "@src/Domain/User/UserUseCases";
+
 describe("UsersV1Router Integration Tests - Extended Coverage", () => {
   let app: express.Application;
 
   beforeAll(() => {
     app = express();
     app.use(express.json());
-    app.use("/v1/users", usersV1Router);
+    const mockUsersUseCases = new UsersUseCases(
+      mock<IUserRepository>(),
+      mock<IMailService>(),
+      mock<IGuestRoleRepository>(),
+      mock<UserUseCasesConfig>(),
+    );
+    const mockUserRolesRouter = express.Router();
+    app.use("/v1/users", createUsersRouter(mockUsersUseCases, mockUserRolesRouter));
   });
 
   beforeEach(() => {

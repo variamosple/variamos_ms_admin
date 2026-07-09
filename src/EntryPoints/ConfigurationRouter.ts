@@ -4,8 +4,6 @@ import { Request, Router } from "express";
 
 export const CONFIGURATION_V1_ROUTE = "/v1/configurations";
 
-const configurationV1Router = Router();
-
 const MENU: Menu = {
   items: [
     {
@@ -141,10 +139,14 @@ const MENU: Menu = {
   ],
 };
 
-configurationV1Router.get("/menu", (_: Request, res) => {
-  const response = new ResponseModel<Menu>("getMenu");
+export function createConfigurationRouter(): Router {
+  const configurationV1Router = Router();
 
-  res.status(200).json(response.withResponse(MENU));
-});
+  configurationV1Router.get("/menu", (_: Request, res) => {
+    const response = new ResponseModel<Menu>("getMenu");
 
-export default configurationV1Router;
+    res.status(200).json(response.withResponse(MENU));
+  });
+
+  return configurationV1Router;
+}

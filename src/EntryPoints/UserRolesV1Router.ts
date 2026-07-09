@@ -4,7 +4,6 @@ import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { UserRole } from "@src/Domain/User/Entity/UserRole";
 import { UserRoleFilter } from "@src/Domain/User/Entity/UserRoleFilter";
 import { UserRoleUseCases } from "@src/Domain/User/UserRoleUseCases";
-import { UserRoleRepositoryInstance } from "@src/DataProviders/User/UserRoleRepository";
 import { hasPermissions } from "@variamosple/variamos-security";
 import { Router } from "express";
 import logger from "jet-logger";
@@ -13,154 +12,154 @@ import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 
 export const USER_ROLES_V1_ROUTE = "/:userId/roles";
 
-const userRolesV1Router = Router({ mergeParams: true });
+export function createUserRolesRouter(userRoleUseCases: UserRoleUseCases): Router {
+  const router = Router({ mergeParams: true });
 
-userRolesV1Router.get("/", hasPermissions(["users::query"]), async (req, res) => {
-  const transactionId = "queryUserRoles";
-  const { pageNumber, pageSize } = req.query;
-  const userId = req.params.userId;
-  try {
-    if (!userId) {
-      return res
-        .status(HttpStatusCodes.BAD_REQUEST)
-        .json(
-          new ResponseModel<void>(transactionId).withError(
-            DomainErrorCodes.INVALID_INPUT,
-            "userId is required.",
-          ),
-        );
+  router.get("/", hasPermissions(["users::query"]), async (req, res) => {
+    const transactionId = "queryUserRoles";
+    const { pageNumber, pageSize } = req.query;
+    const userId = req.params.userId;
+    try {
+      if (!userId) {
+        return res
+          .status(HttpStatusCodes.BAD_REQUEST)
+          .json(
+            new ResponseModel<void>(transactionId).withError(
+              DomainErrorCodes.INVALID_INPUT,
+              "userId is required.",
+            ),
+          );
+      }
+
+      const filter: UserRoleFilter = UserRoleFilter.builder()
+        .setUserId(userId)
+        .setPageNumber(Number(pageNumber))
+        .setPageSize(Number(pageSize))
+        .build();
+
+      const request = new RequestModel<UserRoleFilter>(transactionId, filter);
+      const response = await userRoleUseCases.queryUserRoles(request);
+
+      const status = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(status).json(response);
+    } catch (error) {
+      logger.err(error);
+      const response = new ResponseModel(
+        transactionId,
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal Server Error",
+      );
+      res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
     }
+  });
 
-    const filter: UserRoleFilter = UserRoleFilter.builder()
-      .setUserId(userId)
-      .setPageNumber(Number(pageNumber))
-      .setPageSize(Number(pageSize))
-      .build();
+  router.get("/details", hasPermissions(["users::query"]), async (req, res) => {
+    const transactionId = "queryUserRolesDetails";
+    const { pageNumber, pageSize } = req.query;
+    const userId = req.params.userId;
+    try {
+      if (!userId) {
+        return res
+          .status(HttpStatusCodes.BAD_REQUEST)
+          .json(
+            new ResponseModel<void>(transactionId).withError(
+              DomainErrorCodes.INVALID_INPUT,
+              "userId is required.",
+            ),
+          );
+      }
 
-    const request = new RequestModel<UserRoleFilter>(transactionId, filter);
-    const response = await new UserRoleUseCases(UserRoleRepositoryInstance).queryUserRoles(request);
+      const filter: UserRoleFilter = UserRoleFilter.builder()
+        .setUserId(userId)
+        .setPageNumber(Number(pageNumber))
+        .setPageSize(Number(pageSize))
+        .build();
 
-    const status = mapDomainErrorToHttpStatus(response.errorCode);
-    res.status(status).json(response);
-  } catch (error) {
-    logger.err(error);
-    const response = new ResponseModel(
-      transactionId,
-      DomainErrorCodes.SYSTEM_ERROR,
-      "Internal Server Error",
-    );
-    res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
-  }
-});
+      const request = new RequestModel<UserRoleFilter>(transactionId, filter);
+      const response = await userRoleUseCases.queryUserRolesDetails(request);
 
-userRolesV1Router.get("/details", hasPermissions(["users::query"]), async (req, res) => {
-  const transactionId = "queryUserRolesDetails";
-  const { pageNumber, pageSize } = req.query;
-  const userId = req.params.userId;
-  try {
-    if (!userId) {
-      return res
-        .status(HttpStatusCodes.BAD_REQUEST)
-        .json(
-          new ResponseModel<void>(transactionId).withError(
-            DomainErrorCodes.INVALID_INPUT,
-            "userId is required.",
-          ),
-        );
+      const status = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(status).json(response);
+    } catch (error) {
+      logger.err(error);
+      const response = new ResponseModel(
+        transactionId,
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal Server Error",
+      );
+      res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
     }
+  });
 
-    const filter: UserRoleFilter = UserRoleFilter.builder()
-      .setUserId(userId)
-      .setPageNumber(Number(pageNumber))
-      .setPageSize(Number(pageSize))
-      .build();
+  router.post("/", hasPermissions(["users::update"]), async (req, res) => {
+    const transactionId = "createUserRole";
+    const userId = req.params.userId;
+    const { roleId } = req.body as { roleId?: string };
+    try {
+      if (!userId || !roleId || Number.isNaN(+roleId)) {
+        return res
+          .status(HttpStatusCodes.BAD_REQUEST)
+          .json(
+            new ResponseModel<void>(transactionId).withError(
+              DomainErrorCodes.INVALID_INPUT,
+              "userId and roleId are required.",
+            ),
+          );
+      }
 
-    const request = new RequestModel<UserRoleFilter>(transactionId, filter);
-    const response = await new UserRoleUseCases(UserRoleRepositoryInstance).queryUserRolesDetails(
-      request,
-    );
+      const userRole: UserRole = new UserRole(userId, Number.parseInt(roleId));
 
-    const status = mapDomainErrorToHttpStatus(response.errorCode);
-    res.status(status).json(response);
-  } catch (error) {
-    logger.err(error);
-    const response = new ResponseModel(
-      transactionId,
-      DomainErrorCodes.SYSTEM_ERROR,
-      "Internal Server Error",
-    );
-    res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
-  }
-});
+      const request = new RequestModel<UserRole>(transactionId, userRole);
+      const response = await userRoleUseCases.createUserRole(request);
 
-userRolesV1Router.post("/", hasPermissions(["users::update"]), async (req, res) => {
-  const transactionId = "createUserRole";
-  const userId = req.params.userId;
-  const { roleId } = req.body as { roleId?: string };
-  try {
-    if (!userId || !roleId || Number.isNaN(+roleId)) {
-      return res
-        .status(HttpStatusCodes.BAD_REQUEST)
-        .json(
-          new ResponseModel<void>(transactionId).withError(
-            DomainErrorCodes.INVALID_INPUT,
-            "userId and roleId are required.",
-          ),
-        );
+      // If success, default status maps to CREATED (201) in errorMapper default config if not error
+      const status = response.errorCode
+        ? mapDomainErrorToHttpStatus(response.errorCode)
+        : HttpStatusCodes.CREATED;
+      res.status(status).json(response);
+    } catch (error) {
+      logger.err(error);
+      const response = new ResponseModel(
+        transactionId,
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal Server Error",
+      );
+      res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
     }
+  });
 
-    const userRole: UserRole = new UserRole(userId, Number.parseInt(roleId));
+  router.delete("/:roleId", hasPermissions(["users::update"]), async (req, res) => {
+    const transactionId = "deleteUserRole";
+    const { userId, roleId } = req.params;
+    try {
+      if (!userId || !roleId || Number.isNaN(+roleId)) {
+        return res
+          .status(HttpStatusCodes.BAD_REQUEST)
+          .json(
+            new ResponseModel<void>(transactionId).withError(
+              DomainErrorCodes.INVALID_INPUT,
+              "userId and roleId are required.",
+            ),
+          );
+      }
 
-    const request = new RequestModel<UserRole>(transactionId, userRole);
-    const response = await new UserRoleUseCases(UserRoleRepositoryInstance).createUserRole(request);
+      const userRole: UserRole = new UserRole(userId, Number.parseInt(roleId));
 
-    // If success, default status maps to CREATED (201) in errorMapper default config if not error
-    const status = response.errorCode
-      ? mapDomainErrorToHttpStatus(response.errorCode)
-      : HttpStatusCodes.CREATED;
-    res.status(status).json(response);
-  } catch (error) {
-    logger.err(error);
-    const response = new ResponseModel(
-      transactionId,
-      DomainErrorCodes.SYSTEM_ERROR,
-      "Internal Server Error",
-    );
-    res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
-  }
-});
+      const request = new RequestModel<UserRole>(transactionId, userRole);
+      const response = await userRoleUseCases.deleteUserRole(request);
 
-userRolesV1Router.delete("/:roleId", hasPermissions(["users::update"]), async (req, res) => {
-  const transactionId = "deleteUserRole";
-  const { userId, roleId } = req.params;
-  try {
-    if (!userId || !roleId || Number.isNaN(+roleId)) {
-      return res
-        .status(HttpStatusCodes.BAD_REQUEST)
-        .json(
-          new ResponseModel<void>(transactionId).withError(
-            DomainErrorCodes.INVALID_INPUT,
-            "userId and roleId are required.",
-          ),
-        );
+      const status = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(status).json(response);
+    } catch (error) {
+      logger.err(error);
+      const response = new ResponseModel(
+        transactionId,
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal Server Error",
+      );
+      res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
     }
+  });
 
-    const userRole: UserRole = new UserRole(userId, Number.parseInt(roleId));
-
-    const request = new RequestModel<UserRole>(transactionId, userRole);
-    const response = await new UserRoleUseCases(UserRoleRepositoryInstance).deleteUserRole(request);
-
-    const status = mapDomainErrorToHttpStatus(response.errorCode);
-    res.status(status).json(response);
-  } catch (error) {
-    logger.err(error);
-    const response = new ResponseModel(
-      transactionId,
-      DomainErrorCodes.SYSTEM_ERROR,
-      "Internal Server Error",
-    );
-    res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
-  }
-});
-
-export default userRolesV1Router;
+  return router;
+}

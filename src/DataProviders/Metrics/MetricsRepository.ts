@@ -10,15 +10,15 @@ import { QueryTypes } from "sequelize";
 import { BaseRepository } from "../BaseRepository";
 
 const METRICS_FUNCTIONS = new Map<string, string>([
-  ["visitsByDay", "${DB_SCHEMA}.get_visits_by_day()"],
-  ["visitsByUser", "${DB_SCHEMA}.get_visits_by_user()"],
-  ["operationsCount", "${DB_SCHEMA}.get_operations_count()"],
-  ["activeUsers", "${DB_SCHEMA}.get_active_users()"],
-  ["activeUsersCount", "${DB_SCHEMA}.get_active_users_count()"],
-  ["operationsBySystem", "${DB_SCHEMA}.get_operations_by_system()"],
-  ["averageExecutionTime", "${DB_SCHEMA}.get_average_execution_time()"],
-  ["errorRate", "${DB_SCHEMA}.get_error_rate()"],
-  ["errorRateBySystem", "${DB_SCHEMA}.get_error_rate_by_system()"],
+  ["visitsByDay", `${DB_SCHEMA}.get_visits_by_day()`],
+  ["visitsByUser", `${DB_SCHEMA}.get_visits_by_user()`],
+  ["operationsCount", `${DB_SCHEMA}.get_operations_count()`],
+  ["activeUsers", `${DB_SCHEMA}.get_active_users()`],
+  ["activeUsersCount", `${DB_SCHEMA}.get_active_users_count()`],
+  ["operationsBySystem", `${DB_SCHEMA}.get_operations_by_system()`],
+  ["averageExecutionTime", `${DB_SCHEMA}.get_average_execution_time()`],
+  ["errorRate", `${DB_SCHEMA}.get_error_rate()`],
+  ["errorRateBySystem", `${DB_SCHEMA}.get_error_rate_by_system()`],
 ]);
 
 export class MetricsRepositoryImpl extends BaseRepository implements IMetricsRepository {

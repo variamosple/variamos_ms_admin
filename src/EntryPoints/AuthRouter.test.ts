@@ -26,7 +26,7 @@ import express from "express";
 import supertest from "supertest";
 import EnvVars from "@src/common/EnvVars";
 import cookieParser from "cookie-parser";
-import authRouter, { AUTH_ROUTE } from "./AuthRouter";
+import { createAuthRouter, AUTH_ROUTE } from "./AuthRouter";
 import { UsersUseCases } from "@src/Domain/User/UserUseCases";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
@@ -41,6 +41,12 @@ import {
   SessionInfo,
   ResponseModel as SecurityResponseModel,
 } from "@variamosple/variamos-security";
+
+import { IUserRepository } from "@src/Domain/User/IUserRepository";
+import { IMailService } from "@src/Domain/Mail/IMailService";
+import { IGuestRoleRepository } from "@src/Domain/Role/Repository/IGuestRoleRepository";
+import { UserUseCasesConfig } from "@src/Domain/User/UserUseCases";
+import { mock } from "jest-mock-extended";
 
 // Mock other dependencies
 jest.mock("@src/Domain/User/UserUseCases");
@@ -96,7 +102,13 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     app = express();
     app.use(express.json());
     app.use(cookieParser("secret"));
-    app.use(AUTH_ROUTE, authRouter);
+    const mockUsersUseCases = new UsersUseCases(
+      mock<IUserRepository>(),
+      mock<IMailService>(),
+      mock<IGuestRoleRepository>(),
+      mock<UserUseCasesConfig>(),
+    );
+    app.use(AUTH_ROUTE, createAuthRouter(mockUsersUseCases));
   });
 
   beforeEach(() => {

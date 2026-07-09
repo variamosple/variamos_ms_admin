@@ -1,9 +1,11 @@
 import express from "express";
 import supertest from "supertest";
-import countriesV1Router from "./CountriesV1Router";
+import { createCountriesRouter } from "./CountriesV1Router";
 import { CountriesUseCases } from "@src/Domain/Countries/CountriesUseCases";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
+
+import { mock } from "jest-mock-extended";
 
 // Mock dependencies
 jest.mock("@src/Domain/Countries/CountriesUseCases");
@@ -17,13 +19,16 @@ interface CountriesApiResponse {
   data: string[];
 }
 
+import { ICountriesRepository } from "@src/Domain/Countries/Repository/ICountriesRepository";
+
 describe("CountriesV1Router Integration Tests", () => {
   let app: express.Application;
 
   beforeAll(() => {
     app = express();
     app.use(express.json());
-    app.use("/v1/countries", countriesV1Router);
+    const mockCountriesUseCases = new CountriesUseCases(mock<ICountriesRepository>());
+    app.use("/v1/countries", createCountriesRouter(mockCountriesUseCases));
   });
 
   beforeEach(() => {

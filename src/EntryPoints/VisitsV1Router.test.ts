@@ -1,11 +1,13 @@
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import express from "express";
 import supertest from "supertest";
-import visitsV1Router from "./VisitsV1Router";
+import { createVisitsRouter } from "./VisitsV1Router";
 import { VisitsUseCases } from "@src/Domain/Visit/VisitUseCases";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import { Visit } from "@src/Domain/Visit/Entity/Visit";
+
+import { mock } from "jest-mock-extended";
 
 interface CustomRequest {
   user?: { id: string };
@@ -20,13 +22,20 @@ jest.mock("@variamosple/variamos-security", () => ({
   },
 }));
 
+import { IVisitRepository } from "@src/Domain/Visit/Repository/IVisitRepository";
+import { ICountriesRepository } from "@src/Domain/Countries/Repository/ICountriesRepository";
+
 describe("VisitsV1Router Integration Tests - Extended Coverage", () => {
   let app: express.Application;
 
   beforeAll(() => {
     app = express();
     app.use(express.json());
-    app.use("/v1/visits", visitsV1Router);
+    const mockVisitsUseCases = new VisitsUseCases(
+      mock<IVisitRepository>(),
+      mock<ICountriesRepository>(),
+    );
+    app.use("/v1/visits", createVisitsRouter(mockVisitsUseCases));
   });
 
   beforeEach(() => {

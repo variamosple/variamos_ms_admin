@@ -7,18 +7,65 @@ import { initKeyStore, validateSession } from "@variamosple/variamos-security";
 import * as cookie from "cookie";
 import { Readable } from "stream";
 import { WebSocket, WebSocketServer } from "ws";
-import HttpStatusCodes from "./common/HttpStatusCodes";
 import { RequestModel } from "./Domain/Core/Entity/RequestModel";
-import { MicroServiceUseCases } from "./Domain/MicroService/MicroServiceCases";
-import { MicroServiceRepositoryInstance } from "./CompositionRoot";
-import app from "./server";
-// **** Run **** //
+import { createBaseRouter } from "./EntryPoints";
+import { createServer } from "./server";
 
-import { productionBugUseCases as bugUseCases } from "./EntryPoints";
+import {
+  productionUsersUseCases,
+  productionBugUseCases,
+  productionMicroServiceUseCases,
+  productionRolesUseCases,
+  productionRolePermissionUseCases,
+  productionUserRoleUseCases,
+  productionMetricsUseCases,
+  productionPermissionsUseCases,
+  productionVisitsUseCases,
+  productionCountriesUseCases,
+} from "./CompositionRoot";
+
 import { BugModel } from "./DataProviders/Bug/Bug";
 import { BugAttachmentModel } from "./DataProviders/Bug/BugAttachment";
 import { BugLogModel } from "./DataProviders/Bug/BugLog";
 import "./DataProviders/Bug/BugAssociations";
+
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, "./public/uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Multer storage configuration
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  },
+});
+const productionUpload = multer({ storage });
+
+const baseRouter = createBaseRouter(
+  productionUsersUseCases,
+  productionBugUseCases,
+  productionMicroServiceUseCases,
+  productionRolesUseCases,
+  productionRolePermissionUseCases,
+  productionUserRoleUseCases,
+  productionMetricsUseCases,
+  productionPermissionsUseCases,
+  productionVisitsUseCases,
+  productionCountriesUseCases,
+  productionUpload,
+);
+
+const app = createServer(baseRouter);
 
 const SERVER_START_MSG = "Express server started on port: " + EnvVars.Port.toString();
 
@@ -35,7 +82,7 @@ const server = app.listen(EnvVars.Port, async () => {
     logger.info("Bug Tracker Database models synchronized successfully.");
 
     // Purge expired rejected bugs (older than 7 days) on startup
-    await bugUseCases.purgeExpiredRejectedBugs();
+    await productionBugUseCases.purgeExpiredRejectedBugs();
   } catch (e) {
     const err = e as Error;
     logger.err("Failed to synchronize Bug tracker models: " + err.message);
@@ -47,7 +94,7 @@ const server = app.listen(EnvVars.Port, async () => {
     try {
       logger.info("Executing periodic bugs synchronization...");
       const request = new RequestModel<void>("periodicSyncBugs");
-      await bugUseCases.syncBugs(request);
+      await productionBugUseCases.syncBugs(request);
     } catch (e) {
       const err = e as Error;
       logger.err("Failed to execute periodic bugs sync: " + err.message);
@@ -59,7 +106,7 @@ const server = app.listen(EnvVars.Port, async () => {
   setInterval(async () => {
     try {
       logger.info("Executing periodic expired bugs purge...");
-      await bugUseCases.purgeExpiredRejectedBugs();
+      await productionBugUseCases.purgeExpiredRejectedBugs();
     } catch (e) {
       const err = e as Error;
       logger.err("Failed to execute periodic expired bugs purge: " + err.message);
@@ -92,9 +139,7 @@ webSocketServer.on("connection", async (ws, req) => {
 
       const request = new RequestModel<string>(transactionId, microserviceId as string);
 
-      const response = await new MicroServiceUseCases(
-        MicroServiceRepositoryInstance,
-      ).watchMicroServiceLogs(request);
+      const response = await productionMicroServiceUseCases.watchMicroServiceLogs(request);
 
       if (response.errorCode) {
         return ws.send(JSON.stringify(response));
