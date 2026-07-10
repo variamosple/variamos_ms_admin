@@ -19,7 +19,7 @@ describe("RolePermissionUseCases - Unit Tests", () => {
 
   test("should query role permissions", async () => {
     const mockFilter = new RolePermissionFilter(1);
-    const mockPermissions = [new Permission(1, "READ")];
+    const mockPermissions = [new Permission(1, "roles::read")];
     const mockResponse = new ResponseModel<Permission[]>("tx-1").withResponse(mockPermissions);
     mockRolePermissionRepository.queryRolePermissions.mockResolvedValue(mockResponse);
 

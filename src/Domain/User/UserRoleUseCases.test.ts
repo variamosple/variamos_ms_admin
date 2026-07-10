@@ -19,7 +19,7 @@ describe("UserRoleUseCases - Unit Tests", () => {
 
   test("should query user roles", async () => {
     const mockFilter = new UserRoleFilter("user-123");
-    const mockRoles = [new Role(1, "ADMIN")];
+    const mockRoles = [new Role(1, "Admin")];
     const mockResponse = new ResponseModel<Role[]>("tx-1").withResponse(mockRoles);
     mockUserRoleRepository.queryUserRoles.mockResolvedValue(mockResponse);
 
@@ -32,7 +32,7 @@ describe("UserRoleUseCases - Unit Tests", () => {
 
   test("should query user roles details", async () => {
     const mockFilter = new UserRoleFilter("user-123");
-    const mockRoles = [new Role(1, "ADMIN")];
+    const mockRoles = [new Role(1, "Admin")];
     const mockResponse = new ResponseModel<Role[]>("tx-2").withResponse(mockRoles);
     mockUserRoleRepository.queryUserRolesDetails.mockResolvedValue(mockResponse);
 

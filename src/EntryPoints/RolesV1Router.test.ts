@@ -70,11 +70,11 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
 
   describe("POST /v1/roles", () => {
     it("should return 201 on success", async () => {
-      const mockRole = new Role(1, "test::role");
+      const mockRole = new Role(1, "Test role");
       const expectedResponse = new ResponseModel("createRole").withResponse(mockRole);
       (RolesUseCases.prototype.createRole as jest.Mock).mockResolvedValue(expectedResponse);
 
-      const response = await supertest(app).post("/v1/roles").send({ name: "test::role" });
+      const response = await supertest(app).post("/v1/roles").send({ name: "Test role" });
 
       expect(response.status).toBe(HttpStatusCodes.CREATED);
       expect(RolesUseCases.prototype.createRole).toHaveBeenCalledTimes(1);
@@ -93,7 +93,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
       );
       (RolesUseCases.prototype.createRole as jest.Mock).mockResolvedValue(expectedResponse);
 
-      const response = await supertest(app).post("/v1/roles").send({ name: "conflict" });
+      const response = await supertest(app).post("/v1/roles").send({ name: "Conflict" });
 
       expect(response.status).toBe(HttpStatusCodes.CONFLICT);
     });
@@ -103,7 +103,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
         new Error("Unexpected error"),
       );
 
-      const response = await supertest(app).post("/v1/roles").send({ name: "exception" });
+      const response = await supertest(app).post("/v1/roles").send({ name: "Exception" });
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
     });
@@ -151,7 +151,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
 
   describe("GET /v1/roles/:roleId", () => {
     it("should return 200 on success", async () => {
-      const mockRole = new Role(123, "test::role");
+      const mockRole = new Role(123, "Test role");
       const expectedResponse = new ResponseModel("queryRoleById").withResponse(mockRole);
       (RolesUseCases.prototype.queryById as jest.Mock).mockResolvedValue(expectedResponse);
 
@@ -192,18 +192,18 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
 
   describe("PUT /v1/roles/:roleId", () => {
     it("should return 200 on success", async () => {
-      const mockRole = new Role(123, "updated::role");
+      const mockRole = new Role(123, "Updated role");
       const expectedResponse = new ResponseModel("updateRole").withResponse(mockRole);
       (RolesUseCases.prototype.updateRole as jest.Mock).mockResolvedValue(expectedResponse);
 
-      const response = await supertest(app).put("/v1/roles/123").send({ name: "updated::role" });
+      const response = await supertest(app).put("/v1/roles/123").send({ name: "Updated role" });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(RolesUseCases.prototype.updateRole).toHaveBeenCalledTimes(1);
     });
 
     it("should return 400 when roleId is invalid", async () => {
-      const response = await supertest(app).put("/v1/roles/invalid-id").send({ name: "test" });
+      const response = await supertest(app).put("/v1/roles/invalid-id").send({ name: "Test" });
 
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
     });
@@ -221,7 +221,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
       );
       (RolesUseCases.prototype.updateRole as jest.Mock).mockResolvedValue(expectedResponse);
 
-      const response = await supertest(app).put("/v1/roles/123").send({ name: "test" });
+      const response = await supertest(app).put("/v1/roles/123").send({ name: "Test" });
 
       expect(response.status).toBe(HttpStatusCodes.NOT_FOUND);
     });
@@ -231,7 +231,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
         new Error("Unexpected error"),
       );
 
-      const response = await supertest(app).put("/v1/roles/123").send({ name: "test" });
+      const response = await supertest(app).put("/v1/roles/123").send({ name: "Test" });
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
     });

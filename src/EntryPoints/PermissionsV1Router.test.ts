@@ -102,7 +102,9 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
         expectedResponse,
       );
 
-      const response = await supertest(app).post("/v1/permissions").send({ name: "conflict" });
+      const response = await supertest(app)
+        .post("/v1/permissions")
+        .send({ name: "users::conflict" });
 
       expect(response.status).toBe(HttpStatusCodes.CONFLICT);
     });
@@ -112,7 +114,9 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
         new Error("Unexpected error"),
       );
 
-      const response = await supertest(app).post("/v1/permissions").send({ name: "exception" });
+      const response = await supertest(app)
+        .post("/v1/permissions")
+        .send({ name: "users::exception" });
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
     });
@@ -222,7 +226,7 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
     it("should return 400 when permissionId is invalid", async () => {
       const response = await supertest(app)
         .put("/v1/permissions/invalid-id")
-        .send({ name: "test" });
+        .send({ name: "test::perm" });
 
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
     });
@@ -242,7 +246,7 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
         expectedResponse,
       );
 
-      const response = await supertest(app).put("/v1/permissions/123").send({ name: "test" });
+      const response = await supertest(app).put("/v1/permissions/123").send({ name: "test::perm" });
 
       expect(response.status).toBe(HttpStatusCodes.NOT_FOUND);
     });
@@ -252,7 +256,7 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
         new Error("Unexpected error"),
       );
 
-      const response = await supertest(app).put("/v1/permissions/123").send({ name: "test" });
+      const response = await supertest(app).put("/v1/permissions/123").send({ name: "test::perm" });
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
     });

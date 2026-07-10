@@ -720,7 +720,7 @@ describe("UsersUseCases - Unit Tests", () => {
           .mockResolvedValueOnce(mockExistsResponse1)
           .mockResolvedValueOnce(mockExistsResponse2);
 
-        const mockPermission = new Permission(1, "read");
+        const mockPermission = new Permission(1, "users::read");
         const mockRole = new Role(1, "Guest", [mockPermission]);
         mockRoleRepository.queryGuestRole.mockResolvedValue(
           new ResponseModel<Role>("tx-1").withResponse(mockRole),
@@ -731,7 +731,7 @@ describe("UsersUseCases - Unit Tests", () => {
 
         expect(res.data?.name).toBe("Guest");
         expect(res.data?.roles).toContain("Guest");
-        expect(res.data?.permissions).toContain("read");
+        expect(res.data?.permissions).toContain("users::read");
       });
 
       test("should return error if userExists fails", async () => {

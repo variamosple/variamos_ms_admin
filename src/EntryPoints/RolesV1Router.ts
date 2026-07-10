@@ -60,7 +60,19 @@ export function createRolesRouter(
           );
       }
 
-      const role: Role = new Role(null, name);
+      let role: Role;
+      try {
+        role = new Role(null, name);
+      } catch (error) {
+        return res
+          .status(HttpStatusCodes.BAD_REQUEST)
+          .json(
+            new ResponseModel<void>(transactionId).withError(
+              DomainErrorCodes.INVALID_INPUT,
+              (error as Error).message,
+            ),
+          );
+      }
 
       const request = new RequestModel<Role>(transactionId, role);
       const response = await rolesUseCases.createRole(request);
@@ -169,7 +181,19 @@ export function createRolesRouter(
           );
       }
 
-      const permission: Role = new Role(Number.parseInt(roleId), name);
+      let permission: Role;
+      try {
+        permission = new Role(Number.parseInt(roleId), name);
+      } catch (error) {
+        return res
+          .status(HttpStatusCodes.BAD_REQUEST)
+          .json(
+            new ResponseModel<void>(transactionId).withError(
+              DomainErrorCodes.INVALID_INPUT,
+              (error as Error).message,
+            ),
+          );
+      }
 
       const request = new RequestModel<Role>(transactionId, permission);
       const response = await rolesUseCases.updateRole(request);

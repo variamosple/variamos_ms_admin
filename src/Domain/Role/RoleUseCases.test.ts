@@ -17,8 +17,8 @@ describe("RolesUseCases - Unit Tests", () => {
   });
 
   test("should query roles", async () => {
-    const mockFilter = new RoleFilter(1, "ADMIN");
-    const mockRoles = [new Role(1, "ADMIN")];
+    const mockFilter = new RoleFilter(1, "Admin");
+    const mockRoles = [new Role(1, "Admin")];
     const mockResponse = new ResponseModel<Role[]>("tx-1").withResponse(mockRoles);
     mockRoleRepository.queryRoles.mockResolvedValue(mockResponse);
 
@@ -30,8 +30,8 @@ describe("RolesUseCases - Unit Tests", () => {
   });
 
   test("should create role", async () => {
-    const mockRole = new Role(null, "USER");
-    const createdRole = new Role(2, "USER");
+    const mockRole = new Role(null, "User");
+    const createdRole = new Role(2, "User");
     const mockResponse = new ResponseModel<Role>("tx-2").withResponse(createdRole);
     mockRoleRepository.createRole.mockResolvedValue(mockResponse);
 
@@ -54,7 +54,7 @@ describe("RolesUseCases - Unit Tests", () => {
   });
 
   test("should query role by id", async () => {
-    const mockRole = new Role(1, "ADMIN");
+    const mockRole = new Role(1, "Admin");
     const mockResponse = new ResponseModel<Role>("tx-4").withResponse(mockRole);
     mockRoleRepository.queryById.mockResolvedValue(mockResponse);
 
@@ -66,7 +66,7 @@ describe("RolesUseCases - Unit Tests", () => {
   });
 
   test("should update role", async () => {
-    const mockRole = new Role(1, "SUPER_ADMIN");
+    const mockRole = new Role(1, "Super admin");
     const mockResponse = new ResponseModel<Role>("tx-5").withResponse(mockRole);
     mockRoleRepository.updateRole.mockResolvedValue(mockResponse);
 

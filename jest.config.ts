@@ -22,7 +22,6 @@ const config: Config = {
   collectCoverageFrom: [
     "src/Domain/**/*.ts",
     "src/EntryPoints/**/*.ts",
-    "!src/Domain/**/Entity/*.ts",
     "!src/EntryPoints/index.ts",
     "!src/**/*.d.ts",
   ],

@@ -56,7 +56,19 @@ export function createPermissionsRouter(permissionsUseCases: PermissionsUseCases
           );
       }
 
-      const permission: Permission = new Permission(null, name);
+      let permission: Permission;
+      try {
+        permission = new Permission(null, name);
+      } catch (error) {
+        return res
+          .status(HttpStatusCodes.BAD_REQUEST)
+          .json(
+            new ResponseModel<void>(transactionId).withError(
+              DomainErrorCodes.INVALID_INPUT,
+              (error as Error).message,
+            ),
+          );
+      }
 
       const request = new RequestModel<Permission>(transactionId, permission);
       const response = await permissionsUseCases.createPermission(request);
@@ -175,7 +187,19 @@ export function createPermissionsRouter(permissionsUseCases: PermissionsUseCases
             );
         }
 
-        const permission: Permission = new Permission(Number.parseInt(permissionId), name);
+        let permission: Permission;
+        try {
+          permission = new Permission(Number.parseInt(permissionId), name);
+        } catch (error) {
+          return res
+            .status(HttpStatusCodes.BAD_REQUEST)
+            .json(
+              new ResponseModel<void>(transactionId).withError(
+                DomainErrorCodes.INVALID_INPUT,
+                (error as Error).message,
+              ),
+            );
+        }
 
         const request = new RequestModel<Permission>(transactionId, permission);
         const response = await permissionsUseCases.updatePermission(request);

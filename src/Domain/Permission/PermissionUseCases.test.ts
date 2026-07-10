@@ -17,8 +17,8 @@ describe("PermissionsUseCases - Unit Tests", () => {
   });
 
   test("should query permissions", async () => {
-    const mockFilter = new PermissionFilter(1, "READ");
-    const mockPermissions = [new Permission(1, "READ")];
+    const mockFilter = new PermissionFilter(1, "permissions::query");
+    const mockPermissions = [new Permission(1, "permissions::query")];
     const mockResponse = new ResponseModel<Permission[]>("tx-1").withResponse(mockPermissions);
     mockPermissionRepository.queryPermissions.mockResolvedValue(mockResponse);
 
@@ -30,8 +30,8 @@ describe("PermissionsUseCases - Unit Tests", () => {
   });
 
   test("should create permission", async () => {
-    const mockPermission = new Permission(null, "WRITE");
-    const createdPermission = new Permission(2, "WRITE");
+    const mockPermission = new Permission(null, "permissions::create");
+    const createdPermission = new Permission(2, "permissions::create");
     const mockResponse = new ResponseModel<Permission>("tx-2").withResponse(createdPermission);
     mockPermissionRepository.createPermission.mockResolvedValue(mockResponse);
 
@@ -54,7 +54,7 @@ describe("PermissionsUseCases - Unit Tests", () => {
   });
 
   test("should query permission by id", async () => {
-    const mockPermission = new Permission(1, "READ");
+    const mockPermission = new Permission(1, "permissions::query");
     const mockResponse = new ResponseModel<Permission>("tx-4").withResponse(mockPermission);
     mockPermissionRepository.queryById.mockResolvedValue(mockResponse);
 
@@ -66,7 +66,7 @@ describe("PermissionsUseCases - Unit Tests", () => {
   });
 
   test("should update permission", async () => {
-    const mockPermission = new Permission(1, "READ_WRITE");
+    const mockPermission = new Permission(1, "permissions::update");
     const mockResponse = new ResponseModel<Permission>("tx-5").withResponse(mockPermission);
     mockPermissionRepository.updatePermission.mockResolvedValue(mockResponse);
 
