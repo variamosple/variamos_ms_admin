@@ -6,6 +6,7 @@ interface CountryAttributes {
   name: string;
   latitude: number;
   longitude: number;
+  code3: string;
 }
 
 export class CountryModel extends Model<CountryAttributes> implements CountryAttributes {
@@ -13,6 +14,7 @@ export class CountryModel extends Model<CountryAttributes> implements CountryAtt
   public name!: string;
   public latitude!: number;
   public longitude!: number;
+  public code3!: string;
 }
 
 CountryModel.init(
@@ -32,6 +34,10 @@ CountryModel.init(
     },
     longitude: {
       type: NUMBER,
+      allowNull: false,
+    },
+    code3: {
+      type: TEXT,
       allowNull: false,
     },
   },
