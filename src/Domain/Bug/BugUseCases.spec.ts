@@ -1,3 +1,5 @@
+import { mock, MockProxy } from "jest-mock-extended";
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unused-vars, @typescript-eslint/no-non-null-assertion */
 import { BugUseCases, ALLOWED_CATEGORIES } from "./BugUseCases";
 import { RequestModel } from "../Core/Entity/RequestModel";
 import { Bug } from "./Entity/Bug";
@@ -18,55 +20,26 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe("BugUseCases Unit Tests", () => {
   let bugUseCases: BugUseCases;
-  let mockIssueTrackerService: jest.Mocked<IIssueTrackerService>;
-  let mockStorageService: jest.Mocked<IStorageService>;
-  let mockBugRepository: jest.Mocked<IBugRepository>;
-  let mockUserRepository: jest.Mocked<IUserRepository>;
+  let mockIssueTrackerService: MockProxy<IIssueTrackerService>;
+  let mockStorageService: MockProxy<IStorageService>;
+  let mockBugRepository: MockProxy<IBugRepository>;
+  let mockUserRepository: MockProxy<IUserRepository>;
   let mockConfig: IBugTrackerConfig;
 
   beforeEach(() => {
-    mockIssueTrackerService = {
-      closeIssue: jest.fn(),
-      reopenIssue: jest.fn(),
-      getIssues: jest.fn(),
-      createIssue: jest.fn(),
-    } as unknown as jest.Mocked<IIssueTrackerService>;
-    mockStorageService = {
-      deleteFile: jest.fn(),
-    } as unknown as jest.Mocked<IStorageService>;
-    mockBugRepository = {
-      queryBugs: jest.fn(),
-      queryLocalBugs: jest.fn(),
-      findById: jest.fn(),
-      saveOrUpdateBug: jest.fn(),
-      rejectBug: jest.fn(),
-      restoreBug: jest.fn(),
-      findExpiredRejectedBugs: jest.fn(),
-      updateAttachmentPath: jest.fn(),
-      createLog: jest.fn(),
-      createBug: jest.fn(),
-      queryHistory: jest.fn(),
-      updateStatus: jest.fn(),
-      createAttachment: jest.fn(),
-      deleteAttachment: jest.fn(),
-      findAttachmentById: jest.fn(),
-      createNote: jest.fn(),
-      queryNotes: jest.fn(),
-    } as unknown as jest.Mocked<IBugRepository>;
+    mockIssueTrackerService = mock<IIssueTrackerService>();
+    mockStorageService = mock<IStorageService>();
+    mockBugRepository = mock<IBugRepository>();
     mockBugRepository.findById.mockResolvedValue(
       new ResponseModel<Bug | null>("tx-id").withResponse(
         Bug.builder().setId("123").setStatus("pending").build(),
       ),
     );
-    mockBugRepository.createNote.mockResolvedValue(
-      new ResponseModel<any>("tx-id"),
-    );
+    mockBugRepository.createNote.mockResolvedValue(new ResponseModel<any>("tx-id"));
     mockBugRepository.queryNotes.mockResolvedValue(
       new ResponseModel<any[]>("tx-id").withResponse([]),
     );
-    mockUserRepository = {
-      findSessionUser: jest.fn(),
-    } as unknown as jest.Mocked<IUserRepository>;
+    mockUserRepository = mock<IUserRepository>();
     mockConfig = {
       getGitHubToken: jest.fn().mockReturnValue("dummy-token-from-test"),
       getGitHubManagedRepos: () => ["VariaMos/VariaMosAdmin"],
@@ -268,7 +241,7 @@ describe("BugUseCases Unit Tests", () => {
       }
       const request = new RequestModel("tx-1", data as any);
       const response = await bugUseCases.createBug(request);
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain(expectedError);
     });
 
@@ -365,8 +338,7 @@ describe("BugUseCases Unit Tests", () => {
           data: expect.objectContaining({
             status: "open",
             gitIssueNumber: 456,
-            githubHtmlUrl:
-              "https://github.com/VariaMos/VariaMosAdmin/issues/456",
+            githubHtmlUrl: "https://github.com/VariaMos/VariaMosAdmin/issues/456",
             logComment: "Bug submitted directly to GitHub by admin.",
           }),
         }),
@@ -446,10 +418,8 @@ describe("BugUseCases Unit Tests", () => {
       const request = new RequestModel("tx-1", bugData);
       const response = await bugUseCases.createBug(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
-      expect(response.message).toContain(
-        "Failed to push bug to GitHub repository",
-      );
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(response.message).toContain("Failed to push bug to GitHub repository");
     });
 
     it("should return error if direct GitHub push lacks token", async () => {
@@ -479,10 +449,8 @@ describe("BugUseCases Unit Tests", () => {
       const request = new RequestModel("tx-1", bugData);
       const response = await noTokenBugUseCases.createBug(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
-      expect(response.message).toContain(
-        "GitHub integration token is not configured",
-      );
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(response.message).toContain("GitHub integration token is not configured");
     });
 
     it("should return error if both reporterEmail and createdById are missing", async () => {
@@ -496,10 +464,8 @@ describe("BugUseCases Unit Tests", () => {
       const request = new RequestModel("tx-1", bugData);
       const response = await bugUseCases.createBug(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
-      expect(response.message).toContain(
-        "An email address is required for guest bug submissions.",
-      );
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(response.message).toContain("An email address is required for guest bug submissions.");
     });
   });
 
@@ -674,7 +640,7 @@ describe("BugUseCases Unit Tests", () => {
       const request = new RequestModel("tx-id", requestPayload);
       const response = await bugUseCases.updateStatus(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain("Bug ID and status are required");
     });
 
@@ -683,7 +649,7 @@ describe("BugUseCases Unit Tests", () => {
       const request = new RequestModel("tx-id", requestPayload);
       const response = await bugUseCases.updateStatus(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain("Bug ID and status are required");
     });
 
@@ -692,7 +658,7 @@ describe("BugUseCases Unit Tests", () => {
       const request = new RequestModel("tx-id", requestPayload);
       const response = await bugUseCases.updateStatus(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain("Bug ID and status are required");
     });
 
@@ -724,9 +690,7 @@ describe("BugUseCases Unit Tests", () => {
     it("should return updateStatus DB result even if bug entity data is missing", async () => {
       const bugId = "gh-repo-42";
       mockBugRepository.findById.mockResolvedValue(
-        new ResponseModel<Bug | null>("tx-id").withResponse(
-          Bug.builder().setId(bugId).build(),
-        ),
+        new ResponseModel<Bug | null>("tx-id").withResponse(Bug.builder().setId(bugId).build()),
       );
       mockBugRepository.updateStatus.mockResolvedValue(
         new ResponseModel<Bug>("tx-id").withResponse(null as any),
@@ -755,7 +719,7 @@ describe("BugUseCases Unit Tests", () => {
         }),
       );
 
-      expect(response.errorCode).toBe(DomainErrorCodes.NOT_FOUND);
+      expect(response.errorCode).toBe(DomainErrorCodes.ENTITY_NOT_FOUND);
       expect(response.message).toBe("Bug not found.");
     });
 
@@ -780,9 +744,7 @@ describe("BugUseCases Unit Tests", () => {
         .setCategory("Editor")
         .setStatus("pending")
         .setReporterEmail("user@test.com")
-        .setAttachments([
-          { filePath: "/uploads/my-file.png", fileType: "image/png" },
-        ])
+        .setAttachments([{ filePath: "/uploads/my-file.png", fileType: "image/png", bugId }])
         .build();
 
       mockBugRepository.findById.mockResolvedValue(
@@ -843,8 +805,7 @@ describe("BugUseCases Unit Tests", () => {
             id: bugId,
             status: "open",
             gitIssueNumber: 777,
-            githubHtmlUrl:
-              "https://github.com/VariaMos/VariaMosAdmin/issues/777",
+            githubHtmlUrl: "https://github.com/VariaMos/VariaMosAdmin/issues/777",
             title: "Revised Admin Title",
             description: "Revised Admin Description",
             priority: "high",
@@ -1025,9 +986,9 @@ describe("BugUseCases Unit Tests", () => {
         .setReporterEmail("user@test.com")
         .setGithubRepo("VariaMos/VariaMosAdmin")
         .setAttachments([
-          { filePath: "/uploads/valid.png", fileType: "image/png" },
-          { filePath: "/purged", fileType: "image/png" },
-          { filePath: "/uploads/no-type.png", fileType: undefined },
+          { id: 1, filePath: "/uploads/valid.png", fileType: "image/png", bugId },
+          { id: 2, filePath: "/purged", fileType: "image/png", bugId },
+          { id: 3, filePath: "/uploads/no-type.png", fileType: "unknown", bugId },
         ])
         .build();
 
@@ -1047,9 +1008,7 @@ describe("BugUseCases Unit Tests", () => {
       expect(mockIssueTrackerService.createIssue).toHaveBeenCalledWith(
         expect.any(String),
         "Bug with Attachments",
-        expect.stringContaining(
-          "http://localhost:4000/uploads/valid.png) (Type: image/png)",
-        ),
+        expect.stringContaining("http://localhost:4000/uploads/valid.png) (Type: image/png)"),
         expect.any(Array),
         "dummy-token-from-test",
       );
@@ -1057,9 +1016,7 @@ describe("BugUseCases Unit Tests", () => {
       expect(mockIssueTrackerService.createIssue).toHaveBeenCalledWith(
         expect.any(String),
         "Bug with Attachments",
-        expect.stringContaining(
-          "http://localhost:4000/uploads/no-type.png) (Type: unknown)",
-        ),
+        expect.stringContaining("http://localhost:4000/uploads/no-type.png) (Type: unknown)"),
         expect.any(Array),
         "dummy-token-from-test",
       );
@@ -1232,10 +1189,8 @@ describe("BugUseCases Unit Tests", () => {
         }),
       );
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
-      expect(response.message).toContain(
-        "GitHub integration token is not configured",
-      );
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(response.message).toContain("GitHub integration token is not configured");
     });
 
     it("should return error if GitHub push fails when approving a bug", async () => {
@@ -1260,10 +1215,8 @@ describe("BugUseCases Unit Tests", () => {
         }),
       );
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
-      expect(response.message).toContain(
-        "Failed to push bug to GitHub repository",
-      );
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(response.message).toContain("Failed to push bug to GitHub repository");
     });
   });
 
@@ -1311,7 +1264,7 @@ describe("BugUseCases Unit Tests", () => {
       });
       const response = await bugUseCases.rejectBug(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.NOT_FOUND);
+      expect(response.errorCode).toBe(DomainErrorCodes.ENTITY_NOT_FOUND);
       expect(response.message).toContain("Local bug not found");
     });
 
@@ -1329,7 +1282,7 @@ describe("BugUseCases Unit Tests", () => {
       });
       const response = await bugUseCases.rejectBug(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain("Only pending bugs can be rejected");
       expect(mockBugRepository.rejectBug).not.toHaveBeenCalled();
     });
@@ -1338,7 +1291,7 @@ describe("BugUseCases Unit Tests", () => {
       const request = new RequestModel("tx-id", { id: "", adminId: "admin-1" });
       const response = await bugUseCases.rejectBug(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain("Bug ID is required");
     });
   });
@@ -1384,7 +1337,7 @@ describe("BugUseCases Unit Tests", () => {
       });
       const response = await bugUseCases.restoreBug(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.NOT_FOUND);
+      expect(response.errorCode).toBe(DomainErrorCodes.ENTITY_NOT_FOUND);
       expect(response.message).toContain("Local bug not found");
     });
 
@@ -1402,7 +1355,7 @@ describe("BugUseCases Unit Tests", () => {
       });
       const response = await bugUseCases.restoreBug(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain("Only rejected bugs can be restored");
       expect(mockBugRepository.restoreBug).not.toHaveBeenCalled();
     });
@@ -1411,7 +1364,7 @@ describe("BugUseCases Unit Tests", () => {
       const request = new RequestModel("tx-id", { id: "", adminId: "admin-1" });
       const response = await bugUseCases.restoreBug(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain("Bug ID is required");
     });
   });
@@ -1419,11 +1372,11 @@ describe("BugUseCases Unit Tests", () => {
   describe("purgeExpiredRejectedBugs", () => {
     it("should process purge for expired bugs and delete attachments", async () => {
       const expiredBug = createMockBug("999", "Old rejected bug", "rejected");
-      expiredBug.attachments = [{ id: 1, filePath: "/uploads/old.png" }];
+      expiredBug.attachments = [
+        { id: 1, filePath: "/uploads/old.png", fileType: "image/png", bugId: "999" },
+      ];
 
-      const infoLogSpy = jest
-        .spyOn(logger, "info")
-        .mockImplementation(() => {});
+      const infoLogSpy = jest.spyOn(logger, "info").mockImplementation(() => {});
 
       mockBugRepository.findExpiredRejectedBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([expiredBug]),
@@ -1432,17 +1385,13 @@ describe("BugUseCases Unit Tests", () => {
       await bugUseCases.purgeExpiredRejectedBugs();
 
       expect(mockBugRepository.findExpiredRejectedBugs).toHaveBeenCalled();
-      const dateArg =
-        mockBugRepository.findExpiredRejectedBugs.mock.calls[0][0].data;
+      const dateArg = mockBugRepository.findExpiredRejectedBugs.mock.calls[0][0].data;
       expect(dateArg).toBeDefined();
       const now = new Date();
-      const differenceInDays =
-        (now.getTime() - (dateArg as Date).getTime()) / (1000 * 3600 * 24);
+      const differenceInDays = (now.getTime() - (dateArg as Date).getTime()) / (1000 * 3600 * 24);
       expect(differenceInDays).toBeCloseTo(7, 0);
 
-      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
-        "/uploads/old.png",
-      );
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith("/uploads/old.png");
       expect(mockBugRepository.updateAttachmentPath).toHaveBeenCalledWith(
         expect.objectContaining({
           transactionId: "purgeExpiredBugs",
@@ -1467,12 +1416,8 @@ describe("BugUseCases Unit Tests", () => {
         }),
       );
 
-      expect(infoLogSpy).toHaveBeenCalledWith(
-        "Found 1 expired rejected bugs to purge.",
-      );
-      expect(infoLogSpy).toHaveBeenCalledWith(
-        "Expired rejected bugs purging complete.",
-      );
+      expect(infoLogSpy).toHaveBeenCalledWith("Found 1 expired rejected bugs to purge.");
+      expect(infoLogSpy).toHaveBeenCalledWith("Expired rejected bugs purging complete.");
       infoLogSpy.mockRestore();
     });
 
@@ -1538,9 +1483,7 @@ describe("BugUseCases Unit Tests", () => {
     });
 
     it("should return early when expiredBugs is empty", async () => {
-      const infoLogSpy = jest
-        .spyOn(logger, "info")
-        .mockImplementation(() => {});
+      const infoLogSpy = jest.spyOn(logger, "info").mockImplementation(() => {});
       mockBugRepository.findExpiredRejectedBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([]),
       );
@@ -1552,7 +1495,7 @@ describe("BugUseCases Unit Tests", () => {
 
     it("should ignore purge actions on attachments with purged filePath", async () => {
       const expiredBug = createMockBug("2", "New Bug", "rejected");
-      expiredBug.attachments = [{ id: 1, filePath: "/purged" }];
+      expiredBug.attachments = [{ id: 1, filePath: "/purged", fileType: "image/png", bugId: "2" }];
 
       mockBugRepository.findExpiredRejectedBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([expiredBug]),
@@ -1565,19 +1508,13 @@ describe("BugUseCases Unit Tests", () => {
     });
 
     it("should catch error and log it if repository function throws", async () => {
-      const errorLogSpy = jest
-        .spyOn(logger, "err")
-        .mockImplementation(() => {});
-      mockBugRepository.findExpiredRejectedBugs.mockRejectedValue(
-        new Error("DB failure"),
-      );
+      const errorLogSpy = jest.spyOn(logger, "err").mockImplementation(() => {});
+      mockBugRepository.findExpiredRejectedBugs.mockRejectedValue(new Error("DB failure"));
 
       await bugUseCases.purgeExpiredRejectedBugs();
 
       expect(errorLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "Failed to purge expired rejected bugs: DB failure",
-        ),
+        expect.stringContaining("Failed to purge expired rejected bugs: DB failure"),
       );
       errorLogSpy.mockRestore();
     });
@@ -1585,9 +1522,7 @@ describe("BugUseCases Unit Tests", () => {
 
   describe("queryBugRepos", () => {
     it("should catch error and route to internal error on repositories fetch failure", async () => {
-      const errorLogSpy = jest
-        .spyOn(logger, "err")
-        .mockImplementation(() => {});
+      const errorLogSpy = jest.spyOn(logger, "err").mockImplementation(() => {});
       const errorConfig = {
         getGitHubToken: () => "token",
         getGitHubManagedRepos: () => {
@@ -1603,10 +1538,8 @@ describe("BugUseCases Unit Tests", () => {
         errorConfig,
       );
 
-      const response = await customBugUseCases.queryBugRepos(
-        new RequestModel("tx-id"),
-      );
-      expect(response.errorCode).toBe(DomainErrorCodes.INTERNAL_ERROR);
+      const response = await customBugUseCases.queryBugRepos(new RequestModel("tx-id"));
+      expect(response.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
       expect(response.message).toBe("config fail");
       errorLogSpy.mockRestore();
     });
@@ -1628,9 +1561,7 @@ describe("BugUseCases Unit Tests", () => {
     });
 
     it("should map issue priority correctly (high, medium, default, low cases with varied labels)", async () => {
-      const infoLogSpy = jest
-        .spyOn(logger, "info")
-        .mockImplementation(() => {});
+      const infoLogSpy = jest.spyOn(logger, "info").mockImplementation(() => {});
 
       mockIssueTrackerService.getIssues.mockResolvedValue([
         {
@@ -1652,30 +1583,18 @@ describe("BugUseCases Unit Tests", () => {
       ]);
 
       mockBugRepository.saveOrUpdateBug
-        .mockResolvedValueOnce(
-          new ResponseModel<any>("tx-id").withResponse({ created: true }),
-        )
-        .mockResolvedValueOnce(
-          new ResponseModel<any>("tx-id").withResponse({ updated: true }),
-        )
+        .mockResolvedValueOnce(new ResponseModel<any>("tx-id").withResponse({ created: true }))
+        .mockResolvedValueOnce(new ResponseModel<any>("tx-id").withResponse({ updated: true }))
         .mockResolvedValueOnce(
           new ResponseModel<any>("tx-id").withResponse({
             created: false,
             updated: false,
           }),
         )
-        .mockResolvedValueOnce(
-          new ResponseModel<any>("tx-id").withResponse({ created: true }),
-        )
-        .mockResolvedValueOnce(
-          new ResponseModel<any>("tx-id").withResponse({ created: true }),
-        )
-        .mockResolvedValueOnce(
-          new ResponseModel<any>("tx-id").withResponse({ created: true }),
-        )
-        .mockResolvedValueOnce(
-          new ResponseModel<any>("tx-id").withResponse({ created: true }),
-        );
+        .mockResolvedValueOnce(new ResponseModel<any>("tx-id").withResponse({ created: true }))
+        .mockResolvedValueOnce(new ResponseModel<any>("tx-id").withResponse({ created: true }))
+        .mockResolvedValueOnce(new ResponseModel<any>("tx-id").withResponse({ created: true }))
+        .mockResolvedValueOnce(new ResponseModel<any>("tx-id").withResponse({ created: true }));
 
       await bugUseCases.syncBugs(new RequestModel("tx-id"));
 
@@ -1733,9 +1652,7 @@ describe("BugUseCases Unit Tests", () => {
     });
 
     it("should return error if GitHub token is missing", async () => {
-      const warnLogSpy = jest
-        .spyOn(logger, "warn")
-        .mockImplementation(() => {});
+      const warnLogSpy = jest.spyOn(logger, "warn").mockImplementation(() => {});
       const mockConfigNoToken = {
         getGitHubToken: () => "",
         getGitHubManagedRepos: () => ["VariaMos/VariaMosAdmin"],
@@ -1752,7 +1669,7 @@ describe("BugUseCases Unit Tests", () => {
       const request = new RequestModel<void>("tx-id");
       const response = await customBugUseCases.syncBugs(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain("GitHub Sync is not configured.");
       expect(warnLogSpy).toHaveBeenCalledWith(
         "GitHub token is not defined in environment variables. Synchronization aborted.",
@@ -1761,9 +1678,7 @@ describe("BugUseCases Unit Tests", () => {
     });
 
     it("should fall back to defaults when issue description, url, updated_at or user login is missing", async () => {
-      const infoLogSpy = jest
-        .spyOn(logger, "info")
-        .mockImplementation(() => {});
+      const infoLogSpy = jest.spyOn(logger, "info").mockImplementation(() => {});
       mockIssueTrackerService.getIssues.mockResolvedValue([
         {
           number: 5,
@@ -1835,7 +1750,7 @@ describe("BugUseCases Unit Tests", () => {
           number: 6,
           title: "Bug with creator and assignee",
           body: "Desc",
-          user: { login: "octocat" },
+          user: { login: "coder" },
           assignee: { login: "dev-admin" },
           state: "open", // state open -> maps to open status (covers line 387)
           created_at: "2026-06-17T00:00:00Z",
@@ -1851,7 +1766,7 @@ describe("BugUseCases Unit Tests", () => {
       expect(mockBugRepository.saveOrUpdateBug).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            githubCreator: "octocat",
+            githubCreator: "coder",
             githubAssignee: "dev-admin",
             status: "open",
           }),
@@ -1865,7 +1780,7 @@ describe("BugUseCases Unit Tests", () => {
           number: 7,
           title: "Bug with no save response data",
           body: "Desc",
-          user: { login: "octocat" },
+          user: { login: "coder" },
           state: "open",
           created_at: "2026-06-17T00:00:00Z",
         },
@@ -1907,15 +1822,11 @@ describe("BugUseCases Unit Tests", () => {
     });
 
     it("should catch error and log it on synchronization failures", async () => {
-      const errorLogSpy = jest
-        .spyOn(logger, "err")
-        .mockImplementation(() => {});
-      mockIssueTrackerService.getIssues.mockRejectedValue(
-        new Error("Network loss"),
-      );
+      const errorLogSpy = jest.spyOn(logger, "err").mockImplementation(() => {});
+      mockIssueTrackerService.getIssues.mockRejectedValue(new Error("Network loss"));
 
       const response = await bugUseCases.syncBugs(new RequestModel("tx-id"));
-      expect(response.errorCode).toBe(DomainErrorCodes.INTERNAL_ERROR);
+      expect(response.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
       expect(response.message).toBe("Network loss");
       errorLogSpy.mockRestore();
     });
@@ -1975,9 +1886,7 @@ describe("BugUseCases Unit Tests", () => {
 
   describe("queryCategories", () => {
     it("should return ALLOWED_CATEGORIES successfully", async () => {
-      const response = await bugUseCases.queryCategories(
-        new RequestModel("tx-id"),
-      );
+      const response = await bugUseCases.queryCategories(new RequestModel("tx-id"));
       expect(response.data).toEqual(ALLOWED_CATEGORIES);
     });
   });
@@ -1990,7 +1899,7 @@ describe("BugUseCases Unit Tests", () => {
       });
       const response = await bugUseCases.addAttachment(request);
 
-      expect(response.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(response.message).toContain("File is required.");
     });
 
@@ -2015,7 +1924,7 @@ describe("BugUseCases Unit Tests", () => {
           },
         }),
       );
-      expect(response.data.id).toBe(99);
+      expect(response.data!.id).toBe(99);
     });
   });
 
@@ -2025,10 +1934,8 @@ describe("BugUseCases Unit Tests", () => {
         new ResponseModel<any>("tx-id").withResponse(null),
       );
 
-      const response = await bugUseCases.deleteAttachment(
-        new RequestModel("tx-id", "att-invalid"),
-      );
-      expect(response.errorCode).toBe(DomainErrorCodes.NOT_FOUND);
+      const response = await bugUseCases.deleteAttachment(new RequestModel("tx-id", "att-invalid"));
+      expect(response.errorCode).toBe(DomainErrorCodes.ENTITY_NOT_FOUND);
       expect(response.message).toContain("Attachment not found.");
     });
 
@@ -2043,13 +1950,9 @@ describe("BugUseCases Unit Tests", () => {
         new ResponseModel<void>("tx-id").withResponse(undefined),
       );
 
-      const response = await bugUseCases.deleteAttachment(
-        new RequestModel("tx-id", "att-123"),
-      );
+      const response = await bugUseCases.deleteAttachment(new RequestModel("tx-id", "att-123"));
 
-      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
-        "/uploads/img.png",
-      );
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith("/uploads/img.png");
       expect(mockBugRepository.deleteAttachment).toHaveBeenCalledWith(
         expect.objectContaining({ data: "att-123" }),
       );
@@ -2087,17 +1990,11 @@ describe("BugUseCases Unit Tests", () => {
         new ResponseModel<void>("tx-id").withResponse(undefined),
       );
 
-      const response = await bugUseCases.deleteAttachment(
-        new RequestModel("tx-id", "att-123"),
-      );
+      const response = await bugUseCases.deleteAttachment(new RequestModel("tx-id", "att-123"));
 
-      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
-        "/uploads/img.png",
-      );
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith("/uploads/img.png");
       expect(mockBugRepository.deleteAttachment).toHaveBeenCalled();
-      expect(warnSpy).toHaveBeenCalledWith(
-        "Failed to delete physical file: /uploads/img.png",
-      );
+      expect(warnSpy).toHaveBeenCalledWith("Failed to delete physical file: /uploads/img.png");
       expect(response.errorCode).toBeUndefined();
 
       warnSpy.mockRestore();
@@ -2111,14 +2008,11 @@ describe("BugUseCases Unit Tests", () => {
     let appPrivateKey: string;
 
     beforeEach(() => {
-      const { privateKey, publicKey } = crypto.generateKeyPairSync(
-        "rsa" as any,
-        {
-          modulusLength: 1024,
-          privateKeyEncoding: { type: "pkcs1", format: "pem" },
-          publicKeyEncoding: { type: "pkcs1", format: "pem" },
-        },
-      );
+      const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa" as any, {
+        modulusLength: 1024,
+        privateKeyEncoding: { type: "pkcs1", format: "pem" },
+        publicKeyEncoding: { type: "pkcs1", format: "pem" },
+      });
       appPrivateKey = privateKey;
       appPublicKey = publicKey;
 
@@ -2185,9 +2079,7 @@ describe("BugUseCases Unit Tests", () => {
       expect(mockedAxios.post).toHaveBeenCalledTimes(1);
 
       // Manually expire cached token by mocking Time or let it be expired
-      const cached = (appBugUseCases as any).tokenCache.get(
-        "VariaMos/VariaMosAdmin",
-      );
+      const cached = (appBugUseCases as any).tokenCache.get("VariaMos/VariaMosAdmin");
       if (cached) cached.expiresAt = Date.now() - 1000;
 
       // 3rd call: Token expired, requests new token from GitHub App API
@@ -2241,34 +2133,27 @@ describe("BugUseCases Unit Tests", () => {
         }),
       );
 
-      const authHeader =
-        mockedAxios.get.mock.calls[0][1]?.headers?.Authorization;
+      const authHeader = mockedAxios.get.mock.calls[0][1]?.headers?.Authorization;
       const jwtToken = authHeader.split(" ")[1];
       const segments = jwtToken.split(".");
       expect(segments).toHaveLength(3);
 
       // Verify payload and JWT algorithm header
-      const headerObj = JSON.parse(
-        Buffer.from(segments[0], "base64url").toString("utf8"),
-      );
+      const headerObj = JSON.parse(Buffer.from(segments[0], "base64url").toString("utf8"));
       expect(headerObj.alg).toBe("RS256");
       expect(headerObj.typ).toBe("JWT");
 
-      const payloadObj = JSON.parse(
-        Buffer.from(segments[1], "base64url").toString("utf8"),
-      );
+      const payloadObj = JSON.parse(Buffer.from(segments[1], "base64url").toString("utf8"));
       expect(payloadObj.iss).toBe("123456");
-      expect(
-        Math.abs(payloadObj.iat - (Math.floor(Date.now() / 1000) - 60)),
-      ).toBeLessThanOrEqual(3);
+      expect(Math.abs(payloadObj.iat - (Math.floor(Date.now() / 1000) - 60))).toBeLessThanOrEqual(
+        3,
+      );
       expect(payloadObj.exp - payloadObj.iat).toBe(600);
 
       // Verify signature mathematically using the public key
       const verifier = crypto.createVerify("RSA-SHA256");
       verifier.update(`${segments[0]}.${segments[1]}`);
-      expect(verifier.verify(appPublicKey, segments[2], "base64url")).toBe(
-        true,
-      );
+      expect(verifier.verify(appPublicKey, segments[2], "base64url")).toBe(true);
 
       // Verify axios.post parameters & headers
       expect(mockedAxios.post).toHaveBeenCalledWith(
@@ -2288,9 +2173,7 @@ describe("BugUseCases Unit Tests", () => {
       const loggerSpy = jest.spyOn(logger, "err").mockImplementation(() => {});
       const warnSpy = jest.spyOn(logger, "warn").mockImplementation(() => {});
 
-      mockedAxios.get.mockRejectedValueOnce(
-        new Error("API rate limit or invalid JWT"),
-      );
+      mockedAxios.get.mockRejectedValueOnce(new Error("API rate limit or invalid JWT"));
       mockIssueTrackerService.getIssues.mockResolvedValueOnce([]);
 
       // Test 1: GitHub App API throws -> fallback to PAT and log error
@@ -2341,11 +2224,7 @@ describe("BugUseCases Unit Tests", () => {
       const errSpy = jest.spyOn(logger, "err").mockImplementation(() => {});
 
       // Helper function to test config runs
-      const testConfig = async (
-        appId: string,
-        privateKey: string,
-        patToken: string,
-      ) => {
+      const testConfig = async (appId: string, privateKey: string, patToken: string) => {
         mockedAxios.get.mockClear();
         mockedAxios.post.mockClear();
         mockIssueTrackerService.getIssues.mockClear();
@@ -2387,7 +2266,7 @@ describe("BugUseCases Unit Tests", () => {
 
       // Case 1: Both App and PAT configs empty/spaces -> aborts
       let { res, calledSign } = await testConfig("   ", "   ", "   ");
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(calledSign).toBe(false);
       expect(warnSpy).toHaveBeenLastCalledWith(
         "GitHub token is not defined in environment variables. Synchronization aborted.",
@@ -2395,7 +2274,7 @@ describe("BugUseCases Unit Tests", () => {
 
       // Case 2: App ID exists but key missing, PAT missing -> aborts
       ({ res, calledSign } = await testConfig("123456", "   ", ""));
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(calledSign).toBe(false);
       expect(warnSpy).toHaveBeenLastCalledWith(
         "GitHub token is not defined in environment variables. Synchronization aborted.",
@@ -2403,7 +2282,7 @@ describe("BugUseCases Unit Tests", () => {
 
       // Case 3: Private key exists but App ID missing, PAT missing -> aborts
       ({ res, calledSign } = await testConfig("", appPrivateKey, ""));
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(calledSign).toBe(false);
       expect(warnSpy).toHaveBeenLastCalledWith(
         "GitHub token is not defined in environment variables. Synchronization aborted.",
@@ -2427,20 +2306,16 @@ describe("BugUseCases Unit Tests", () => {
 
       // Case 6: App ID is only spaces, Private key valid, PAT missing -> aborts (confirms App ID trim)
       ({ res, calledSign } = await testConfig("   ", appPrivateKey, ""));
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(calledSign).toBe(false);
 
       // Case 7: Private key is only spaces, App ID valid, PAT missing -> aborts (confirms Private Key trim)
       ({ res, calledSign } = await testConfig("123456", "   ", ""));
-      expect(res.errorCode).toBe(DomainErrorCodes.BAD_REQUEST);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(calledSign).toBe(false);
 
       // Case 8: App ID valid, Private key spaces, PAT present -> succeeds with PAT, calledSign is false
-      ({ res, calledSign } = await testConfig(
-        "123456",
-        "   ",
-        "   valid-pat   ",
-      ));
+      ({ res, calledSign } = await testConfig("123456", "   ", "   valid-pat   "));
       expect(res.errorCode).toBeUndefined();
       expect(calledSign).toBe(false);
       expect(mockIssueTrackerService.getIssues).toHaveBeenCalledWith(
@@ -2449,11 +2324,7 @@ describe("BugUseCases Unit Tests", () => {
       );
 
       // Case 9: Private key valid, App ID spaces, PAT present -> succeeds with PAT, calledSign is false
-      ({ res, calledSign } = await testConfig(
-        "   ",
-        appPrivateKey,
-        "   valid-pat   ",
-      ));
+      ({ res, calledSign } = await testConfig("   ", appPrivateKey, "   valid-pat   "));
       expect(res.errorCode).toBeUndefined();
       expect(calledSign).toBe(false);
       expect(mockIssueTrackerService.getIssues).toHaveBeenCalledWith(
@@ -2467,24 +2338,21 @@ describe("BugUseCases Unit Tests", () => {
   });
 
   describe("Category Hardening & Validation Verification", () => {
-    it.each(ALLOWED_CATEGORIES)(
-      "should accept and validate category: %s",
-      async (category) => {
-        const bugData = {
-          title: "Category Verification",
-          description: "Checking enum value",
-          priority: "medium" as const,
-          category: category,
-          reporterEmail: "guest@example.com",
-        };
-        mockBugRepository.createBug.mockResolvedValue(
-          new ResponseModel<Bug>("tx-id").withResponse(createMockBug("100")),
-        );
-        const request = new RequestModel("tx-id", bugData);
-        const response = await bugUseCases.createBug(request);
-        expect(response.errorCode).toBeUndefined();
-      },
-    );
+    it.each(ALLOWED_CATEGORIES)("should accept and validate category: %s", async (category) => {
+      const bugData = {
+        title: "Category Verification",
+        description: "Checking enum value",
+        priority: "medium" as const,
+        category: category,
+        reporterEmail: "guest@example.com",
+      };
+      mockBugRepository.createBug.mockResolvedValue(
+        new ResponseModel<Bug>("tx-id").withResponse(createMockBug("100")),
+      );
+      const request = new RequestModel("tx-id", bugData);
+      const response = await bugUseCases.createBug(request);
+      expect(response.errorCode).toBeUndefined();
+    });
 
     it("should successfully approve and push to GitHub a bug with no category without crashing or appending category string/labels", async () => {
       const bugId = "local-no-cat";
@@ -2577,9 +2445,7 @@ describe("BugUseCases Unit Tests", () => {
         expect.objectContaining({
           data: expect.objectContaining({
             bugId: bugId,
-            body: expect.stringContaining(
-              'Admin Comment: "This is a verification note"',
-            ),
+            body: expect.stringContaining('Admin Comment: "This is a verification note"'),
           }),
         }),
       );

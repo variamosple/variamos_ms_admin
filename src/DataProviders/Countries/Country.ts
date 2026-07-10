@@ -1,4 +1,4 @@
-import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
 import { Model, NUMBER, TEXT } from "sequelize";
 
 interface CountryAttributes {
@@ -8,10 +8,7 @@ interface CountryAttributes {
   longitude: number;
 }
 
-export class CountryModel
-  extends Model<CountryAttributes>
-  implements CountryAttributes
-{
+export class CountryModel extends Model<CountryAttributes> implements CountryAttributes {
   public code!: string;
   public name!: string;
   public latitude!: number;
@@ -41,7 +38,7 @@ CountryModel.init(
   {
     tableName: "country",
     sequelize: VARIAMOS_ORM,
-    schema: "variamos",
+    schema: DB_SCHEMA,
     timestamps: false,
-  }
+  },
 );

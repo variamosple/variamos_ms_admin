@@ -5,30 +5,35 @@ import { CountriesUseCases } from "@src/Domain/Countries/CountriesUseCases";
 import { isAuthenticated } from "@variamosple/variamos-security";
 import { Router } from "express";
 import logger from "jet-logger";
+import { mapDomainErrorToHttpStatus } from "./errorMapper";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
+import HttpStatusCodes from "@src/common/HttpStatusCodes";
 
 export const COUNTRIES_V1_ROUTE = "/v1/countries";
 
-const countriesV1Router = Router();
+export function createCountriesRouter(countriesUseCases: CountriesUseCases): Router {
+  const countriesV1Router = Router();
 
-countriesV1Router.get("/", isAuthenticated, async (_, res) => {
-  const transactionId = "getCountries";
+  countriesV1Router.get("/", isAuthenticated, async (_, res) => {
+    const transactionId = "getCountries";
 
-  try {
-    const request = new RequestModel<unknown>(transactionId);
-    const response = await new CountriesUseCases().getCountries(request);
+    try {
+      const request = new RequestModel<void>(transactionId);
+      const response = await countriesUseCases.getCountries(request);
 
-    const status = response.errorCode || 200;
+      const status = mapDomainErrorToHttpStatus(response.errorCode);
 
-    res.status(status).json(response);
-  } catch (error) {
-    logger.err(error);
-    const response = new ResponseModel(
-      transactionId,
-      500,
-      "Internal Server Error"
-    );
-    res.status(500).json(response);
-  }
-});
+      res.status(status).json(response);
+    } catch (error) {
+      logger.err(error);
+      const response = new ResponseModel(
+        transactionId,
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal Server Error",
+      );
+      res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+    }
+  });
 
-export default countriesV1Router;
+  return countriesV1Router;
+}

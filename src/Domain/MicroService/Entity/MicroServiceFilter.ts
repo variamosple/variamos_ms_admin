@@ -2,7 +2,11 @@ import { Nullable } from "@src/Domain/Core/Entity/Nullable";
 import { PagedModel } from "@src/Domain/Core/Entity/PagedModel";
 
 export class MicroServiceFilter extends PagedModel {
-  constructor(public name?: string, pageNumber?: number, pageSize?: number) {
+  public constructor(
+    public name?: string,
+    pageNumber?: number,
+    pageSize?: number,
+  ) {
     super(pageNumber, pageSize);
   }
 
@@ -11,11 +15,7 @@ export class MicroServiceFilter extends PagedModel {
   }
 
   public static build(builder: MicroServiceFilterBuilder): MicroServiceFilter {
-    return new MicroServiceFilter(
-      builder.name!,
-      builder.pageNumber,
-      builder.pageSize
-    );
+    return new MicroServiceFilter(builder.name ?? undefined, builder.pageNumber, builder.pageSize);
   }
 }
 

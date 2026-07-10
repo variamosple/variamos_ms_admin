@@ -1,5 +1,13 @@
 import axios from "axios";
-import { IIssueTrackerService } from "@src/Domain/Core/Service/IIssueTrackerService";
+import { IIssueTrackerService, GitHubIssue } from "@src/Domain/Core/Service/IIssueTrackerService";
+import logger from "jet-logger";
+
+interface GitHubError {
+  response?: {
+    data?: string;
+  };
+  message?: string;
+}
 
 export class GitHubIssuesService implements IIssueTrackerService {
   private getHeaders(token: string) {
@@ -20,7 +28,7 @@ export class GitHubIssuesService implements IIssueTrackerService {
     const url = `https://api.github.com/repos/${repo}/issues`;
 
     try {
-      const response = await axios.post(
+      const response = await axios.post<{ number: number }>(
         url,
         {
           title,
@@ -33,10 +41,9 @@ export class GitHubIssuesService implements IIssueTrackerService {
       );
       return response.data.number;
     } catch (error) {
-      console.error(
-        `GitHub error [createIssue] on ${repo}:`,
-        error.response?.data || error.message,
-      );
+      const err = error as GitHubError;
+      logger.err(`GitHub error [createIssue] on ${repo}:`);
+      logger.err(err.response?.data || err.message || "Unknown error");
       return null;
     }
   }
@@ -65,73 +72,53 @@ export class GitHubIssuesService implements IIssueTrackerService {
       );
       return true;
     } catch (error) {
-      console.error(
-        `GitHub error [updateIssue] on ${repo}:`,
-        error.response?.data || error.message,
-      );
+      const err = error as GitHubError;
+      logger.err(`GitHub error [updateIssue] on ${repo}:`);
+      logger.err(err.response?.data || err.message || "Unknown error");
       return false;
     }
   }
 
-  public async closeIssue(
-    repo: string,
-    issueNumber: number,
-    token: string,
-  ): Promise<boolean> {
+  public async closeIssue(repo: string, issueNumber: number, token: string): Promise<boolean> {
     const url = `https://api.github.com/repos/${repo}/issues/${issueNumber}`;
 
     try {
-      await axios.patch(
-        url,
-        { state: "closed" },
-        { headers: this.getHeaders(token) },
-      );
+      await axios.patch(url, { state: "closed" }, { headers: this.getHeaders(token) });
       return true;
     } catch (error) {
-      console.error(
-        `GitHub error [closeIssue] on ${repo}:`,
-        error.response?.data || error.message,
-      );
+      const err = error as GitHubError;
+      logger.err(`GitHub error [closeIssue] on ${repo}:`);
+      logger.err(err.response?.data || err.message || "Unknown error");
       return false;
     }
   }
 
-  public async reopenIssue(
-    repo: string,
-    issueNumber: number,
-    token: string,
-  ): Promise<boolean> {
+  public async reopenIssue(repo: string, issueNumber: number, token: string): Promise<boolean> {
     const url = `https://api.github.com/repos/${repo}/issues/${issueNumber}`;
 
     try {
-      await axios.patch(
-        url,
-        { state: "open" },
-        { headers: this.getHeaders(token) },
-      );
+      await axios.patch(url, { state: "open" }, { headers: this.getHeaders(token) });
       return true;
     } catch (error) {
-      console.error(
-        `GitHub error [reopenIssue] on ${repo}:`,
-        error.response?.data || error.message,
-      );
+      const err = error as GitHubError;
+      logger.err(`GitHub error [reopenIssue] on ${repo}:`);
+      logger.err(err.response?.data || err.message || "Unknown error");
       return false;
     }
   }
 
-  public async getIssues(repo: string, token: string): Promise<any[] | null> {
+  public async getIssues(repo: string, token: string): Promise<GitHubIssue[] | null> {
     const url = `https://api.github.com/repos/${repo}/issues?state=all&per_page=100`;
 
     try {
-      const response = await axios.get(url, {
+      const response = await axios.get<GitHubIssue[]>(url, {
         headers: this.getHeaders(token),
       });
       return response.data;
     } catch (error) {
-      console.error(
-        `GitHub error [getIssues] on ${repo}:`,
-        error.response?.data || error.message,
-      );
+      const err = error as GitHubError;
+      logger.err(`GitHub error [getIssues] on ${repo}:`);
+      logger.err(err.response?.data || err.message || "Unknown error");
       return null;
     }
   }

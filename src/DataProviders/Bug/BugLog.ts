@@ -1,4 +1,4 @@
-import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
 import { DATE, INTEGER, Model, TEXT, UUID } from "sequelize";
 
 export interface BugLogAttributes {
@@ -11,10 +11,7 @@ export interface BugLogAttributes {
   updatedAt?: Date;
 }
 
-export class BugLogModel
-  extends Model<BugLogAttributes>
-  implements BugLogAttributes
-{
+export class BugLogModel extends Model<BugLogAttributes> implements BugLogAttributes {
   public id?: number;
   public action!: string;
   public comment?: string;
@@ -64,7 +61,7 @@ BugLogModel.init(
   {
     tableName: "bug_status_logs",
     sequelize: VARIAMOS_ORM,
-    schema: "variamos",
+    schema: DB_SCHEMA,
     timestamps: true,
     underscored: true,
   },

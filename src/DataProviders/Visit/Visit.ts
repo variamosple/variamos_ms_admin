@@ -1,4 +1,4 @@
-import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
 import { Model, TEXT, UUIDV4 } from "sequelize";
 
 export interface VisitAttributes {
@@ -7,10 +7,7 @@ export interface VisitAttributes {
   countryCode?: string;
 }
 
-export class VisitModel
-  extends Model<VisitAttributes>
-  implements VisitAttributes
-{
+export class VisitModel extends Model<VisitAttributes> implements VisitAttributes {
   public pageId!: string;
   public userId!: string;
   public countryCode?: string;
@@ -35,9 +32,9 @@ VisitModel.init(
   {
     tableName: "page_visit",
     sequelize: VARIAMOS_ORM,
-    schema: "variamos",
+    schema: DB_SCHEMA,
     timestamps: false,
-  }
+  },
 );
 
 VisitModel.removeAttribute("id");

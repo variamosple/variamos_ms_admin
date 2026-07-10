@@ -1,3 +1,4 @@
+/* cspell:disable */
 /**
  * Environments variables declared here.
  */
@@ -15,6 +16,7 @@ export default {
     DATABASE: process.env.DB_DATABASE ?? "db_database_test",
     PORT: process.env.DB_PORT ?? 5432,
     SSL: process.env.DB_SSL === "true",
+    SCHEMA: process.env.DB_SCHEMA ?? "variamos",
   },
   CORS: {
     AllowedOriginsPatterns: (process.env.CORS_ALLOWED_ORIGINS_PATTERNS ?? "")
@@ -41,7 +43,9 @@ export default {
     APP: {
       HOME_REDIRECT_URI: process.env.HOME_REDIRECT_URI,
       LOGIN_REDIRECT_URI: process.env.LOGIN_REDIRECT_URI,
-      PASSWORD_RESET_EXPIRY_IN_MS: Number(process.env.PASSWORD_RESET_EXPIRY_IN_MS ?? 24 * 60 * 60 * 1000),
+      PASSWORD_RESET_EXPIRY_IN_MS: Number(
+        process.env.PASSWORD_RESET_EXPIRY_IN_MS ?? 24 * 60 * 60 * 1000,
+      ),
       BCRYPT_SALT_ROUNDS: Number(process.env.BCRYPT_SALT_ROUNDS ?? 10),
     },
   },

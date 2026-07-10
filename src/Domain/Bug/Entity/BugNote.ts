@@ -1,3 +1,7 @@
+export interface BugNoteAuthor {
+  name: string;
+}
+
 export class BugNote {
   public id?: number;
   public body!: string;
@@ -6,9 +10,9 @@ export class BugNote {
   public authorId!: string;
   public createdAt?: Date;
   public updatedAt?: Date;
-  public author?: any;
+  public author?: BugNoteAuthor;
 
-  constructor(builder: BugNoteBuilder) {
+  public constructor(builder: BugNoteBuilder) {
     Object.assign(this, builder);
   }
 
@@ -25,7 +29,7 @@ class BugNoteBuilder {
   public authorId!: string;
   public createdAt?: Date;
   public updatedAt?: Date;
-  public author?: any;
+  public author?: BugNoteAuthor;
 
   public setId(id?: number) {
     this.id = id;
@@ -55,7 +59,7 @@ class BugNoteBuilder {
     this.updatedAt = updatedAt;
     return this;
   }
-  public setAuthor(author?: any) {
+  public setAuthor(author?: BugNoteAuthor) {
     this.author = author;
     return this;
   }

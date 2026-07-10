@@ -1,35 +1,31 @@
-import { PermissionRepositoryInstance } from "@src/DataProviders/Permission/PermissionRepository";
 import { RequestModel } from "../Core/Entity/RequestModel";
 import { ResponseModel } from "../Core/Entity/ResponseModel";
 import { Permission } from "./Entity/Permission";
 import { PermissionFilter } from "./Entity/PermissionFilter";
+import { IPermissionRepository } from "./Repository/IPermissionRepository";
 
 export class PermissionsUseCases {
-  queryPermissions(
-    request: RequestModel<PermissionFilter>
+  public constructor(private readonly permissionRepository: IPermissionRepository) {}
+
+  public queryPermissions(
+    request: RequestModel<PermissionFilter>,
   ): Promise<ResponseModel<Permission[]>> {
-    return PermissionRepositoryInstance.queryPermissions(request);
+    return this.permissionRepository.queryPermissions(request);
   }
 
-  createPermission(
-    request: RequestModel<Permission>
-  ): Promise<ResponseModel<Permission>> {
-    return PermissionRepositoryInstance.createPermission(request);
+  public createPermission(request: RequestModel<Permission>): Promise<ResponseModel<Permission>> {
+    return this.permissionRepository.createPermission(request);
   }
 
-  deletePermission(
-    request: RequestModel<number>
-  ): Promise<ResponseModel<void>> {
-    return PermissionRepositoryInstance.deletePermission(request);
+  public deletePermission(request: RequestModel<number>): Promise<ResponseModel<void>> {
+    return this.permissionRepository.deletePermission(request);
   }
 
-  queryById(request: RequestModel<number>): Promise<ResponseModel<Permission>> {
-    return PermissionRepositoryInstance.queryById(request);
+  public queryById(request: RequestModel<number>): Promise<ResponseModel<Permission>> {
+    return this.permissionRepository.queryById(request);
   }
 
-  updatePermission(
-    request: RequestModel<Permission>
-  ): Promise<ResponseModel<Permission>> {
-    return PermissionRepositoryInstance.updatePermission(request);
+  public updatePermission(request: RequestModel<Permission>): Promise<ResponseModel<Permission>> {
+    return this.permissionRepository.updatePermission(request);
   }
 }

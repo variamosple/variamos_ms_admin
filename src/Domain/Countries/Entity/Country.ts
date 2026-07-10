@@ -4,7 +4,7 @@ export class Country {
   private latitude: number;
   private longitude: number;
 
-  constructor(code: string, name: string, latitude: number, longitude: number) {
+  public constructor(code: string, name: string, latitude: number, longitude: number) {
     this.code = code;
     this.name = name;
     this.latitude = latitude;
@@ -36,7 +36,7 @@ export class Country {
       builder.getCode(),
       builder.getName(),
       builder.getLatitude(),
-      builder.getLongitude()
+      builder.getLongitude(),
     );
   }
 }

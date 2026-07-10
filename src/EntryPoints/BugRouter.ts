@@ -4,43 +4,23 @@ import { BugFilter } from "@src/Domain/Bug/Entity/BugFilter";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import logger from "jet-logger";
-import { validateSession } from "@variamosple/variamos-security";
-
-/**
- * Maps semantic Domain error codes to standard HTTP Status codes
- */
-function mapDomainErrorToHttp(
-  errorCode?: string | number,
-  defaultSuccessCode = HttpStatusCodes.OK,
-): number {
-  if (!errorCode) return defaultSuccessCode;
-
-  switch (errorCode) {
-    case "BAD_REQUEST":
-    case 400:
-      return HttpStatusCodes.BAD_REQUEST; // 400
-    case "NOT_FOUND":
-    case 404:
-      return HttpStatusCodes.NOT_FOUND; // 404
-    case "UNAUTHORIZED":
-    case 401:
-      return HttpStatusCodes.UNAUTHORIZED; // 401
-    case "INTERNAL_ERROR":
-    case 500:
-      return HttpStatusCodes.INTERNAL_SERVER_ERROR; // 500
-    default:
-      return typeof errorCode === "number"
-        ? errorCode
-        : HttpStatusCodes.INTERNAL_SERVER_ERROR;
-  }
-}
+import { validateSession, SessionUser } from "@variamosple/variamos-security";
+import { mapDomainErrorToHttpStatus } from "./errorMapper";
 
 /**
  * Factory function to create Bug Router with decoupled dependency injection
  */
+export interface MulterUpload {
+  single(fieldName: string): RequestHandler;
+}
+
+interface RequestWithUser extends Request {
+  user: SessionUser;
+}
+
 export function createBugRouter(
   bugUseCases: BugUseCases,
-  upload: any,
+  upload: MulterUpload,
   authMiddleware: RequestHandler,
 ): Router {
   const router = Router();
@@ -59,11 +39,11 @@ export function createBugRouter(
       const request = new RequestModel<BugFilter>(transactionId, filter);
       const response = await bugUseCases.queryBugs(request);
 
-      const code = mapDomainErrorToHttp(response.errorCode);
+      const code = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(code).json(response);
     } catch (error) {
       logger.err(error);
-      res.status(HttpStatusCodes.BAD_REQUEST).json({ error: error.message });
+      res.status(HttpStatusCodes.BAD_REQUEST).json({ error: (error as Error).message });
     }
   });
 
@@ -81,11 +61,11 @@ export function createBugRouter(
       const request = new RequestModel<BugFilter>(transactionId, filter);
       const response = await bugUseCases.queryLocalBugs(request);
 
-      const code = mapDomainErrorToHttp(response.errorCode);
+      const code = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(code).json(response);
     } catch (error) {
       logger.err(error);
-      res.status(HttpStatusCodes.BAD_REQUEST).json({ error: error.message });
+      res.status(HttpStatusCodes.BAD_REQUEST).json({ error: (error as Error).message });
     }
   });
 
@@ -96,11 +76,11 @@ export function createBugRouter(
       const request = new RequestModel<void>(transactionId);
       const response = await bugUseCases.queryBugRepos(request);
 
-      const code = mapDomainErrorToHttp(response.errorCode);
+      const code = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(code).json(response);
     } catch (error) {
       logger.err(error);
-      res.status(HttpStatusCodes.BAD_REQUEST).json({ error: error.message });
+      res.status(HttpStatusCodes.BAD_REQUEST).json({ error: (error as Error).message });
     }
   });
 
@@ -111,206 +91,183 @@ export function createBugRouter(
       const request = new RequestModel<void>(transactionId);
       const response = await bugUseCases.queryCategories(request);
 
-      const code = mapDomainErrorToHttp(response.errorCode);
+      const code = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(code).json(response);
     } catch (error) {
       logger.err(error);
-      res.status(HttpStatusCodes.BAD_REQUEST).json({ error: error.message });
+      res.status(HttpStatusCodes.BAD_REQUEST).json({ error: (error as Error).message });
     }
   });
 
   // Create a new bug
-  router.post(
-    "/",
-    upload.single("file"),
-    async (req: Request, res: Response) => {
-      const transactionId = "createBug";
-      const {
-        title,
-        description,
-        priority,
-        category,
-        githubRepo,
-        reporterEmail,
-      } = req.body;
-      let adminId: string | undefined = undefined;
-      if ((req as any).user) {
-        adminId = (req as any).user.id;
-      } else {
-        const token =
-          req.cookies?.authToken || req.headers.authorization?.split(" ")[1];
-        console.log(
-          "POST /bugs: Extracted token:",
-          token ? token.substring(0, 15) + "..." : "none",
-        );
-        if (token) {
-          try {
-            const session = await validateSession(token);
-            console.log(
-              "POST /bugs: Session validation result:",
-              JSON.stringify(session),
-            );
-            if (session && session.data) {
-              const sessionData = session.data as { id?: string; sub?: string };
-              const resolvedId = sessionData.id || sessionData.sub;
-              if (resolvedId) {
-                adminId = resolvedId;
-              }
+  router.post("/", upload.single("file"), async (req: Request, res: Response) => {
+    const transactionId = "createBug";
+    const { title, description, priority, category, githubRepo, reporterEmail } = req.body as {
+      title?: string;
+      description?: string;
+      priority?: string;
+      category?: string;
+      githubRepo?: string;
+      reporterEmail?: string;
+    };
+    let adminId: string | undefined = undefined;
+    if ((req as RequestWithUser).user) {
+      adminId = (req as RequestWithUser).user?.id;
+    } else {
+      const token =
+        (req.cookies?.authToken as string | undefined) || req.headers.authorization?.split(" ")[1];
+      logger.info(
+        "POST /bugs: Extracted token: " + (token ? token.substring(0, 15) + "..." : "none"),
+      );
+      if (token) {
+        try {
+          const session = await validateSession(token);
+          logger.info("POST /bugs: Session validation result: " + JSON.stringify(session));
+          if (session && session.data) {
+            const sessionData = session.data as { id?: string; sub?: string };
+            const resolvedId = sessionData.id || sessionData.sub;
+            if (resolvedId) {
+              adminId = resolvedId;
             }
-          } catch (e) {
-            console.error("POST /bugs: Error during session validation:", e);
           }
+        } catch (e) {
+          logger.err("POST /bugs: Error during session validation:");
+          logger.err(e as Error);
         }
       }
+    }
 
-      try {
-        const payload = {
-          title,
-          description,
-          priority,
-          category,
-          githubRepo,
-          createdById: adminId,
-          reporterEmail,
-          file: req.file,
-        };
-        const request = new RequestModel<typeof payload>(
-          transactionId,
-          payload,
-        );
-        const response = await bugUseCases.createBug(request);
+    try {
+      const validPriorities = ["low", "medium", "high"];
+      const resolvedPriority = validPriorities.includes(priority || "")
+        ? (priority as "low" | "medium" | "high")
+        : "medium";
 
-        const code = mapDomainErrorToHttp(
-          response.errorCode,
-          HttpStatusCodes.CREATED,
-        );
-        res.status(code).json(response);
-      } catch (error) {
-        logger.err(error);
-        res.status(HttpStatusCodes.BAD_REQUEST).json({ error: error.message });
-      }
-    },
-  );
+      const payload = {
+        title: title || "",
+        description: description || "",
+        priority: resolvedPriority,
+        category: category || "",
+        githubRepo: githubRepo || undefined,
+        createdById: adminId || undefined,
+        reporterEmail: reporterEmail || undefined,
+        file: req.file
+          ? {
+              filename: req.file.filename,
+              mimetype: req.file.mimetype,
+            }
+          : null,
+      };
+      const request = new RequestModel<typeof payload>(transactionId, payload);
+      const response = await bugUseCases.createBug(request);
+
+      const code = mapDomainErrorToHttpStatus(response.errorCode, HttpStatusCodes.CREATED);
+      res.status(code).json(response);
+    } catch (error) {
+      logger.err(error);
+      res.status(HttpStatusCodes.BAD_REQUEST).json({ error: (error as Error).message });
+    }
+  });
 
   // Get status log history
-  router.get(
-    "/:id/history",
-    authMiddleware,
-    async (req: Request, res: Response) => {
-      const transactionId = "queryHistory";
-      const { id } = req.params;
+  router.get("/:id/history", authMiddleware, async (req: Request, res: Response) => {
+    const transactionId = "queryHistory";
+    const { id } = req.params;
 
-      try {
-        const request = new RequestModel<string>(transactionId, id);
-        const response = await bugUseCases.queryHistory(request);
+    try {
+      const request = new RequestModel<string>(transactionId, id);
+      const response = await bugUseCases.queryHistory(request);
 
-        const code = mapDomainErrorToHttp(response.errorCode);
-        res.status(code).json(response);
-      } catch (error) {
-        logger.err(error);
-        res.status(HttpStatusCodes.BAD_REQUEST).json({ error: error.message });
-      }
-    },
-  );
+      const code = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(code).json(response);
+    } catch (error) {
+      logger.err(error);
+      res.status(HttpStatusCodes.BAD_REQUEST).json({ error: (error as Error).message });
+    }
+  });
 
   // Update status
-  router.post(
-    "/:id/status",
-    authMiddleware,
-    async (req: Request, res: Response) => {
-      const transactionId = "updateStatus";
-      const { id } = req.params;
-      const {
-        status,
-        comment,
-        title,
-        description,
-        priority,
-        category,
-        githubRepo,
-      } = req.body;
-      const adminId = (req as any).user.id;
-      const adminEmail = (req as any).user.email;
+  router.post("/:id/status", authMiddleware, async (req: Request, res: Response) => {
+    const transactionId = "updateStatus";
+    const { id } = req.params;
+    const { status, comment, title, description, priority, category, githubRepo } = req.body as {
+      status?: string;
+      comment?: string;
+      title?: string;
+      description?: string;
+      priority?: string;
+      category?: string;
+      githubRepo?: string;
+    };
+    const adminId = (req as RequestWithUser).user?.id || "";
+    const adminEmail = (req as RequestWithUser).user?.email || "";
 
-      try {
-        const payload = {
-          id,
-          status,
-          comment,
-          adminId,
-          adminEmail,
-          title,
-          description,
-          priority,
-          category,
-          githubRepo,
-        };
-        const request = new RequestModel<typeof payload>(
-          transactionId,
-          payload,
-        );
-        const response = await bugUseCases.updateStatus(request);
+    try {
+      const validPriorities = ["low", "medium", "high"];
+      const resolvedPriority = validPriorities.includes(priority || "")
+        ? (priority as "low" | "medium" | "high")
+        : undefined;
 
-        const code = mapDomainErrorToHttp(response.errorCode);
-        res.status(code).json(response);
-      } catch (error) {
-        logger.err(error);
-        res.status(HttpStatusCodes.BAD_REQUEST).json({ error: error.message });
-      }
-    },
-  );
+      const payload = {
+        id,
+        status: status || "",
+        comment: comment || undefined,
+        adminId,
+        adminEmail: adminEmail || undefined,
+        title: title || undefined,
+        description: description || undefined,
+        priority: resolvedPriority,
+        category: category || undefined,
+        githubRepo: githubRepo || undefined,
+      };
+      const request = new RequestModel<typeof payload>(transactionId, payload);
+      const response = await bugUseCases.updateStatus(request);
+
+      const code = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(code).json(response);
+    } catch (error) {
+      logger.err(error);
+      res.status(HttpStatusCodes.BAD_REQUEST).json({ error: (error as Error).message });
+    }
+  });
 
   // Restore bug
-  router.post(
-    "/:id/restore",
-    authMiddleware,
-    async (req: Request, res: Response) => {
-      const transactionId = "restoreBug";
-      const { id } = req.params;
-      const adminId = (req as any).user.id;
+  router.post("/:id/restore", authMiddleware, async (req: Request, res: Response) => {
+    const transactionId = "restoreBug";
+    const { id } = req.params;
+    const adminId = (req as RequestWithUser).user?.id || "";
 
-      try {
-        const payload = { id, adminId };
-        const request = new RequestModel<typeof payload>(
-          transactionId,
-          payload,
-        );
-        const response = await bugUseCases.restoreBug(request);
+    try {
+      const payload = { id, adminId };
+      const request = new RequestModel<typeof payload>(transactionId, payload);
+      const response = await bugUseCases.restoreBug(request);
 
-        const code = mapDomainErrorToHttp(response.errorCode);
-        res.status(code).json(response);
-      } catch (error) {
-        logger.err(error);
-        res.status(HttpStatusCodes.BAD_REQUEST).json({ error: error.message });
-      }
-    },
-  );
+      const code = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(code).json(response);
+    } catch (error) {
+      logger.err(error);
+      res.status(HttpStatusCodes.BAD_REQUEST).json({ error: (error as Error).message });
+    }
+  });
 
   // Reject bug
-  router.post(
-    "/:id/reject",
-    authMiddleware,
-    async (req: Request, res: Response) => {
-      const transactionId = "rejectBug";
-      const { id } = req.params;
-      const adminId = (req as any).user.id;
+  router.post("/:id/reject", authMiddleware, async (req: Request, res: Response) => {
+    const transactionId = "rejectBug";
+    const { id } = req.params;
+    const adminId = (req as RequestWithUser).user?.id || "";
 
-      try {
-        const payload = { id, adminId };
-        const request = new RequestModel<typeof payload>(
-          transactionId,
-          payload,
-        );
-        const response = await bugUseCases.rejectBug(request);
+    try {
+      const payload = { id, adminId };
+      const request = new RequestModel<typeof payload>(transactionId, payload);
+      const response = await bugUseCases.rejectBug(request);
 
-        const code = mapDomainErrorToHttp(response.errorCode);
-        res.status(code).json(response);
-      } catch (error) {
-        logger.err(error);
-        res.status(HttpStatusCodes.BAD_REQUEST).json({ error: error.message });
-      }
-    },
-  );
+      const code = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(code).json(response);
+    } catch (error) {
+      logger.err(error);
+      res.status(HttpStatusCodes.BAD_REQUEST).json({ error: (error as Error).message });
+    }
+  });
 
   // Synchronize with GitHub
   router.post("/sync", authMiddleware, async (req: Request, res: Response) => {
@@ -319,7 +276,7 @@ export function createBugRouter(
       const request = new RequestModel<void>(transactionId);
       const response = await bugUseCases.syncBugs(request);
 
-      const code = mapDomainErrorToHttp(response.errorCode);
+      const code = mapDomainErrorToHttpStatus(response.errorCode);
       if (response.errorCode) {
         res.status(code).json({ error: response.message });
       } else {
@@ -329,7 +286,7 @@ export function createBugRouter(
       }
     } catch (error) {
       logger.err(error);
-      res.status(HttpStatusCodes.BAD_REQUEST).json({ error: error.message });
+      res.status(HttpStatusCodes.BAD_REQUEST).json({ error: (error as Error).message });
     }
   });
 
@@ -342,85 +299,75 @@ export function createBugRouter(
       const transactionId = "addAttachment";
       const { id } = req.params;
       try {
-        const payload = { bugId: id, file: req.file };
-        const request = new RequestModel<typeof payload>(
-          transactionId,
-          payload,
-        );
+        const payload = {
+          bugId: id,
+          file: req.file
+            ? {
+                filename: req.file.filename,
+                mimetype: req.file.mimetype,
+              }
+            : null,
+        };
+        const request = new RequestModel<typeof payload>(transactionId, payload);
         const response = await bugUseCases.addAttachment(request);
-        const code = mapDomainErrorToHttp(
-          response.errorCode,
-          HttpStatusCodes.CREATED,
-        );
+        const code = mapDomainErrorToHttpStatus(response.errorCode, HttpStatusCodes.CREATED);
         res.status(code).json(response);
       } catch (error) {
         logger.err(error);
-        res.status(HttpStatusCodes.BAD_REQUEST).json({ error: error.message });
+        res.status(HttpStatusCodes.BAD_REQUEST).json({ error: (error as Error).message });
       }
     },
   );
 
   // Delete attachment
-  router.delete(
-    "/attachments/:id",
-    authMiddleware,
-    async (req: Request, res: Response) => {
-      const transactionId = "deleteAttachment";
-      const { id } = req.params;
-      try {
-        const request = new RequestModel<string>(transactionId, id);
-        const response = await bugUseCases.deleteAttachment(request);
-        const code = mapDomainErrorToHttp(response.errorCode);
-        res.status(code).json(response);
-      } catch (error) {
-        logger.err(error);
-        res.status(HttpStatusCodes.BAD_REQUEST).json({ error: error.message });
-      }
-    },
-  );
+  router.delete("/attachments/:id", authMiddleware, async (req: Request, res: Response) => {
+    const transactionId = "deleteAttachment";
+    const { id } = req.params;
+    try {
+      const request = new RequestModel<string>(transactionId, id);
+      const response = await bugUseCases.deleteAttachment(request);
+      const code = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(code).json(response);
+    } catch (error) {
+      logger.err(error);
+      res.status(HttpStatusCodes.BAD_REQUEST).json({ error: (error as Error).message });
+    }
+  });
 
   // Create bug note
-  router.post(
-    "/:id/notes",
-    authMiddleware,
-    async (req: Request, res: Response) => {
-      const transactionId = "createBugNote";
-      const { id } = req.params;
-      const { body } = req.body;
-      const authorId = (req as any).user.id;
+  router.post("/:id/notes", authMiddleware, async (req: Request, res: Response) => {
+    const transactionId = "createBugNote";
+    const { id } = req.params;
+    const { body } = req.body as { body?: string };
+    const authorId = (req as RequestWithUser).user?.id || "";
 
-      try {
-        const payload = { bugId: id, body, authorId };
-        const request = new RequestModel(transactionId, payload);
-        const response = await bugUseCases.createNote(request);
-        const code = mapDomainErrorToHttp(response.errorCode);
-        res.status(code).json(response);
-      } catch (error) {
-        logger.err(error);
-        res.status(HttpStatusCodes.BAD_REQUEST).json({ error: error.message });
-      }
-    },
-  );
+    try {
+      const payload = { bugId: id, body: body || "", authorId };
+      const request = new RequestModel(transactionId, payload);
+      const response = await bugUseCases.createNote(request);
+      const code = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(code).json(response);
+    } catch (error) {
+      logger.err(error);
+      res.status(HttpStatusCodes.BAD_REQUEST).json({ error: (error as Error).message });
+    }
+  });
 
   // Query bug notes
-  router.get(
-    "/:id/notes",
-    authMiddleware,
-    async (req: Request, res: Response) => {
-      const transactionId = "queryBugNotes";
-      const { id } = req.params;
+  router.get("/:id/notes", authMiddleware, async (req: Request, res: Response) => {
+    const transactionId = "queryBugNotes";
+    const { id } = req.params;
 
-      try {
-        const request = new RequestModel(transactionId, id);
-        const response = await bugUseCases.queryNotes(request);
-        const code = mapDomainErrorToHttp(response.errorCode);
-        res.status(code).json(response);
-      } catch (error) {
-        logger.err(error);
-        res.status(HttpStatusCodes.BAD_REQUEST).json({ error: error.message });
-      }
-    },
-  );
+    try {
+      const request = new RequestModel(transactionId, id);
+      const response = await bugUseCases.queryNotes(request);
+      const code = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(code).json(response);
+    } catch (error) {
+      logger.err(error);
+      res.status(HttpStatusCodes.BAD_REQUEST).json({ error: (error as Error).message });
+    }
+  });
 
   return router;
 }

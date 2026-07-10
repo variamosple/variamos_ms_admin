@@ -1,18 +1,25 @@
-export const mockValidateSession = jest.fn();
+const mockValidateSession = jest.fn();
 
 jest.mock("@variamosple/variamos-security", () => ({
-  isAuthenticated: (req: any, _res: any, next: any) => {
-    req.user = { id: "admin-123", email: "admin@example.com" };
+  isAuthenticated: (req: express.Request, _res: express.Response, next: express.NextFunction) => {
+    (req as { user?: { id: string; email?: string } }).user = {
+      id: "admin-123",
+      email: "admin@example.com",
+    };
     next();
   },
-  hasPermissions: () => (req: any, _res: any, next: any) => next(),
-  isLogged: () => (req: any, _res: any, next: any) => next(),
-  checkSession: () => (req: any, _res: any, next: any) => next(),
+  hasPermissions:
+    () => (req: express.Request, _res: express.Response, next: express.NextFunction) =>
+      next(),
+  isLogged: () => (req: express.Request, _res: express.Response, next: express.NextFunction) =>
+    next(),
+  checkSession: () => (req: express.Request, _res: express.Response, next: express.NextFunction) =>
+    next(),
   validateSession: (token: string) => mockValidateSession(token),
 }));
 
 import request from "supertest";
-import express, { Request, Response, NextFunction } from "express";
+import express, { RequestHandler } from "express";
 import cookieParser from "cookie-parser";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { Bug } from "@src/Domain/Bug/Entity/Bug";
@@ -57,15 +64,21 @@ const mockBugUseCases = {
 
 // Use memory storage for testing to bypass physical disk writes and keep tests clean
 const mockUpload = multer({ storage: multer.memoryStorage() });
-const mockAuth = (req: any, res: any, next: any) => {
-  req.user = { id: "admin-123", email: "admin@example.com" };
+const mockAuth: RequestHandler = (req, res, next) => {
+  (req as { user?: { id: string; email?: string } }).user = {
+    id: "admin-123",
+    email: "admin@example.com",
+  };
   next();
 };
 
 const app = express();
 app.use(express.json());
-app.use((req: any, _res, next) => {
-  req.user = { id: "admin-123", email: "admin@example.com" };
+app.use((req, _res, next) => {
+  (req as { user?: { id: string; email?: string } }).user = {
+    id: "admin-123",
+    email: "admin@example.com",
+  };
   next();
 });
 app.use("/bugs", createBugRouter(mockBugUseCases, mockUpload, mockAuth));
@@ -78,15 +91,9 @@ describe("BugRouter HTTP Integration Tests", () => {
   describe("GET /", () => {
     it("should return 200 and bug list on success", async () => {
       const mockBugs = [
-        Bug.builder()
-          .setId("gh-1")
-          .setTitle("GitHub Issue 1")
-          .setStatus("open")
-          .build(),
+        Bug.builder().setId("gh-1").setTitle("GitHub Issue 1").setStatus("open").build(),
       ];
-      mockQueryBugs.mockResolvedValue(
-        new ResponseModel("tx-id").withResponse(mockBugs),
-      );
+      mockQueryBugs.mockResolvedValue(new ResponseModel("tx-id").withResponse(mockBugs));
 
       const res = await request(app)
         .get("/bugs")
@@ -101,14 +108,12 @@ describe("BugRouter HTTP Integration Tests", () => {
     it("should map domain error codes to correct HTTP error codes", async () => {
       mockQueryBugs.mockResolvedValue(
         new ResponseModel("tx-id").withError(
-          DomainErrorCodes.BAD_REQUEST,
+          DomainErrorCodes.INVALID_INPUT,
           "Invalid repository format",
         ),
       );
 
-      const res = await request(app)
-        .get("/bugs")
-        .query({ repo: "invalid-repo" });
+      const res = await request(app).get("/bugs").query({ repo: "invalid-repo" });
 
       expect(res.status).toBe(400);
       expect(res.body.message).toBe("Invalid repository format");
@@ -118,19 +123,11 @@ describe("BugRouter HTTP Integration Tests", () => {
   describe("GET /bugs/local", () => {
     it("should fetch local inbox bugs successfully", async () => {
       const localBugs = [
-        Bug.builder()
-          .setId("local-1")
-          .setTitle("Local Bug 1")
-          .setStatus("pending")
-          .build(),
+        Bug.builder().setId("local-1").setTitle("Local Bug 1").setStatus("pending").build(),
       ];
-      mockQueryLocalBugs.mockResolvedValue(
-        new ResponseModel("tx-id").withResponse(localBugs),
-      );
+      mockQueryLocalBugs.mockResolvedValue(new ResponseModel("tx-id").withResponse(localBugs));
 
-      const res = await request(app)
-        .get("/bugs/local")
-        .query({ status: "pending" });
+      const res = await request(app).get("/bugs/local").query({ status: "pending" });
 
       expect(res.status).toBe(200);
       expect(res.body.data[0].id).toBe("local-1");
@@ -140,13 +137,8 @@ describe("BugRouter HTTP Integration Tests", () => {
 
   describe("POST /bugs/:id/reject", () => {
     it("should successfully reject a local bug", async () => {
-      const rejectedBug = Bug.builder()
-        .setId("local-1")
-        .setStatus("rejected")
-        .build();
-      mockRejectBug.mockResolvedValue(
-        new ResponseModel("tx-id").withResponse(rejectedBug),
-      );
+      const rejectedBug = Bug.builder().setId("local-1").setStatus("rejected").build();
+      mockRejectBug.mockResolvedValue(new ResponseModel("tx-id").withResponse(rejectedBug));
 
       const res = await request(app).post("/bugs/local-1/reject").send();
 
@@ -162,7 +154,7 @@ describe("BugRouter HTTP Integration Tests", () => {
     it("should return 404 if bug is not found", async () => {
       mockRejectBug.mockResolvedValue(
         new ResponseModel("tx-id").withError(
-          DomainErrorCodes.NOT_FOUND,
+          DomainErrorCodes.ENTITY_NOT_FOUND,
           "Local bug not found.",
         ),
       );
@@ -176,13 +168,8 @@ describe("BugRouter HTTP Integration Tests", () => {
 
   describe("POST /bugs/:id/restore", () => {
     it("should successfully restore a bug", async () => {
-      const restoredBug = Bug.builder()
-        .setId("local-1")
-        .setStatus("pending")
-        .build();
-      mockRestoreBug.mockResolvedValue(
-        new ResponseModel("tx-id").withResponse(restoredBug),
-      );
+      const restoredBug = Bug.builder().setId("local-1").setStatus("pending").build();
+      mockRestoreBug.mockResolvedValue(new ResponseModel("tx-id").withResponse(restoredBug));
 
       const res = await request(app).post("/bugs/local-1/restore").send();
 
@@ -244,13 +231,8 @@ describe("BugRouter HTTP Integration Tests", () => {
 
   describe("POST /bugs", () => {
     it("should successfully create a new local bug without attachment", async () => {
-      const newBug = Bug.builder()
-        .setId("local-new")
-        .setTitle("UI Crash")
-        .build();
-      mockCreateBug.mockResolvedValue(
-        new ResponseModel("tx-id").withResponse(newBug),
-      );
+      const newBug = Bug.builder().setId("local-new").setTitle("UI Crash").build();
+      mockCreateBug.mockResolvedValue(new ResponseModel("tx-id").withResponse(newBug));
 
       const res = await request(app).post("/bugs").send({
         title: "UI Crash",
@@ -277,16 +259,12 @@ describe("BugRouter HTTP Integration Tests", () => {
 
   describe("GET /bugs/:id/history", () => {
     it("should successfully fetch bug status log history", async () => {
-      mockQueryHistory.mockResolvedValue(
-        new ResponseModel("tx-id").withResponse([]),
-      );
+      mockQueryHistory.mockResolvedValue(new ResponseModel("tx-id").withResponse([]));
 
       const res = await request(app).get("/bugs/local-1/history");
 
       expect(res.status).toBe(200);
-      expect(mockQueryHistory).toHaveBeenCalledWith(
-        expect.objectContaining({ data: "local-1" }),
-      );
+      expect(mockQueryHistory).toHaveBeenCalledWith(expect.objectContaining({ data: "local-1" }));
     });
 
     it("should return 400 when fetching history throws", async () => {
@@ -301,13 +279,8 @@ describe("BugRouter HTTP Integration Tests", () => {
 
   describe("POST /bugs/:id/status", () => {
     it("should successfully update bug status", async () => {
-      const updatedBug = Bug.builder()
-        .setId("local-1")
-        .setStatus("closed")
-        .build();
-      mockUpdateStatus.mockResolvedValue(
-        new ResponseModel("tx-id").withResponse(updatedBug),
-      );
+      const updatedBug = Bug.builder().setId("local-1").setStatus("closed").build();
+      mockUpdateStatus.mockResolvedValue(new ResponseModel("tx-id").withResponse(updatedBug));
 
       const res = await request(app)
         .post("/bugs/local-1/status")
@@ -331,9 +304,7 @@ describe("BugRouter HTTP Integration Tests", () => {
     it("should return 400 when update status throws", async () => {
       mockUpdateStatus.mockRejectedValue(new Error("Update failed"));
 
-      const res = await request(app)
-        .post("/bugs/local-1/status")
-        .send({ status: "closed" });
+      const res = await request(app).post("/bugs/local-1/status").send({ status: "closed" });
 
       expect(res.status).toBe(400);
       expect(res.body.error).toBe("Update failed");
@@ -386,19 +357,14 @@ describe("BugRouter HTTP Integration Tests", () => {
 
   describe("Multer and Error Mapping integration", () => {
     it("should map default success case when no error code is present", async () => {
-      mockQueryBugs.mockResolvedValue(
-        new ResponseModel("tx-id").withResponse([]),
-      );
+      mockQueryBugs.mockResolvedValue(new ResponseModel("tx-id").withResponse([]));
       const res = await request(app).get("/bugs");
       expect(res.status).toBe(200);
     });
 
     it("should map defined domain error string to correct status code", async () => {
       mockQueryBugs.mockResolvedValue(
-        new ResponseModel("tx-id").withError(
-          DomainErrorCodes.UNAUTHORIZED,
-          "Unauthorized",
-        ),
+        new ResponseModel("tx-id").withError(DomainErrorCodes.UNAUTHORIZED_ACCESS, "Unauthorized"),
       );
       const res = await request(app).get("/bugs");
       expect(res.status).toBe(401);
@@ -406,7 +372,7 @@ describe("BugRouter HTTP Integration Tests", () => {
 
     it("should fall back to 500 when error code string is unknown", async () => {
       mockQueryBugs.mockResolvedValue(
-        new ResponseModel("tx-id").withError("UNKNOWN_ERR" as any, "Error"),
+        new ResponseModel("tx-id").withError("UNKNOWN_ERR" as unknown as DomainErrorCodes, "Error"),
       );
       const res = await request(app).get("/bugs");
       expect(res.status).toBe(500);
@@ -414,7 +380,7 @@ describe("BugRouter HTTP Integration Tests", () => {
 
     it("should return the exact numeric code if it is an unknown number", async () => {
       mockQueryBugs.mockResolvedValue(
-        new ResponseModel("tx-id").withError(418, "Teapot"),
+        new ResponseModel("tx-id").withError("418" as unknown as DomainErrorCodes, "Teapot"),
       );
       const res = await request(app).get("/bugs");
       expect(res.status).toBe(418);
@@ -422,7 +388,7 @@ describe("BugRouter HTTP Integration Tests", () => {
 
     it("should map direct numeric error codes correctly", async () => {
       mockQueryBugs.mockResolvedValue(
-        new ResponseModel("tx-id").withError(404, "Not found"),
+        new ResponseModel("tx-id").withError("404" as unknown as DomainErrorCodes, "Not found"),
       );
       const res = await request(app).get("/bugs");
       expect(res.status).toBe(404);
@@ -430,9 +396,7 @@ describe("BugRouter HTTP Integration Tests", () => {
 
     it("should trigger multer upload destination and filename logic when file is attached", async () => {
       const newBug = Bug.builder().setId("local-file").build();
-      mockCreateBug.mockResolvedValue(
-        new ResponseModel("tx-id").withResponse(newBug),
-      );
+      mockCreateBug.mockResolvedValue(new ResponseModel("tx-id").withResponse(newBug));
 
       const res = await request(app)
         .post("/bugs")
@@ -448,22 +412,18 @@ describe("BugRouter HTTP Integration Tests", () => {
 
   describe("POST /bugs/sync integration and exceptions", () => {
     it("should complete synchronization successfully", async () => {
-      mockSyncBugs.mockResolvedValue(
-        new ResponseModel("tx-id").withResponse(undefined),
-      );
+      mockSyncBugs.mockResolvedValue(new ResponseModel("tx-id").withResponse(undefined));
 
       const res = await request(app).post("/bugs/sync").send();
 
       expect(res.status).toBe(200);
-      expect(res.body.message).toContain(
-        "synchronization completed successfully",
-      );
+      expect(res.body.message).toContain("synchronization completed successfully");
     });
 
     it("should return error if token is missing", async () => {
       mockSyncBugs.mockResolvedValue(
         new ResponseModel("tx-id").withError(
-          DomainErrorCodes.BAD_REQUEST,
+          DomainErrorCodes.INVALID_INPUT,
           "GitHub Sync is not configured.",
         ),
       );
@@ -485,25 +445,20 @@ describe("BugRouter HTTP Integration Tests", () => {
   });
 
   describe("Guest access (missing user session)", () => {
-    let guestApp: any;
+    let guestApp: express.Application;
 
     beforeEach(() => {
       guestApp = express();
       guestApp.use(cookieParser());
       guestApp.use(express.json());
-      const noAuth = (req: any, res: any, next: any) => next();
-      guestApp.use(
-        "/bugs",
-        createBugRouter(mockBugUseCases, mockUpload, noAuth),
-      );
+      const noAuth: RequestHandler = (req, res, next) => next();
+      guestApp.use("/bugs", createBugRouter(mockBugUseCases, mockUpload, noAuth));
       mockValidateSession.mockReset();
     });
 
     it("should handle request with undefined user session in POST /bugs", async () => {
       const newBug = Bug.builder().setId("local-guest").build();
-      mockCreateBug.mockResolvedValue(
-        new ResponseModel("tx-id").withResponse(newBug),
-      );
+      mockCreateBug.mockResolvedValue(new ResponseModel("tx-id").withResponse(newBug));
 
       const res = await request(guestApp).post("/bugs").send({
         title: "Guest UI Crash",
@@ -523,9 +478,7 @@ describe("BugRouter HTTP Integration Tests", () => {
 
     it("should extract and resolve user from cookie authToken", async () => {
       const newBug = Bug.builder().setId("local-cookie").build();
-      mockCreateBug.mockResolvedValue(
-        new ResponseModel("tx-id").withResponse(newBug),
-      );
+      mockCreateBug.mockResolvedValue(new ResponseModel("tx-id").withResponse(newBug));
       mockValidateSession.mockResolvedValue({
         data: { id: "user-via-cookie" },
       });
@@ -552,9 +505,7 @@ describe("BugRouter HTTP Integration Tests", () => {
 
     it("should extract and resolve user from Authorization header", async () => {
       const newBug = Bug.builder().setId("local-header").build();
-      mockCreateBug.mockResolvedValue(
-        new ResponseModel("tx-id").withResponse(newBug),
-      );
+      mockCreateBug.mockResolvedValue(new ResponseModel("tx-id").withResponse(newBug));
       mockValidateSession.mockResolvedValue({
         data: { sub: "user-via-header" },
       });
@@ -581,12 +532,8 @@ describe("BugRouter HTTP Integration Tests", () => {
 
     it("should gracefully handle validateSession exception", async () => {
       const newBug = Bug.builder().setId("local-error").build();
-      mockCreateBug.mockResolvedValue(
-        new ResponseModel("tx-id").withResponse(newBug),
-      );
-      mockValidateSession.mockRejectedValue(
-        new Error("Session validation error"),
-      );
+      mockCreateBug.mockResolvedValue(new ResponseModel("tx-id").withResponse(newBug));
+      mockValidateSession.mockRejectedValue(new Error("Session validation error"));
 
       const res = await request(guestApp)
         .post("/bugs")
@@ -653,9 +600,7 @@ describe("BugRouter HTTP Integration Tests", () => {
 
     describe("DELETE /bugs/attachments/:id", () => {
       it("should successfully delete an attachment", async () => {
-        mockDeleteAttachment.mockResolvedValue(
-          new ResponseModel("tx-id").withResponse(undefined),
-        );
+        mockDeleteAttachment.mockResolvedValue(new ResponseModel("tx-id").withResponse(undefined));
 
         const res = await request(app).delete("/bugs/attachments/1");
 
@@ -687,13 +632,9 @@ describe("BugRouter HTTP Integration Tests", () => {
           body: "Hello note",
           authorId: "admin-123",
         };
-        mockCreateNote.mockResolvedValue(
-          new ResponseModel("tx-id").withResponse(mockNote),
-        );
+        mockCreateNote.mockResolvedValue(new ResponseModel("tx-id").withResponse(mockNote));
 
-        const res = await request(app)
-          .post("/bugs/local-1/notes")
-          .send({ body: "Hello note" });
+        const res = await request(app).post("/bugs/local-1/notes").send({ body: "Hello note" });
 
         expect(res.status).toBe(200);
         expect(res.body.data.id).toBe(10);
@@ -711,9 +652,7 @@ describe("BugRouter HTTP Integration Tests", () => {
       it("should handle unexpected errors during note creation and return 400", async () => {
         mockCreateNote.mockRejectedValue(new Error("Note creation failed"));
 
-        const res = await request(app)
-          .post("/bugs/local-1/notes")
-          .send({ body: "Hello note" });
+        const res = await request(app).post("/bugs/local-1/notes").send({ body: "Hello note" });
 
         expect(res.status).toBe(400);
         expect(res.body.error).toBe("Note creation failed");
@@ -723,9 +662,7 @@ describe("BugRouter HTTP Integration Tests", () => {
     describe("GET /bugs/:id/notes", () => {
       it("should successfully fetch notes for a bug", async () => {
         mockQueryNotes.mockResolvedValue(
-          new ResponseModel("tx-id").withResponse([
-            { id: 10, body: "Hello note" },
-          ]),
+          new ResponseModel("tx-id").withResponse([{ id: 10, body: "Hello note" }]),
         );
 
         const res = await request(app).get("/bugs/local-1/notes");

@@ -4,7 +4,7 @@
 
 import cookieParser from "cookie-parser";
 import cors from "cors";
-import express, { NextFunction, Request, Response } from "express";
+import express, { NextFunction, Request, Response, Router } from "express";
 import helmet from "helmet";
 import logger from "jet-logger";
 import morgan from "morgan";
@@ -12,90 +12,84 @@ import path from "path";
 
 import "express-async-errors";
 
-import baseRouter from "@src/EntryPoints";
-
 import EnvVars from "@src/common/EnvVars";
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import { RouteError } from "@src/common/classes";
 import { NodeEnvs } from "@src/common/misc";
 
-// **** Variables **** //
+export function createServer(baseRouter: Router) {
+  const app = express();
 
-const app = express();
+  // **** Setup **** //
 
-// **** Setup **** //
+  // Basic middleware
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
+  app.use(cookieParser(EnvVars.CookieProps.Secret));
 
-// Basic middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser(EnvVars.CookieProps.Secret));
+  const corsOptions = {
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
+      if (!origin || "null" === origin) return callback(null, true);
 
-const corsOptions = {
-  origin: (
-    origin: string | undefined,
-    callback: (err: Error | null, allow?: boolean) => void
-  ) => {
-    if (!origin || "null" === origin) return callback(null, true);
+      const isAllowed =
+        EnvVars.CORS.AllowedOriginsPatterns.findIndex((pattern) => pattern.test(origin)) !== -1;
 
-    const isAllowed =
-      EnvVars.CORS.AllowedOriginsPatterns.findIndex((pattern) =>
-        pattern.test(origin)
-      ) !== -1;
+      if (isAllowed) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  };
 
-    if (isAllowed) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true,
-};
+  app.use(cors(corsOptions));
 
-app.use(cors(corsOptions));
-
-// Show routes called in console during development
-if (EnvVars.NodeEnv === NodeEnvs.Dev.valueOf()) {
-  app.use(morgan("dev"));
-}
-
-// Security
-if (EnvVars.NodeEnv === NodeEnvs.Production.valueOf()) {
-  app.use(helmet());
-}
-
-// Add APIs, must be after middleware
-app.use("/", baseRouter);
-
-// Add error handler
-app.use(
-  (
-    err: Error,
-    _: Request,
-    res: Response,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    next: NextFunction
-  ) => {
-    if (EnvVars.NodeEnv !== NodeEnvs.Test.valueOf()) {
-      logger.err(err, true);
-    }
-    let status = HttpStatusCodes.BAD_REQUEST;
-    if (err instanceof RouteError) {
-      status = err.status;
-    }
-    return res.status(status).json({ error: err.message });
+  // Show routes called in console during development
+  if (EnvVars.NodeEnv === NodeEnvs.Dev.valueOf()) {
+    app.use(morgan("dev"));
   }
-);
 
-// **** Front-End Content **** //
+  // Security
+  if (EnvVars.NodeEnv === NodeEnvs.Production.valueOf()) {
+    app.use(helmet());
+  }
 
-// Set views directory (html)
-const viewsDir = path.join(__dirname, "views");
-app.set("views", viewsDir);
+  // Add APIs, must be after middleware
+  app.use("/", baseRouter);
 
-// Set static directory (js and css).
-const staticDir = path.join(__dirname, "public");
-app.use(express.static(staticDir));
+  // Add error handler
+  app.use(
+    (
+      err: Error,
+      _: Request,
+      res: Response,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      next: NextFunction,
+    ) => {
+      if (EnvVars.NodeEnv !== NodeEnvs.Test.valueOf()) {
+        logger.err(err, true);
+      }
+      let status = HttpStatusCodes.BAD_REQUEST;
+      if (err instanceof RouteError) {
+        status = err.status;
+      }
+      return res.status(status).json({ error: err.message });
+    },
+  );
 
-// **** Export default **** //
+  // **** Front-End Content **** //
 
-export default app;
+  // Set views directory (html)
+  const viewsDir = path.join(__dirname, "views");
+  app.set("views", viewsDir);
+
+  // Set static directory (js and css).
+  const staticDir = path.join(__dirname, "public");
+  app.use(express.static(staticDir));
+
+  return app;
+}

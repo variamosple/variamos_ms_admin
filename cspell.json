@@ -1,0 +1,40 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "variamos",
+    "axios",
+    "sequelize",
+    "postgres",
+    "uuid",
+    "usecases",
+    "dataproviders",
+    "entrypoints",
+    "jwt",
+    "envvars",
+    "stryker",
+    "eslint",
+    "prettier",
+    "commitlint",
+    "lintstaged",
+    "dockerode",
+    "bcrypt",
+    "nodemon",
+    "supertest",
+    "express",
+    "variamosple",
+    "ILIKE",
+    "testuser",
+    "uuidv4",
+    "uuidv"
+  ],
+  "ignorePaths": [
+    "node_modules/**",
+    "build/**",
+    "dist/**",
+    "coverage/**",
+    "package-lock.json",
+    "jwtRS256.key",
+    "jwtRS256.key.pub"
+  ]
+}

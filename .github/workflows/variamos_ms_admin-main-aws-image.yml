@@ -44,7 +44,7 @@ jobs:
           script: |
             echo "Injecting GitHub Secrets into environment..."
             # On cible précisément tes variables d'admin pour ne pas toucher au reste
-            sed -i -E '/^(GITHUB_TOKEN|GITHUB_APP_ID|GITHUB_PRIVATE_KEY|GITHUB_MANAGED_REPOS|GOOGLE_CLIENT_ID|GOOGLE_REDIRECT_URI|LOGIN_REDIRECT_URI|HOME_REDIRECT_URI|API_BASE_URL|SMTP_PASSWORD|SMTP_USER|SMTP_HOST|SMTP_PORT|SMTP_FROM)=/d' .env.aws.develop
+            sed -i -E '/^(GITHUB_TOKEN|GITHUB_APP_ID|GITHUB_PRIVATE_KEY|GITHUB_MANAGED_REPOS|GOOGLE_CLIENT_ID|GOOGLE_REDIRECT_URI|LOGIN_REDIRECT_URI|HOME_REDIRECT_URI|API_BASE_URL|SMTP_PASSWORD|SMTP_USER|SMTP_HOST|SMTP_PORT|SMTP_FROM|DB_SCHEMA)=/d' .env.aws.develop
             echo "GITHUB_TOKEN=\"${{ secrets.ISSUES_PAT_TOKEN }}\"" >> .env.aws.develop
             echo "GITHUB_APP_ID=\"${{ vars.ISSUES_BOT_APP_ID }}\"" >> .env.aws.develop
             echo "GITHUB_PRIVATE_KEY=\"${{ secrets.ISSUES_BOT_PRIVATE_KEY }}\"" >> .env.aws.develop
@@ -59,6 +59,7 @@ jobs:
             echo "SMTP_HOST=\"${{ vars.SMTP_HOST }}\"" >> .env.aws.develop
             echo "SMTP_PORT=\"${{ vars.SMTP_PORT }}\"" >> .env.aws.develop
             echo "SMTP_FROM=\"${{ vars.SMTP_FROM }}\"" >> .env.aws.develop
+            echo "DB_SCHEMA=\"${{ vars.DB_SCHEMA }}\"" >> .env.aws.develop
             
             echo "Executing command on remote server..."
             docker compose --env-file .env.aws.develop -f docker-compose-aws-develop-nginx.yml pull variamos_ms_admin

@@ -1,3 +1,4 @@
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import logger from "jet-logger";
 import "./pre-start"; // Must be the first import
 
@@ -6,20 +7,67 @@ import { initKeyStore, validateSession } from "@variamosple/variamos-security";
 import * as cookie from "cookie";
 import { Readable } from "stream";
 import { WebSocket, WebSocketServer } from "ws";
-import HttpStatusCodes from "./common/HttpStatusCodes";
 import { RequestModel } from "./Domain/Core/Entity/RequestModel";
-import { MicroServiceUseCases } from "./Domain/MicroService/MicroServiceCases";
-import app from "./server";
-// **** Run **** //
+import { createBaseRouter } from "./EntryPoints";
+import { createServer } from "./server";
 
-import { productionBugUseCases as bugUseCases } from "./EntryPoints";
+import {
+  productionUsersUseCases,
+  productionBugUseCases,
+  productionMicroServiceUseCases,
+  productionRolesUseCases,
+  productionRolePermissionUseCases,
+  productionUserRoleUseCases,
+  productionMetricsUseCases,
+  productionPermissionsUseCases,
+  productionVisitsUseCases,
+  productionCountriesUseCases,
+} from "./CompositionRoot";
+
 import { BugModel } from "./DataProviders/Bug/Bug";
 import { BugAttachmentModel } from "./DataProviders/Bug/BugAttachment";
 import { BugLogModel } from "./DataProviders/Bug/BugLog";
 import "./DataProviders/Bug/BugAssociations";
 
-const SERVER_START_MSG =
-  "Express server started on port: " + EnvVars.Port.toString();
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, "./public/uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Multer storage configuration
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  },
+});
+const productionUpload = multer({ storage });
+
+const baseRouter = createBaseRouter(
+  productionUsersUseCases,
+  productionBugUseCases,
+  productionMicroServiceUseCases,
+  productionRolesUseCases,
+  productionRolePermissionUseCases,
+  productionUserRoleUseCases,
+  productionMetricsUseCases,
+  productionPermissionsUseCases,
+  productionVisitsUseCases,
+  productionCountriesUseCases,
+  productionUpload,
+);
+
+const app = createServer(baseRouter);
+
+const SERVER_START_MSG = "Express server started on port: " + EnvVars.Port.toString();
 
 const server = app.listen(EnvVars.Port, async () => {
   initKeyStore().then();
@@ -34,9 +82,10 @@ const server = app.listen(EnvVars.Port, async () => {
     logger.info("Bug Tracker Database models synchronized successfully.");
 
     // Purge expired rejected bugs (older than 7 days) on startup
-    await bugUseCases.purgeExpiredRejectedBugs();
+    await productionBugUseCases.purgeExpiredRejectedBugs();
   } catch (e) {
-    logger.err("Failed to synchronize Bug tracker models: " + e.message);
+    const err = e as Error;
+    logger.err("Failed to synchronize Bug tracker models: " + err.message);
   }
 
   // Run periodic bugs sync every 15 minutes
@@ -45,9 +94,10 @@ const server = app.listen(EnvVars.Port, async () => {
     try {
       logger.info("Executing periodic bugs synchronization...");
       const request = new RequestModel<void>("periodicSyncBugs");
-      await bugUseCases.syncBugs(request);
+      await productionBugUseCases.syncBugs(request);
     } catch (e) {
-      logger.err("Failed to execute periodic bugs sync: " + e.message);
+      const err = e as Error;
+      logger.err("Failed to execute periodic bugs sync: " + err.message);
     }
   }, SYNC_INTERVAL);
 
@@ -56,9 +106,10 @@ const server = app.listen(EnvVars.Port, async () => {
   setInterval(async () => {
     try {
       logger.info("Executing periodic expired bugs purge...");
-      await bugUseCases.purgeExpiredRejectedBugs();
+      await productionBugUseCases.purgeExpiredRejectedBugs();
     } catch (e) {
-      logger.err("Failed to execute periodic expired bugs purge: " + e.message);
+      const err = e as Error;
+      logger.err("Failed to execute periodic expired bugs purge: " + err.message);
     }
   }, PURGE_INTERVAL);
 });
@@ -66,7 +117,7 @@ const server = app.listen(EnvVars.Port, async () => {
 const webSocketServer = new WebSocketServer({ server });
 
 webSocketServer.on("connection", async (ws, req) => {
-  console.log("WebSocket connection established");
+  logger.info("WebSocket connection established");
 
   const cookies = req.headers.cookie ? cookie.parse(req.headers.cookie) : {};
 
@@ -78,20 +129,17 @@ webSocketServer.on("connection", async (ws, req) => {
   }
 
   ws.on("message", async (message) => {
-    console.log("Message received: " + message);
+    const messageStr = Buffer.isBuffer(message) ? message.toString("utf8") : String(message);
+    logger.info("Message received: " + messageStr);
 
     try {
-      const { microserviceId } = JSON.parse(message.toString());
+      const parsedData = JSON.parse(messageStr) as { microserviceId?: string };
+      const microserviceId = parsedData.microserviceId;
       const transactionId = "watchMicroServiceLogs";
 
-      const request = new RequestModel<string>(
-        transactionId,
-        microserviceId as string,
-      );
+      const request = new RequestModel<string>(transactionId, microserviceId as string);
 
-      const response = await new MicroServiceUseCases().watchMicroServiceLogs(
-        request,
-      );
+      const response = await productionMicroServiceUseCases.watchMicroServiceLogs(request);
 
       if (response.errorCode) {
         return ws.send(JSON.stringify(response));
@@ -101,7 +149,7 @@ webSocketServer.on("connection", async (ws, req) => {
         return ws.send(
           JSON.stringify(
             response.withError(
-              HttpStatusCodes.NOT_FOUND,
+              DomainErrorCodes.ENTITY_NOT_FOUND,
               "No Logs found for microservice with id: " + microserviceId,
             ),
           ),
@@ -110,7 +158,7 @@ webSocketServer.on("connection", async (ws, req) => {
 
       const logStream = response.data;
 
-      logStream.on("data", (chunk) => {
+      logStream.on("data", (chunk: Buffer) => {
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(chunk.toString("utf8"));
         }
@@ -126,7 +174,8 @@ webSocketServer.on("connection", async (ws, req) => {
         (logStream as Readable).destroy();
       });
     } catch (error) {
-      ws.send(JSON.stringify({ error: error.message }));
+      const err = error as Error;
+      ws.send(JSON.stringify({ error: err.message }));
     }
   });
 

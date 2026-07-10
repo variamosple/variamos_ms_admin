@@ -1,126 +1,135 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { Metric } from "@src/Domain/Metrics/Entity/Metric";
 import { MetricsFilter } from "@src/Domain/Metrics/Entity/MetricsFilter";
-import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
+import { IMetricsRepository } from "@src/Domain/Metrics/Repository/IMetricsRepository";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
 import logger from "jet-logger";
 import { QueryTypes } from "sequelize";
 import { BaseRepository } from "../BaseRepository";
 
-const METRICS_FUNCTIONS = new Map<string, string>()
-  .set(
-    "daily_unique_visits",
-    "variamos.get_daily_unique_visits_metrics((:startDate)::DATE, (:endDate)::DATE)"
-  )
-  .set(
-    "daily_visits",
-    "variamos.get_daily_visits_metrics((:startDate)::DATE, (:endDate)::DATE)"
-  )
-  .set(
-    "monthly_visits",
-    "variamos.get_monthly_visits_metrics((:startDate)::DATE, (:endDate)::DATE)"
-  );
+const METRICS_FUNCTIONS = new Map<string, string>([
+  ["visitsByDay", `${DB_SCHEMA}.get_visits_by_day()`],
+  ["visitsByUser", `${DB_SCHEMA}.get_visits_by_user()`],
+  ["operationsCount", `${DB_SCHEMA}.get_operations_count()`],
+  ["activeUsers", `${DB_SCHEMA}.get_active_users()`],
+  ["activeUsersCount", `${DB_SCHEMA}.get_active_users_count()`],
+  ["operationsBySystem", `${DB_SCHEMA}.get_operations_by_system()`],
+  ["averageExecutionTime", `${DB_SCHEMA}.get_average_execution_time()`],
+  ["errorRate", `${DB_SCHEMA}.get_error_rate()`],
+  ["errorRateBySystem", `${DB_SCHEMA}.get_error_rate_by_system()`],
+]);
 
-export class MetricsRepositoryImpl extends BaseRepository {
+export class MetricsRepositoryImpl extends BaseRepository implements IMetricsRepository {
   private metrics: Metric[] = [];
-  private metricsRefreshInterval: number = 1000 * 60 * 60; // 1 hour
 
-  constructor() {
+  public constructor() {
     super();
-
-    setTimeout(async () => this.loadMetrics().then(), 10000);
-    setInterval(
-      async () => this.loadMetrics().then(),
-      this.metricsRefreshInterval
-    );
+    void this.loadMetrics();
   }
 
   private async loadMetrics() {
     logger.info("Refreshing metrics...");
 
     try {
-      this.metrics = await VARIAMOS_ORM.query(
-        "SELECT variamos.get_metrics() AS data",
-        {
-          type: QueryTypes.SELECT,
-        }
-      ).then(([result]: any) =>
-        result.data.map(
-          ({
-            id,
-            title,
-            chartType,
-            defaultFilter,
-            filters,
-            labelKey,
-            data,
-          }: any) =>
-            Metric.builder()
-              .setId(id)
-              .setTitle(title)
-              .setChartType(chartType)
-              .setDefaultFilter(defaultFilter)
-              .setFilters(filters)
-              .setLabelKey(labelKey)
-              .setData(data)
-              .build()
-        )
-      );
+      this.metrics = await VARIAMOS_ORM.query(`SELECT ${DB_SCHEMA}.get_metrics() AS data`, {
+        type: QueryTypes.SELECT,
+      }).then(([result]: object[]) => {
+        const resObj = result as
+          | {
+              data?: {
+                id: string;
+                title: string;
+                chartType: string;
+                defaultFilter: string;
+                filters: string[];
+                labelKey: string;
+                data: object;
+              }[];
+            }
+          | undefined;
+        if (!resObj || !resObj.data) return [];
+        return resObj.data.map(({ id, title, chartType, defaultFilter, filters, labelKey, data }) =>
+          Metric.builder()
+            .setId(id)
+            .setTitle(title)
+            .setChartType(chartType)
+            .setDefaultFilter(defaultFilter)
+            .setFilters(filters)
+            .setLabelKey(labelKey)
+            .setData(data)
+            .build(),
+        );
+      });
 
       logger.info("Metrics refreshed...");
     } catch (error) {
+      const err = error as Error;
       logger.err("Error in loadMetrics:");
-      logger.err(error);
+      logger.err(err);
     }
   }
 
-  async getMetrics(
-    request: RequestModel<any>
-  ): Promise<ResponseModel<Metric[]>> {
+  public getMetrics(request: RequestModel<void>): Promise<ResponseModel<Metric[]>> {
     const response = new ResponseModel<Metric[]>(request.transactionId);
 
     try {
       response.data = [...this.metrics];
     } catch (error) {
+      const err = error as Error;
       logger.err("Error in getMetrics:");
       logger.err(request);
-      logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      logger.err(err);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
-    return response;
+    return Promise.resolve(response);
   }
 
-  async queryMetric(
-    request: RequestModel<MetricsFilter>
-  ): Promise<ResponseModel<Metric>> {
+  public async queryMetric(request: RequestModel<MetricsFilter>): Promise<ResponseModel<Metric>> {
     const response = new ResponseModel<Metric>(request.transactionId);
 
     try {
-      const replacements = this.initilizeReplacements(request.data!);
+      const data = request.data;
+      if (!data) {
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Metrics filter is required.");
+      }
+      const replacements = this.initializeReplacements(data);
 
-      const selectedFunction = METRICS_FUNCTIONS.get(replacements.id);
+      const selectedFunction = METRICS_FUNCTIONS.get(String(replacements.id));
 
       if (!selectedFunction) {
-        return response.withError(
-          HttpStatusCodes.BAD_REQUEST,
-          "Invalid metric id"
-        );
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Invalid metric id");
       }
 
-      const result = await VARIAMOS_ORM.query(
-        `SELECT ${selectedFunction} AS data`,
-        {
-          type: QueryTypes.SELECT,
-          replacements,
-        }
-      ).then(([result]: any) => {
-        const { id, title, chartType, defaultFilter, filters, labelKey, data } =
-          result.data;
+      const result = await VARIAMOS_ORM.query(`SELECT ${selectedFunction} AS data`, {
+        type: QueryTypes.SELECT,
+        replacements,
+      }).then(([result]: object[]) => {
+        const resObj = result as
+          | {
+              data: {
+                id: string;
+                title: string;
+                chartType: string;
+                defaultFilter: string;
+                filters: string[];
+                labelKey: string;
+                data: object;
+              };
+            }
+          | undefined;
+        if (!resObj || !resObj.data) throw new Error("Invalid database response format");
+        const {
+          id,
+          title,
+          chartType,
+          defaultFilter,
+          filters,
+          labelKey,
+          data: dataField,
+        } = resObj.data;
 
         return Metric.builder()
           .setId(id)
@@ -129,19 +138,17 @@ export class MetricsRepositoryImpl extends BaseRepository {
           .setDefaultFilter(defaultFilter)
           .setFilters(filters)
           .setLabelKey(labelKey)
-          .setData(data)
+          .setData(dataField)
           .build();
       });
 
       response.data = result;
     } catch (error) {
+      const err = error as Error;
       logger.err("Error in queryMetric:");
       logger.err(request);
-      logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      logger.err(err);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;

@@ -1,36 +1,47 @@
-import { CountriesRepositoryInstance } from "@src/DataProviders/Countries/CountriesRepository";
-import { VisitRepositoryInstance } from "@src/DataProviders/Visit/VisitRepository";
+import { DomainErrorCodes } from "../Core/Error/DomainErrorCodes";
 import { RequestModel } from "../Core/Entity/RequestModel";
 import { ResponseModel } from "../Core/Entity/ResponseModel";
 import { Visit } from "./Entity/Visit";
+import { IVisitRepository } from "./Repository/IVisitRepository";
+import { ICountriesRepository } from "../Countries/Repository/ICountriesRepository";
 
 export class VisitsUseCases {
-  async registerVisit(
+  public constructor(
+    private readonly visitRepository: IVisitRepository,
+    private readonly countriesRepository: ICountriesRepository,
+  ) {}
+
+  public async registerVisit(
     request: RequestModel<Visit>,
-    ipAddress?: string
+    ipAddress?: string,
   ): Promise<ResponseModel<Visit>> {
-    const countryCodeResponse =
-      await CountriesRepositoryInstance.getUserCountryCode(
-        new RequestModel(request.transactionId, request.data?.userId)
+    if (!request.data) {
+      return new ResponseModel<Visit>(request.transactionId).withError(
+        DomainErrorCodes.INVALID_INPUT,
+        "Visit data is required.",
       );
+    }
+
+    const countryCodeResponse = await this.countriesRepository.getUserCountryCode(
+      new RequestModel(request.transactionId, request.data.userId),
+    );
 
     if (countryCodeResponse.errorCode) {
       return new ResponseModel<Visit>(request.transactionId).withError(
         countryCodeResponse.errorCode,
-        countryCodeResponse.message!
+        countryCodeResponse.message ?? "An unexpected error occurred",
       );
     }
 
     if (countryCodeResponse.data) {
-      request.data!.countryCode = countryCodeResponse.data;
+      request.data.countryCode = countryCodeResponse.data;
     } else if (ipAddress) {
-      const ipCountryResponse =
-        await CountriesRepositoryInstance.getIpCountryCode(
-          new RequestModel(request.transactionId, ipAddress)
-        );
-      request.data!.countryCode = ipCountryResponse?.data || null;
+      const ipCountryResponse = await this.countriesRepository.getIpCountryCode(
+        new RequestModel(request.transactionId, ipAddress),
+      );
+      request.data.countryCode = ipCountryResponse?.data || null;
     }
 
-    return VisitRepositoryInstance.registerVisit(request);
+    return this.visitRepository.registerVisit(request);
   }
 }

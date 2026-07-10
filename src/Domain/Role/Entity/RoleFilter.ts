@@ -2,11 +2,11 @@ import { Nullable } from "@src/Domain/Core/Entity/Nullable";
 import { PagedModel } from "@src/Domain/Core/Entity/PagedModel";
 
 export class RoleFilter extends PagedModel {
-  constructor(
+  public constructor(
     public id?: Nullable<number>,
     public name?: Nullable<string>,
     pageNumber?: number,
-    pageSize?: number
+    pageSize?: number,
   ) {
     super(pageNumber, pageSize);
   }
@@ -16,12 +16,7 @@ export class RoleFilter extends PagedModel {
   }
 
   public static build(builder: RoleFilterBuilder): RoleFilter {
-    return new RoleFilter(
-      builder.id,
-      builder.name,
-      builder.pageNumber,
-      builder.pageSize
-    );
+    return new RoleFilter(builder.id, builder.name, builder.pageNumber, builder.pageSize);
   }
 }
 

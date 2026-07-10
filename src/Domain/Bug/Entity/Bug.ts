@@ -1,3 +1,11 @@
+import { BugAttachment } from "./BugAttachment";
+
+export interface BugUserRef {
+  id: string;
+  name: string;
+  email?: string;
+}
+
 export class Bug {
   public id!: string;
   public title!: string;
@@ -15,12 +23,12 @@ export class Bug {
   public updatedById?: string;
   public createdAt!: Date;
   public updatedAt!: Date;
-  public createdBy?: any;
-  public updatedBy?: any;
-  public attachments?: any[];
-  public assignedAdmins?: any[];
+  public createdBy?: BugUserRef;
+  public updatedBy?: BugUserRef;
+  public attachments?: BugAttachment[];
+  public assignedAdmins?: BugUserRef[];
 
-  constructor(builder: BugBuilder) {
+  public constructor(builder: BugBuilder) {
     Object.assign(this, builder);
   }
 
@@ -50,10 +58,10 @@ class BugBuilder {
   public updatedById?: string;
   public createdAt?: Date;
   public updatedAt?: Date;
-  public createdBy?: any;
-  public updatedBy?: any;
-  public attachments?: any[];
-  public assignedAdmins?: any[];
+  public createdBy?: BugUserRef;
+  public updatedBy?: BugUserRef;
+  public attachments?: BugAttachment[];
+  public assignedAdmins?: BugUserRef[];
 
   public setId(id?: string) {
     this.id = id;
@@ -119,19 +127,19 @@ class BugBuilder {
     this.updatedAt = updatedAt;
     return this;
   }
-  public setCreatedBy(createdBy?: any) {
+  public setCreatedBy(createdBy?: BugUserRef) {
     this.createdBy = createdBy;
     return this;
   }
-  public setUpdatedBy(updatedBy?: any) {
+  public setUpdatedBy(updatedBy?: BugUserRef) {
     this.updatedBy = updatedBy;
     return this;
   }
-  public setAttachments(attachments?: any[]) {
+  public setAttachments(attachments?: BugAttachment[]) {
     this.attachments = attachments;
     return this;
   }
-  public setAssignedAdmins(assignedAdmins?: any[]) {
+  public setAssignedAdmins(assignedAdmins?: BugUserRef[]) {
     this.assignedAdmins = assignedAdmins;
     return this;
   }

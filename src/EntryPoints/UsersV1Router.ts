@@ -1,4 +1,4 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { UserFilter } from "@src/Domain/User/Entity/UserFilter";
@@ -6,223 +6,151 @@ import { UsersUseCases } from "@src/Domain/User/UserUseCases";
 import { hasPermissions } from "@variamosple/variamos-security";
 import { Router } from "express";
 import logger from "jet-logger";
-import userRolesV1Router, { USER_ROLES_V1_ROUTE } from "./UserRolesV1Router";
+import { USER_ROLES_V1_ROUTE } from "./UserRolesV1Router";
+import { mapDomainErrorToHttpStatus } from "./errorMapper";
 
 export const USERS_V1_ROUTE = "/v1/users";
 
-const usersV1Router = Router();
+export function createUsersRouter(usersUseCases: UsersUseCases, userRolesRouter: Router): Router {
+  const router = Router();
 
-usersV1Router.get("/", hasPermissions(["users::query"]), async (req, res) => {
-  const transactionId = "queryUsers";
-  const { pageNumber, pageSize, name = null, search = null } = req.query;
-  try {
-    const filter: UserFilter = UserFilter.builder()
-      .setSearch(search as string)
-      .setName(name as string)
-      .setPageNumber(pageNumber as unknown as number)
-      .setPageSize(pageSize as unknown as number)
-      .build();
+  router.get("/", hasPermissions(["users::query"]), async (req, res) => {
+    const transactionId = "queryUsers";
+    const { pageNumber, pageSize, name = null, search = null } = req.query;
+    try {
+      const filter: UserFilter = UserFilter.builder()
+        .setSearch(search as string)
+        .setName(name as string)
+        .setPageNumber(Number(pageNumber))
+        .setPageSize(Number(pageSize))
+        .build();
 
-    const request = new RequestModel<UserFilter>(transactionId, filter);
-    const response = await new UsersUseCases().queryUsers(request);
+      const request = new RequestModel<UserFilter>(transactionId, filter);
+      const response = await usersUseCases.queryUsers(request);
 
-    const status = response.errorCode || 200;
-    res.status(status).json(response);
-  } catch (error) {
-    logger.err(error);
-    const response = new ResponseModel(
-      transactionId,
-      500,
-      "Internal Server Error",
-    );
-    res.status(500).json(response);
-  }
-});
+      const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
+      res.status(status).json(response);
+    } catch (error) {
+      logger.err(error as Error);
+      const response = new ResponseModel(
+        transactionId,
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal Server Error",
+      );
+      res.status(500).json(response);
+    }
+  });
 
-usersV1Router.get(
-  "/:userId",
-  hasPermissions(["users::query"]),
-  async (req, res) => {
+  router.get("/:userId", hasPermissions(["users::query"]), async (req, res) => {
     const transactionId = "queryUserById";
     const userId = req.params.userId;
 
     try {
-      if (!userId) {
-        res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json(
-            new ResponseModel<unknown>(transactionId).withError(
-              HttpStatusCodes.BAD_REQUEST,
-              "userId is required.",
-            ),
-          );
-      }
-
       const request = new RequestModel<string>(transactionId, userId);
-      const response = await new UsersUseCases().queryById(request);
+      const response = await usersUseCases.queryById(request);
 
-      const status = response.errorCode || 200;
+      const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
       res.status(status).json(response);
     } catch (error) {
-      logger.err(error);
+      logger.err(error as Error);
       const response = new ResponseModel(
         transactionId,
-        500,
+        DomainErrorCodes.SYSTEM_ERROR,
         "Internal Server Error",
       );
       res.status(500).json(response);
     }
-  },
-);
+  });
 
-usersV1Router.post(
-  "/:userId/recovery-link",
-  hasPermissions(["users::update"]),
-  async (req, res) => {
+  router.post("/:userId/recovery-link", hasPermissions(["users::update"]), async (req, res) => {
     const transactionId = "generateRecoveryLink";
     const userId = req.params.userId;
-    const adminId = req.user!.id;
+    const adminId = (req.user as { id: string }).id;
 
     try {
-      if (!userId) {
-        res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json(
-            new ResponseModel<unknown>(transactionId).withError(
-              HttpStatusCodes.BAD_REQUEST,
-              "userId is required.",
-            ),
-          );
-      }
+      const request = new RequestModel<{ userId: string; adminId: string }>(transactionId, {
+        userId,
+        adminId,
+      });
+      const response = await usersUseCases.generateRecoveryLink(request);
 
-      const request = new RequestModel<{ userId: string; adminId: string }>(
-        transactionId,
-        { userId, adminId },
-      );
-      const response = await new UsersUseCases().generateRecoveryLink(request);
-
-      const status = response.errorCode || 200;
+      const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
       res.status(status).json(response);
     } catch (error) {
-      logger.err(error);
+      logger.err(error as Error);
       const response = new ResponseModel(
         transactionId,
-        500,
+        DomainErrorCodes.SYSTEM_ERROR,
         "Internal Server Error",
       );
       res.status(500).json(response);
     }
-  },
-);
+  });
 
-usersV1Router.put(
-  "/:userId/disable",
-  hasPermissions(["users::update"]),
-  async (req, res) => {
+  router.put("/:userId/disable", hasPermissions(["users::update"]), async (req, res) => {
     const transactionId = "disableUser";
     const userId = req.params.userId;
 
     try {
-      if (!userId) {
-        res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json(
-            new ResponseModel<unknown>(transactionId).withError(
-              HttpStatusCodes.BAD_REQUEST,
-              "userId is required.",
-            ),
-          );
-      }
-
       const request = new RequestModel<string>(transactionId, userId);
-      const response = await new UsersUseCases().disableUser(request);
+      const response = await usersUseCases.disableUser(request);
 
-      const status = response.errorCode || 200;
+      const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
       res.status(status).json(response);
     } catch (error) {
-      logger.err(error);
+      logger.err(error as Error);
       const response = new ResponseModel(
         transactionId,
-        500,
+        DomainErrorCodes.SYSTEM_ERROR,
         "Internal Server Error",
       );
       res.status(500).json(response);
     }
-  },
-);
+  });
 
-usersV1Router.put(
-  "/:userId/enable",
-  hasPermissions(["users::update"]),
-  async (req, res) => {
+  router.put("/:userId/enable", hasPermissions(["users::update"]), async (req, res) => {
     const transactionId = "enableUser";
     const userId = req.params.userId;
 
     try {
-      if (!userId) {
-        res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json(
-            new ResponseModel<unknown>(transactionId).withError(
-              HttpStatusCodes.BAD_REQUEST,
-              "userId is required.",
-            ),
-          );
-      }
-
       const request = new RequestModel<string>(transactionId, userId);
-      const response = await new UsersUseCases().enableUser(request);
+      const response = await usersUseCases.enableUser(request);
 
-      const status = response.errorCode || 200;
+      const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
       res.status(status).json(response);
     } catch (error) {
-      logger.err(error);
+      logger.err(error as Error);
       const response = new ResponseModel(
         transactionId,
-        500,
+        DomainErrorCodes.SYSTEM_ERROR,
         "Internal Server Error",
       );
       res.status(500).json(response);
     }
-  },
-);
+  });
 
-usersV1Router.delete(
-  "/:userId",
-  hasPermissions(["users::delete"]),
-  async (req, res) => {
+  router.delete("/:userId", hasPermissions(["users::delete"]), async (req, res) => {
     const transactionId = "deleteUser";
     const userId = req.params.userId;
 
     try {
-      if (!userId) {
-        res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json(
-            new ResponseModel<unknown>(transactionId).withError(
-              HttpStatusCodes.BAD_REQUEST,
-              "userId is required.",
-            ),
-          );
-      }
-
       const request = new RequestModel<string>(transactionId, userId);
-      const response = await new UsersUseCases().deleteUser(request);
+      const response = await usersUseCases.deleteUser(request);
 
-      const status = response.errorCode || 200;
+      const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
       res.status(status).json(response);
     } catch (error) {
-      logger.err(error);
+      logger.err(error as Error);
       const response = new ResponseModel(
         transactionId,
-        500,
+        DomainErrorCodes.SYSTEM_ERROR,
         "Internal Server Error",
       );
       res.status(500).json(response);
     }
-  },
-);
+  });
 
-usersV1Router.use(USER_ROLES_V1_ROUTE, userRolesV1Router);
+  router.use(USER_ROLES_V1_ROUTE, userRolesRouter);
 
-export default usersV1Router;
+  return router;
+}

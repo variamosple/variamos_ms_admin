@@ -1,127 +1,115 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
-import { MicroServiceRepositoryInstance } from "@src/DataProviders/MicroService/MicroServiceRepository";
+import { DomainErrorCodes } from "../Core/Error/DomainErrorCodes";
 import { RequestModel } from "../Core/Entity/RequestModel";
 import { ResponseModel } from "../Core/Entity/ResponseModel";
 import { MicroService } from "./Entity/MicroService";
 import { MicroServiceFilter } from "./Entity/MicroServiceFilter";
+import { IMicroServiceRepository } from "./Repository/IMicroServiceRepository";
 
 export class MicroServiceUseCases {
-  queryMicroServices(
-    request: RequestModel<MicroServiceFilter>
+  public constructor(private readonly microServiceRepository: IMicroServiceRepository) {}
+
+  public queryMicroServices(
+    request: RequestModel<MicroServiceFilter>,
   ): Promise<ResponseModel<MicroService[]>> {
-    return MicroServiceRepositoryInstance.queryMicroServices(request);
+    return this.microServiceRepository.queryMicroServices(request);
   }
 
-  async startMicroService(
-    request: RequestModel<string>
-  ): Promise<ResponseModel<void>> {
+  public async startMicroService(request: RequestModel<string>): Promise<ResponseModel<void>> {
     const defaultResponse = new ResponseModel<void>(request.transactionId);
     if (!request.data) {
       return defaultResponse.withError(
-        HttpStatusCodes.BAD_REQUEST,
-        "MicroService Id is required."
+        DomainErrorCodes.INVALID_INPUT,
+        "MicroService Id is required.",
       );
     }
 
-    const microserviceResponse = await MicroServiceRepositoryInstance.queryById(
-      request
-    );
+    const microserviceResponse = await this.microServiceRepository.queryById(request);
 
     if (microserviceResponse.errorCode) {
       return defaultResponse.withError(
         microserviceResponse.errorCode,
-        microserviceResponse.message!
+        microserviceResponse.message ?? "An unexpected error occurred",
       );
     }
 
     if (microserviceResponse.data?.getState() !== "exited") {
       return defaultResponse.withError(
-        HttpStatusCodes.BAD_REQUEST,
-        "MicroService is not in exited state."
+        DomainErrorCodes.INVALID_INPUT,
+        "MicroService is not in exited state.",
       );
     }
 
-    return MicroServiceRepositoryInstance.startMicroService(request);
+    return this.microServiceRepository.startMicroService(request);
   }
 
-  async stopMicroService(
-    request: RequestModel<string>
-  ): Promise<ResponseModel<void>> {
+  public async stopMicroService(request: RequestModel<string>): Promise<ResponseModel<void>> {
     const defaultResponse = new ResponseModel<void>(request.transactionId);
     if (!request.data) {
       return defaultResponse.withError(
-        HttpStatusCodes.BAD_REQUEST,
-        "MicroService Id is required."
+        DomainErrorCodes.INVALID_INPUT,
+        "MicroService Id is required.",
       );
     }
 
-    const microserviceResponse = await MicroServiceRepositoryInstance.queryById(
-      request
-    );
+    const microserviceResponse = await this.microServiceRepository.queryById(request);
 
     if (microserviceResponse.errorCode) {
       return defaultResponse.withError(
         microserviceResponse.errorCode,
-        microserviceResponse.message!
+        microserviceResponse.message ?? "An unexpected error occurred",
       );
     }
 
     if (microserviceResponse.data?.getState() !== "running") {
       return defaultResponse.withError(
-        HttpStatusCodes.BAD_REQUEST,
-        "MicroService is not in running state."
+        DomainErrorCodes.INVALID_INPUT,
+        "MicroService is not in running state.",
       );
     }
 
-    return MicroServiceRepositoryInstance.stopMicroService(request);
+    return this.microServiceRepository.stopMicroService(request);
   }
 
-  async restartMicroService(
-    request: RequestModel<string>
-  ): Promise<ResponseModel<void>> {
+  public async restartMicroService(request: RequestModel<string>): Promise<ResponseModel<void>> {
     const defaultResponse = new ResponseModel<void>(request.transactionId);
     if (!request.data) {
       return defaultResponse.withError(
-        HttpStatusCodes.BAD_REQUEST,
-        "MicroService Id is required."
+        DomainErrorCodes.INVALID_INPUT,
+        "MicroService Id is required.",
       );
     }
 
-    const microserviceResponse = await MicroServiceRepositoryInstance.queryById(
-      request
-    );
+    const microserviceResponse = await this.microServiceRepository.queryById(request);
 
     if (microserviceResponse.errorCode) {
       return defaultResponse.withError(
         microserviceResponse.errorCode,
-        microserviceResponse.message!
+        microserviceResponse.message ?? "An unexpected error occurred",
       );
     }
 
     if (microserviceResponse.data?.getState() !== "running") {
       return defaultResponse.withError(
-        HttpStatusCodes.BAD_REQUEST,
-        "MicroService is not in running state."
+        DomainErrorCodes.INVALID_INPUT,
+        "MicroService is not in running state.",
       );
     }
 
-    return MicroServiceRepositoryInstance.restartMicroService(request);
+    return this.microServiceRepository.restartMicroService(request);
   }
 
-  async watchMicroServiceLogs(
-    request: RequestModel<string>
+  public async watchMicroServiceLogs(
+    request: RequestModel<string>,
   ): Promise<ResponseModel<NodeJS.ReadableStream>> {
-    const defaultResponse = new ResponseModel<NodeJS.ReadableStream>(
-      request.transactionId
-    );
+    const defaultResponse = new ResponseModel<NodeJS.ReadableStream>(request.transactionId);
 
     if (!request.data) {
       return defaultResponse.withError(
-        HttpStatusCodes.BAD_REQUEST,
-        "MicroService Id is required."
+        DomainErrorCodes.INVALID_INPUT,
+        "MicroService Id is required.",
       );
     }
 
-    return MicroServiceRepositoryInstance.watchMicroServiceLogs(request);
+    return this.microServiceRepository.watchMicroServiceLogs(request);
   }
 }

@@ -1,10 +1,12 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { Permission } from "@src/Domain/Permission/Entity/Permission";
 import { Role } from "@src/Domain/Role/Entity/Role";
 import { RoleFilter } from "@src/Domain/Role/Entity/RoleFilter";
-import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
+import { IRoleRepository } from "@src/Domain/Role/Repository/IRoleRepository";
+import { IGuestRoleRepository } from "@src/Domain/Role/Repository/IGuestRoleRepository";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
 import logger from "jet-logger";
 import { Op, QueryTypes, WhereOptions } from "sequelize";
 import { BaseRepository } from "../BaseRepository";
@@ -13,153 +15,156 @@ import { UserRoleModel } from "../User/UserRole";
 import { RoleAttributes, RoleModel } from "./Role";
 import { RolePermissionModel } from "./RolePermission";
 
-export class RoleRepositoryImpl extends BaseRepository {
-  async queryRoles(
-    request: RequestModel<RoleFilter>
-  ): Promise<ResponseModel<Role[]>> {
+export class RoleRepositoryImpl
+  extends BaseRepository
+  implements IRoleRepository, IGuestRoleRepository
+{
+  public async queryRoles(request: RequestModel<RoleFilter>): Promise<ResponseModel<Role[]>> {
     const response = new ResponseModel<Role[]>(request.transactionId);
 
     try {
       const { data: filter = new RoleFilter() } = request;
 
-      const replacements = super.initilizeReplacements(filter);
+      const replacements = super.initializeReplacements(filter);
 
-      response.totalCount = await VARIAMOS_ORM.query(
+      response.totalCount = await VARIAMOS_ORM.query<{ count: string }>(
         `
-            SELECT COUNT(1)
-            FROM variamos.role
+            SELECT COUNT(1) AS count
+            FROM ${DB_SCHEMA}.role
             WHERE (:name IS NULL OR name ILIKE '%' || :name || '%');   
         `,
-        { type: QueryTypes.SELECT, replacements }
-      ).then((result: any) => +result?.[0]?.count || 0);
+        { type: QueryTypes.SELECT, replacements },
+      ).then((result) => Number(result[0]?.count) || 0);
 
       const where: WhereOptions<RoleAttributes> = {};
 
       if (filter.name) {
-        where.name = { [Op.iLike]: `%${replacements.name}%` };
+        where.name = { [Op.iLike]: `%${String(replacements.name)}%` };
       }
+
+      const pageSize = filter.pageSize ?? 10;
+      const pageNumber = filter.pageNumber ?? 1;
 
       response.data = await RoleModel.findAll({
         where,
-        limit: filter.pageSize!,
-        offset: (filter.pageNumber! - 1) * filter.pageSize!,
+        limit: pageSize,
+        offset: (pageNumber - 1) * pageSize,
         order: [["name", "ASC"]],
-      }).then((response) => response.map(({ id, name }) => new Role(id, name)));
+      }).then((res) => res.map(({ id, name }) => new Role(id, name)));
     } catch (error) {
+      const err = error as Error;
       logger.err("Error in getRoles:");
       logger.err(request);
-      logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      logger.err(err);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async createRole(request: RequestModel<Role>): Promise<ResponseModel<Role>> {
+  public async createRole(request: RequestModel<Role>): Promise<ResponseModel<Role>> {
     const response = new ResponseModel<Role>(request.transactionId);
 
     try {
       const { data } = request;
+      if (!data) {
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Role data is required.");
+      }
 
       const newRole = await RoleModel.create({
-        name: data!.name!,
+        name: data.name,
       });
 
       response.data = new Role(newRole.id, newRole.name);
     } catch (error) {
+      const err = error as Error;
       logger.err("Error in createRole:");
       logger.err(request);
-      logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      logger.err(err);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async deleteRole(
-    request: RequestModel<number>
-  ): Promise<ResponseModel<void>> {
+  public async deleteRole(request: RequestModel<string>): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
 
     try {
       const { data: id } = request;
+      if (!id) {
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Role ID is required.");
+      }
 
-      await UserRoleModel.destroy({ where: { roleId: id } });
-      await RolePermissionModel.destroy({ where: { roleId: id } });
-      await RoleModel.destroy({ where: { id } });
+      const numericId = Number(id);
+
+      await UserRoleModel.destroy({ where: { roleId: numericId } });
+      await RolePermissionModel.destroy({ where: { roleId: numericId } });
+      await RoleModel.destroy({ where: { id: numericId } });
     } catch (error) {
+      const err = error as Error;
       logger.err("Error in deleteRole:");
       logger.err(request);
-      logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      logger.err(err);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async queryById(request: RequestModel<number>): Promise<ResponseModel<Role>> {
+  public async queryById(request: RequestModel<string>): Promise<ResponseModel<Role>> {
     const response = new ResponseModel<Role>(request.transactionId);
 
     try {
       const { data } = request;
+      if (!data) {
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Role ID is required.");
+      }
 
-      response.data = await RoleModel.findOne({
-        where: { id: data },
-      }).then((response) =>
-        !response ? undefined : new Role(response.id, response.name)
-      );
+      const found = await RoleModel.findOne({
+        where: { id: Number(data) },
+      });
+      response.data = found ? new Role(found.id, found.name) : null;
     } catch (error) {
+      const err = error as Error;
       logger.err("Error in queryById:");
       logger.err(request);
-      logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      logger.err(err);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async updateRole(request: RequestModel<Role>): Promise<ResponseModel<Role>> {
+  public async updateRole(request: RequestModel<Role>): Promise<ResponseModel<Role>> {
     const response = new ResponseModel<Role>(request.transactionId);
 
     try {
       const { data } = request;
+      if (!data || data.id === undefined || data.id === null) {
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "Role data with ID is required.");
+      }
 
       await RoleModel.update(
         {
-          name: data!.name!,
+          name: data.name,
         },
-        { where: { id: data!.id! } }
+        { where: { id: data.id } },
       );
 
       response.data = data;
     } catch (error) {
+      const err = error as Error;
       logger.err("Error in updateRole:");
       logger.err(request);
-      logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      logger.err(err);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;
   }
 
-  async queryGuestRole(
-    request: RequestModel<any>
-  ): Promise<ResponseModel<Role>> {
+  public async queryGuestRole(request: RequestModel<void>): Promise<ResponseModel<Role>> {
     const response = new ResponseModel<Role>(request.transactionId);
 
     try {
@@ -182,22 +187,24 @@ export class RoleRepositoryImpl extends BaseRepository {
         if (!role) {
           return null;
         }
-        const { id: roleId, name: roleName, permissions = [] } = role as any;
+        const {
+          id: roleId,
+          name: roleName,
+          permissions = [],
+        } = role as RoleModel & { permissions?: PermissionModel[] };
 
         return new Role(
           roleId,
           roleName,
-          permissions.map(({ id, name }: any) => new Permission(id, name))
+          permissions.map(({ id, name }) => new Permission(id, name)),
         );
       });
     } catch (error) {
+      const err = error as Error;
       logger.err("Error in queryGuestRole:");
       logger.err(request);
-      logger.err(error);
-      response.withError(
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-        "Internal server error"
-      );
+      logger.err(err);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
     }
 
     return response;

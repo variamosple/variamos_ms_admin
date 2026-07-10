@@ -4,6 +4,7 @@ import { Bug } from "./Entity/Bug";
 import { BugStatusLog } from "./Entity/BugStatusLog";
 import { BugFilter } from "./Entity/BugFilter";
 import { BugNote } from "./Entity/BugNote";
+import { BugAttachment } from "./Entity/BugAttachment";
 import logger from "jet-logger";
 import { IIssueTrackerService } from "../Core/Service/IIssueTrackerService";
 import { IStorageService } from "../Core/Service/IStorageService";
@@ -25,7 +26,7 @@ export const ALLOWED_CATEGORIES = [
 ];
 
 export class BugUseCases {
-  constructor(
+  public constructor(
     private readonly issueTrackerService: IIssueTrackerService,
     private readonly storageService: IStorageService,
     private readonly bugRepository: IBugRepository,
@@ -33,10 +34,7 @@ export class BugUseCases {
     private readonly githubConfig: IBugTrackerConfig,
   ) {}
 
-  private readonly tokenCache = new Map<
-    string,
-    { token: string; expiresAt: number }
-  >();
+  private readonly tokenCache = new Map<string, { token: string; expiresAt: number }>();
 
   private async resolveGitHubToken(repo: string): Promise<string> {
     const appId = this.githubConfig.getGitHubAppId?.()?.trim();
@@ -52,7 +50,7 @@ export class BugUseCases {
         const jwt = this.generateAppJwt(appId, privateKey);
 
         const installUrl = `https://api.github.com/repos/${repo}/installation`;
-        const installResponse = await axios.get(installUrl, {
+        const installResponse = await axios.get<{ id: number }>(installUrl, {
           headers: {
             Authorization: `Bearer ${jwt}`,
             Accept: "application/vnd.github+json",
@@ -62,7 +60,7 @@ export class BugUseCases {
         const installationId = installResponse.data.id;
 
         const tokenUrl = `https://api.github.com/app/installations/${installationId}/access_tokens`;
-        const tokenResponse = await axios.post(
+        const tokenResponse = await axios.post<{ token: string; expires_at: string }>(
           tokenUrl,
           {},
           {
@@ -74,15 +72,16 @@ export class BugUseCases {
           },
         );
 
-        const token = tokenResponse.data.token as string;
+        const token = tokenResponse.data.token;
         const expiresAt = new Date(tokenResponse.data.expires_at).getTime();
 
         this.tokenCache.set(repo, { token, expiresAt });
         return token;
       } catch (error) {
+        const err = error as { response?: { data?: { message?: string } }; message?: string };
         logger.err(
           `Failed to resolve GitHub App token for ${repo}: ` +
-            (error.response?.data?.message || error.message),
+            (err.response?.data?.message || err.message || "Unknown error"),
         );
       }
     }
@@ -91,6 +90,7 @@ export class BugUseCases {
   }
 
   private generateAppJwt(appId: string, privateKey: string): string {
+    // cspell:disable-next-line
     const header = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9"; // base64url for {"alg":"RS256","typ":"JWT"}
     const now = Math.floor(Date.now() / 1000) - 60; // 1 min clock skew
     const payload = Buffer.from(
@@ -109,23 +109,20 @@ export class BugUseCases {
     return `${header}.${payload}.${signature}`;
   }
 
-  queryBugs(request: RequestModel<BugFilter>): Promise<ResponseModel<Bug[]>> {
+  public queryBugs(request: RequestModel<BugFilter>): Promise<ResponseModel<Bug[]>> {
     const filter = request.data || new BugFilter();
     if (!filter.repo) {
-      (filter as any).managedRepos = this.githubConfig.getGitHubManagedRepos();
+      (filter as { managedRepos?: string[] }).managedRepos =
+        this.githubConfig.getGitHubManagedRepos();
     }
-    return this.bugRepository.queryBugs(
-      new RequestModel(request.transactionId, filter),
-    );
+    return this.bugRepository.queryBugs(new RequestModel(request.transactionId, filter));
   }
 
-  queryLocalBugs(
-    request: RequestModel<BugFilter>,
-  ): Promise<ResponseModel<Bug[]>> {
+  public queryLocalBugs(request: RequestModel<BugFilter>): Promise<ResponseModel<Bug[]>> {
     return this.bugRepository.queryLocalBugs(request);
   }
 
-  async createBug(
+  public async createBug(
     request: RequestModel<{
       title: string;
       description: string;
@@ -134,21 +131,29 @@ export class BugUseCases {
       githubRepo?: string;
       createdById?: string;
       reporterEmail?: string;
-      file?: any;
+      file?: {
+        filename: string;
+        mimetype: string;
+      } | null;
     }>,
   ): Promise<ResponseModel<Bug>> {
-    const data = request.data!;
+    const data = request.data;
+    if (!data) {
+      const response = new ResponseModel<Bug>(request.transactionId);
+      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "Request data is required.");
+    }
+
     if (!data.title || !data.description || !data.category) {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "Title, description and category are required.",
       );
     }
     if (!ALLOWED_CATEGORIES.includes(data.category)) {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         `Invalid category selected. Allowed: ${ALLOWED_CATEGORIES.join(", ")}`,
       );
     }
@@ -156,7 +161,7 @@ export class BugUseCases {
     if (!data.createdById && !data.reporterEmail) {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "An email address is required for guest bug submissions.",
       );
     }
@@ -174,13 +179,12 @@ export class BugUseCases {
     if (!reporterEmail) {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "Reporter email could not be resolved.",
       );
     }
 
-    let resolvedFile: { filePath: string; fileType: string } | undefined =
-      undefined;
+    let resolvedFile: { filePath: string; fileType: string } | undefined = undefined;
     if (data.file) {
       resolvedFile = {
         filePath: `/uploads/${data.file.filename}`,
@@ -225,14 +229,14 @@ export class BugUseCases {
         } else {
           const response = new ResponseModel<Bug>(request.transactionId);
           return response.withErrorPromise(
-            DomainErrorCodes.BAD_REQUEST,
+            DomainErrorCodes.INVALID_INPUT,
             "Failed to push bug to GitHub repository. Please verify repository existence and permissions.",
           );
         }
       } else {
         const response = new ResponseModel<Bug>(request.transactionId);
         return response.withErrorPromise(
-          DomainErrorCodes.BAD_REQUEST,
+          DomainErrorCodes.INVALID_INPUT,
           "GitHub integration token is not configured.",
         );
       }
@@ -260,13 +264,11 @@ export class BugUseCases {
     );
   }
 
-  queryHistory(
-    request: RequestModel<string>,
-  ): Promise<ResponseModel<BugStatusLog[]>> {
+  public queryHistory(request: RequestModel<string>): Promise<ResponseModel<BugStatusLog[]>> {
     return this.bugRepository.queryHistory(request);
   }
 
-  async updateStatus(
+  public async updateStatus(
     request: RequestModel<{
       id: string;
       status: string;
@@ -280,11 +282,16 @@ export class BugUseCases {
       githubRepo?: string;
     }>,
   ): Promise<ResponseModel<Bug>> {
-    const data = request.data!;
+    const data = request.data;
+    if (!data) {
+      const response = new ResponseModel<Bug>(request.transactionId);
+      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "Request data is required.");
+    }
+
     if (!data.id || !data.status) {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "Bug ID and status are required.",
       );
     }
@@ -295,10 +302,7 @@ export class BugUseCases {
 
     if (!bugResponse.data) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(
-        DomainErrorCodes.NOT_FOUND,
-        "Bug not found.",
-      );
+      return response.withErrorPromise(DomainErrorCodes.ENTITY_NOT_FOUND, "Bug not found.");
     }
 
     const bug = bugResponse.data;
@@ -309,19 +313,13 @@ export class BugUseCases {
       modifiedFields.push(`* Title: "${bug.title}" -> "${data.title}"`);
     }
     if (data.description && data.description !== bug.description) {
-      modifiedFields.push(
-        `* Description: "${bug.description}" -> "${data.description}"`,
-      );
+      modifiedFields.push(`* Description: "${bug.description}" -> "${data.description}"`);
     }
     if (data.category && data.category !== bug.category) {
-      modifiedFields.push(
-        `* Category: "${bug.category || "None"}" -> "${data.category}"`,
-      );
+      modifiedFields.push(`* Category: "${bug.category || "None"}" -> "${data.category}"`);
     }
     if (data.priority && data.priority !== bug.priority) {
-      modifiedFields.push(
-        `* Priority: "${bug.priority || "medium"}" -> "${data.priority}"`,
-      );
+      modifiedFields.push(`* Priority: "${bug.priority || "medium"}" -> "${data.priority}"`);
     }
     if (data.githubRepo && data.githubRepo !== bug.githubRepo) {
       modifiedFields.push(`* Target repository set to "${data.githubRepo}"`);
@@ -342,9 +340,7 @@ export class BugUseCases {
         let issueBody = bug.description || "No description provided.";
         issueBody += `\n\n---\n*Reported locally by: ${bug.reporterEmail || "Guest"}*`;
         if (data.adminEmail) {
-          const approvalComment = data.comment
-            ? ` (Comment: "${data.comment}")`
-            : "";
+          const approvalComment = data.comment ? ` (Comment: "${data.comment}")` : "";
           issueBody += `\n*Approved and pushed to GitHub by: ${data.adminEmail}${approvalComment}*`;
         }
         if (bug.priority) {
@@ -354,11 +350,13 @@ export class BugUseCases {
           issueBody += `\n*Category: ${bug.category}*`;
         }
 
-        if (bug.attachments && bug.attachments.length > 0) {
+        const attachments = bug.attachments as
+          { filePath?: string; fileType?: string }[] | undefined;
+        if (attachments && attachments.length > 0) {
           issueBody += "\n\n### Attachments\n";
-          for (const attachment of bug.attachments) {
+          for (const attachment of attachments) {
             if (attachment.filePath && attachment.filePath !== "/purged") {
-               const fileUrl = `${this.githubConfig.getApiBaseUrl?.() || "http://localhost:4000"}${attachment.filePath}`;
+              const fileUrl = `${this.githubConfig.getApiBaseUrl?.() || "http://localhost:4000"}${attachment.filePath}`;
               issueBody += `- [Attachment](${fileUrl}) (Type: ${attachment.fileType || "unknown"})\n`;
             }
           }
@@ -389,22 +387,20 @@ export class BugUseCases {
         } else {
           const response = new ResponseModel<Bug>(request.transactionId);
           return response.withErrorPromise(
-            DomainErrorCodes.BAD_REQUEST,
+            DomainErrorCodes.INVALID_INPUT,
             "Failed to push bug to GitHub repository. Please verify repository existence and permissions.",
           );
         }
       } else {
         const response = new ResponseModel<Bug>(request.transactionId);
         return response.withErrorPromise(
-          DomainErrorCodes.BAD_REQUEST,
+          DomainErrorCodes.INVALID_INPUT,
           "GitHub integration token is not configured.",
         );
       }
     }
 
-    const approvalCommentStr = data.comment
-      ? `\n\nAdmin Comment: "${data.comment}"`
-      : "";
+    const approvalCommentStr = data.comment ? `\n\nAdmin Comment: "${data.comment}"` : "";
 
     if (data.status === "open" && modifiedFields.length > 0) {
       const auditBody = `[Audit] The administrator modified the following fields:\n${modifiedFields.join("\n")}${approvalCommentStr}`;
@@ -439,11 +435,7 @@ export class BugUseCases {
       }),
     );
 
-    if (
-      dbResponse.data &&
-      bug.githubRepo &&
-      (bug.gitIssueNumber || gitIssueNumber)
-    ) {
+    if (dbResponse.data && bug.githubRepo && (bug.gitIssueNumber || gitIssueNumber)) {
       const gitHubToken = await this.resolveGitHubToken(bug.githubRepo);
       const resolvedIssueNumber = bug.gitIssueNumber || gitIssueNumber;
       if (gitHubToken && resolvedIssueNumber) {
@@ -466,16 +458,18 @@ export class BugUseCases {
     return dbResponse;
   }
 
-  async rejectBug(
+  public async rejectBug(
     request: RequestModel<{ id: string; adminId: string }>,
   ): Promise<ResponseModel<Bug>> {
-    const data = request.data!;
+    const data = request.data;
+    if (!data) {
+      const response = new ResponseModel<Bug>(request.transactionId);
+      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "Request data is required.");
+    }
+
     if (!data.id) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
-        "Bug ID is required.",
-      );
+      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "Bug ID is required.");
     }
 
     const bugResponse = await this.bugRepository.findById(
@@ -484,16 +478,13 @@ export class BugUseCases {
 
     if (!bugResponse.data) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(
-        DomainErrorCodes.NOT_FOUND,
-        "Local bug not found.",
-      );
+      return response.withErrorPromise(DomainErrorCodes.ENTITY_NOT_FOUND, "Local bug not found.");
     }
 
     if (bugResponse.data.status !== "pending") {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "Only pending bugs can be rejected.",
       );
     }
@@ -507,16 +498,18 @@ export class BugUseCases {
     );
   }
 
-  async restoreBug(
+  public async restoreBug(
     request: RequestModel<{ id: string; adminId: string }>,
   ): Promise<ResponseModel<Bug>> {
-    const data = request.data!;
+    const data = request.data;
+    if (!data) {
+      const response = new ResponseModel<Bug>(request.transactionId);
+      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "Request data is required.");
+    }
+
     if (!data.id) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
-        "Bug ID is required.",
-      );
+      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "Bug ID is required.");
     }
 
     const bugResponse = await this.bugRepository.findById(
@@ -525,16 +518,13 @@ export class BugUseCases {
 
     if (!bugResponse.data) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(
-        DomainErrorCodes.NOT_FOUND,
-        "Local bug not found.",
-      );
+      return response.withErrorPromise(DomainErrorCodes.ENTITY_NOT_FOUND, "Local bug not found.");
     }
 
     if (bugResponse.data.status !== "rejected") {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
+        DomainErrorCodes.INVALID_INPUT,
         "Only rejected bugs can be restored.",
       );
     }
@@ -548,7 +538,7 @@ export class BugUseCases {
     );
   }
 
-  async purgeExpiredRejectedBugs(): Promise<void> {
+  public async purgeExpiredRejectedBugs(): Promise<void> {
     try {
       const thresholdDate = new Date();
       thresholdDate.setDate(thresholdDate.getDate() - 7);
@@ -560,14 +550,14 @@ export class BugUseCases {
 
       const expiredBugs = expiredResponse.data || [];
       if (expiredBugs.length === 0) return;
-      logger.info(
-        `Found ${expiredBugs.length} expired rejected bugs to purge.`,
-      );
+      logger.info(`Found ${expiredBugs.length} expired rejected bugs to purge.`);
 
       for (const bug of expiredBugs) {
         let hasAttachments = false;
-        if (bug.attachments && Array.isArray(bug.attachments)) {
-          for (const attachment of bug.attachments) {
+        const attachments = bug.attachments as
+          { id: number; filePath?: string; fileType?: string }[] | undefined;
+        if (attachments && Array.isArray(attachments)) {
+          for (const attachment of attachments) {
             if (attachment.filePath && attachment.filePath !== "/purged") {
               hasAttachments = true;
               await this.storageService.deleteFile(attachment.filePath);
@@ -601,34 +591,30 @@ export class BugUseCases {
       }
       logger.info("Expired rejected bugs purging complete.");
     } catch (error) {
-      logger.err(`Failed to purge expired rejected bugs: ${error.message}`);
+      const err = error as Error;
+      logger.err(`Failed to purge expired rejected bugs: ${err.message}`);
     }
   }
 
-  async queryBugRepos(
-    request: RequestModel<void>,
-  ): Promise<ResponseModel<string[]>> {
+  public queryBugRepos(request: RequestModel<void>): Promise<ResponseModel<string[]>> {
     const response = new ResponseModel<string[]>(request.transactionId);
     try {
       response.data = [...this.githubConfig.getGitHubManagedRepos()];
     } catch (error) {
-      logger.err(error);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, error.message);
+      const err = error as Error;
+      logger.err(err);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, err.message);
     }
-    return response;
+    return Promise.resolve(response);
   }
 
-  async queryCategories(
-    request: RequestModel<void>,
-  ): Promise<ResponseModel<string[]>> {
-    const response = new ResponseModel<ResponseModel<string[]>>(
-      request.transactionId,
-    ) as any;
+  public queryCategories(request: RequestModel<void>): Promise<ResponseModel<string[]>> {
+    const response = new ResponseModel<string[]>(request.transactionId);
     response.data = ALLOWED_CATEGORIES;
-    return response;
+    return Promise.resolve(response);
   }
 
-  async syncBugs(request: RequestModel<void>): Promise<ResponseModel<void>> {
+  public async syncBugs(request: RequestModel<void>): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
     try {
       const appId = this.githubConfig.getGitHubAppId?.()?.trim();
@@ -642,10 +628,7 @@ export class BugUseCases {
         logger.warn(
           "GitHub token is not defined in environment variables. Synchronization aborted.",
         );
-        return response.withError(
-          DomainErrorCodes.BAD_REQUEST,
-          "GitHub Sync is not configured.",
-        );
+        return response.withError(DomainErrorCodes.INVALID_INPUT, "GitHub Sync is not configured.");
       }
 
       const repos = this.githubConfig.getGitHubManagedRepos();
@@ -657,9 +640,7 @@ export class BugUseCases {
       for (const repo of repos) {
         const token = await this.resolveGitHubToken(repo);
         if (!token) {
-          logger.warn(
-            `GitHub token could not be resolved for repo: ${repo}. Skipping.`,
-          );
+          logger.warn(`GitHub token could not be resolved for repo: ${repo}. Skipping.`);
           continue;
         }
         const issues = await this.issueTrackerService.getIssues(repo, token);
@@ -671,9 +652,7 @@ export class BugUseCases {
           let priority: "low" | "medium" | "high" = "medium";
           let category: string | undefined = undefined;
           if (issue.labels && Array.isArray(issue.labels)) {
-            const labelNames = issue.labels.map((l: any) =>
-              l.name.toLowerCase(),
-            );
+            const labelNames = issue.labels.map((l) => l.name.toLowerCase());
             if (
               labelNames.some(
                 (n: string) =>
@@ -687,17 +666,14 @@ export class BugUseCases {
               priority = "high";
             } else if (
               labelNames.some(
-                (n: string) =>
-                  n.includes("low") || n.includes("p3") || n.includes("minor"),
+                (n: string) => n.includes("low") || n.includes("p3") || n.includes("minor"),
               )
             ) {
               priority = "low";
             }
 
             for (const label of labelNames) {
-              const matchedCategory = ALLOWED_CATEGORIES.find(
-                (cat) => cat.toLowerCase() === label,
-              );
+              const matchedCategory = ALLOWED_CATEGORIES.find((cat) => cat.toLowerCase() === label);
               if (matchedCategory) {
                 category = matchedCategory;
                 break;
@@ -716,8 +692,8 @@ export class BugUseCases {
             .setGithubCreator(issue.user?.login || "System")
             .setGithubHtmlUrl(issue.html_url || "")
             .setGithubAssignee(issue.assignee?.login || undefined)
-            .setCreatedAt(new Date(issue.created_at))
-            .setUpdatedAt(new Date(issue.updated_at || issue.created_at))
+            .setCreatedAt(new Date(issue.created_at || ""))
+            .setUpdatedAt(new Date(issue.updated_at || issue.created_at || ""))
             .build();
 
           const saveResponse = await this.bugRepository.saveOrUpdateBug(
@@ -735,22 +711,29 @@ export class BugUseCases {
         `Synchronization finished: Created ${totalCreated} and Updated ${totalUpdated} bugs.`,
       );
     } catch (error) {
-      logger.err(error);
-      response.withError(DomainErrorCodes.INTERNAL_ERROR, error.message);
+      const err = error as Error;
+      logger.err(err);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, err.message);
     }
     return response;
   }
 
-  async addAttachment(
-    request: RequestModel<{ bugId: string; file: any }>,
-  ): Promise<ResponseModel<any>> {
-    const data = request.data!;
-    const response = new ResponseModel<any>(request.transactionId);
+  public async addAttachment(
+    request: RequestModel<{
+      bugId: string;
+      file: {
+        filename: string;
+        mimetype: string;
+      } | null;
+    }>,
+  ): Promise<ResponseModel<BugAttachment>> {
+    const data = request.data;
+    const response = new ResponseModel<BugAttachment>(request.transactionId);
+    if (!data) {
+      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "Request data is required.");
+    }
     if (!data.file) {
-      return response.withErrorPromise(
-        DomainErrorCodes.BAD_REQUEST,
-        "File is required.",
-      );
+      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "File is required.");
     }
     const resolvedFile = {
       filePath: `/uploads/${data.file.filename}`,
@@ -765,38 +748,39 @@ export class BugUseCases {
     );
   }
 
-  async deleteAttachment(
-    request: RequestModel<string>,
-  ): Promise<ResponseModel<void>> {
-    const id = request.data!;
+  public async deleteAttachment(request: RequestModel<string>): Promise<ResponseModel<void>> {
+    const id = request.data;
     const response = new ResponseModel<void>(request.transactionId);
+    if (!id) {
+      return response.withErrorPromise(
+        DomainErrorCodes.INVALID_INPUT,
+        "Attachment ID is required.",
+      );
+    }
     const attachmentResp = await this.bugRepository.findAttachmentById(
       new RequestModel(request.transactionId, id),
     );
     if (!attachmentResp.data) {
-      return response.withErrorPromise(
-        DomainErrorCodes.NOT_FOUND,
-        "Attachment not found.",
-      );
+      return response.withErrorPromise(DomainErrorCodes.ENTITY_NOT_FOUND, "Attachment not found.");
     }
     const filePath = attachmentResp.data.filePath;
     if (filePath && filePath !== "/purged") {
       try {
         await this.storageService.deleteFile(filePath);
-      } catch (err) {
+      } catch {
         logger.warn(`Failed to delete physical file: ${filePath}`);
       }
     }
     return this.bugRepository.deleteAttachment(request);
   }
 
-  createNote(
+  public createNote(
     request: RequestModel<{ bugId: string; body: string; authorId?: string }>,
   ): Promise<ResponseModel<BugNote>> {
     return this.bugRepository.createNote(request);
   }
 
-  queryNotes(request: RequestModel<string>): Promise<ResponseModel<BugNote[]>> {
+  public queryNotes(request: RequestModel<string>): Promise<ResponseModel<BugNote[]>> {
     return this.bugRepository.queryNotes(request);
   }
 }

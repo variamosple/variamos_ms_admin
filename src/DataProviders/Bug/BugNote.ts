@@ -1,4 +1,4 @@
-import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
 import { DATE, INTEGER, Model, TEXT, UUID } from "sequelize";
 import { UserModel } from "../User/User";
 
@@ -10,10 +10,7 @@ export interface BugNoteAttributes {
   createdAt?: Date;
 }
 
-export class BugNoteModel
-  extends Model<BugNoteAttributes>
-  implements BugNoteAttributes
-{
+export class BugNoteModel extends Model<BugNoteAttributes> implements BugNoteAttributes {
   public id?: number;
   public body!: string;
   public bugId!: string;
@@ -53,7 +50,7 @@ BugNoteModel.init(
   {
     tableName: "bug_notes",
     sequelize: VARIAMOS_ORM,
-    schema: "variamos",
+    schema: DB_SCHEMA,
     timestamps: true,
     updatedAt: false,
     underscored: true,

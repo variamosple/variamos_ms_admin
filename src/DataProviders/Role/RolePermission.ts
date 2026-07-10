@@ -1,4 +1,4 @@
-import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
 import { Model, NUMBER } from "sequelize";
 import { PermissionModel } from "../Permission/Permission";
 import { RoleModel } from "./Role";
@@ -34,9 +34,9 @@ RolePermissionModel.init(
   {
     tableName: "role_permission",
     sequelize: VARIAMOS_ORM,
-    schema: "variamos",
+    schema: DB_SCHEMA,
     timestamps: false,
-  }
+  },
 );
 
 RoleModel.belongsToMany(PermissionModel, {

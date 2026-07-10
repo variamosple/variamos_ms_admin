@@ -1,4 +1,4 @@
-import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
 import { BOOLEAN, DATE, Model, TEXT, UUID, UUIDV4 } from "sequelize";
 import { CountryModel } from "../Countries/Country";
 
@@ -7,7 +7,7 @@ export interface UserAttributes {
   user: string;
   name: string;
   email: string;
-  countryCode?: string;
+  countryCode?: string | null;
   password?: string;
   isEnabled?: boolean;
   isDeleted?: boolean;
@@ -20,7 +20,7 @@ export class UserModel extends Model<UserAttributes> implements UserAttributes {
   public user!: string;
   public name!: string;
   public email!: string;
-  public countryCode?: string;
+  public countryCode?: string | null;
   public password?: string;
   public isEnabled?: boolean;
   public isDeleted?: boolean;
@@ -76,9 +76,9 @@ UserModel.init(
   {
     tableName: "user",
     sequelize: VARIAMOS_ORM,
-    schema: "variamos",
+    schema: DB_SCHEMA,
     timestamps: false,
-  }
+  },
 );
 
 UserModel.hasOne(CountryModel, {

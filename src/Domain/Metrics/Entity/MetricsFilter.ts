@@ -3,7 +3,7 @@ export class MetricsFilter {
   private startDate: string;
   private endDate: string;
 
-  constructor(id: string, startDate: string, endDate: string) {
+  public constructor(id: string, startDate: string, endDate: string) {
     this.id = id;
     this.startDate = startDate;
     this.endDate = endDate;
@@ -26,11 +26,7 @@ export class MetricsFilter {
   }
 
   public static build(builder: MetricsFilterBuilder): MetricsFilter {
-    return new MetricsFilter(
-      builder.getId(),
-      builder.getStartDate(),
-      builder.getEndDate()
-    );
+    return new MetricsFilter(builder.getId(), builder.getStartDate(), builder.getEndDate());
   }
 }
 

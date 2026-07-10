@@ -1,30 +1,27 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
-import { MetricsRepositoryInstance } from "@src/DataProviders/Metrics/MetricsRepository";
+import { DomainErrorCodes } from "../Core/Error/DomainErrorCodes";
 import { RequestModel } from "../Core/Entity/RequestModel";
 import { ResponseModel } from "../Core/Entity/ResponseModel";
 import { Metric } from "./Entity/Metric";
 import { MetricsFilter } from "./Entity/MetricsFilter";
+import { IMetricsRepository } from "./Repository/IMetricsRepository";
 
 export class MetricsUseCases {
-  getMetrics(request: RequestModel<unknown>): Promise<ResponseModel<Metric[]>> {
-    return MetricsRepositoryInstance.getMetrics(request);
+  public constructor(private readonly metricsRepository: IMetricsRepository) {}
+
+  public getMetrics(request: RequestModel<void>): Promise<ResponseModel<Metric[]>> {
+    return this.metricsRepository.getMetrics(request);
   }
 
-  queryMetric(
-    request: RequestModel<MetricsFilter>
-  ): Promise<ResponseModel<Metric>> {
+  public queryMetric(request: RequestModel<MetricsFilter>): Promise<ResponseModel<Metric>> {
     const defaultResponse = new ResponseModel<Metric>(request.transactionId);
     const data = request.data;
 
     if (!data?.getId()) {
-      return defaultResponse.withErrorPromise(
-        HttpStatusCodes.BAD_REQUEST,
-        "id is required."
-      );
+      return defaultResponse.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "id is required.");
     } else if (!data.getStartDate() || !data.getEndDate()) {
       return defaultResponse.withErrorPromise(
-        HttpStatusCodes.BAD_REQUEST,
-        "startDate and endDate are required."
+        DomainErrorCodes.INVALID_INPUT,
+        "startDate and endDate are required.",
       );
     }
 
@@ -33,8 +30,8 @@ export class MetricsUseCases {
 
     if (startDate > endDate) {
       return defaultResponse.withErrorPromise(
-        HttpStatusCodes.BAD_REQUEST,
-        "startDate must be less than endDate."
+        DomainErrorCodes.INVALID_INPUT,
+        "startDate must be less than endDate.",
       );
     }
 
@@ -43,11 +40,11 @@ export class MetricsUseCases {
 
     if (diff > twoYearsInMs) {
       return defaultResponse.withErrorPromise(
-        HttpStatusCodes.BAD_REQUEST,
-        "The difference between startDate and endDate must not be greater than 2 years."
+        DomainErrorCodes.INVALID_INPUT,
+        "The difference between startDate and endDate must not be greater than 2 years.",
       );
     }
 
-    return MetricsRepositoryInstance.queryMetric(request);
+    return this.metricsRepository.queryMetric(request);
   }
 }

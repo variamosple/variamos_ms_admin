@@ -1,3 +1,4 @@
+/* cspell:disable */
 import nodemailer from "nodemailer";
 import logger from "jet-logger";
 import EnvVars from "@src/common/EnvVars";
@@ -20,13 +21,10 @@ export class MailServiceImpl implements IMailService {
   /**
    * Sends an email in text or HTML format
    */
-  async sendMail(to: string, subject: string, html: string): Promise<boolean> {
+  public async sendMail(to: string, subject: string, html: string): Promise<boolean> {
     try {
       // If in development/testing mode and no SMTP credentials are provided, simulate the email sending
-      if (
-        EnvVars.NodeEnv !== "production" &&
-        (!EnvVars.SMTP.USER || !EnvVars.SMTP.PASSWORD)
-      ) {
+      if (EnvVars.NodeEnv !== "production" && (!EnvVars.SMTP.USER || !EnvVars.SMTP.PASSWORD)) {
         logger.info(`[MAIL DEV ONLY] Simulate sending email to ${to}:                                                                                        
     Subject: ${subject}                                                                                                                                          
     Content: ${html}`);
@@ -40,12 +38,11 @@ export class MailServiceImpl implements IMailService {
         html,
       });
 
-      logger.info(
-        `[MAIL] Email sent successfully to ${to}. MessageId: ${info.messageId}`,
-      );
+      logger.info(`[MAIL] Email sent successfully to ${to}. MessageId: ${info.messageId}`);
       return true;
     } catch (error) {
-      logger.err(`[MAIL ERROR] Failed to send email to ${to}:`, error);
+      const err = error as Error;
+      logger.err(`[MAIL ERROR] Failed to send email to ${to}: ${err.message}`);
       return false;
     }
   }
@@ -53,13 +50,9 @@ export class MailServiceImpl implements IMailService {
   /**
    * Sends a password reset email containing the recovery link
    */
-  async sendPasswordResetMail(
-    to: string,
-    recoveryLink: string,
-  ): Promise<boolean> {
+  public async sendPasswordResetMail(to: string, recoveryLink: string): Promise<boolean> {
     const subject = "VariaMos - Password Recovery Request";
-    const logoUrl =
-      "https://app.variamos.com/variamos_admin/images/VariaMosLogo.png";
+    const logoUrl = "https://app.variamos.com/variamos_admin/images/VariaMosLogo.png";
     const html = `
       <div style="background-color: #f8f9fa; padding: 40px 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333;">
         <div style="max-width: 550px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #e9ecef;">

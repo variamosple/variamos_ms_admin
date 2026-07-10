@@ -1,4 +1,4 @@
-import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
 import { DATE, INTEGER, Model, TEXT, UUID } from "sequelize";
 
 export interface BugAttachmentAttributes {
@@ -59,7 +59,7 @@ BugAttachmentModel.init(
   {
     tableName: "bug_attachments",
     sequelize: VARIAMOS_ORM,
-    schema: "variamos",
+    schema: DB_SCHEMA,
     timestamps: true,
     underscored: true,
   },
