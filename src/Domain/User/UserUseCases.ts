@@ -18,7 +18,7 @@ import { IGuestRoleRepository } from "@src/Domain/Role/Repository/IGuestRoleRepo
 
 export interface UserUseCasesConfig {
   passwordResetExpiryInMs: number;
-  homeRedirectUri: string;
+  adminHomeUri: string;
 }
 
 export class UsersUseCases {
@@ -217,7 +217,7 @@ export class UsersUseCases {
 
       await this.userRepository.savePasswordResetToken(user.id || "", tokenHash, expiresAt);
 
-      const recoveryLink = `${this.config.homeRedirectUri}/#/reset-password?token=${token}`;
+      const recoveryLink = `${this.config.adminHomeUri}/#/reset-password?token=${token}`;
       const emailSent = await this.mailService.sendPasswordResetMail(email, recoveryLink);
       if (!emailSent) {
         return response.withErrorPromise(
@@ -370,7 +370,7 @@ export class UsersUseCases {
         `[AUDIT] Admin (ID: ${adminId}) generated a password reset link for User (ID: ${userId})`,
       );
       response.data = {
-        recoveryUrl: `${this.config.homeRedirectUri}/#/reset-password?token=${token}`,
+        recoveryUrl: `${this.config.adminHomeUri}/#/reset-password?token=${token}`,
       };
       return response;
     } catch (error) {

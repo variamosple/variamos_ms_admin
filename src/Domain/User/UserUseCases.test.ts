@@ -23,7 +23,7 @@ describe("UsersUseCases - Unit Tests", () => {
   let mockRoleRepository: MockProxy<IGuestRoleRepository>;
   const mockConfig = {
     passwordResetExpiryInMs: 3600000, // 1 hour
-    homeRedirectUri: "http://localhost:3000",
+    adminHomeUri: "http://localhost:3000",
   };
 
   beforeEach(() => {

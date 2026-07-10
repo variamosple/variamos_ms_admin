@@ -50,7 +50,7 @@ export const productionUsersUseCases = new UsersUseCases(
   RoleRepositoryInstance,
   {
     passwordResetExpiryInMs: EnvVars.Auth.APP.PASSWORD_RESET_EXPIRY_IN_MS,
-    homeRedirectUri: EnvVars.Auth.APP.HOME_REDIRECT_URI as string,
+    adminHomeUri: EnvVars.Auth.APP.ADMIN_HOME_URI,
   },
 );
 
