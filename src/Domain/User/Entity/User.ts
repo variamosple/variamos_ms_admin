@@ -1,4 +1,5 @@
 import { Nullable } from "@src/Domain/Core/Entity/Nullable";
+import { Email } from "./Email";
 
 export class User {
   public id: Nullable<string>;
@@ -28,10 +29,15 @@ export class User {
     roles?: string[],
     permissions?: string[],
   ) {
+    if (name !== undefined && name !== null && name.trim() === "") {
+      throw new Error("Name is required.");
+    }
+    const validatedEmail = email ? new Email(email).getValue() : email;
+
     this.id = id;
     this.name = name;
     this.user = user;
-    this.email = email;
+    this.email = validatedEmail;
     this.countryCode = countryCode;
     this.countryName = countryName;
     this.isEnabled = isEnabled;

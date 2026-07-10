@@ -537,14 +537,24 @@ describe("UsersUseCases - Unit Tests", () => {
 
     describe("signUp", () => {
       test("should fail if required fields are missing", async () => {
-        const reg = new UserRegistration("", "", "", "");
+        const reg = {
+          name: "",
+          email: "",
+          password: "",
+          passwordConfirmation: "",
+        } as unknown as UserRegistration;
         const req = new RequestModel<UserRegistration>("tx-1", reg);
         const res = await useCases.signUp(req);
         expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       });
 
       test("should fail if password does not match confirmation", async () => {
-        const reg = new UserRegistration("Name", "test@e.com", "Password123!", "OtherPass!");
+        const reg = {
+          name: "Name",
+          email: "test@e.com",
+          password: "Password123!",
+          passwordConfirmation: "OtherPass!",
+        } as unknown as UserRegistration;
         const req = new RequestModel<UserRegistration>("tx-1", reg);
         const res = await useCases.signUp(req);
         expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
@@ -552,14 +562,24 @@ describe("UsersUseCases - Unit Tests", () => {
       });
 
       test("should fail if password does not match complex regexp pattern", async () => {
-        const reg = new UserRegistration("Name", "test@e.com", "simple", "simple");
+        const reg = {
+          name: "Name",
+          email: "test@e.com",
+          password: "simple",
+          passwordConfirmation: "simple",
+        } as unknown as UserRegistration;
         const req = new RequestModel<UserRegistration>("tx-1", reg);
         const res = await useCases.signUp(req);
         expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       });
 
       test("should signup successfully if inputs are valid", async () => {
-        const reg = new UserRegistration("Name", "test@e.com", "Password123!", "Password123!");
+        const reg = UserRegistration.builder()
+          .setName("Name")
+          .setEmail("test@e.com")
+          .setPassword("Password123!")
+          .setPasswordConfirmation("Password123!")
+          .build();
         const mockUser = User.builder()
           .setId("1")
           .setUser("u1")

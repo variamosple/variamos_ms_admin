@@ -150,6 +150,17 @@ export class BugUseCases {
         "Title, description and category are required.",
       );
     }
+
+    try {
+      Bug.builder()
+        .setTitle(data.title)
+        .setDescription(data.description)
+        .setPriority(data.priority)
+        .build();
+    } catch (error) {
+      const response = new ResponseModel<Bug>(request.transactionId);
+      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, (error as Error).message);
+    }
     if (!ALLOWED_CATEGORIES.includes(data.category)) {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
@@ -306,6 +317,17 @@ export class BugUseCases {
     }
 
     const bug = bugResponse.data;
+
+    try {
+      Bug.builder()
+        .setTitle(data.title !== undefined ? data.title : bug.title)
+        .setDescription(data.description !== undefined ? data.description : bug.description)
+        .setPriority(data.priority !== undefined ? data.priority : bug.priority)
+        .build();
+    } catch (error) {
+      const response = new ResponseModel<Bug>(request.transactionId);
+      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, (error as Error).message);
+    }
 
     // Apply optional edits if supplied (allowing admins to review and correct details)
     const modifiedFields: string[] = [];

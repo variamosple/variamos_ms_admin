@@ -1,3 +1,4 @@
+import { BugPriority } from "./BugPriority";
 import { BugAttachment } from "./BugAttachment";
 
 export interface BugUserRef {
@@ -145,6 +146,15 @@ class BugBuilder {
   }
 
   public build(): Bug {
+    if (this.title !== undefined && (!this.title || this.title.trim() === "")) {
+      throw new Error("Bug title cannot be empty.");
+    }
+    if (this.description !== undefined && (!this.description || this.description.trim() === "")) {
+      throw new Error("Bug description cannot be empty.");
+    }
+    if (this.priority !== undefined) {
+      new BugPriority(this.priority);
+    }
     return new Bug(this);
   }
 }

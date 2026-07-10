@@ -2,14 +2,13 @@ import { DomainErrorCodes } from "../Core/Error/DomainErrorCodes";
 import { v4 as uuidv4 } from "uuid";
 import { RequestModel } from "../Core/Entity/RequestModel";
 import { ResponseModel } from "../Core/Entity/ResponseModel";
-import { PASSWORD_REGEXP } from "../Validations/ValidationConstants";
-import { PASSWORD_FORMAT_ERROR } from "../Validations/ValidationMessages";
 import { Credentials } from "./Entity/Credentials";
 import { PasswordUpdate } from "./Entity/PasswordUpdate";
 import { PersonalInformationUpdate } from "./Entity/PersonalInformationUpdate";
 import { User } from "./Entity/User";
 import { UserFilter } from "./Entity/UserFilter";
 import { UserRegistration } from "./Entity/UserRegistration";
+import { Password } from "./Entity/Password";
 import crypto from "crypto";
 import logger from "jet-logger";
 import { IUserRepository } from "@src/Domain/User/IUserRepository";
@@ -47,28 +46,20 @@ export class UsersUseCases {
 
   public signUp(request: RequestModel<UserRegistration>): Promise<ResponseModel<User>> {
     const response = new ResponseModel<User>(request.transactionId);
-    const { name, email, password, passwordConfirmation } = (request.data ||
-      {}) as Partial<UserRegistration>;
+    const data = request.data;
 
-    if (!name || !email || !password || !passwordConfirmation) {
-      return response.withErrorPromise(
-        DomainErrorCodes.INVALID_INPUT,
-        "Full name, Email and password, and password confirmation are required.",
-      );
-    }
-
-    if (password !== passwordConfirmation) {
-      return response.withErrorPromise(
-        DomainErrorCodes.INVALID_INPUT,
-        "Password and password confirmation do not match.",
-      );
-    }
-
-    if (!PASSWORD_REGEXP.test(password)) {
-      return response.withErrorPromise(
-        DomainErrorCodes.INVALID_INPUT,
-        "Password must be between 8 and 24 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character.",
-      );
+    try {
+      if (!data) {
+        throw new Error("Full name, Email and password, and password confirmation are required.");
+      }
+      UserRegistration.builder()
+        .setName(data.name)
+        .setEmail(data.email)
+        .setPassword(data.password)
+        .setPasswordConfirmation(data.passwordConfirmation)
+        .build();
+    } catch (error) {
+      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, (error as Error).message);
     }
 
     return this.userRepository.signUp(request);
@@ -135,8 +126,10 @@ export class UsersUseCases {
       );
     }
 
-    if (!PASSWORD_REGEXP.test(newPassword)) {
-      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, PASSWORD_FORMAT_ERROR);
+    try {
+      new Password(newPassword);
+    } catch (error) {
+      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, (error as Error).message);
     }
 
     return this.userRepository.updateUserPassword(request);

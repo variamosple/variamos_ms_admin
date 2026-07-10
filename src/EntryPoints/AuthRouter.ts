@@ -303,9 +303,21 @@ export function createAuthRouter(usersUseCases: UsersUseCases): Router {
       "You have successfully signed up!",
     );
 
+    let registration: UserRegistration;
     try {
-      const registration = new UserRegistration(name, email, password, passwordConfirmation);
+      registration = new UserRegistration(name, email, password, passwordConfirmation);
+    } catch (error) {
+      return res
+        .status(HttpStatusCodes.BAD_REQUEST)
+        .json(
+          new ResponseModel<void>(transactionId).withError(
+            DomainErrorCodes.INVALID_INPUT,
+            (error as Error).message,
+          ),
+        );
+    }
 
+    try {
       const request = new RequestModel<UserRegistration>(transactionId, registration);
       const response = await usersUseCases.signUp(request);
 

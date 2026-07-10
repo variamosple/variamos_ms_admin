@@ -210,6 +210,18 @@ describe("BugUseCases Unit Tests", () => {
         expectedError: "Invalid category selected. Allowed:",
       },
       {
+        desc: "should return error if priority is invalid",
+        data: {
+          title: "Title",
+          description: "Description",
+          priority: "invalid_priority" as "low",
+          category: "Editor",
+          reporterEmail: "guest@example.com",
+        },
+        userResponse: null,
+        expectedError: "Bug priority must be either 'low', 'medium', or 'high'.",
+      },
+      {
         desc: "should handle registered user with empty email data",
         data: {
           title: "New Bug",
