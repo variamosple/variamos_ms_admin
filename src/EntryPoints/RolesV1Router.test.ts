@@ -2,7 +2,8 @@ import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import express from "express";
 import supertest from "supertest";
 import { createRolesRouter } from "./RolesV1Router";
-import { RolesUseCases } from "@src/Domain/Role/RoleUseCases";
+import { RoleQueryUseCase } from "@src/Domain/Role/UseCase/RoleQueryUseCase";
+import { RoleManagementUseCase } from "@src/Domain/Role/UseCase/RoleManagementUseCase";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import { Role } from "@src/Domain/Role/Entity/Role";
@@ -10,7 +11,8 @@ import { Role } from "@src/Domain/Role/Entity/Role";
 import { mock } from "jest-mock-extended";
 
 // Mock dependencies
-jest.mock("@src/Domain/Role/RoleUseCases");
+jest.mock("@src/Domain/Role/UseCase/RoleQueryUseCase");
+jest.mock("@src/Domain/Role/UseCase/RoleManagementUseCase");
 jest.mock("@variamosple/variamos-security", () => ({
   hasPermissions: () => (_req: unknown, _res: unknown, next: () => void) => {
     next();
@@ -25,9 +27,13 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
   beforeAll(() => {
     app = express();
     app.use(express.json());
-    const mockRolesUseCases = new RolesUseCases(mock<IRoleRepository>());
+    const mockRoleQueryUseCase = new RoleQueryUseCase(mock<IRoleRepository>());
+    const mockRoleManagementUseCase = new RoleManagementUseCase(mock<IRoleRepository>());
     const mockRolePermissionsRouter = express.Router();
-    app.use("/v1/roles", createRolesRouter(mockRolesUseCases, mockRolePermissionsRouter));
+    app.use(
+      "/v1/roles",
+      createRolesRouter(mockRoleManagementUseCase, mockRoleQueryUseCase, mockRolePermissionsRouter),
+    );
   });
 
   beforeEach(() => {
@@ -37,12 +43,12 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
   describe("GET /v1/roles", () => {
     it("should return 200 on success", async () => {
       const expectedResponse = new ResponseModel("queryRoles").withResponse([]);
-      (RolesUseCases.prototype.queryRoles as jest.Mock).mockResolvedValue(expectedResponse);
+      (RoleQueryUseCase.prototype.queryRoles as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).get("/v1/roles").query({ pageNumber: 1, pageSize: 10 });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(RolesUseCases.prototype.queryRoles).toHaveBeenCalledTimes(1);
+      expect(RoleQueryUseCase.prototype.queryRoles).toHaveBeenCalledTimes(1);
     });
 
     it("should return error status code when query fails", async () => {
@@ -50,7 +56,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Query failed",
       );
-      (RolesUseCases.prototype.queryRoles as jest.Mock).mockResolvedValue(expectedResponse);
+      (RoleQueryUseCase.prototype.queryRoles as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).get("/v1/roles");
 
@@ -58,7 +64,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when query throws an exception", async () => {
-      (RolesUseCases.prototype.queryRoles as jest.Mock).mockRejectedValue(
+      (RoleQueryUseCase.prototype.queryRoles as jest.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -72,12 +78,12 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
     it("should return 201 on success", async () => {
       const mockRole = new Role(1, "Test role");
       const expectedResponse = new ResponseModel("createRole").withResponse(mockRole);
-      (RolesUseCases.prototype.createRole as jest.Mock).mockResolvedValue(expectedResponse);
+      (RoleManagementUseCase.prototype.createRole as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).post("/v1/roles").send({ name: "Test role" });
 
       expect(response.status).toBe(HttpStatusCodes.CREATED);
-      expect(RolesUseCases.prototype.createRole).toHaveBeenCalledTimes(1);
+      expect(RoleManagementUseCase.prototype.createRole).toHaveBeenCalledTimes(1);
     });
 
     it("should return 400 when name is missing", async () => {
@@ -91,7 +97,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.DUPLICATE_ENTITY,
         "Conflict",
       );
-      (RolesUseCases.prototype.createRole as jest.Mock).mockResolvedValue(expectedResponse);
+      (RoleManagementUseCase.prototype.createRole as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).post("/v1/roles").send({ name: "Conflict" });
 
@@ -99,7 +105,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when create throws an exception", async () => {
-      (RolesUseCases.prototype.createRole as jest.Mock).mockRejectedValue(
+      (RoleManagementUseCase.prototype.createRole as jest.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -112,12 +118,12 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
   describe("DELETE /v1/roles/:roleId", () => {
     it("should return 200 on success", async () => {
       const expectedResponse = new ResponseModel("deleteRole").withResponse(null);
-      (RolesUseCases.prototype.deleteRole as jest.Mock).mockResolvedValue(expectedResponse);
+      (RoleManagementUseCase.prototype.deleteRole as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).delete("/v1/roles/123");
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(RolesUseCases.prototype.deleteRole).toHaveBeenCalledTimes(1);
+      expect(RoleManagementUseCase.prototype.deleteRole).toHaveBeenCalledTimes(1);
     });
 
     it("should return 400 when roleId is invalid", async () => {
@@ -131,7 +137,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.ENTITY_NOT_FOUND,
         "Not found",
       );
-      (RolesUseCases.prototype.deleteRole as jest.Mock).mockResolvedValue(expectedResponse);
+      (RoleManagementUseCase.prototype.deleteRole as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).delete("/v1/roles/123");
 
@@ -139,7 +145,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when delete throws an exception", async () => {
-      (RolesUseCases.prototype.deleteRole as jest.Mock).mockRejectedValue(
+      (RoleManagementUseCase.prototype.deleteRole as jest.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -153,12 +159,12 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
     it("should return 200 on success", async () => {
       const mockRole = new Role(123, "Test role");
       const expectedResponse = new ResponseModel("queryRoleById").withResponse(mockRole);
-      (RolesUseCases.prototype.queryById as jest.Mock).mockResolvedValue(expectedResponse);
+      (RoleQueryUseCase.prototype.queryById as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).get("/v1/roles/123");
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(RolesUseCases.prototype.queryById).toHaveBeenCalledTimes(1);
+      expect(RoleQueryUseCase.prototype.queryById).toHaveBeenCalledTimes(1);
     });
 
     it("should return 400 when roleId is invalid", async () => {
@@ -172,7 +178,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.ENTITY_NOT_FOUND,
         "Not found",
       );
-      (RolesUseCases.prototype.queryById as jest.Mock).mockResolvedValue(expectedResponse);
+      (RoleQueryUseCase.prototype.queryById as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).get("/v1/roles/123");
 
@@ -180,7 +186,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when queryById throws an exception", async () => {
-      (RolesUseCases.prototype.queryById as jest.Mock).mockRejectedValue(
+      (RoleQueryUseCase.prototype.queryById as jest.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -194,12 +200,12 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
     it("should return 200 on success", async () => {
       const mockRole = new Role(123, "Updated role");
       const expectedResponse = new ResponseModel("updateRole").withResponse(mockRole);
-      (RolesUseCases.prototype.updateRole as jest.Mock).mockResolvedValue(expectedResponse);
+      (RoleManagementUseCase.prototype.updateRole as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).put("/v1/roles/123").send({ name: "Updated role" });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(RolesUseCases.prototype.updateRole).toHaveBeenCalledTimes(1);
+      expect(RoleManagementUseCase.prototype.updateRole).toHaveBeenCalledTimes(1);
     });
 
     it("should return 400 when roleId is invalid", async () => {
@@ -219,7 +225,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.ENTITY_NOT_FOUND,
         "Not found",
       );
-      (RolesUseCases.prototype.updateRole as jest.Mock).mockResolvedValue(expectedResponse);
+      (RoleManagementUseCase.prototype.updateRole as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).put("/v1/roles/123").send({ name: "Test" });
 
@@ -227,7 +233,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when update throws an exception", async () => {
-      (RolesUseCases.prototype.updateRole as jest.Mock).mockRejectedValue(
+      (RoleManagementUseCase.prototype.updateRole as jest.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 

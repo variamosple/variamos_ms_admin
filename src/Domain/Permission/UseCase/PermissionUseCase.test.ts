@@ -1,19 +1,18 @@
 import { mock, MockProxy } from "jest-mock-extended";
-import { PermissionsUseCases } from "./PermissionUseCases";
-import { IPermissionRepository } from "./Repository/IPermissionRepository";
-import { RequestModel } from "../Core/Entity/RequestModel";
-import { ResponseModel } from "../Core/Entity/ResponseModel";
-import { Permission } from "./Entity/Permission";
-import { PermissionFilter } from "./Entity/PermissionFilter";
+import { PermissionUseCase } from "./PermissionUseCase";
+import { IPermissionRepository } from "@src/Domain/Permission/Repository/IPermissionRepository";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
+import { Permission } from "@src/Domain/Permission/Entity/Permission";
+import { PermissionFilter } from "@src/Domain/Permission/Entity/PermissionFilter";
 
-describe("PermissionsUseCases - Unit Tests", () => {
-  let useCases: PermissionsUseCases;
+describe("PermissionUseCase - Unit Tests", () => {
+  let useCase: PermissionUseCase;
   let mockPermissionRepository: MockProxy<IPermissionRepository>;
 
   beforeEach(() => {
     mockPermissionRepository = mock<IPermissionRepository>();
-
-    useCases = new PermissionsUseCases(mockPermissionRepository);
+    useCase = new PermissionUseCase(mockPermissionRepository);
   });
 
   test("should query permissions", async () => {
@@ -23,7 +22,7 @@ describe("PermissionsUseCases - Unit Tests", () => {
     mockPermissionRepository.queryPermissions.mockResolvedValue(mockResponse);
 
     const req = new RequestModel<PermissionFilter>("tx-1", mockFilter);
-    const res = await useCases.queryPermissions(req);
+    const res = await useCase.queryPermissions(req);
 
     expect(res.data).toBe(mockPermissions);
     expect(mockPermissionRepository.queryPermissions).toHaveBeenCalledWith(req);
@@ -36,7 +35,7 @@ describe("PermissionsUseCases - Unit Tests", () => {
     mockPermissionRepository.createPermission.mockResolvedValue(mockResponse);
 
     const req = new RequestModel<Permission>("tx-2", mockPermission);
-    const res = await useCases.createPermission(req);
+    const res = await useCase.createPermission(req);
 
     expect(res.data).toBe(createdPermission);
     expect(mockPermissionRepository.createPermission).toHaveBeenCalledWith(req);
@@ -47,7 +46,7 @@ describe("PermissionsUseCases - Unit Tests", () => {
     mockPermissionRepository.deletePermission.mockResolvedValue(mockResponse);
 
     const req = new RequestModel<number>("tx-3", 1);
-    const res = await useCases.deletePermission(req);
+    const res = await useCase.deletePermission(req);
 
     expect(res.errorCode).toBeUndefined();
     expect(mockPermissionRepository.deletePermission).toHaveBeenCalledWith(req);
@@ -59,7 +58,7 @@ describe("PermissionsUseCases - Unit Tests", () => {
     mockPermissionRepository.queryById.mockResolvedValue(mockResponse);
 
     const req = new RequestModel<number>("tx-4", 1);
-    const res = await useCases.queryById(req);
+    const res = await useCase.queryById(req);
 
     expect(res.data).toBe(mockPermission);
     expect(mockPermissionRepository.queryById).toHaveBeenCalledWith(req);
@@ -71,7 +70,7 @@ describe("PermissionsUseCases - Unit Tests", () => {
     mockPermissionRepository.updatePermission.mockResolvedValue(mockResponse);
 
     const req = new RequestModel<Permission>("tx-5", mockPermission);
-    const res = await useCases.updatePermission(req);
+    const res = await useCase.updatePermission(req);
 
     expect(res.data).toBe(mockPermission);
     expect(mockPermissionRepository.updatePermission).toHaveBeenCalledWith(req);

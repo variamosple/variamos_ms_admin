@@ -11,7 +11,10 @@ import { SessionInfoResponse } from "@src/Domain/User/Entity/SessionInfoResponse
 import { SingInResponse } from "@src/Domain/User/Entity/SingInResponse";
 import { User } from "@src/Domain/User/Entity/User";
 import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration";
-import { UsersUseCases } from "@src/Domain/User/UserUseCases";
+import { UserAuthUseCase } from "@src/Domain/User/UseCase/UserAuthUseCase";
+import { UserPasswordUseCase } from "@src/Domain/User/UseCase/UserPasswordUseCase";
+import { UserManagementUseCase } from "@src/Domain/User/UseCase/UserManagementUseCase";
+import { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase";
 import {
   createJwt,
   getToken,
@@ -28,7 +31,12 @@ import { mapDomainErrorToHttpStatus } from "./errorMapper";
 
 export const AUTH_ROUTE = "/auth";
 
-export function createAuthRouter(usersUseCases: UsersUseCases): Router {
+export function createAuthRouter(
+  userAuthUseCase: UserAuthUseCase,
+  userPasswordUseCase: UserPasswordUseCase,
+  userManagementUseCase: UserManagementUseCase,
+  userQueryUseCase: UserQueryUseCase,
+): Router {
   const authRouter = Router();
 
   const HOME_URL = new URL(EnvVars.Auth.APP.HOME_REDIRECT_URI || "http://localhost:3000");
@@ -169,9 +177,9 @@ export function createAuthRouter(usersUseCases: UsersUseCases): Router {
       let refreshedUser: ResponseModel<User>;
 
       if (isGuest) {
-        refreshedUser = await usersUseCases.getGuestData(findSessionUserRequest);
+        refreshedUser = await userAuthUseCase.getGuestData(findSessionUserRequest);
       } else {
-        refreshedUser = await usersUseCases.findSessionUser(findSessionUserRequest);
+        refreshedUser = await userQueryUseCase.sessionUser(findSessionUserRequest);
       }
 
       if (!!refreshedUser.errorCode || !refreshedUser.data) {
@@ -240,7 +248,7 @@ export function createAuthRouter(usersUseCases: UsersUseCases): Router {
       const credentials = new Credentials(email, password);
 
       const request = new RequestModel<Credentials>(transactionId, credentials);
-      const singInResponse = await usersUseCases.signIn(request);
+      const singInResponse = await userAuthUseCase.signIn(request);
 
       if (singInResponse.errorCode) {
         return res
@@ -319,7 +327,7 @@ export function createAuthRouter(usersUseCases: UsersUseCases): Router {
 
     try {
       const request = new RequestModel<UserRegistration>(transactionId, registration);
-      const response = await usersUseCases.signUp(request);
+      const response = await userAuthUseCase.signUp(request);
 
       if (DomainErrorCodes.DUPLICATE_ENTITY === response.errorCode) {
         return res.status(HttpStatusCodes.OK).json(successfulResponse);
@@ -392,7 +400,7 @@ export function createAuthRouter(usersUseCases: UsersUseCases): Router {
       const user = await validateGoogleCode(credential);
 
       const request = new RequestModel<User>(transactionId, user);
-      const response = await usersUseCases.findOrCreateUser(request);
+      const response = await userAuthUseCase.findOrCreate(request);
 
       if (response.errorCode) {
         return res.redirect(
@@ -440,7 +448,7 @@ export function createAuthRouter(usersUseCases: UsersUseCases): Router {
     try {
       const request = new RequestModel<string>(transactionId, user.id);
 
-      const response = await usersUseCases.getMyAccount(request);
+      const response = await userQueryUseCase.myAccount(request);
 
       const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
       res.status(status).json(response);
@@ -474,7 +482,7 @@ export function createAuthRouter(usersUseCases: UsersUseCases): Router {
           personalInformationUpdate,
         );
 
-        const response = await usersUseCases.updatePersonalInformation(request);
+        const response = await userManagementUseCase.updateProfile(request);
 
         const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
         res.status(status).json(response);
@@ -505,7 +513,7 @@ export function createAuthRouter(usersUseCases: UsersUseCases): Router {
         .setPasswordConfirmation(passwordConfirmation)
         .build();
 
-      const response = await usersUseCases.updatePassword(
+      const response = await userManagementUseCase.updatePassword(
         new RequestModel(transactionId, passwordUpdate),
       );
 
@@ -529,7 +537,7 @@ export function createAuthRouter(usersUseCases: UsersUseCases): Router {
     try {
       const response = new ResponseModel<SingInResponse>(transactionId);
       const request = new RequestModel<string>(transactionId, guestId);
-      const guestResponse = await usersUseCases.getGuestData(request);
+      const guestResponse = await userAuthUseCase.getGuestData(request);
 
       if (guestResponse.errorCode) {
         return res.status(mapDomainErrorToHttpStatus(guestResponse.errorCode)).json(guestResponse);
@@ -610,7 +618,7 @@ export function createAuthRouter(usersUseCases: UsersUseCases): Router {
     const { email = "" } = (req.body || {}) as Record<string, string>;
 
     try {
-      const forgotPasswordResponse = await usersUseCases.requestPasswordReset(
+      const forgotPasswordResponse = await userPasswordUseCase.requestReset(
         new RequestModel<string>(transactionId, email),
       );
 
@@ -639,7 +647,7 @@ export function createAuthRouter(usersUseCases: UsersUseCases): Router {
     const { token = "" } = req.query || {};
 
     try {
-      const verifyResponse = await usersUseCases.verifyPasswordResetToken(
+      const verifyResponse = await userPasswordUseCase.verifyToken(
         new RequestModel<string>(transactionId, token as string),
       );
 
@@ -668,7 +676,7 @@ export function createAuthRouter(usersUseCases: UsersUseCases): Router {
     const { token = "", password = "" } = (req.body || {}) as Record<string, string>;
 
     try {
-      const resetResponse = await usersUseCases.resetPassword(
+      const resetResponse = await userPasswordUseCase.resetPassword(
         new RequestModel<{ token: string; password: string }>(transactionId, {
           token,
           password,

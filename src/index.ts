@@ -12,16 +12,25 @@ import { createBaseRouter } from "./EntryPoints";
 import { createServer } from "./server";
 
 import {
-  productionUsersUseCases,
-  productionBugUseCases,
-  productionMicroServiceUseCases,
-  productionRolesUseCases,
-  productionRolePermissionUseCases,
-  productionUserRoleUseCases,
-  productionMetricsUseCases,
-  productionPermissionsUseCases,
-  productionVisitsUseCases,
-  productionCountriesUseCases,
+  productionUserAuthUseCase,
+  productionUserPasswordUseCase,
+  productionUserManagementUseCase,
+  productionUserQueryUseCase,
+  productionUserRoleUseCase,
+  productionBugSubmissionUseCase,
+  productionBugLifecycleUseCase,
+  productionBugSyncUseCase,
+  productionBugQueryUseCase,
+  productionBugAttachmentUseCase,
+  productionMicroServiceQueryUseCase,
+  productionMicroServiceManagementUseCase,
+  productionRoleManagementUseCase,
+  productionRoleQueryUseCase,
+  productionRolePermissionUseCase,
+  productionMetricsQueryUseCase,
+  productionPermissionUseCase,
+  productionVisitUseCase,
+  productionCountriesQueryUseCase,
 } from "./CompositionRoot";
 
 import { BugModel } from "./DataProviders/Bug/Bug";
@@ -52,16 +61,33 @@ const storage = multer.diskStorage({
 const productionUpload = multer({ storage });
 
 const baseRouter = createBaseRouter(
-  productionUsersUseCases,
-  productionBugUseCases,
-  productionMicroServiceUseCases,
-  productionRolesUseCases,
-  productionRolePermissionUseCases,
-  productionUserRoleUseCases,
-  productionMetricsUseCases,
-  productionPermissionsUseCases,
-  productionVisitsUseCases,
-  productionCountriesUseCases,
+  {
+    auth: productionUserAuthUseCase,
+    password: productionUserPasswordUseCase,
+    management: productionUserManagementUseCase,
+    query: productionUserQueryUseCase,
+    role: productionUserRoleUseCase,
+  },
+  {
+    submission: productionBugSubmissionUseCase,
+    lifecycle: productionBugLifecycleUseCase,
+    sync: productionBugSyncUseCase,
+    query: productionBugQueryUseCase,
+    attachment: productionBugAttachmentUseCase,
+  },
+  {
+    query: productionMicroServiceQueryUseCase,
+    management: productionMicroServiceManagementUseCase,
+  },
+  {
+    management: productionRoleManagementUseCase,
+    query: productionRoleQueryUseCase,
+    permission: productionRolePermissionUseCase,
+  },
+  productionMetricsQueryUseCase,
+  productionPermissionUseCase,
+  productionVisitUseCase,
+  productionCountriesQueryUseCase,
   productionUpload,
 );
 
@@ -82,7 +108,7 @@ const server = app.listen(EnvVars.Port, async () => {
     logger.info("Bug Tracker Database models synchronized successfully.");
 
     // Purge expired rejected bugs (older than 7 days) on startup
-    await productionBugUseCases.purgeExpiredRejectedBugs();
+    await productionBugLifecycleUseCase.purgeExpiredRejectedBugs();
   } catch (e) {
     const err = e as Error;
     logger.err("Failed to synchronize Bug tracker models: " + err.message);
@@ -94,7 +120,7 @@ const server = app.listen(EnvVars.Port, async () => {
     try {
       logger.info("Executing periodic bugs synchronization...");
       const request = new RequestModel<void>("periodicSyncBugs");
-      await productionBugUseCases.syncBugs(request);
+      await productionBugSyncUseCase.syncBugs(request);
     } catch (e) {
       const err = e as Error;
       logger.err("Failed to execute periodic bugs sync: " + err.message);
@@ -106,7 +132,7 @@ const server = app.listen(EnvVars.Port, async () => {
   setInterval(async () => {
     try {
       logger.info("Executing periodic expired bugs purge...");
-      await productionBugUseCases.purgeExpiredRejectedBugs();
+      await productionBugLifecycleUseCase.purgeExpiredRejectedBugs();
     } catch (e) {
       const err = e as Error;
       logger.err("Failed to execute periodic expired bugs purge: " + err.message);
@@ -139,7 +165,7 @@ webSocketServer.on("connection", async (ws, req) => {
 
       const request = new RequestModel<string>(transactionId, microserviceId as string);
 
-      const response = await productionMicroServiceUseCases.watchMicroServiceLogs(request);
+      const response = await productionMicroServiceQueryUseCase.watchMicroServiceLogs(request);
 
       if (response.errorCode) {
         return ws.send(JSON.stringify(response));

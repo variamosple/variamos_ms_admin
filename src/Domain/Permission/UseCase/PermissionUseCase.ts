@@ -1,10 +1,10 @@
-import { RequestModel } from "../Core/Entity/RequestModel";
-import { ResponseModel } from "../Core/Entity/ResponseModel";
-import { Permission } from "./Entity/Permission";
-import { PermissionFilter } from "./Entity/PermissionFilter";
-import { IPermissionRepository } from "./Repository/IPermissionRepository";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
+import { Permission } from "@src/Domain/Permission/Entity/Permission";
+import { PermissionFilter } from "@src/Domain/Permission/Entity/PermissionFilter";
+import { IPermissionRepository } from "@src/Domain/Permission/Repository/IPermissionRepository";
 
-export class PermissionsUseCases {
+export class PermissionUseCase {
   public constructor(private readonly permissionRepository: IPermissionRepository) {}
 
   public queryPermissions(

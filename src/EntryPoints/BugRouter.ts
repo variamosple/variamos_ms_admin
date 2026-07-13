@@ -1,5 +1,9 @@
 import { Router, Request, Response, RequestHandler } from "express";
-import { BugUseCases } from "@src/Domain/Bug/BugUseCases";
+import { BugSubmissionUseCase } from "@src/Domain/Bug/UseCase/BugSubmissionUseCase";
+import { BugLifecycleUseCase } from "@src/Domain/Bug/UseCase/BugLifecycleUseCase";
+import { BugSyncUseCase } from "@src/Domain/Bug/UseCase/BugSyncUseCase";
+import { BugQueryUseCase } from "@src/Domain/Bug/UseCase/BugQueryUseCase";
+import { BugAttachmentUseCase } from "@src/Domain/Bug/UseCase/BugAttachmentUseCase";
 import { BugFilter } from "@src/Domain/Bug/Entity/BugFilter";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
@@ -19,7 +23,11 @@ interface RequestWithUser extends Request {
 }
 
 export function createBugRouter(
-  bugUseCases: BugUseCases,
+  bugSubmissionUseCase: BugSubmissionUseCase,
+  bugLifecycleUseCase: BugLifecycleUseCase,
+  bugSyncUseCase: BugSyncUseCase,
+  bugQueryUseCase: BugQueryUseCase,
+  bugAttachmentUseCase: BugAttachmentUseCase,
   upload: MulterUpload,
   authMiddleware: RequestHandler,
 ): Router {
@@ -37,7 +45,7 @@ export function createBugRouter(
         search as string,
       );
       const request = new RequestModel<BugFilter>(transactionId, filter);
-      const response = await bugUseCases.queryBugs(request);
+      const response = await bugQueryUseCase.queryBugs(request);
 
       const code = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(code).json(response);
@@ -59,7 +67,7 @@ export function createBugRouter(
         search as string,
       );
       const request = new RequestModel<BugFilter>(transactionId, filter);
-      const response = await bugUseCases.queryLocalBugs(request);
+      const response = await bugQueryUseCase.queryLocalBugs(request);
 
       const code = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(code).json(response);
@@ -74,7 +82,7 @@ export function createBugRouter(
     const transactionId = "queryBugRepos";
     try {
       const request = new RequestModel<void>(transactionId);
-      const response = await bugUseCases.queryBugRepos(request);
+      const response = await bugQueryUseCase.queryBugRepos(request);
 
       const code = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(code).json(response);
@@ -89,7 +97,7 @@ export function createBugRouter(
     const transactionId = "queryCategories";
     try {
       const request = new RequestModel<void>(transactionId);
-      const response = await bugUseCases.queryCategories(request);
+      const response = await bugQueryUseCase.queryCategories(request);
 
       const code = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(code).json(response);
@@ -159,7 +167,7 @@ export function createBugRouter(
           : null,
       };
       const request = new RequestModel<typeof payload>(transactionId, payload);
-      const response = await bugUseCases.createBug(request);
+      const response = await bugSubmissionUseCase.createBug(request);
 
       const code = mapDomainErrorToHttpStatus(response.errorCode, HttpStatusCodes.CREATED);
       res.status(code).json(response);
@@ -176,7 +184,7 @@ export function createBugRouter(
 
     try {
       const request = new RequestModel<string>(transactionId, id);
-      const response = await bugUseCases.queryHistory(request);
+      const response = await bugQueryUseCase.queryHistory(request);
 
       const code = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(code).json(response);
@@ -221,7 +229,7 @@ export function createBugRouter(
         githubRepo: githubRepo || undefined,
       };
       const request = new RequestModel<typeof payload>(transactionId, payload);
-      const response = await bugUseCases.updateStatus(request);
+      const response = await bugLifecycleUseCase.updateStatus(request);
 
       const code = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(code).json(response);
@@ -240,7 +248,7 @@ export function createBugRouter(
     try {
       const payload = { id, adminId };
       const request = new RequestModel<typeof payload>(transactionId, payload);
-      const response = await bugUseCases.restoreBug(request);
+      const response = await bugLifecycleUseCase.restoreBug(request);
 
       const code = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(code).json(response);
@@ -259,7 +267,7 @@ export function createBugRouter(
     try {
       const payload = { id, adminId };
       const request = new RequestModel<typeof payload>(transactionId, payload);
-      const response = await bugUseCases.rejectBug(request);
+      const response = await bugLifecycleUseCase.rejectBug(request);
 
       const code = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(code).json(response);
@@ -274,7 +282,7 @@ export function createBugRouter(
     const transactionId = "syncBugs";
     try {
       const request = new RequestModel<void>(transactionId);
-      const response = await bugUseCases.syncBugs(request);
+      const response = await bugSyncUseCase.syncBugs(request);
 
       const code = mapDomainErrorToHttpStatus(response.errorCode);
       if (response.errorCode) {
@@ -309,7 +317,7 @@ export function createBugRouter(
             : null,
         };
         const request = new RequestModel<typeof payload>(transactionId, payload);
-        const response = await bugUseCases.addAttachment(request);
+        const response = await bugAttachmentUseCase.addAttachment(request);
         const code = mapDomainErrorToHttpStatus(response.errorCode, HttpStatusCodes.CREATED);
         res.status(code).json(response);
       } catch (error) {
@@ -325,7 +333,7 @@ export function createBugRouter(
     const { id } = req.params;
     try {
       const request = new RequestModel<string>(transactionId, id);
-      const response = await bugUseCases.deleteAttachment(request);
+      const response = await bugAttachmentUseCase.deleteAttachment(request);
       const code = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(code).json(response);
     } catch (error) {
@@ -344,7 +352,7 @@ export function createBugRouter(
     try {
       const payload = { bugId: id, body: body || "", authorId };
       const request = new RequestModel(transactionId, payload);
-      const response = await bugUseCases.createNote(request);
+      const response = await bugAttachmentUseCase.createNote(request);
       const code = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(code).json(response);
     } catch (error) {
@@ -360,7 +368,7 @@ export function createBugRouter(
 
     try {
       const request = new RequestModel(transactionId, id);
-      const response = await bugUseCases.queryNotes(request);
+      const response = await bugQueryUseCase.queryNotes(request);
       const code = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(code).json(response);
     } catch (error) {

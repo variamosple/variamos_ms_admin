@@ -1,18 +1,10 @@
-import { DomainErrorCodes } from "../Core/Error/DomainErrorCodes";
-import { RequestModel } from "../Core/Entity/RequestModel";
-import { ResponseModel } from "../Core/Entity/ResponseModel";
-import { MicroService } from "./Entity/MicroService";
-import { MicroServiceFilter } from "./Entity/MicroServiceFilter";
-import { IMicroServiceRepository } from "./Repository/IMicroServiceRepository";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
+import { IMicroServiceRepository } from "@src/Domain/MicroService/Repository/IMicroServiceRepository";
 
-export class MicroServiceUseCases {
+export class MicroServiceManagementUseCase {
   public constructor(private readonly microServiceRepository: IMicroServiceRepository) {}
-
-  public queryMicroServices(
-    request: RequestModel<MicroServiceFilter>,
-  ): Promise<ResponseModel<MicroService[]>> {
-    return this.microServiceRepository.queryMicroServices(request);
-  }
 
   public async startMicroService(request: RequestModel<string>): Promise<ResponseModel<void>> {
     const defaultResponse = new ResponseModel<void>(request.transactionId);
@@ -96,20 +88,5 @@ export class MicroServiceUseCases {
     }
 
     return this.microServiceRepository.restartMicroService(request);
-  }
-
-  public async watchMicroServiceLogs(
-    request: RequestModel<string>,
-  ): Promise<ResponseModel<NodeJS.ReadableStream>> {
-    const defaultResponse = new ResponseModel<NodeJS.ReadableStream>(request.transactionId);
-
-    if (!request.data) {
-      return defaultResponse.withError(
-        DomainErrorCodes.INVALID_INPUT,
-        "MicroService Id is required.",
-      );
-    }
-
-    return this.microServiceRepository.watchMicroServiceLogs(request);
   }
 }

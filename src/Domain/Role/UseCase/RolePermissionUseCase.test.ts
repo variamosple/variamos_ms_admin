@@ -1,20 +1,19 @@
 import { mock, MockProxy } from "jest-mock-extended";
-import { RolePermissionUseCases } from "./RolePermissionUseCases";
-import { IRolePermissionRepository } from "./Repository/IRolePermissionRepository";
-import { RequestModel } from "../Core/Entity/RequestModel";
-import { ResponseModel } from "../Core/Entity/ResponseModel";
-import { Permission } from "../Permission/Entity/Permission";
-import { RolePermission } from "./Entity/RolePermission";
-import { RolePermissionFilter } from "./Entity/RolePermissionFilter";
+import { RolePermissionUseCase } from "./RolePermissionUseCase";
+import { IRolePermissionRepository } from "@src/Domain/Role/Repository/IRolePermissionRepository";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
+import { Permission } from "@src/Domain/Permission/Entity/Permission";
+import { RolePermission } from "@src/Domain/Role/Entity/RolePermission";
+import { RolePermissionFilter } from "@src/Domain/Role/Entity/RolePermissionFilter";
 
-describe("RolePermissionUseCases - Unit Tests", () => {
-  let useCases: RolePermissionUseCases;
+describe("RolePermissionUseCase - Unit Tests", () => {
+  let useCase: RolePermissionUseCase;
   let mockRolePermissionRepository: MockProxy<IRolePermissionRepository>;
 
   beforeEach(() => {
     mockRolePermissionRepository = mock<IRolePermissionRepository>();
-
-    useCases = new RolePermissionUseCases(mockRolePermissionRepository);
+    useCase = new RolePermissionUseCase(mockRolePermissionRepository);
   });
 
   test("should query role permissions", async () => {
@@ -24,7 +23,7 @@ describe("RolePermissionUseCases - Unit Tests", () => {
     mockRolePermissionRepository.queryRolePermissions.mockResolvedValue(mockResponse);
 
     const req = new RequestModel<RolePermissionFilter>("tx-1", mockFilter);
-    const res = await useCases.queryRolePermissions(req);
+    const res = await useCase.queryRolePermissions(req);
 
     expect(res.data).toBe(mockPermissions);
     expect(mockRolePermissionRepository.queryRolePermissions).toHaveBeenCalledWith(req);
@@ -36,7 +35,7 @@ describe("RolePermissionUseCases - Unit Tests", () => {
     mockRolePermissionRepository.createRolePermission.mockResolvedValue(mockResponse);
 
     const req = new RequestModel<RolePermission>("tx-2", mockRolePermission);
-    const res = await useCases.createRolePermission(req);
+    const res = await useCase.createRolePermission(req);
 
     expect(res.data).toBe(mockRolePermission);
     expect(mockRolePermissionRepository.createRolePermission).toHaveBeenCalledWith(req);
@@ -48,7 +47,7 @@ describe("RolePermissionUseCases - Unit Tests", () => {
     mockRolePermissionRepository.deleteRolePermission.mockResolvedValue(mockResponse);
 
     const req = new RequestModel<RolePermission>("tx-3", mockRolePermission);
-    const res = await useCases.deleteRolePermission(req);
+    const res = await useCase.deleteRolePermission(req);
 
     expect(res.errorCode).toBeUndefined();
     expect(mockRolePermissionRepository.deleteRolePermission).toHaveBeenCalledWith(req);

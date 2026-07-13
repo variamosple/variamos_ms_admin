@@ -1,11 +1,11 @@
-import { DomainErrorCodes } from "../Core/Error/DomainErrorCodes";
-import { RequestModel } from "../Core/Entity/RequestModel";
-import { ResponseModel } from "../Core/Entity/ResponseModel";
-import { Visit } from "./Entity/Visit";
-import { IVisitRepository } from "./Repository/IVisitRepository";
-import { ICountriesRepository } from "../Countries/Repository/ICountriesRepository";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
+import { Visit } from "@src/Domain/Visit/Entity/Visit";
+import { IVisitRepository } from "@src/Domain/Visit/Repository/IVisitRepository";
+import { ICountriesRepository } from "@src/Domain/Countries/Repository/ICountriesRepository";
 
-export class VisitsUseCases {
+export class VisitUseCase {
   public constructor(
     private readonly visitRepository: IVisitRepository,
     private readonly countriesRepository: ICountriesRepository,

@@ -13,46 +13,112 @@ import { createUserRolesRouter } from "./UserRolesV1Router";
 import { createVisitsRouter, VISITS_V1_ROUTE } from "./VisitsV1Router";
 import { createBugRouter, BUG_V1_ROUTE, MulterUpload } from "./BugRouter";
 
-import { UsersUseCases } from "@src/Domain/User/UserUseCases";
-import { BugUseCases } from "@src/Domain/Bug/BugUseCases";
-import { MicroServiceUseCases } from "@src/Domain/MicroService/MicroServiceCases";
-import { RolesUseCases } from "@src/Domain/Role/RoleUseCases";
-import { RolePermissionUseCases } from "@src/Domain/Role/RolePermissionUseCases";
-import { UserRoleUseCases } from "@src/Domain/User/UserRoleUseCases";
-import { MetricsUseCases } from "@src/Domain/Metrics/MetricsUseCases";
-import { PermissionsUseCases } from "@src/Domain/Permission/PermissionUseCases";
-import { VisitsUseCases } from "@src/Domain/Visit/VisitUseCases";
-import { CountriesUseCases } from "@src/Domain/Countries/CountriesUseCases";
+// User Flow Use Cases
+import { UserAuthUseCase } from "@src/Domain/User/UseCase/UserAuthUseCase";
+import { UserPasswordUseCase } from "@src/Domain/User/UseCase/UserPasswordUseCase";
+import { UserManagementUseCase } from "@src/Domain/User/UseCase/UserManagementUseCase";
+import { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase";
+import { UserRoleUseCase } from "@src/Domain/User/UseCase/UserRoleUseCase";
+
+// Bug Flow Use Cases
+import { BugSubmissionUseCase } from "@src/Domain/Bug/UseCase/BugSubmissionUseCase";
+import { BugLifecycleUseCase } from "@src/Domain/Bug/UseCase/BugLifecycleUseCase";
+import { BugSyncUseCase } from "@src/Domain/Bug/UseCase/BugSyncUseCase";
+import { BugQueryUseCase } from "@src/Domain/Bug/UseCase/BugQueryUseCase";
+import { BugAttachmentUseCase } from "@src/Domain/Bug/UseCase/BugAttachmentUseCase";
+
+// Role & Permission Use Cases
+import { RoleManagementUseCase } from "@src/Domain/Role/UseCase/RoleManagementUseCase";
+import { RoleQueryUseCase } from "@src/Domain/Role/UseCase/RoleQueryUseCase";
+import { RolePermissionUseCase } from "@src/Domain/Role/UseCase/RolePermissionUseCase";
+import { PermissionUseCase } from "@src/Domain/Permission/UseCase/PermissionUseCase";
+
+// Other Use Cases
+import { MetricsQueryUseCase } from "@src/Domain/Metrics/UseCase/MetricsQueryUseCase";
+import { VisitUseCase } from "@src/Domain/Visit/UseCase/VisitUseCase";
+import { CountriesQueryUseCase } from "@src/Domain/Countries/UseCase/CountriesQueryUseCase";
+import { MicroServiceQueryUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceQueryUseCase";
+import { MicroServiceManagementUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceManagementUseCase";
 
 import { isAuthenticated } from "@variamosple/variamos-security";
 
+export interface UserFlowUseCases {
+  auth: UserAuthUseCase;
+  password: UserPasswordUseCase;
+  management: UserManagementUseCase;
+  query: UserQueryUseCase;
+  role: UserRoleUseCase;
+}
+
+export interface BugFlowUseCases {
+  submission: BugSubmissionUseCase;
+  lifecycle: BugLifecycleUseCase;
+  sync: BugSyncUseCase;
+  query: BugQueryUseCase;
+  attachment: BugAttachmentUseCase;
+}
+
+export interface MicroServiceFlowUseCases {
+  query: MicroServiceQueryUseCase;
+  management: MicroServiceManagementUseCase;
+}
+
+export interface RoleFlowUseCases {
+  management: RoleManagementUseCase;
+  query: RoleQueryUseCase;
+  permission: RolePermissionUseCase;
+}
+
 export function createBaseRouter(
-  usersUseCases: UsersUseCases,
-  bugUseCases: BugUseCases,
-  microServiceUseCases: MicroServiceUseCases,
-  rolesUseCases: RolesUseCases,
-  rolePermissionUseCases: RolePermissionUseCases,
-  userRoleUseCases: UserRoleUseCases,
-  metricsUseCases: MetricsUseCases,
-  permissionsUseCases: PermissionsUseCases,
-  visitsUseCases: VisitsUseCases,
-  countriesUseCases: CountriesUseCases,
+  usersUseCases: UserFlowUseCases,
+  bugUseCases: BugFlowUseCases,
+  microServiceUseCases: MicroServiceFlowUseCases,
+  rolesUseCases: RoleFlowUseCases,
+  metricsUseCase: MetricsQueryUseCase,
+  permissionsUseCase: PermissionUseCase,
+  visitsUseCase: VisitUseCase,
+  countriesUseCase: CountriesQueryUseCase,
   upload: MulterUpload,
 ): Router {
   const baseRouter = Router();
 
-  const authRouter = createAuthRouter(usersUseCases);
+  const authRouter = createAuthRouter(
+    usersUseCases.auth,
+    usersUseCases.password,
+    usersUseCases.management,
+    usersUseCases.query,
+  );
   const configurationV1Router = createConfigurationRouter();
-  const userRolesRouter = createUserRolesRouter(userRoleUseCases);
-  const usersV1Router = createUsersRouter(usersUseCases, userRolesRouter);
-  const rolePermissionsRouter = createRolePermissionsRouter(rolePermissionUseCases);
-  const rolesV1Router = createRolesRouter(rolesUseCases, rolePermissionsRouter);
-  const permissionsV1Router = createPermissionsRouter(permissionsUseCases);
-  const microServicesV1Router = createMicroServicesRouter(microServiceUseCases);
-  const visitsV1Router = createVisitsRouter(visitsUseCases);
-  const metricsV1Router = createMetricsRouter(metricsUseCases);
-  const countriesV1Router = createCountriesRouter(countriesUseCases);
-  const bugV1Router = createBugRouter(bugUseCases, upload, isAuthenticated);
+  const userRolesRouter = createUserRolesRouter(usersUseCases.role);
+  const usersV1Router = createUsersRouter(
+    usersUseCases.query,
+    usersUseCases.password, // needed for generateRecoveryLink
+    usersUseCases.management,
+    userRolesRouter,
+  );
+  const rolePermissionsRouter = createRolePermissionsRouter(rolesUseCases.permission);
+  const rolesV1Router = createRolesRouter(
+    rolesUseCases.management,
+    rolesUseCases.query,
+    rolePermissionsRouter,
+  );
+  const permissionsV1Router = createPermissionsRouter(permissionsUseCase);
+  const microServicesV1Router = createMicroServicesRouter(
+    microServiceUseCases.query,
+    microServiceUseCases.management,
+  );
+  const visitsV1Router = createVisitsRouter(visitsUseCase);
+  const metricsV1Router = createMetricsRouter(metricsUseCase);
+  const countriesV1Router = createCountriesRouter(countriesUseCase);
+  const bugV1Router = createBugRouter(
+    bugUseCases.submission,
+    bugUseCases.lifecycle,
+    bugUseCases.sync,
+    bugUseCases.query,
+    bugUseCases.attachment,
+    upload,
+    isAuthenticated,
+  );
 
   baseRouter.use(AUTH_ROUTE, authRouter);
   baseRouter.use(CONFIGURATION_V1_ROUTE, configurationV1Router);

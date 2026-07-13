@@ -3,7 +3,8 @@ import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { Role } from "@src/Domain/Role/Entity/Role";
 import { RoleFilter } from "@src/Domain/Role/Entity/RoleFilter";
-import { RolesUseCases } from "@src/Domain/Role/RoleUseCases";
+import { RoleQueryUseCase } from "@src/Domain/Role/UseCase/RoleQueryUseCase";
+import { RoleManagementUseCase } from "@src/Domain/Role/UseCase/RoleManagementUseCase";
 import { hasPermissions } from "@variamosple/variamos-security";
 import { Router } from "express";
 import logger from "jet-logger";
@@ -14,7 +15,8 @@ import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 export const ROLES_V1_ROUTE = "/v1/roles";
 
 export function createRolesRouter(
-  rolesUseCases: RolesUseCases,
+  roleManagementUseCase: RoleManagementUseCase,
+  roleQueryUseCase: RoleQueryUseCase,
   rolePermissionsRouter: Router,
 ): Router {
   const rolesV1Router = Router();
@@ -30,7 +32,7 @@ export function createRolesRouter(
         .build();
 
       const request = new RequestModel<RoleFilter>(transactionId, filter);
-      const response = await rolesUseCases.queryRoles(request);
+      const response = await roleQueryUseCase.queryRoles(request);
 
       const status = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(status).json(response);
@@ -75,7 +77,7 @@ export function createRolesRouter(
       }
 
       const request = new RequestModel<Role>(transactionId, role);
-      const response = await rolesUseCases.createRole(request);
+      const response = await roleManagementUseCase.createRole(request);
 
       const status = response.errorCode
         ? mapDomainErrorToHttpStatus(response.errorCode)
@@ -108,7 +110,7 @@ export function createRolesRouter(
       }
 
       const request = new RequestModel<string>(transactionId, roleId);
-      const response = await rolesUseCases.deleteRole(request);
+      const response = await roleManagementUseCase.deleteRole(request);
 
       const status = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(status).json(response);
@@ -139,7 +141,7 @@ export function createRolesRouter(
       }
 
       const request = new RequestModel<string>(transactionId, roleId);
-      const response = await rolesUseCases.queryById(request);
+      const response = await roleQueryUseCase.queryById(request);
 
       const status = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(status).json(response);
@@ -196,7 +198,7 @@ export function createRolesRouter(
       }
 
       const request = new RequestModel<Role>(transactionId, permission);
-      const response = await rolesUseCases.updateRole(request);
+      const response = await roleManagementUseCase.updateRole(request);
 
       const status = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(status).json(response);

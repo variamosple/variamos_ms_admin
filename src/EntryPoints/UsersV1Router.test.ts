@@ -2,14 +2,18 @@ import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import express from "express";
 import supertest from "supertest";
 import { createUsersRouter } from "./UsersV1Router";
-import { UsersUseCases } from "@src/Domain/User/UserUseCases";
+import { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase";
+import { UserPasswordUseCase } from "@src/Domain/User/UseCase/UserPasswordUseCase";
+import { UserManagementUseCase } from "@src/Domain/User/UseCase/UserManagementUseCase";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import { User } from "@src/Domain/User/Entity/User";
 
 import { mock } from "jest-mock-extended";
 
-jest.mock("@src/Domain/User/UserUseCases");
+jest.mock("@src/Domain/User/UseCase/UserQueryUseCase");
+jest.mock("@src/Domain/User/UseCase/UserPasswordUseCase");
+jest.mock("@src/Domain/User/UseCase/UserManagementUseCase");
 
 interface CustomRequest {
   user?: { id: string };
@@ -31,8 +35,7 @@ interface TestApiResponse<T> {
 
 import { IUserRepository } from "@src/Domain/User/IUserRepository";
 import { IMailService } from "@src/Domain/Mail/IMailService";
-import { IGuestRoleRepository } from "@src/Domain/Role/Repository/IGuestRoleRepository";
-import { UserUseCasesConfig } from "@src/Domain/User/UserUseCases";
+import { UserPasswordUseCaseConfig } from "@src/Domain/User/UseCase/UserPasswordUseCase";
 
 describe("UsersV1Router Integration Tests - Extended Coverage", () => {
   let app: express.Application;
@@ -40,14 +43,23 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
   beforeAll(() => {
     app = express();
     app.use(express.json());
-    const mockUsersUseCases = new UsersUseCases(
+    const mockUserQueryUseCase = new UserQueryUseCase(mock<IUserRepository>());
+    const mockUserPasswordUseCase = new UserPasswordUseCase(
       mock<IUserRepository>(),
       mock<IMailService>(),
-      mock<IGuestRoleRepository>(),
-      mock<UserUseCasesConfig>(),
+      mock<UserPasswordUseCaseConfig>(),
     );
+    const mockUserManagementUseCase = new UserManagementUseCase(mock<IUserRepository>());
     const mockUserRolesRouter = express.Router();
-    app.use("/v1/users", createUsersRouter(mockUsersUseCases, mockUserRolesRouter));
+    app.use(
+      "/v1/users",
+      createUsersRouter(
+        mockUserQueryUseCase,
+        mockUserPasswordUseCase,
+        mockUserManagementUseCase,
+        mockUserRolesRouter,
+      ),
+    );
   });
 
   beforeEach(() => {
@@ -64,7 +76,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         mockUsers,
       );
 
-      (UsersUseCases.prototype.queryUsers as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserQueryUseCase.prototype.queryList as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).get("/v1/users").query({ pageNumber: 1, pageSize: 10 });
 
@@ -79,7 +91,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Invalid query",
       );
-      (UsersUseCases.prototype.queryUsers as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserQueryUseCase.prototype.queryList as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).get("/v1/users");
 
@@ -87,7 +99,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when query fails with database exception", async () => {
-      (UsersUseCases.prototype.queryUsers as jest.Mock).mockRejectedValue(
+      (UserQueryUseCase.prototype.queryList as jest.Mock).mockRejectedValue(
         new Error("Database Error"),
       );
 
@@ -106,7 +118,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         "Success",
       ).withResponse(mockUser);
 
-      (UsersUseCases.prototype.queryById as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserQueryUseCase.prototype.queryById as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).get("/v1/users/123");
 
@@ -120,7 +132,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.ENTITY_NOT_FOUND,
         "Not found",
       );
-      (UsersUseCases.prototype.queryById as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserQueryUseCase.prototype.queryById as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).get("/v1/users/123");
 
@@ -128,7 +140,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when queryById throws exception", async () => {
-      (UsersUseCases.prototype.queryById as jest.Mock).mockRejectedValue(
+      (UserQueryUseCase.prototype.queryById as jest.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -146,9 +158,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         "Success",
       ).withResponse({ recoveryUrl: "http://localhost:3000/#/reset-password?token=some-token" });
 
-      (UsersUseCases.prototype.generateRecoveryLink as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      (UserPasswordUseCase.prototype.generateLink as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).post("/v1/users/123/recovery-link");
 
@@ -162,9 +172,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.ENTITY_NOT_FOUND,
         "User not found",
       );
-      (UsersUseCases.prototype.generateRecoveryLink as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      (UserPasswordUseCase.prototype.generateLink as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).post("/v1/users/123/recovery-link");
 
@@ -172,7 +180,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when generateRecoveryLink throws exception", async () => {
-      (UsersUseCases.prototype.generateRecoveryLink as jest.Mock).mockRejectedValue(
+      (UserPasswordUseCase.prototype.generateLink as jest.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -190,7 +198,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         "User disabled",
       ).withResponse(null);
 
-      (UsersUseCases.prototype.disableUser as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserManagementUseCase.prototype.disable as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).put("/v1/users/123/disable");
 
@@ -202,7 +210,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.ENTITY_NOT_FOUND,
         "User not found",
       );
-      (UsersUseCases.prototype.disableUser as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserManagementUseCase.prototype.disable as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).put("/v1/users/123/disable");
 
@@ -210,7 +218,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when disableUser throws exception", async () => {
-      (UsersUseCases.prototype.disableUser as jest.Mock).mockRejectedValue(
+      (UserManagementUseCase.prototype.disable as jest.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -228,7 +236,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         "User enabled",
       ).withResponse(null);
 
-      (UsersUseCases.prototype.enableUser as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserManagementUseCase.prototype.enable as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).put("/v1/users/123/enable");
 
@@ -240,7 +248,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.ENTITY_NOT_FOUND,
         "User not found",
       );
-      (UsersUseCases.prototype.enableUser as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserManagementUseCase.prototype.enable as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).put("/v1/users/123/enable");
 
@@ -248,7 +256,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when enableUser throws exception", async () => {
-      (UsersUseCases.prototype.enableUser as jest.Mock).mockRejectedValue(
+      (UserManagementUseCase.prototype.enable as jest.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -266,7 +274,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         "User deleted",
       ).withResponse(null);
 
-      (UsersUseCases.prototype.deleteUser as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserManagementUseCase.prototype.delete as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).delete("/v1/users/123");
 
@@ -278,7 +286,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.ENTITY_NOT_FOUND,
         "User not found",
       );
-      (UsersUseCases.prototype.deleteUser as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserManagementUseCase.prototype.delete as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).delete("/v1/users/123");
 
@@ -286,7 +294,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when deleteUser throws exception", async () => {
-      (UsersUseCases.prototype.deleteUser as jest.Mock).mockRejectedValue(
+      (UserManagementUseCase.prototype.delete as jest.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 

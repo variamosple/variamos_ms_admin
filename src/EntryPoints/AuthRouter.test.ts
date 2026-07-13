@@ -27,7 +27,13 @@ import supertest from "supertest";
 import EnvVars from "@src/common/EnvVars";
 import cookieParser from "cookie-parser";
 import { createAuthRouter, AUTH_ROUTE } from "./AuthRouter";
-import { UsersUseCases } from "@src/Domain/User/UserUseCases";
+import { UserAuthUseCase } from "@src/Domain/User/UseCase/UserAuthUseCase";
+import {
+  UserPasswordUseCase,
+  UserPasswordUseCaseConfig,
+} from "@src/Domain/User/UseCase/UserPasswordUseCase";
+import { UserManagementUseCase } from "@src/Domain/User/UseCase/UserManagementUseCase";
+import { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import { User } from "@src/Domain/User/Entity/User";
@@ -45,11 +51,13 @@ import {
 import { IUserRepository } from "@src/Domain/User/IUserRepository";
 import { IMailService } from "@src/Domain/Mail/IMailService";
 import { IGuestRoleRepository } from "@src/Domain/Role/Repository/IGuestRoleRepository";
-import { UserUseCasesConfig } from "@src/Domain/User/UserUseCases";
 import { mock } from "jest-mock-extended";
 
 // Mock other dependencies
-jest.mock("@src/Domain/User/UserUseCases");
+jest.mock("@src/Domain/User/UseCase/UserAuthUseCase");
+jest.mock("@src/Domain/User/UseCase/UserPasswordUseCase");
+jest.mock("@src/Domain/User/UseCase/UserManagementUseCase");
+jest.mock("@src/Domain/User/UseCase/UserQueryUseCase");
 jest.mock("@variamosple/variamos-security", () => {
   const actual = jest.requireActual("@variamosple/variamos-security");
   return {
@@ -102,13 +110,26 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     app = express();
     app.use(express.json());
     app.use(cookieParser("secret"));
-    const mockUsersUseCases = new UsersUseCases(
+    const mockUserAuthUseCase = new UserAuthUseCase(
+      mock<IUserRepository>(),
+      mock<IGuestRoleRepository>(),
+    );
+    const mockUserPasswordUseCase = new UserPasswordUseCase(
       mock<IUserRepository>(),
       mock<IMailService>(),
-      mock<IGuestRoleRepository>(),
-      mock<UserUseCasesConfig>(),
+      mock<UserPasswordUseCaseConfig>(),
     );
-    app.use(AUTH_ROUTE, createAuthRouter(mockUsersUseCases));
+    const mockUserManagementUseCase = new UserManagementUseCase(mock<IUserRepository>());
+    const mockUserQueryUseCase = new UserQueryUseCase(mock<IUserRepository>());
+    app.use(
+      AUTH_ROUTE,
+      createAuthRouter(
+        mockUserAuthUseCase,
+        mockUserPasswordUseCase,
+        mockUserManagementUseCase,
+        mockUserQueryUseCase,
+      ),
+    );
   });
 
   beforeEach(() => {
@@ -337,14 +358,14 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       jest.mocked(getToken).mockReturnValue(mockToken);
       jest.mocked(validateToken).mockResolvedValue(validationResponse);
       jest.mocked(isSessionExpired).mockReturnValue(true);
-      (UsersUseCases.prototype.findSessionUser as jest.Mock).mockResolvedValue(
+      (UserQueryUseCase.prototype.sessionUser as jest.Mock).mockResolvedValue(
         new ResponseModel<User>("getSessionInfo").withResponse(mockDomainUser),
       );
 
       const response = await supertest(app).get("/auth/session-info");
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(UsersUseCases.prototype.findSessionUser).toHaveBeenCalled();
+      expect(UserQueryUseCase.prototype.sessionUser).toHaveBeenCalled();
     });
 
     it("should ignore disallowed redirect origin", async () => {
@@ -400,7 +421,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       jest.mocked(validateToken).mockResolvedValue(validationResponse);
       jest.mocked(isSessionExpired).mockReturnValue(true);
       jest.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
-      (UsersUseCases.prototype.findSessionUser as jest.Mock).mockResolvedValue(refreshedResponse);
+      (UserQueryUseCase.prototype.sessionUser as jest.Mock).mockResolvedValue(refreshedResponse);
       jest.mocked(createJwt).mockResolvedValue("new-jwt-token");
 
       const response = await supertest(app)
@@ -447,7 +468,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       jest.mocked(validateToken).mockResolvedValue(validationResponse);
       jest.mocked(isSessionExpired).mockReturnValue(true);
       jest.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
-      (UsersUseCases.prototype.getGuestData as jest.Mock).mockResolvedValue(refreshedResponse);
+      (UserAuthUseCase.prototype.getGuestData as jest.Mock).mockResolvedValue(refreshedResponse);
 
       const response = await supertest(app).get("/auth/session-info");
       expect(response.status).toBe(HttpStatusCodes.OK);
@@ -480,7 +501,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       jest.mocked(validateToken).mockResolvedValue(validationResponse);
       jest.mocked(isSessionExpired).mockReturnValue(true);
       jest.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
-      (UsersUseCases.prototype.getGuestData as jest.Mock).mockResolvedValue(refreshedResponse);
+      (UserAuthUseCase.prototype.getGuestData as jest.Mock).mockResolvedValue(refreshedResponse);
 
       const response = await supertest(app).get("/auth/session-info");
       expect(response.status).toBe(HttpStatusCodes.UNAUTHORIZED);
@@ -512,7 +533,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       jest.mocked(validateToken).mockResolvedValue(validationResponse);
       jest.mocked(isSessionExpired).mockReturnValue(true);
       jest.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
-      (UsersUseCases.prototype.findSessionUser as jest.Mock).mockResolvedValue(refreshedResponse);
+      (UserQueryUseCase.prototype.sessionUser as jest.Mock).mockResolvedValue(refreshedResponse);
 
       const response = await supertest(app).get("/auth/session-info");
       expect(response.status).toBe(HttpStatusCodes.OK);
@@ -551,7 +572,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       jest.mocked(validateToken).mockResolvedValue(validationResponse);
       jest.mocked(isSessionExpired).mockReturnValue(true);
       jest.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
-      (UsersUseCases.prototype.findSessionUser as jest.Mock).mockResolvedValue(refreshedResponse);
+      (UserQueryUseCase.prototype.sessionUser as jest.Mock).mockResolvedValue(refreshedResponse);
       jest.mocked(createJwt).mockResolvedValue("new-refreshed-jwt-token");
 
       const response = await supertest(app)
@@ -576,7 +597,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       const expectedResponse = new ResponseModel("signIn").withResponse(mockUser);
 
       jest.mocked(createJwt).mockResolvedValue("jwt-token");
-      (UsersUseCases.prototype.signIn as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserAuthUseCase.prototype.signIn as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
         .post("/auth/sign-in")
@@ -599,7 +620,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.UNAUTHORIZED_ACCESS,
         "Invalid credentials",
       );
-      (UsersUseCases.prototype.signIn as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserAuthUseCase.prototype.signIn as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
         .post("/auth/sign-in")
@@ -619,7 +640,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       const expectedResponse = new ResponseModel("signIn").withResponse(mockUser);
 
       jest.mocked(createJwt).mockResolvedValue("jwt-token");
-      (UsersUseCases.prototype.signIn as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserAuthUseCase.prototype.signIn as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
         .post("/auth/sign-in")
@@ -662,7 +683,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when sign-in throws an exception", async () => {
-      (UsersUseCases.prototype.signIn as jest.Mock).mockRejectedValue(
+      (UserAuthUseCase.prototype.signIn as jest.Mock).mockRejectedValue(
         new Error("Unexpected sign-in error"),
       );
 
@@ -680,7 +701,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       const mockUser = User.builder().setId("user-123").setName("John Doe").build();
       const expectedResponse = new ResponseModel("signUp").withResponse(mockUser);
 
-      (UsersUseCases.prototype.signUp as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserAuthUseCase.prototype.signUp as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).post("/auth/sign-up").send({
         name: "John Doe",
@@ -697,7 +718,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.DUPLICATE_ENTITY,
         "User already exists",
       );
-      (UsersUseCases.prototype.signUp as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserAuthUseCase.prototype.signUp as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).post("/auth/sign-up").send({
         name: "John Doe",
@@ -714,7 +735,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Passwords do not match",
       );
-      (UsersUseCases.prototype.signUp as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserAuthUseCase.prototype.signUp as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).post("/auth/sign-up").send({
         name: "John Doe",
@@ -731,7 +752,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Invalid name",
       );
-      (UsersUseCases.prototype.signUp as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserAuthUseCase.prototype.signUp as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).post("/auth/sign-up").send({
         name: "",
@@ -744,7 +765,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when sign-up throws an exception", async () => {
-      (UsersUseCases.prototype.signUp as jest.Mock).mockRejectedValue(
+      (UserAuthUseCase.prototype.signUp as jest.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -775,7 +796,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       const expectedResponse = new ResponseModel("signInAsGuest").withResponse(mockUser);
 
       jest.mocked(createJwt).mockResolvedValue("guest-jwt-token");
-      (UsersUseCases.prototype.getGuestData as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserAuthUseCase.prototype.getGuestData as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
         .post("/auth/guest/sign-in")
@@ -790,7 +811,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Invalid guest id",
       );
-      (UsersUseCases.prototype.getGuestData as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserAuthUseCase.prototype.getGuestData as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
         .post("/auth/guest/sign-in")
@@ -800,7 +821,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when guest sign-in throws an exception", async () => {
-      (UsersUseCases.prototype.getGuestData as jest.Mock).mockRejectedValue(
+      (UserAuthUseCase.prototype.getGuestData as jest.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -822,7 +843,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       const expectedResponse = new ResponseModel("signInAsGuest").withResponse(mockUser);
 
       jest.mocked(createJwt).mockResolvedValue("guest-jwt-token");
-      (UsersUseCases.prototype.getGuestData as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserAuthUseCase.prototype.getGuestData as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
         .post("/auth/guest/sign-in")
@@ -846,7 +867,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     it("should return 200 on successful fetch", async () => {
       const mockUser = User.builder().setId("user-123").setName("John Doe").build();
       const expectedResponse = new ResponseModel("myAccount").withResponse(mockUser);
-      (UsersUseCases.prototype.getMyAccount as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserQueryUseCase.prototype.myAccount as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).get("/auth/my-account");
 
@@ -854,7 +875,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when getMyAccount throws an exception", async () => {
-      (UsersUseCases.prototype.getMyAccount as jest.Mock).mockRejectedValue(
+      (UserQueryUseCase.prototype.myAccount as jest.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -867,7 +888,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
   describe("PUT /auth/my-account/information", () => {
     it("should return 200 on successful update", async () => {
       const expectedResponse = new ResponseModel("updateMyAccountInformation").withResponse(null);
-      (UsersUseCases.prototype.updatePersonalInformation as jest.Mock).mockResolvedValue(
+      (UserManagementUseCase.prototype.updateProfile as jest.Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -879,7 +900,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when updatePersonalInformation throws an exception", async () => {
-      (UsersUseCases.prototype.updatePersonalInformation as jest.Mock).mockRejectedValue(
+      (UserManagementUseCase.prototype.updateProfile as jest.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -895,7 +916,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     it("should return 200 on successful password update", async () => {
       const expectedResponse = new ResponseModel("passwordUpdate").withResponse(null);
 
-      (UsersUseCases.prototype.updatePassword as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserManagementUseCase.prototype.updatePassword as jest.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app).put("/auth/password-update").send({
         currentPassword: "OldPassword123!",
@@ -911,7 +934,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Invalid password",
       );
-      (UsersUseCases.prototype.updatePassword as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserManagementUseCase.prototype.updatePassword as jest.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app).put("/auth/password-update").send({
         currentPassword: "OldPassword123!",
@@ -923,7 +948,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when updatePassword throws an exception", async () => {
-      (UsersUseCases.prototype.updatePassword as jest.Mock).mockRejectedValue(
+      (UserManagementUseCase.prototype.updatePassword as jest.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -946,7 +971,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .build();
       const expectedResponse = new ResponseModel("loginWithGoogle").withResponse(mockUser);
       jest.mocked(createJwt).mockResolvedValue("google-jwt-token");
-      (UsersUseCases.prototype.findOrCreateUser as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserAuthUseCase.prototype.findOrCreate as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
         .post("/auth/google/callback")
@@ -961,7 +986,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Creation failed",
       );
-      (UsersUseCases.prototype.findOrCreateUser as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserAuthUseCase.prototype.findOrCreate as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
         .post("/auth/google/callback")
@@ -1003,7 +1028,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .build();
       const expectedResponse = new ResponseModel("loginWithGoogle").withResponse(mockUser);
       jest.mocked(createJwt).mockResolvedValue("google-jwt-token");
-      (UsersUseCases.prototype.findOrCreateUser as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserAuthUseCase.prototype.findOrCreate as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
         .post("/auth/google/callback")
@@ -1031,9 +1056,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         undefined,
         "Password reset email sent",
       ).withResponse(null);
-      (UsersUseCases.prototype.requestPasswordReset as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      (UserPasswordUseCase.prototype.requestReset as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
         .post("/auth/forgot-password")
@@ -1047,9 +1070,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Email not found",
       );
-      (UsersUseCases.prototype.requestPasswordReset as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      (UserPasswordUseCase.prototype.requestReset as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
         .post("/auth/forgot-password")
@@ -1059,7 +1080,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when forgot-password throws an exception", async () => {
-      (UsersUseCases.prototype.requestPasswordReset as jest.Mock).mockRejectedValue(
+      (UserPasswordUseCase.prototype.requestReset as jest.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -1078,9 +1099,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         undefined,
         "Token verified",
       ).withResponse(null);
-      (UsersUseCases.prototype.verifyPasswordResetToken as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      (UserPasswordUseCase.prototype.verifyToken as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
         .get("/auth/verify-token")
@@ -1094,9 +1113,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Token expired",
       );
-      (UsersUseCases.prototype.verifyPasswordResetToken as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      (UserPasswordUseCase.prototype.verifyToken as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
         .get("/auth/verify-token")
@@ -1106,7 +1123,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when verify-token throws an exception", async () => {
-      (UsersUseCases.prototype.verifyPasswordResetToken as jest.Mock).mockRejectedValue(
+      (UserPasswordUseCase.prototype.verifyToken as jest.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -1123,7 +1140,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         undefined,
         "Password updated successfully",
       ).withResponse(null);
-      (UsersUseCases.prototype.resetPassword as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserPasswordUseCase.prototype.resetPassword as jest.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .post("/auth/reset-password")
@@ -1137,7 +1156,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Invalid token",
       );
-      (UsersUseCases.prototype.resetPassword as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserPasswordUseCase.prototype.resetPassword as jest.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .post("/auth/reset-password")
@@ -1147,7 +1168,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when resetPassword throws an exception", async () => {
-      (UsersUseCases.prototype.resetPassword as jest.Mock).mockRejectedValue(
+      (UserPasswordUseCase.prototype.resetPassword as jest.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 

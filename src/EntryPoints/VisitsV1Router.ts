@@ -2,7 +2,7 @@ import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { Visit } from "@src/Domain/Visit/Entity/Visit";
-import { VisitsUseCases } from "@src/Domain/Visit/VisitUseCases";
+import { VisitUseCase } from "@src/Domain/Visit/UseCase/VisitUseCase";
 import { isAuthenticated } from "@variamosple/variamos-security";
 import { Router } from "express";
 import logger from "jet-logger";
@@ -11,7 +11,7 @@ import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 
 export const VISITS_V1_ROUTE = "/v1/visits";
 
-export function createVisitsRouter(visitsUseCases: VisitsUseCases): Router {
+export function createVisitsRouter(visitUseCase: VisitUseCase): Router {
   const visitsV1Router = Router();
 
   visitsV1Router.post("/", isAuthenticated, async (req, res) => {
@@ -35,7 +35,7 @@ export function createVisitsRouter(visitsUseCases: VisitsUseCases): Router {
       const permission: Visit = new Visit(pageId, user.id);
 
       const request = new RequestModel<Visit>(transactionId, permission);
-      const response = await visitsUseCases.registerVisit(request, ipAddress);
+      const response = await visitUseCase.registerVisit(request, ipAddress);
 
       const status = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(status).json(response);

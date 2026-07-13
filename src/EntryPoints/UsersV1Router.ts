@@ -2,7 +2,9 @@ import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { UserFilter } from "@src/Domain/User/Entity/UserFilter";
-import { UsersUseCases } from "@src/Domain/User/UserUseCases";
+import { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase";
+import { UserPasswordUseCase } from "@src/Domain/User/UseCase/UserPasswordUseCase";
+import { UserManagementUseCase } from "@src/Domain/User/UseCase/UserManagementUseCase";
 import { hasPermissions } from "@variamosple/variamos-security";
 import { Router } from "express";
 import logger from "jet-logger";
@@ -11,7 +13,12 @@ import { mapDomainErrorToHttpStatus } from "./errorMapper";
 
 export const USERS_V1_ROUTE = "/v1/users";
 
-export function createUsersRouter(usersUseCases: UsersUseCases, userRolesRouter: Router): Router {
+export function createUsersRouter(
+  userQueryUseCase: UserQueryUseCase,
+  userPasswordUseCase: UserPasswordUseCase,
+  userManagementUseCase: UserManagementUseCase,
+  userRolesRouter: Router,
+): Router {
   const router = Router();
 
   router.get("/", hasPermissions(["users::query"]), async (req, res) => {
@@ -26,7 +33,7 @@ export function createUsersRouter(usersUseCases: UsersUseCases, userRolesRouter:
         .build();
 
       const request = new RequestModel<UserFilter>(transactionId, filter);
-      const response = await usersUseCases.queryUsers(request);
+      const response = await userQueryUseCase.queryList(request);
 
       const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
       res.status(status).json(response);
@@ -47,7 +54,7 @@ export function createUsersRouter(usersUseCases: UsersUseCases, userRolesRouter:
 
     try {
       const request = new RequestModel<string>(transactionId, userId);
-      const response = await usersUseCases.queryById(request);
+      const response = await userQueryUseCase.queryById(request);
 
       const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
       res.status(status).json(response);
@@ -72,7 +79,7 @@ export function createUsersRouter(usersUseCases: UsersUseCases, userRolesRouter:
         userId,
         adminId,
       });
-      const response = await usersUseCases.generateRecoveryLink(request);
+      const response = await userPasswordUseCase.generateLink(request);
 
       const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
       res.status(status).json(response);
@@ -93,7 +100,7 @@ export function createUsersRouter(usersUseCases: UsersUseCases, userRolesRouter:
 
     try {
       const request = new RequestModel<string>(transactionId, userId);
-      const response = await usersUseCases.disableUser(request);
+      const response = await userManagementUseCase.disable(request);
 
       const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
       res.status(status).json(response);
@@ -114,7 +121,7 @@ export function createUsersRouter(usersUseCases: UsersUseCases, userRolesRouter:
 
     try {
       const request = new RequestModel<string>(transactionId, userId);
-      const response = await usersUseCases.enableUser(request);
+      const response = await userManagementUseCase.enable(request);
 
       const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
       res.status(status).json(response);
@@ -135,7 +142,7 @@ export function createUsersRouter(usersUseCases: UsersUseCases, userRolesRouter:
 
     try {
       const request = new RequestModel<string>(transactionId, userId);
-      const response = await usersUseCases.deleteUser(request);
+      const response = await userManagementUseCase.delete(request);
 
       const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
       res.status(status).json(response);

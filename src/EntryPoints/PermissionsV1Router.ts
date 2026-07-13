@@ -3,7 +3,7 @@ import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { Permission } from "@src/Domain/Permission/Entity/Permission";
 import { PermissionFilter } from "@src/Domain/Permission/Entity/PermissionFilter";
-import { PermissionsUseCases } from "@src/Domain/Permission/PermissionUseCases";
+import { PermissionUseCase } from "@src/Domain/Permission/UseCase/PermissionUseCase";
 import { hasPermissions } from "@variamosple/variamos-security";
 import { Router } from "express";
 import logger from "jet-logger";
@@ -12,7 +12,7 @@ import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 
 export const PERMISSIONS_V1_ROUTE = "/v1/permissions";
 
-export function createPermissionsRouter(permissionsUseCases: PermissionsUseCases): Router {
+export function createPermissionsRouter(permissionUseCase: PermissionUseCase): Router {
   const permissionsV1Router = Router();
 
   permissionsV1Router.get("/", hasPermissions(["permissions::query"]), async (req, res) => {
@@ -26,7 +26,7 @@ export function createPermissionsRouter(permissionsUseCases: PermissionsUseCases
         .build();
 
       const request = new RequestModel<PermissionFilter>(transactionId, filter);
-      const response = await permissionsUseCases.queryPermissions(request);
+      const response = await permissionUseCase.queryPermissions(request);
 
       const status = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(status).json(response);
@@ -71,7 +71,7 @@ export function createPermissionsRouter(permissionsUseCases: PermissionsUseCases
       }
 
       const request = new RequestModel<Permission>(transactionId, permission);
-      const response = await permissionsUseCases.createPermission(request);
+      const response = await permissionUseCase.createPermission(request);
 
       const status = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(status).json(response);
@@ -105,7 +105,7 @@ export function createPermissionsRouter(permissionsUseCases: PermissionsUseCases
         }
 
         const request = new RequestModel<number>(transactionId, +permissionId);
-        const response = await permissionsUseCases.deletePermission(request);
+        const response = await permissionUseCase.deletePermission(request);
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
@@ -141,7 +141,7 @@ export function createPermissionsRouter(permissionsUseCases: PermissionsUseCases
         }
 
         const request = new RequestModel<number>(transactionId, Number.parseInt(permissionId));
-        const response = await permissionsUseCases.queryById(request);
+        const response = await permissionUseCase.queryById(request);
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
@@ -202,7 +202,7 @@ export function createPermissionsRouter(permissionsUseCases: PermissionsUseCases
         }
 
         const request = new RequestModel<Permission>(transactionId, permission);
-        const response = await permissionsUseCases.updatePermission(request);
+        const response = await permissionUseCase.updatePermission(request);
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);

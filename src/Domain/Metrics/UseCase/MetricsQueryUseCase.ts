@@ -1,11 +1,11 @@
-import { DomainErrorCodes } from "../Core/Error/DomainErrorCodes";
-import { RequestModel } from "../Core/Entity/RequestModel";
-import { ResponseModel } from "../Core/Entity/ResponseModel";
-import { Metric } from "./Entity/Metric";
-import { MetricsFilter } from "./Entity/MetricsFilter";
-import { IMetricsRepository } from "./Repository/IMetricsRepository";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
+import { Metric } from "@src/Domain/Metrics/Entity/Metric";
+import { MetricsFilter } from "@src/Domain/Metrics/Entity/MetricsFilter";
+import { IMetricsRepository } from "@src/Domain/Metrics/Repository/IMetricsRepository";
 
-export class MetricsUseCases {
+export class MetricsQueryUseCase {
   public constructor(private readonly metricsRepository: IMetricsRepository) {}
 
   public getMetrics(request: RequestModel<void>): Promise<ResponseModel<Metric[]>> {

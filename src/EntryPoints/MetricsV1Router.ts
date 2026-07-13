@@ -1,7 +1,7 @@
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { MetricsFilter } from "@src/Domain/Metrics/Entity/MetricsFilter";
-import { MetricsUseCases } from "@src/Domain/Metrics/MetricsUseCases";
+import { MetricsQueryUseCase } from "@src/Domain/Metrics/UseCase/MetricsQueryUseCase";
 import { hasPermissions } from "@variamosple/variamos-security";
 
 import { Router } from "express";
@@ -12,7 +12,7 @@ import HttpStatusCodes from "@src/common/HttpStatusCodes";
 
 export const METRICS_V1_ROUTE = "/v1/metrics";
 
-export function createMetricsRouter(metricsUseCases: MetricsUseCases): Router {
+export function createMetricsRouter(metricsQueryUseCase: MetricsQueryUseCase): Router {
   const metricsV1Router = Router();
 
   metricsV1Router.get("/", hasPermissions(["metrics::query"]), async (_, res) => {
@@ -20,7 +20,7 @@ export function createMetricsRouter(metricsUseCases: MetricsUseCases): Router {
 
     try {
       const request = new RequestModel<void>(transactionId);
-      const response = await metricsUseCases.getMetrics(request);
+      const response = await metricsQueryUseCase.getMetrics(request);
 
       const status = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(status).json(response);
@@ -49,7 +49,7 @@ export function createMetricsRouter(metricsUseCases: MetricsUseCases): Router {
           .setEndDate(endDate as string)
           .build(),
       );
-      const response = await metricsUseCases.queryMetric(request);
+      const response = await metricsQueryUseCase.queryMetric(request);
 
       const status = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(status).json(response);

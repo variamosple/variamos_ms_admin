@@ -2,7 +2,8 @@ import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { MicroServiceFilter } from "@src/Domain/MicroService/Entity/MicroServiceFilter";
-import { MicroServiceUseCases } from "@src/Domain/MicroService/MicroServiceCases";
+import { MicroServiceQueryUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceQueryUseCase";
+import { MicroServiceManagementUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceManagementUseCase";
 import { hasPermissions } from "@variamosple/variamos-security";
 import { Router } from "express";
 import logger from "jet-logger";
@@ -11,7 +12,10 @@ import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 
 export const MICRO_SERVICES_V1_ROUTE = "/v1/micro-services";
 
-export function createMicroServicesRouter(microServiceUseCases: MicroServiceUseCases): Router {
+export function createMicroServicesRouter(
+  microServiceQueryUseCase: MicroServiceQueryUseCase,
+  microServiceManagementUseCase: MicroServiceManagementUseCase,
+): Router {
   const microServicesV1Router = Router();
 
   microServicesV1Router.get("/", hasPermissions(["micro-services::query"]), async (req, res) => {
@@ -26,7 +30,7 @@ export function createMicroServicesRouter(microServiceUseCases: MicroServiceUseC
         .build();
 
       const request = new RequestModel<MicroServiceFilter>(transactionId, filter);
-      const response = await microServiceUseCases.queryMicroServices(request);
+      const response = await microServiceQueryUseCase.queryMicroServices(request);
 
       const status = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(status).json(response);
@@ -50,7 +54,7 @@ export function createMicroServicesRouter(microServiceUseCases: MicroServiceUseC
 
       try {
         const request = new RequestModel<string>(transactionId, microserviceId);
-        const response = await microServiceUseCases.startMicroService(request);
+        const response = await microServiceManagementUseCase.startMicroService(request);
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
@@ -75,7 +79,7 @@ export function createMicroServicesRouter(microServiceUseCases: MicroServiceUseC
 
       try {
         const request = new RequestModel<string>(transactionId, microserviceId);
-        const response = await microServiceUseCases.restartMicroService(request);
+        const response = await microServiceManagementUseCase.restartMicroService(request);
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
@@ -100,7 +104,7 @@ export function createMicroServicesRouter(microServiceUseCases: MicroServiceUseC
 
       try {
         const request = new RequestModel<string>(transactionId, microserviceId);
-        const response = await microServiceUseCases.stopMicroService(request);
+        const response = await microServiceManagementUseCase.stopMicroService(request);
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
@@ -126,7 +130,7 @@ export function createMicroServicesRouter(microServiceUseCases: MicroServiceUseC
       try {
         const request = new RequestModel<string>(transactionId, microserviceId);
 
-        const response = await microServiceUseCases.watchMicroServiceLogs(request);
+        const response = await microServiceQueryUseCase.watchMicroServiceLogs(request);
 
         if (response.errorCode) {
           res.status(mapDomainErrorToHttpStatus(response.errorCode)).json(response);

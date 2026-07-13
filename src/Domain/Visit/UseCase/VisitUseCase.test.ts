@@ -1,26 +1,26 @@
 import { mock, MockProxy } from "jest-mock-extended";
-import { VisitsUseCases } from "./VisitUseCases";
-import { IVisitRepository } from "./Repository/IVisitRepository";
-import { ICountriesRepository } from "../Countries/Repository/ICountriesRepository";
-import { RequestModel } from "../Core/Entity/RequestModel";
-import { ResponseModel } from "../Core/Entity/ResponseModel";
-import { Visit } from "./Entity/Visit";
-import { DomainErrorCodes } from "../Core/Error/DomainErrorCodes";
+import { VisitUseCase } from "./VisitUseCase";
+import { IVisitRepository } from "@src/Domain/Visit/Repository/IVisitRepository";
+import { ICountriesRepository } from "@src/Domain/Countries/Repository/ICountriesRepository";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
+import { Visit } from "@src/Domain/Visit/Entity/Visit";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 
-describe("VisitsUseCases - Unit Tests", () => {
-  let useCases: VisitsUseCases;
+describe("VisitUseCase - Unit Tests", () => {
+  let useCase: VisitUseCase;
   let mockVisitRepository: MockProxy<IVisitRepository>;
   let mockCountriesRepository: MockProxy<ICountriesRepository>;
 
   beforeEach(() => {
     mockVisitRepository = mock<IVisitRepository>();
     mockCountriesRepository = mock<ICountriesRepository>();
-    useCases = new VisitsUseCases(mockVisitRepository, mockCountriesRepository);
+    useCase = new VisitUseCase(mockVisitRepository, mockCountriesRepository);
   });
 
   test("should return error if visit data is missing", async () => {
     const req = new RequestModel<Visit>("tx-1", undefined);
-    const res = await useCases.registerVisit(req);
+    const res = await useCase.registerVisit(req);
 
     expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
     expect(res.message).toBe("Visit data is required.");
@@ -36,7 +36,7 @@ describe("VisitsUseCases - Unit Tests", () => {
     mockCountriesRepository.getUserCountryCode.mockResolvedValue(mockErrorResponse);
 
     const req = new RequestModel<Visit>("tx-1", visit);
-    const res = await useCases.registerVisit(req);
+    const res = await useCase.registerVisit(req);
 
     expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
     expect(res.message).toBe("Database not responding");
@@ -53,7 +53,7 @@ describe("VisitsUseCases - Unit Tests", () => {
     mockVisitRepository.registerVisit.mockResolvedValue(mockRegisterResponse);
 
     const req = new RequestModel<Visit>("tx-1", visit);
-    const res = await useCases.registerVisit(req);
+    const res = await useCase.registerVisit(req);
 
     expect(res.data).toBe(mockSavedVisit);
     expect(mockCountriesRepository.getUserCountryCode).toHaveBeenCalledWith(
@@ -76,7 +76,7 @@ describe("VisitsUseCases - Unit Tests", () => {
     mockVisitRepository.registerVisit.mockResolvedValue(mockRegisterResponse);
 
     const req = new RequestModel<Visit>("tx-1", visit);
-    const res = await useCases.registerVisit(req, "192.168.1.1");
+    const res = await useCase.registerVisit(req, "192.168.1.1");
 
     expect(res.data).toBe(mockSavedVisit);
     expect(mockCountriesRepository.getIpCountryCode).toHaveBeenCalledWith(
@@ -93,7 +93,7 @@ describe("VisitsUseCases - Unit Tests", () => {
     mockCountriesRepository.getUserCountryCode.mockResolvedValue(mockErrorResponse);
 
     const req = new RequestModel<Visit>("tx-1", visit);
-    const res = await useCases.registerVisit(req);
+    const res = await useCase.registerVisit(req);
 
     expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
     expect(res.message).toBe("An unexpected error occurred");
@@ -112,7 +112,7 @@ describe("VisitsUseCases - Unit Tests", () => {
     mockVisitRepository.registerVisit.mockResolvedValue(mockRegisterResponse);
 
     const req = new RequestModel<Visit>("tx-1", visit);
-    const res = await useCases.registerVisit(req, "192.168.1.1");
+    const res = await useCase.registerVisit(req, "192.168.1.1");
 
     expect(res.data).toBe(mockSavedVisit);
     expect(visit.countryCode).toBeNull();

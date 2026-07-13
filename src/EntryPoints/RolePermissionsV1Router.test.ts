@@ -2,7 +2,7 @@ import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import express from "express";
 import supertest from "supertest";
 import { createRolePermissionsRouter } from "./RolePermissionsV1Router";
-import { RolePermissionUseCases } from "@src/Domain/Role/RolePermissionUseCases";
+import { RolePermissionUseCase } from "@src/Domain/Role/UseCase/RolePermissionUseCase";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import { RolePermission } from "@src/Domain/Role/Entity/RolePermission";
@@ -10,7 +10,7 @@ import { RolePermission } from "@src/Domain/Role/Entity/RolePermission";
 import { mock } from "jest-mock-extended";
 
 // Mock dependencies
-jest.mock("@src/Domain/Role/RolePermissionUseCases");
+jest.mock("@src/Domain/Role/UseCase/RolePermissionUseCase");
 jest.mock("@variamosple/variamos-security", () => ({
   hasPermissions: () => (_req: unknown, _res: unknown, next: () => void) => {
     next();
@@ -25,12 +25,10 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
   beforeAll(() => {
     app = express();
     app.use(express.json());
-    const mockRolePermissionUseCases = new RolePermissionUseCases(
-      mock<IRolePermissionRepository>(),
-    );
+    const mockRolePermissionUseCase = new RolePermissionUseCase(mock<IRolePermissionRepository>());
     app.use(
       "/v1/roles/:roleId/permissions",
-      createRolePermissionsRouter(mockRolePermissionUseCases),
+      createRolePermissionsRouter(mockRolePermissionUseCase),
     );
   });
 
@@ -41,7 +39,7 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
   describe("GET /v1/roles/:roleId/permissions", () => {
     it("should return 200 on success", async () => {
       const expectedResponse = new ResponseModel("queryRolePermissions").withResponse([]);
-      (RolePermissionUseCases.prototype.queryRolePermissions as jest.Mock).mockResolvedValue(
+      (RolePermissionUseCase.prototype.queryRolePermissions as jest.Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -50,7 +48,7 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
         .query({ pageNumber: 1, pageSize: 10 });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(RolePermissionUseCases.prototype.queryRolePermissions).toHaveBeenCalledTimes(1);
+      expect(RolePermissionUseCase.prototype.queryRolePermissions).toHaveBeenCalledTimes(1);
     });
 
     it("should return 400 when roleId is invalid", async () => {
@@ -64,7 +62,7 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
         DomainErrorCodes.INVALID_INPUT,
         "Query failed",
       );
-      (RolePermissionUseCases.prototype.queryRolePermissions as jest.Mock).mockResolvedValue(
+      (RolePermissionUseCase.prototype.queryRolePermissions as jest.Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -74,7 +72,7 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
     });
 
     it("should return 500 when query throws an exception", async () => {
-      (RolePermissionUseCases.prototype.queryRolePermissions as jest.Mock).mockRejectedValue(
+      (RolePermissionUseCase.prototype.queryRolePermissions as jest.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -88,7 +86,7 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
     it("should return 201 on success", async () => {
       const mockRolePerm = new RolePermission(1, 2);
       const expectedResponse = new ResponseModel("createRolePermission").withResponse(mockRolePerm);
-      (RolePermissionUseCases.prototype.createRolePermission as jest.Mock).mockResolvedValue(
+      (RolePermissionUseCase.prototype.createRolePermission as jest.Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -97,7 +95,7 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
         .send({ permissionId: 2 });
 
       expect(response.status).toBe(HttpStatusCodes.CREATED);
-      expect(RolePermissionUseCases.prototype.createRolePermission).toHaveBeenCalledTimes(1);
+      expect(RolePermissionUseCase.prototype.createRolePermission).toHaveBeenCalledTimes(1);
     });
 
     it("should return 400 when roleId is invalid", async () => {
@@ -119,7 +117,7 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
         DomainErrorCodes.DUPLICATE_ENTITY,
         "Already exists",
       );
-      (RolePermissionUseCases.prototype.createRolePermission as jest.Mock).mockResolvedValue(
+      (RolePermissionUseCase.prototype.createRolePermission as jest.Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -131,7 +129,7 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
     });
 
     it("should return 500 when create throws an exception", async () => {
-      (RolePermissionUseCases.prototype.createRolePermission as jest.Mock).mockRejectedValue(
+      (RolePermissionUseCase.prototype.createRolePermission as jest.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -146,14 +144,14 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
   describe("DELETE /v1/roles/:roleId/permissions/:permissionId", () => {
     it("should return 200 on success", async () => {
       const expectedResponse = new ResponseModel("deleteRolePermission").withResponse(null);
-      (RolePermissionUseCases.prototype.deleteRolePermission as jest.Mock).mockResolvedValue(
+      (RolePermissionUseCase.prototype.deleteRolePermission as jest.Mock).mockResolvedValue(
         expectedResponse,
       );
 
       const response = await supertest(app).delete("/v1/roles/1/permissions/2");
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(RolePermissionUseCases.prototype.deleteRolePermission).toHaveBeenCalledTimes(1);
+      expect(RolePermissionUseCase.prototype.deleteRolePermission).toHaveBeenCalledTimes(1);
     });
 
     it("should return 400 when roleId is invalid", async () => {
@@ -173,7 +171,7 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
         DomainErrorCodes.ENTITY_NOT_FOUND,
         "Not found",
       );
-      (RolePermissionUseCases.prototype.deleteRolePermission as jest.Mock).mockResolvedValue(
+      (RolePermissionUseCase.prototype.deleteRolePermission as jest.Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -183,7 +181,7 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
     });
 
     it("should return 500 when delete throws an exception", async () => {
-      (RolePermissionUseCases.prototype.deleteRolePermission as jest.Mock).mockRejectedValue(
+      (RolePermissionUseCase.prototype.deleteRolePermission as jest.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
