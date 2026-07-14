@@ -94,5 +94,16 @@ describe("UserQueryUseCase", () => {
       expect(res.data?.countryCode).toBe("FR");
       expect(res.data?.countryName).toBe("France");
     });
+
+    it("should return unchanged response if queryById returns response without data", async () => {
+      mockUserRepository.queryById.mockResolvedValue(
+        new ResponseModel<User>("tx-1").withResponse(null),
+      );
+
+      const req = new RequestModel<string>("tx-1", "user-123");
+      const res = await useCase.myAccount(req);
+
+      expect(res.data).toBeNull();
+    });
   });
 });

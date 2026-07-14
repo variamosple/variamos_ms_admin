@@ -45,7 +45,7 @@ export class UserAuthUseCase {
 
   public async getGuestData(request: RequestModel<string>): Promise<ResponseModel<User>> {
     let guestId = request.data || uuidv4();
-    let userExists = false;
+    let userExists: boolean;
     const response = new ResponseModel<User>(request.transactionId);
 
     do {
@@ -61,7 +61,7 @@ export class UserAuthUseCase {
         guestId = uuidv4();
       }
 
-      userExists = existsResponse.data || false;
+      userExists = existsResponse.data === true;
     } while (userExists);
 
     const role = await this.roleRepository.queryGuestRole(

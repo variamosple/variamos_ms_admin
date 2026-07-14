@@ -26,12 +26,14 @@ describe("BugQueryUseCase", () => {
       mockBugRepository.queryBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([]),
       );
+      mockGithubConfig.getGitHubManagedRepos.mockReturnValue(["VariaMos/VariaMosAdmin"]);
       const filter = new BugFilter("VariaMos/VariaMosAdmin");
       const request = new RequestModel("tx-id", filter);
       await useCase.queryBugs(request);
 
       expect(mockBugRepository.queryBugs).toHaveBeenCalledWith(request);
       expect(filter.managedRepos).toBeUndefined();
+      expect(mockGithubConfig.getGitHubManagedRepos).not.toHaveBeenCalled();
     });
 
     it("should set managedRepos if repo filter is missing in queryBugs", async () => {
@@ -41,6 +43,23 @@ describe("BugQueryUseCase", () => {
       mockGithubConfig.getGitHubManagedRepos.mockReturnValue(["VariaMos/VariaMosAdmin"]);
 
       const request = new RequestModel("tx-id", new BugFilter());
+      await useCase.queryBugs(request);
+
+      expect(mockBugRepository.queryBugs).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            managedRepos: ["VariaMos/VariaMosAdmin"],
+          }),
+        }),
+      );
+    });
+    it("should fallback to new BugFilter if request.data is missing", async () => {
+      mockBugRepository.queryBugs.mockResolvedValue(
+        new ResponseModel<Bug[]>("tx-id").withResponse([]),
+      );
+      mockGithubConfig.getGitHubManagedRepos.mockReturnValue(["VariaMos/VariaMosAdmin"]);
+
+      const request = new RequestModel<BugFilter>("tx-id", undefined);
       await useCase.queryBugs(request);
 
       expect(mockBugRepository.queryBugs).toHaveBeenCalledWith(

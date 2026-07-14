@@ -178,5 +178,46 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
       expect(res.errorCode).toBeUndefined();
       expect(mockMicroServiceRepository.restartMicroService).toHaveBeenCalledWith(req);
     });
+
+    test("should fallback to default error message if queryById returns error without message", async () => {
+      const mockQueryResponse = new ResponseModel<MicroService>("tx-1");
+      mockQueryResponse.errorCode = DomainErrorCodes.SYSTEM_ERROR;
+      mockQueryResponse.message = undefined;
+      mockMicroServiceRepository.queryById.mockResolvedValue(mockQueryResponse);
+
+      const req = new RequestModel<string>("tx-1", "ms-1");
+      const res = await useCase.restartMicroService(req);
+
+      expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
+      expect(res.message).toBe("An unexpected error occurred");
+    });
+  });
+
+  describe("start/stop fallback error messages", () => {
+    test("should fallback to default error message in startMicroService if queryById has no message", async () => {
+      const mockQueryResponse = new ResponseModel<MicroService>("tx-1");
+      mockQueryResponse.errorCode = DomainErrorCodes.SYSTEM_ERROR;
+      mockQueryResponse.message = undefined;
+      mockMicroServiceRepository.queryById.mockResolvedValue(mockQueryResponse);
+
+      const req = new RequestModel<string>("tx-1", "ms-1");
+      const res = await useCase.startMicroService(req);
+
+      expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
+      expect(res.message).toBe("An unexpected error occurred");
+    });
+
+    test("should fallback to default error message in stopMicroService if queryById has no message", async () => {
+      const mockQueryResponse = new ResponseModel<MicroService>("tx-1");
+      mockQueryResponse.errorCode = DomainErrorCodes.SYSTEM_ERROR;
+      mockQueryResponse.message = undefined;
+      mockMicroServiceRepository.queryById.mockResolvedValue(mockQueryResponse);
+
+      const req = new RequestModel<string>("tx-1", "ms-1");
+      const res = await useCase.stopMicroService(req);
+
+      expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
+      expect(res.message).toBe("An unexpected error occurred");
+    });
   });
 });

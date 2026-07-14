@@ -21,8 +21,8 @@ export class UserFilter extends PagedModel {
   public static build(builder: UserFilterBuilder): UserFilter {
     return new UserFilter(
       builder.id,
-      builder.name,
       builder.user,
+      builder.name,
       builder.email,
       builder.search,
       builder.pageNumber,

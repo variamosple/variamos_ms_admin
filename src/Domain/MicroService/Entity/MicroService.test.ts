@@ -21,19 +21,30 @@ describe("MicroService Entity - Unit Tests", () => {
     expect(service1.getState()).toBe("running");
     expect(service1.getStatus()).toBe("up");
 
-    const service2 = MicroService.builder()
+    const builder = MicroService.builder()
       .setId("service-2")
       .setNames(["auth"])
       .setCreated(validCreated)
       .setLabels(validLabels)
       .setState("stopped")
-      .setStatus("down")
-      .build();
+      .setStatus("down");
 
+    expect(builder.getId()).toBe("service-2");
+    expect(builder.getNames()).toEqual(["auth"]);
+    expect(builder.getCreated()).toBe(validCreated);
+    expect(builder.getLabels()).toBe(validLabels);
+    expect(builder.getState()).toBe("stopped");
+    expect(builder.getStatus()).toBe("down");
+
+    const service2 = builder.build();
     expect(service2.getId()).toBe("service-2");
     expect(service2.getNames()).toEqual(["auth"]);
     expect(service2.getState()).toBe("stopped");
     expect(service2.getStatus()).toBe("down");
+
+    const service3 = MicroService.build(builder);
+    expect(service3.getId()).toBe("service-2");
+    expect(service3.getNames()).toEqual(["auth"]);
   });
 
   it("should throw an error for empty ID", () => {

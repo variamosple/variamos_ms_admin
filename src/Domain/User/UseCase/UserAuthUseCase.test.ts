@@ -147,9 +147,73 @@ describe("UserAuthUseCase", () => {
       const req = new RequestModel<string>("tx-1", "existing-guest");
       const res = await useCase.getGuestData(req);
 
+      expect(res.data?.id).not.toBe("existing-guest");
       expect(res.data?.name).toBe("Guest");
+      expect(res.data?.user).toBe("Guest");
+      expect(res.data?.email).toBe("guest@variamos.com");
       expect(res.data?.roles).toContain("Guest");
       expect(res.data?.permissions).toContain("users::read");
+      expect(mockUserRepository.userExists).toHaveBeenCalledTimes(2);
+    });
+
+    it("should generate a random guest UUID if no id is provided in request", async () => {
+      mockUserRepository.userExists.mockResolvedValue(
+        new ResponseModel<boolean>("tx-1").withResponse(false),
+      );
+      mockRoleRepository.queryGuestRole.mockResolvedValue(
+        new ResponseModel<Role>("tx-1").withResponse(null),
+      );
+
+      const req = new RequestModel<string>("tx-1");
+      const res = await useCase.getGuestData(req);
+
+      const guestId = res.data?.id;
+      expect(guestId).toBeDefined();
+      expect(typeof guestId).toBe("string");
+      expect(guestId?.length).toBe(36); // UUID length
+      expect(res.data?.roles).toEqual([]);
+      expect(res.data?.permissions).toEqual([]);
+    });
+
+    it("should fallback to empty roles and permissions if guest role details are not found in DB", async () => {
+      mockUserRepository.userExists.mockResolvedValue(
+        new ResponseModel<boolean>("tx-1").withResponse(false),
+      );
+      mockRoleRepository.queryGuestRole.mockResolvedValue(
+        new ResponseModel<Role>("tx-1").withResponse(null),
+      );
+
+      const req = new RequestModel<string>("tx-1", "guest-user");
+      const res = await useCase.getGuestData(req);
+
+      expect(res.data?.id).toBe("guest-user");
+      expect(res.data?.roles).toEqual([]);
+      expect(res.data?.permissions).toEqual([]);
+    });
+
+    it("should return error if userExists check returns an error response", async () => {
+      const mockExistsResponse = new ResponseModel<boolean>("tx-1").withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Database issue",
+      );
+      mockUserRepository.userExists.mockResolvedValue(mockExistsResponse);
+
+      const req = new RequestModel<string>("tx-1", "guest-id");
+      const res = await useCase.getGuestData(req);
+
+      expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
+      expect(res.message).toBe("Database issue");
+    });
+  });
+
+  describe("signUp errors", () => {
+    it("should return error if signUp request data is missing", async () => {
+      const req = new RequestModel<UserRegistration>("tx-1");
+      const res = await useCase.signUp(req);
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(res.message).toBe(
+        "Full name, Email and password, and password confirmation are required.",
+      );
     });
   });
 });

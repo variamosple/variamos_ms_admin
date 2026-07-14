@@ -23,6 +23,7 @@ const config: Config = {
     "src/Domain/**/*.ts",
     "src/EntryPoints/**/*.ts",
     "!src/EntryPoints/index.ts",
+    "!src/Domain/Validations/ValidationMessages.ts",
     "!src/**/*.d.ts",
   ],
   coverageThreshold: {

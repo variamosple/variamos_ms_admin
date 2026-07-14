@@ -117,4 +117,41 @@ describe("VisitUseCase - Unit Tests", () => {
     expect(res.data).toBe(mockSavedVisit);
     expect(visit.countryCode).toBeNull();
   });
+
+  test("should not query IP country code if ipAddress is not provided", async () => {
+    const visit = new Visit("home", "user-123");
+    const mockUserCountryResponse = new ResponseModel<string>("tx-1").withResponse(null);
+    mockCountriesRepository.getUserCountryCode.mockResolvedValue(mockUserCountryResponse);
+
+    const mockSavedVisit = new Visit("home", "user-123", null);
+    const mockRegisterResponse = new ResponseModel<Visit>("tx-1").withResponse(mockSavedVisit);
+    mockVisitRepository.registerVisit.mockResolvedValue(mockRegisterResponse);
+
+    const req = new RequestModel<Visit>("tx-1", visit);
+    const res = await useCase.registerVisit(req, undefined);
+
+    expect(res.data).toBe(mockSavedVisit);
+    expect(mockCountriesRepository.getIpCountryCode).not.toHaveBeenCalled();
+  });
+
+  test("should fallback to null countryCode if ipCountryResponse is null", async () => {
+    const visit = new Visit("home", "user-123");
+    const mockUserCountryResponse = new ResponseModel<string>("tx-1").withResponse(null);
+    mockCountriesRepository.getUserCountryCode.mockResolvedValue(mockUserCountryResponse);
+
+    const getNullResponse = (): ResponseModel<string> | null => null;
+    mockCountriesRepository.getIpCountryCode.mockResolvedValue(
+      getNullResponse() as ResponseModel<string>,
+    );
+
+    const mockSavedVisit = new Visit("home", "user-123", null);
+    const mockRegisterResponse = new ResponseModel<Visit>("tx-1").withResponse(mockSavedVisit);
+    mockVisitRepository.registerVisit.mockResolvedValue(mockRegisterResponse);
+
+    const req = new RequestModel<Visit>("tx-1", visit);
+    const res = await useCase.registerVisit(req, "192.168.1.1");
+
+    expect(res.data).toBe(mockSavedVisit);
+    expect(visit.countryCode).toBeNull();
+  });
 });
