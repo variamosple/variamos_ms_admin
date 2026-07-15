@@ -53,19 +53,16 @@ jobs:
         cache-dependency-path: '**/package-lock.json'
 
     - name: Install dependencies
-      working-directory: ./variamos_ms_admin
       run: |
         npm ci
 
     - name: Run Stryker (Domain)
       if: ${{ inputs.partition == 'domain' || github.event_name == 'workflow_run' || inputs.partition == 'all' }}
-      working-directory: ./variamos_ms_admin
       run: |
         npx stryker run stryker.domain.config.json --reporters progress,clear-text,html,json || true
 
     - name: Run Stryker (EntryPoints)
       if: ${{ inputs.partition == 'entrypoints' || inputs.partition == 'all' }}
-      working-directory: ./variamos_ms_admin
       run: |
         npx stryker run stryker.entrypoints.config.json --reporters progress,clear-text,html,json || true
 
@@ -79,7 +76,7 @@ jobs:
           
           let score = null;
           try {
-            const reportPath = path.join(process.env.GITHUB_WORKSPACE, 'variamos_ms_admin/reports/mutation/mutation.json');
+            const reportPath = path.join(process.env.GITHUB_WORKSPACE, 'reports/mutation/mutation.json');
             if (fs.existsSync(reportPath)) {
               const data = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
               score = data.metrics.mutationScore;
