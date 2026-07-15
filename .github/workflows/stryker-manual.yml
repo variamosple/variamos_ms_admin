@@ -50,7 +50,7 @@ jobs:
       with:
         node-version: 20
         cache: 'npm'
-        cache-dependency-path: variamos_ms_admin/package-lock.json
+        cache-dependency-path: '**/package-lock.json'
 
     - name: Install dependencies
       working-directory: ./variamos_ms_admin
