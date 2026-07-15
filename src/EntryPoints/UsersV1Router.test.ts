@@ -1,5 +1,5 @@
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import supertest from "supertest";
 import { createUsersRouter } from "./UsersV1Router";
 import { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase";
@@ -19,12 +19,21 @@ interface CustomRequest {
   user?: { id: string };
 }
 
+const mockHasPermissions = jest.fn().mockImplementation((_permissions: string[]) => {
+  return (req: Request & CustomRequest, _res: Response, next: NextFunction) => {
+    req.user = {
+      id: "admin-id",
+      name: "Admin User",
+      email: "admin@example.com",
+      user: "admin",
+    };
+    next();
+  };
+});
+
 // Mock the hasPermissions middleware from security
 jest.mock("@variamosple/variamos-security", () => ({
-  hasPermissions: () => (req: unknown, _res: unknown, next: () => void) => {
-    (req as CustomRequest).user = { id: "admin-id" }; // Mock admin user for generateRecoveryLink
-    next();
-  },
+  hasPermissions: (permissions: string[]) => mockHasPermissions(permissions),
 }));
 
 interface TestApiResponse<T> {
@@ -39,6 +48,7 @@ import { UserPasswordUseCaseConfig } from "@src/Domain/User/UseCase/UserPassword
 
 describe("UsersV1Router Integration Tests - Extended Coverage", () => {
   let app: express.Application;
+  let permissionsCalls: string[][][];
 
   beforeAll(() => {
     app = express();
@@ -60,10 +70,24 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         mockUserRolesRouter,
       ),
     );
+    permissionsCalls = [...mockHasPermissions.mock.calls];
   });
 
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe("Route Permissions", () => {
+    it("should register routes with correct permissions", () => {
+      expect(permissionsCalls).toEqual([
+        [["users::query"]],
+        [["users::query"]],
+        [["users::update"]],
+        [["users::update"]],
+        [["users::update"]],
+        [["users::delete"]],
+      ]);
+    });
   });
 
   describe("GET /v1/users", () => {
@@ -82,6 +106,9 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
 
       const body = response.body as TestApiResponse<User[]>;
       expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(UserQueryUseCase.prototype.queryList).toHaveBeenCalledWith(
+        expect.objectContaining({ transactionId: "queryUsers" }),
+      );
       expect(body.data).toHaveLength(2);
       expect(body.data[0].id).toBe("1");
     });
@@ -96,6 +123,9 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).get("/v1/users");
 
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
+      expect(UserQueryUseCase.prototype.queryList).toHaveBeenCalledWith(
+        expect.objectContaining({ transactionId: "queryUsers" }),
+      );
     });
 
     it("should return 500 when query fails with database exception", async () => {
@@ -106,6 +136,9 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).get("/v1/users");
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(UserQueryUseCase.prototype.queryList).toHaveBeenCalledWith(
+        expect.objectContaining({ transactionId: "queryUsers" }),
+      );
     });
   });
 
@@ -124,6 +157,9 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
 
       const body = response.body as TestApiResponse<User>;
       expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(UserQueryUseCase.prototype.queryById).toHaveBeenCalledWith(
+        expect.objectContaining({ transactionId: "queryUserById" }),
+      );
       expect(body.data.id).toBe("123");
     });
 
@@ -137,6 +173,9 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).get("/v1/users/123");
 
       expect(response.status).toBe(HttpStatusCodes.NOT_FOUND);
+      expect(UserQueryUseCase.prototype.queryById).toHaveBeenCalledWith(
+        expect.objectContaining({ transactionId: "queryUserById" }),
+      );
     });
 
     it("should return 500 when queryById throws exception", async () => {
@@ -147,6 +186,9 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).get("/v1/users/123");
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(UserQueryUseCase.prototype.queryById).toHaveBeenCalledWith(
+        expect.objectContaining({ transactionId: "queryUserById" }),
+      );
     });
   });
 
@@ -164,6 +206,9 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
 
       const body = response.body as TestApiResponse<{ recoveryUrl: string }>;
       expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(UserPasswordUseCase.prototype.generateLink).toHaveBeenCalledWith(
+        expect.objectContaining({ transactionId: "generateRecoveryLink" }),
+      );
       expect(body.data.recoveryUrl).toContain("reset-password?token=some-token");
     });
 
@@ -177,6 +222,9 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).post("/v1/users/123/recovery-link");
 
       expect(response.status).toBe(HttpStatusCodes.NOT_FOUND);
+      expect(UserPasswordUseCase.prototype.generateLink).toHaveBeenCalledWith(
+        expect.objectContaining({ transactionId: "generateRecoveryLink" }),
+      );
     });
 
     it("should return 500 when generateRecoveryLink throws exception", async () => {
@@ -187,6 +235,9 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).post("/v1/users/123/recovery-link");
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(UserPasswordUseCase.prototype.generateLink).toHaveBeenCalledWith(
+        expect.objectContaining({ transactionId: "generateRecoveryLink" }),
+      );
     });
   });
 
@@ -203,6 +254,9 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).put("/v1/users/123/disable");
 
       expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(UserManagementUseCase.prototype.disable).toHaveBeenCalledWith(
+        expect.objectContaining({ transactionId: "disableUser" }),
+      );
     });
 
     it("should return error status code when disableUser fails", async () => {
@@ -215,6 +269,9 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).put("/v1/users/123/disable");
 
       expect(response.status).toBe(HttpStatusCodes.NOT_FOUND);
+      expect(UserManagementUseCase.prototype.disable).toHaveBeenCalledWith(
+        expect.objectContaining({ transactionId: "disableUser" }),
+      );
     });
 
     it("should return 500 when disableUser throws exception", async () => {
@@ -225,6 +282,9 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).put("/v1/users/123/disable");
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(UserManagementUseCase.prototype.disable).toHaveBeenCalledWith(
+        expect.objectContaining({ transactionId: "disableUser" }),
+      );
     });
   });
 
@@ -241,6 +301,9 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).put("/v1/users/123/enable");
 
       expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(UserManagementUseCase.prototype.enable).toHaveBeenCalledWith(
+        expect.objectContaining({ transactionId: "enableUser" }),
+      );
     });
 
     it("should return error status code when enableUser fails", async () => {
@@ -253,6 +316,9 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).put("/v1/users/123/enable");
 
       expect(response.status).toBe(HttpStatusCodes.NOT_FOUND);
+      expect(UserManagementUseCase.prototype.enable).toHaveBeenCalledWith(
+        expect.objectContaining({ transactionId: "enableUser" }),
+      );
     });
 
     it("should return 500 when enableUser throws exception", async () => {
@@ -263,6 +329,9 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).put("/v1/users/123/enable");
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(UserManagementUseCase.prototype.enable).toHaveBeenCalledWith(
+        expect.objectContaining({ transactionId: "enableUser" }),
+      );
     });
   });
 
@@ -279,6 +348,9 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).delete("/v1/users/123");
 
       expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(UserManagementUseCase.prototype.delete).toHaveBeenCalledWith(
+        expect.objectContaining({ transactionId: "deleteUser" }),
+      );
     });
 
     it("should return error status code when deleteUser fails", async () => {
@@ -291,6 +363,9 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).delete("/v1/users/123");
 
       expect(response.status).toBe(HttpStatusCodes.NOT_FOUND);
+      expect(UserManagementUseCase.prototype.delete).toHaveBeenCalledWith(
+        expect.objectContaining({ transactionId: "deleteUser" }),
+      );
     });
 
     it("should return 500 when deleteUser throws exception", async () => {
@@ -301,6 +376,9 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).delete("/v1/users/123");
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(UserManagementUseCase.prototype.delete).toHaveBeenCalledWith(
+        expect.objectContaining({ transactionId: "deleteUser" }),
+      );
     });
   });
 });

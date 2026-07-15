@@ -12,9 +12,10 @@ import { mock } from "jest-mock-extended";
 // Mock dependencies
 jest.mock("@src/Domain/Role/UseCase/RolePermissionUseCase");
 jest.mock("@variamosple/variamos-security", () => ({
-  hasPermissions: () => (_req: unknown, _res: unknown, next: () => void) => {
-    next();
-  },
+  hasPermissions:
+    () => (_req: express.Request, _res: express.Response, next: express.NextFunction) => {
+      next();
+    },
 }));
 
 import { IRolePermissionRepository } from "@src/Domain/Role/Repository/IRolePermissionRepository";
@@ -49,6 +50,9 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(RolePermissionUseCase.prototype.queryRolePermissions).toHaveBeenCalledTimes(1);
+      expect(RolePermissionUseCase.prototype.queryRolePermissions).toHaveBeenLastCalledWith(
+        expect.objectContaining({ transactionId: "queryRolePermissions" }),
+      );
     });
 
     it("should return 400 when roleId is invalid", async () => {
@@ -79,6 +83,9 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
       const response = await supertest(app).get("/v1/roles/1/permissions");
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body).toEqual(
+        expect.objectContaining({ transactionId: "queryRolePermissions" }),
+      );
     });
   });
 
@@ -96,6 +103,9 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
 
       expect(response.status).toBe(HttpStatusCodes.CREATED);
       expect(RolePermissionUseCase.prototype.createRolePermission).toHaveBeenCalledTimes(1);
+      expect(RolePermissionUseCase.prototype.createRolePermission).toHaveBeenLastCalledWith(
+        expect.objectContaining({ transactionId: "createRolePermission" }),
+      );
     });
 
     it("should return 400 when roleId is invalid", async () => {
@@ -138,6 +148,9 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
         .send({ permissionId: 2 });
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body).toEqual(
+        expect.objectContaining({ transactionId: "createRolePermission" }),
+      );
     });
   });
 
@@ -152,6 +165,9 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(RolePermissionUseCase.prototype.deleteRolePermission).toHaveBeenCalledTimes(1);
+      expect(RolePermissionUseCase.prototype.deleteRolePermission).toHaveBeenLastCalledWith(
+        expect.objectContaining({ transactionId: "deleteRolePermission" }),
+      );
     });
 
     it("should return 400 when roleId is invalid", async () => {
@@ -188,6 +204,9 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
       const response = await supertest(app).delete("/v1/roles/1/permissions/2");
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body).toEqual(
+        expect.objectContaining({ transactionId: "deleteRolePermission" }),
+      );
     });
   });
 });

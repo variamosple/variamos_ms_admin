@@ -93,7 +93,7 @@ export function createPermissionsRouter(permissionUseCase: PermissionUseCase): R
       const transactionId = "deletePermission";
       const permissionId = req.params.permissionId;
       try {
-        if (!permissionId || Number.isNaN(+permissionId)) {
+        if (!permissionId || Number.isNaN(Number(permissionId))) {
           return res
             .status(HttpStatusCodes.BAD_REQUEST)
             .json(
@@ -104,7 +104,7 @@ export function createPermissionsRouter(permissionUseCase: PermissionUseCase): R
             );
         }
 
-        const request = new RequestModel<number>(transactionId, +permissionId);
+        const request = new RequestModel<number>(transactionId, Number.parseInt(permissionId));
         const response = await permissionUseCase.deletePermission(request);
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);
@@ -129,7 +129,7 @@ export function createPermissionsRouter(permissionUseCase: PermissionUseCase): R
       const permissionId = req.params.permissionId;
 
       try {
-        if (!permissionId || Number.isNaN(+permissionId)) {
+        if (!permissionId || Number.isNaN(Number(permissionId))) {
           return res
             .status(HttpStatusCodes.BAD_REQUEST)
             .json(
@@ -165,7 +165,7 @@ export function createPermissionsRouter(permissionUseCase: PermissionUseCase): R
       const permissionId = req.params.permissionId;
       const { name } = req.body as { name?: string };
       try {
-        if (!permissionId || Number.isNaN(+permissionId)) {
+        if (!permissionId || Number.isNaN(Number(permissionId))) {
           return res
             .status(HttpStatusCodes.BAD_REQUEST)
             .json(

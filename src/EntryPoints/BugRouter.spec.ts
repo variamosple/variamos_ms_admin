@@ -35,6 +35,10 @@ import { BugSyncUseCase } from "@src/Domain/Bug/UseCase/BugSyncUseCase";
 import { BugQueryUseCase } from "@src/Domain/Bug/UseCase/BugQueryUseCase";
 import { BugAttachmentUseCase } from "@src/Domain/Bug/UseCase/BugAttachmentUseCase";
 import multer from "multer";
+import logger from "jet-logger";
+
+const mockLoggerInfo = jest.spyOn(logger, "info").mockImplementation();
+const mockLoggerErr = jest.spyOn(logger, "err").mockImplementation();
 
 const mockBugSubmissionUseCase = mock<BugSubmissionUseCase>();
 const mockBugLifecycleUseCase = mock<BugLifecycleUseCase>();
@@ -95,7 +99,11 @@ describe("BugRouter HTTP Integration Tests", () => {
       expect(res.status).toBe(200);
       expect(res.body.data).toHaveLength(1);
       expect(res.body.data[0].id).toBe("gh-1");
-      expect(mockBugQueryUseCase.queryBugs).toHaveBeenCalled();
+      expect(mockBugQueryUseCase.queryBugs).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionId: "queryBugs",
+        }),
+      );
     });
 
     it("should map domain error codes to correct HTTP error codes", async () => {
@@ -126,7 +134,11 @@ describe("BugRouter HTTP Integration Tests", () => {
 
       expect(res.status).toBe(200);
       expect(res.body.data[0].id).toBe("local-1");
-      expect(mockBugQueryUseCase.queryLocalBugs).toHaveBeenCalled();
+      expect(mockBugQueryUseCase.queryLocalBugs).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionId: "queryLocalBugs",
+        }),
+      );
     });
   });
 
@@ -143,6 +155,7 @@ describe("BugRouter HTTP Integration Tests", () => {
       expect(res.body.data.status).toBe("rejected");
       expect(mockBugLifecycleUseCase.rejectBug).toHaveBeenCalledWith(
         expect.objectContaining({
+          transactionId: "rejectBug",
           data: { id: "local-1", adminId: "admin-123" },
         }),
       );
@@ -176,6 +189,7 @@ describe("BugRouter HTTP Integration Tests", () => {
       expect(res.body.data.status).toBe("pending");
       expect(mockBugLifecycleUseCase.restoreBug).toHaveBeenCalledWith(
         expect.objectContaining({
+          transactionId: "restoreBug",
           data: { id: "local-1", adminId: "admin-123" },
         }),
       );
@@ -192,7 +206,11 @@ describe("BugRouter HTTP Integration Tests", () => {
 
       expect(res.status).toBe(200);
       expect(res.body.data).toEqual(["VariaMos/VariaMosAdmin"]);
-      expect(mockBugQueryUseCase.queryBugRepos).toHaveBeenCalled();
+      expect(mockBugQueryUseCase.queryBugRepos).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionId: "queryBugRepos",
+        }),
+      );
     });
 
     it("should return 400 when queryBugRepos throws an exception", async () => {
@@ -215,7 +233,11 @@ describe("BugRouter HTTP Integration Tests", () => {
 
       expect(res.status).toBe(200);
       expect(res.body.data).toEqual(["Editor", "Model"]);
-      expect(mockBugQueryUseCase.queryCategories).toHaveBeenCalled();
+      expect(mockBugQueryUseCase.queryCategories).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionId: "queryCategories",
+        }),
+      );
     });
 
     it("should return 400 when queryCategories throws an exception", async () => {
@@ -241,11 +263,47 @@ describe("BugRouter HTTP Integration Tests", () => {
         category: "Editor",
         priority: "medium",
         reporterEmail: "user@example.com",
+        githubRepo: "VariaMos/VariaMosAdmin",
       });
 
       expect(res.status).toBe(201); // created success code mapped to HttpStatusCodes.CREATED
       expect(res.body.data.id).toBe("local-new");
-      expect(mockBugSubmissionUseCase.createBug).toHaveBeenCalled();
+      expect(mockBugSubmissionUseCase.createBug).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionId: "createBug",
+          data: expect.objectContaining({
+            createdById: "admin-123",
+            reporterEmail: "user@example.com",
+            githubRepo: "VariaMos/VariaMosAdmin",
+          }),
+        }),
+      );
+    });
+
+    it("should trigger multer upload destination and filename logic when file is attached", async () => {
+      const newBug = Bug.builder().setId("local-file").build();
+      mockBugSubmissionUseCase.createBug.mockResolvedValue(
+        new ResponseModel<Bug>("tx-id").withResponse(newBug),
+      );
+
+      const res = await request(app)
+        .post("/bugs")
+        .attach("file", Buffer.from("dummy image content"), "screenshot.png")
+        .field("title", "Bug with image")
+        .field("description", "Desc")
+        .field("category", "Editor");
+
+      expect(res.status).toBe(201);
+      expect(mockBugSubmissionUseCase.createBug).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionId: "createBug",
+          data: expect.objectContaining({
+            file: expect.objectContaining({
+              mimetype: "image/png",
+            }),
+          }),
+        }),
+      );
     });
 
     it("should return 400 when creation throws an error", async () => {
@@ -268,7 +326,10 @@ describe("BugRouter HTTP Integration Tests", () => {
 
       expect(res.status).toBe(200);
       expect(mockBugQueryUseCase.queryHistory).toHaveBeenCalledWith(
-        expect.objectContaining({ data: "local-1" }),
+        expect.objectContaining({
+          transactionId: "queryHistory",
+          data: "local-1",
+        }),
       );
     });
 
@@ -289,20 +350,31 @@ describe("BugRouter HTTP Integration Tests", () => {
         new ResponseModel<Bug>("tx-id").withResponse(updatedBug),
       );
 
-      const res = await request(app)
-        .post("/bugs/local-1/status")
-        .send({ status: "closed", comment: "Issue resolved." });
+      const res = await request(app).post("/bugs/local-1/status").send({
+        status: "closed",
+        comment: "Issue resolved.",
+        title: "New Title",
+        description: "New Desc",
+        category: "Editor",
+        githubRepo: "VariaMos/VariaMosAdmin",
+      });
 
       expect(res.status).toBe(200);
       expect(res.body.data.status).toBe("closed");
       expect(mockBugLifecycleUseCase.updateStatus).toHaveBeenCalledWith(
         expect.objectContaining({
+          transactionId: "updateStatus",
           data: {
             id: "local-1",
             status: "closed",
             comment: "Issue resolved.",
             adminId: "admin-123",
             adminEmail: "admin@example.com",
+            title: "New Title",
+            description: "New Desc",
+            priority: undefined,
+            category: "Editor",
+            githubRepo: "VariaMos/VariaMosAdmin",
           },
         }),
       );
@@ -411,23 +483,6 @@ describe("BugRouter HTTP Integration Tests", () => {
       const res = await request(app).get("/bugs");
       expect(res.status).toBe(404);
     });
-
-    it("should trigger multer upload destination and filename logic when file is attached", async () => {
-      const newBug = Bug.builder().setId("local-file").build();
-      mockBugSubmissionUseCase.createBug.mockResolvedValue(
-        new ResponseModel<Bug>("tx-id").withResponse(newBug),
-      );
-
-      const res = await request(app)
-        .post("/bugs")
-        .attach("file", Buffer.from("dummy image content"), "screenshot.png")
-        .field("title", "Bug with image")
-        .field("description", "Desc")
-        .field("category", "Editor");
-
-      expect(res.status).toBe(201);
-      expect(mockBugSubmissionUseCase.createBug).toHaveBeenCalled();
-    });
   });
 
   describe("POST /bugs/sync integration and exceptions", () => {
@@ -440,6 +495,11 @@ describe("BugRouter HTTP Integration Tests", () => {
 
       expect(res.status).toBe(200);
       expect(res.body.message).toContain("synchronization completed successfully");
+      expect(mockBugSyncUseCase.syncBugs).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionId: "syncBugs",
+        }),
+      );
     });
 
     it("should return error if token is missing", async () => {
@@ -502,8 +562,11 @@ describe("BugRouter HTTP Integration Tests", () => {
       });
 
       expect(res.status).toBe(201);
+      expect(mockValidateSession).not.toHaveBeenCalled();
+      expect(mockLoggerInfo).toHaveBeenCalledWith("POST /bugs: Extracted token: none");
       expect(mockBugSubmissionUseCase.createBug).toHaveBeenCalledWith(
         expect.objectContaining({
+          transactionId: "createBug",
           data: expect.objectContaining({
             createdById: undefined,
           }),
@@ -531,8 +594,13 @@ describe("BugRouter HTTP Integration Tests", () => {
 
       expect(res.status).toBe(201);
       expect(mockValidateSession).toHaveBeenCalledWith("my-cool-cookie-token");
+      expect(mockLoggerInfo).toHaveBeenCalledWith(
+        "POST /bugs: Extracted token: my-cool-cookie-...",
+      );
+      expect(mockLoggerErr).not.toHaveBeenCalled();
       expect(mockBugSubmissionUseCase.createBug).toHaveBeenCalledWith(
         expect.objectContaining({
+          transactionId: "createBug",
           data: expect.objectContaining({
             createdById: "user-via-cookie",
           }),
@@ -560,8 +628,13 @@ describe("BugRouter HTTP Integration Tests", () => {
 
       expect(res.status).toBe(201);
       expect(mockValidateSession).toHaveBeenCalledWith("my-cool-header-token");
+      expect(mockLoggerInfo).toHaveBeenCalledWith(
+        "POST /bugs: Extracted token: my-cool-header-...",
+      );
+      expect(mockLoggerErr).not.toHaveBeenCalled();
       expect(mockBugSubmissionUseCase.createBug).toHaveBeenCalledWith(
         expect.objectContaining({
+          transactionId: "createBug",
           data: expect.objectContaining({
             createdById: "user-via-header",
           }),
@@ -587,9 +660,101 @@ describe("BugRouter HTTP Integration Tests", () => {
 
       expect(res.status).toBe(201);
       expect(mockValidateSession).toHaveBeenCalledWith("bad-token");
+      expect(mockLoggerErr).toHaveBeenCalled();
       // Fall back to guest (createdById is undefined)
       expect(mockBugSubmissionUseCase.createBug).toHaveBeenCalledWith(
         expect.objectContaining({
+          data: expect.objectContaining({
+            createdById: undefined,
+          }),
+        }),
+      );
+    });
+
+    it("should handle session validation returning null or empty data", async () => {
+      const newBug = Bug.builder().setId("local-guest").build();
+      mockBugSubmissionUseCase.createBug.mockResolvedValue(
+        new ResponseModel<Bug>("tx-id").withResponse(newBug),
+      );
+      mockValidateSession.mockResolvedValue(null);
+
+      const res = await request(guestApp)
+        .post("/bugs")
+        .set("Authorization", "Bearer token-no-data")
+        .send({
+          title: "Guest UI Crash",
+          description: "Desc",
+          category: "Editor",
+        });
+
+      expect(res.status).toBe(201);
+      expect(mockValidateSession).toHaveBeenCalledWith("token-no-data");
+      expect(mockLoggerErr).not.toHaveBeenCalled();
+      expect(mockBugSubmissionUseCase.createBug).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionId: "createBug",
+          data: expect.objectContaining({
+            createdById: undefined,
+          }),
+        }),
+      );
+    });
+
+    it("should handle session validation returning data without id or sub", async () => {
+      const newBug = Bug.builder().setId("local-guest").build();
+      mockBugSubmissionUseCase.createBug.mockResolvedValue(
+        new ResponseModel<Bug>("tx-id").withResponse(newBug),
+      );
+      mockValidateSession.mockResolvedValue({
+        data: {},
+      });
+
+      const res = await request(guestApp)
+        .post("/bugs")
+        .set("Authorization", "Bearer token-empty-data")
+        .send({
+          title: "Guest UI Crash",
+          description: "Desc",
+          category: "Editor",
+        });
+
+      expect(res.status).toBe(201);
+      expect(mockValidateSession).toHaveBeenCalledWith("token-empty-data");
+      expect(mockLoggerErr).not.toHaveBeenCalled();
+      expect(mockBugSubmissionUseCase.createBug).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionId: "createBug",
+          data: expect.objectContaining({
+            createdById: undefined,
+          }),
+        }),
+      );
+    });
+
+    it("should handle session validation returning empty string for id", async () => {
+      const newBug = Bug.builder().setId("local-guest").build();
+      mockBugSubmissionUseCase.createBug.mockResolvedValue(
+        new ResponseModel<Bug>("tx-id").withResponse(newBug),
+      );
+      mockValidateSession.mockResolvedValue({
+        data: { id: "", sub: "" },
+      });
+
+      const res = await request(guestApp)
+        .post("/bugs")
+        .set("Authorization", "Bearer token-empty-string-id")
+        .send({
+          title: "Guest UI Crash",
+          description: "Desc",
+          category: "Editor",
+        });
+
+      expect(res.status).toBe(201);
+      expect(mockValidateSession).toHaveBeenCalledWith("token-empty-string-id");
+      expect(mockLoggerErr).not.toHaveBeenCalled();
+      expect(mockBugSubmissionUseCase.createBug).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionId: "createBug",
           data: expect.objectContaining({
             createdById: undefined,
           }),
@@ -620,9 +785,12 @@ describe("BugRouter HTTP Integration Tests", () => {
         expect(res.body.data.id).toBe(1);
         expect(mockBugAttachmentUseCase.addAttachment).toHaveBeenCalledWith(
           expect.objectContaining({
+            transactionId: "addAttachment",
             data: expect.objectContaining({
               bugId: "local-1",
-              file: expect.any(Object),
+              file: expect.objectContaining({
+                mimetype: "image/png",
+              }),
             }),
           }),
         );
@@ -638,6 +806,13 @@ describe("BugRouter HTTP Integration Tests", () => {
         expect(res.status).toBe(400);
         expect(res.body.error).toBe("Upload failed");
       });
+
+      it("should return 400 when no file is attached", async () => {
+        const res = await request(app).post("/bugs/local-1/attachments").send();
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe("File attachment is required.");
+      });
     });
 
     describe("DELETE /bugs/attachments/:id", () => {
@@ -651,6 +826,7 @@ describe("BugRouter HTTP Integration Tests", () => {
         expect(res.status).toBe(200);
         expect(mockBugAttachmentUseCase.deleteAttachment).toHaveBeenCalledWith(
           expect.objectContaining({
+            transactionId: "deleteAttachment",
             data: "1",
           }),
         );
@@ -687,6 +863,7 @@ describe("BugRouter HTTP Integration Tests", () => {
         expect(res.body.data.id).toBe(10);
         expect(mockBugAttachmentUseCase.createNote).toHaveBeenCalledWith(
           expect.objectContaining({
+            transactionId: "createBugNote",
             data: {
               bugId: "local-1",
               body: "Hello note",
@@ -721,6 +898,7 @@ describe("BugRouter HTTP Integration Tests", () => {
         expect(res.body.data[0].id).toBe(10);
         expect(mockBugQueryUseCase.queryNotes).toHaveBeenCalledWith(
           expect.objectContaining({
+            transactionId: "queryBugNotes",
             data: "local-1",
           }),
         );

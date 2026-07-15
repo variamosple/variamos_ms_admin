@@ -120,7 +120,7 @@ export function createBugRouter(
     };
     let adminId: string | undefined = undefined;
     if ((req as RequestWithUser).user) {
-      adminId = (req as RequestWithUser).user?.id;
+      adminId = (req as RequestWithUser).user.id;
     } else {
       const token =
         (req.cookies?.authToken as string | undefined) || req.headers.authorization?.split(" ")[1];
@@ -157,7 +157,7 @@ export function createBugRouter(
         priority: resolvedPriority,
         category: category || "",
         githubRepo: githubRepo || undefined,
-        createdById: adminId || undefined,
+        createdById: adminId,
         reporterEmail: reporterEmail || undefined,
         file: req.file
           ? {
@@ -207,8 +207,8 @@ export function createBugRouter(
       category?: string;
       githubRepo?: string;
     };
-    const adminId = (req as RequestWithUser).user?.id || "";
-    const adminEmail = (req as RequestWithUser).user?.email || "";
+    const adminId = (req as RequestWithUser).user.id;
+    const adminEmail = (req as RequestWithUser).user.email || "";
 
     try {
       const validPriorities = ["low", "medium", "high"];
@@ -243,7 +243,7 @@ export function createBugRouter(
   router.post("/:id/restore", authMiddleware, async (req: Request, res: Response) => {
     const transactionId = "restoreBug";
     const { id } = req.params;
-    const adminId = (req as RequestWithUser).user?.id || "";
+    const adminId = (req as RequestWithUser).user.id;
 
     try {
       const payload = { id, adminId };
@@ -262,7 +262,7 @@ export function createBugRouter(
   router.post("/:id/reject", authMiddleware, async (req: Request, res: Response) => {
     const transactionId = "rejectBug";
     const { id } = req.params;
-    const adminId = (req as RequestWithUser).user?.id || "";
+    const adminId = (req as RequestWithUser).user.id;
 
     try {
       const payload = { id, adminId };
@@ -306,15 +306,17 @@ export function createBugRouter(
     async (req: Request, res: Response) => {
       const transactionId = "addAttachment";
       const { id } = req.params;
+      if (!req.file) {
+        res.status(HttpStatusCodes.BAD_REQUEST).json({ error: "File attachment is required." });
+        return;
+      }
       try {
         const payload = {
           bugId: id,
-          file: req.file
-            ? {
-                filename: req.file.filename,
-                mimetype: req.file.mimetype,
-              }
-            : null,
+          file: {
+            filename: req.file.filename,
+            mimetype: req.file.mimetype,
+          },
         };
         const request = new RequestModel<typeof payload>(transactionId, payload);
         const response = await bugAttachmentUseCase.addAttachment(request);
@@ -347,7 +349,7 @@ export function createBugRouter(
     const transactionId = "createBugNote";
     const { id } = req.params;
     const { body } = req.body as { body?: string };
-    const authorId = (req as RequestWithUser).user?.id || "";
+    const authorId = (req as RequestWithUser).user.id;
 
     try {
       const payload = { bugId: id, body: body || "", authorId };

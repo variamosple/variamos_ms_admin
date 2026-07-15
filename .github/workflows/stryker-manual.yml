@@ -1,0 +1,54 @@
+name: Manual Mutation Testing (Stryker)
+
+on:
+  workflow_dispatch:
+    inputs:
+      partition:
+        description: 'Which part of the codebase to run mutation tests on'
+        required: true
+        default: 'domain'
+        type: choice
+        options:
+          - domain
+          - entrypoints
+          - all
+
+jobs:
+  stryker:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: 'npm'
+        cache-dependency-path: variamos_ms_admin/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ./variamos_ms_admin
+      run: |
+        npm ci
+
+    - name: Run Stryker (Domain)
+      if: ${{ inputs.partition == 'domain' }}
+      working-directory: ./variamos_ms_admin
+      run: |
+        npm run stryker:domain
+
+    - name: Run Stryker (EntryPoints)
+      if: ${{ inputs.partition == 'entrypoints' }}
+      working-directory: ./variamos_ms_admin
+      run: |
+        npm run stryker:entrypoints
+
+    - name: Run Stryker (All)
+      if: ${{ inputs.partition == 'all' }}
+      working-directory: ./variamos_ms_admin
+      run: |
+        npm run stryker:domain && npm run stryker:entrypoints

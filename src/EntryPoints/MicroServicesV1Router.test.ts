@@ -14,9 +14,10 @@ import { mock } from "jest-mock-extended";
 jest.mock("@src/Domain/MicroService/UseCase/MicroServiceQueryUseCase");
 jest.mock("@src/Domain/MicroService/UseCase/MicroServiceManagementUseCase");
 jest.mock("@variamosple/variamos-security", () => ({
-  hasPermissions: () => (_req: unknown, _res: unknown, next: () => void) => {
-    next();
-  },
+  hasPermissions:
+    () => (_req: express.Request, _res: express.Response, next: express.NextFunction) => {
+      next();
+    },
 }));
 
 import { IMicroServiceRepository } from "@src/Domain/MicroService/Repository/IMicroServiceRepository";
@@ -54,6 +55,9 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(MicroServiceQueryUseCase.prototype.queryMicroServices).toHaveBeenCalledTimes(1);
+      expect(MicroServiceQueryUseCase.prototype.queryMicroServices).toHaveBeenLastCalledWith(
+        expect.objectContaining({ transactionId: "queryMicroService" }),
+      );
     });
 
     it("should return error status code when query fails", async () => {
@@ -78,6 +82,9 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).get("/v1/micro-services");
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body).toEqual(
+        expect.objectContaining({ transactionId: "queryMicroService" }),
+      );
     });
   });
 
@@ -92,6 +99,9 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(MicroServiceManagementUseCase.prototype.startMicroService).toHaveBeenCalledTimes(1);
+      expect(MicroServiceManagementUseCase.prototype.startMicroService).toHaveBeenLastCalledWith(
+        expect.objectContaining({ transactionId: "startMicroService" }),
+      );
     });
 
     it("should return error status code when start fails", async () => {
@@ -116,6 +126,9 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).put("/v1/micro-services/ms-123/start");
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body).toEqual(
+        expect.objectContaining({ transactionId: "startMicroService" }),
+      );
     });
   });
 
@@ -130,6 +143,9 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(MicroServiceManagementUseCase.prototype.restartMicroService).toHaveBeenCalledTimes(1);
+      expect(MicroServiceManagementUseCase.prototype.restartMicroService).toHaveBeenLastCalledWith(
+        expect.objectContaining({ transactionId: "restartMicroService" }),
+      );
     });
 
     it("should return error status code when restart fails", async () => {
@@ -154,6 +170,9 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).put("/v1/micro-services/ms-123/restart");
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body).toEqual(
+        expect.objectContaining({ transactionId: "restartMicroService" }),
+      );
     });
   });
 
@@ -168,6 +187,9 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(MicroServiceManagementUseCase.prototype.stopMicroService).toHaveBeenCalledTimes(1);
+      expect(MicroServiceManagementUseCase.prototype.stopMicroService).toHaveBeenLastCalledWith(
+        expect.objectContaining({ transactionId: "stopMicroService" }),
+      );
     });
 
     it("should return error status code when stop fails", async () => {
@@ -192,6 +214,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).put("/v1/micro-services/ms-123/stop");
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body).toEqual(expect.objectContaining({ transactionId: "stopMicroService" }));
     });
   });
 
@@ -217,6 +240,8 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         .buffer(true);
 
       expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(response.headers["transfer-encoding"]).toBe("chunked");
+      expect(response.headers["content-type"]).toBe("application/octet-stream");
       const logContent = (response.body as Buffer).toString("utf8");
       expect(logContent).toContain("log chunk 1");
       expect(logContent).toContain("log chunk 2");
@@ -278,6 +303,9 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).get("/v1/micro-services/ms-123/logs/watch");
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body).toEqual(
+        expect.objectContaining({ transactionId: "watchMicroServiceLogs" }),
+      );
     });
   });
 });

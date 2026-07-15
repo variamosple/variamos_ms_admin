@@ -54,7 +54,10 @@ describe("VisitsV1Router Integration Tests - Extended Coverage", () => {
         .send({ pageId: "home-page" });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(VisitUseCase.prototype.registerVisit).toHaveBeenCalledTimes(1);
+      expect(VisitUseCase.prototype.registerVisit).toHaveBeenCalledWith(
+        expect.objectContaining({ transactionId: "createVisit" }),
+        "127.0.0.1",
+      );
     });
 
     it("should return 200 on success when using fallback client ip", async () => {
@@ -65,7 +68,10 @@ describe("VisitsV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).post("/v1/visits").send({ pageId: "home-page" });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(VisitUseCase.prototype.registerVisit).toHaveBeenCalledTimes(1);
+      expect(VisitUseCase.prototype.registerVisit).toHaveBeenCalledWith(
+        expect.objectContaining({ transactionId: "createVisit" }),
+        expect.stringMatching(/^(::ffff:)?127\.0\.0\.1$/),
+      );
     });
 
     it("should return 400 when pageId is missing", async () => {

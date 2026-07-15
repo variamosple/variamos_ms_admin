@@ -11,9 +11,10 @@ import { mock } from "jest-mock-extended";
 // Mock dependencies
 jest.mock("@src/Domain/Metrics/UseCase/MetricsQueryUseCase");
 jest.mock("@variamosple/variamos-security", () => ({
-  hasPermissions: () => (_req: unknown, _res: unknown, next: () => void) => {
-    next();
-  },
+  hasPermissions:
+    () => (_req: express.Request, _res: express.Response, next: express.NextFunction) => {
+      next();
+    },
 }));
 
 interface SerializedMetric {
@@ -67,6 +68,9 @@ describe("MetricsV1Router Integration Tests", () => {
       const body = response.body as MetricsApiResponse;
       expect(body.data[0].id).toBe("metric-1");
       expect(MetricsQueryUseCase.prototype.getMetrics).toHaveBeenCalledTimes(1);
+      expect(MetricsQueryUseCase.prototype.getMetrics).toHaveBeenLastCalledWith(
+        expect.objectContaining({ transactionId: "getMetrics" }),
+      );
     });
 
     it("should return 500 when MetricsQueryUseCase throws an exception", async () => {
@@ -77,6 +81,7 @@ describe("MetricsV1Router Integration Tests", () => {
       const response = await supertest(app).get("/v1/metrics");
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body).toEqual(expect.objectContaining({ transactionId: "getMetrics" }));
     });
   });
 
@@ -100,6 +105,9 @@ describe("MetricsV1Router Integration Tests", () => {
       const body = response.body as SingleMetricApiResponse;
       expect(body.data.id).toBe("metric-1");
       expect(MetricsQueryUseCase.prototype.queryMetric).toHaveBeenCalledTimes(1);
+      expect(MetricsQueryUseCase.prototype.queryMetric).toHaveBeenLastCalledWith(
+        expect.objectContaining({ transactionId: "queryMetric" }),
+      );
     });
 
     it("should return 500 when queryMetric throws an exception", async () => {
@@ -110,6 +118,7 @@ describe("MetricsV1Router Integration Tests", () => {
       const response = await supertest(app).get("/v1/metrics/metric-1");
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body).toEqual(expect.objectContaining({ transactionId: "queryMetric" }));
     });
   });
 });

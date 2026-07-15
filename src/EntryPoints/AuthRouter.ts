@@ -44,8 +44,8 @@ export function createAuthRouter(
 
   const isExternalDomain = (host?: string): boolean => !!host && !HOME_URL_HOST_REGEX.test(host);
 
-  const isAllowedOrigin = (origin: string | undefined): boolean => {
-    if (!origin || "null" === origin) {
+  const isAllowedOrigin = (origin: string): boolean => {
+    if ("null" === origin) {
       return true;
     }
 
@@ -136,7 +136,7 @@ export function createAuthRouter(
         return res.status(200).json(
           response.withResponse({
             user: sessionInfoToSessionUser(user) as SessionUser,
-            redirect: redirect?.toString?.(),
+            redirect: redirect?.toString(),
           }),
         );
       }
@@ -168,9 +168,7 @@ export function createAuthRouter(
           );
       }
 
-      const userRoles = user.roles || [];
-
-      const isGuest = userRoles.find((role: string) => role.toLowerCase() === "guest");
+      const isGuest = user.roles?.some((role: string) => role.toLowerCase() === "guest") ?? false;
 
       const findSessionUserRequest = new RequestModel<string>("getSessionInfo", user.sub);
 
@@ -219,7 +217,7 @@ export function createAuthRouter(
               isExternalDomain(getUrl(response.transactionId || "", req.headers.origin)?.hostname)
                 ? token
                 : undefined,
-            redirect: redirect?.toString?.(),
+            redirect: redirect?.toString(),
           }),
         );
     } catch (error) {
@@ -474,7 +472,7 @@ export function createAuthRouter(
       try {
         const personalInformationUpdate = PersonalInformationUpdate.builder()
           .setUserId(user.id)
-          .setCountryCode(personalInformation?.countryCode)
+          .setCountryCode(personalInformation.countryCode)
           .build();
 
         const request = new RequestModel<PersonalInformationUpdate>(

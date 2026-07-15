@@ -1,10 +1,7 @@
 {
   "$schema": "https://schema.stryker-mutator.io/stryker-config.json",
   "mutate": [
-    "src/Domain/**/*.ts",
     "src/EntryPoints/**/*.ts",
-    "!src/Domain/**/Entity/*.ts",
-    "!src/Domain/**/*.{test,spec}.ts",
     "!src/EntryPoints/**/*.{test,spec}.ts"
   ],
   "testRunner": "jest",
@@ -23,6 +20,7 @@
   "incremental": true,
   "ignoreStatic": true,
   "coverageAnalysis": "perTest",
+  "incrementalFile": "reports/stryker-incremental-entrypoints.json",
   "thresholds": {
     "break": 60
   }

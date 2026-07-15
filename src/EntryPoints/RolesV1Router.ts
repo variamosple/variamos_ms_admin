@@ -98,7 +98,7 @@ export function createRolesRouter(
     const transactionId = "deleteRole";
     const roleId = req.params.roleId;
     try {
-      if (!roleId || Number.isNaN(+roleId)) {
+      if (!roleId || Number.isNaN(Number(roleId))) {
         return res
           .status(HttpStatusCodes.BAD_REQUEST)
           .json(
@@ -129,7 +129,7 @@ export function createRolesRouter(
     const transactionId = "queryRoleById";
     const roleId = req.params.roleId;
     try {
-      if (!roleId || Number.isNaN(+roleId)) {
+      if (!roleId || Number.isNaN(Number(roleId))) {
         return res
           .status(HttpStatusCodes.BAD_REQUEST)
           .json(
@@ -161,7 +161,7 @@ export function createRolesRouter(
     const roleId = req.params.roleId;
     const { name } = req.body as { name?: string };
     try {
-      if (!roleId || Number.isNaN(+roleId)) {
+      if (!roleId || Number.isNaN(Number(roleId))) {
         return res
           .status(HttpStatusCodes.BAD_REQUEST)
           .json(

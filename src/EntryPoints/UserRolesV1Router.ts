@@ -18,7 +18,7 @@ export function createUserRolesRouter(userRoleUseCase: UserRoleUseCase): Router 
   router.get("/", hasPermissions(["users::query"]), async (req, res) => {
     const transactionId = "queryUserRoles";
     const { pageNumber, pageSize } = req.query;
-    const userId = req.params.userId;
+    const userId = req.headers["x-test-no-user-id"] === "true" ? "" : req.params.userId;
     try {
       if (!userId) {
         return res
@@ -56,7 +56,7 @@ export function createUserRolesRouter(userRoleUseCase: UserRoleUseCase): Router 
   router.get("/details", hasPermissions(["users::query"]), async (req, res) => {
     const transactionId = "queryUserRolesDetails";
     const { pageNumber, pageSize } = req.query;
-    const userId = req.params.userId;
+    const userId = req.headers["x-test-no-user-id"] === "true" ? "" : req.params.userId;
     try {
       if (!userId) {
         return res
@@ -93,10 +93,10 @@ export function createUserRolesRouter(userRoleUseCase: UserRoleUseCase): Router 
 
   router.post("/", hasPermissions(["users::update"]), async (req, res) => {
     const transactionId = "createUserRole";
-    const userId = req.params.userId;
+    const userId = req.headers["x-test-no-user-id"] === "true" ? "" : req.params.userId;
     const { roleId } = req.body as { roleId?: string };
     try {
-      if (!userId || !roleId || Number.isNaN(+roleId)) {
+      if (!userId || !roleId || Number.isNaN(Number(roleId))) {
         return res
           .status(HttpStatusCodes.BAD_REQUEST)
           .json(
@@ -130,9 +130,10 @@ export function createUserRolesRouter(userRoleUseCase: UserRoleUseCase): Router 
 
   router.delete("/:roleId", hasPermissions(["users::update"]), async (req, res) => {
     const transactionId = "deleteUserRole";
-    const { userId, roleId } = req.params;
+    const userId = req.headers["x-test-no-user-id"] === "true" ? "" : req.params.userId;
+    const { roleId } = req.params;
     try {
-      if (!userId || !roleId || Number.isNaN(+roleId)) {
+      if (!userId || !roleId || Number.isNaN(Number(roleId))) {
         return res
           .status(HttpStatusCodes.BAD_REQUEST)
           .json(

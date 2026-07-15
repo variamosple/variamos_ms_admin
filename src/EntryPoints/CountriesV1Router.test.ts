@@ -10,7 +10,7 @@ import { mock } from "jest-mock-extended";
 // Mock dependencies
 jest.mock("@src/Domain/Countries/UseCase/CountriesQueryUseCase");
 jest.mock("@variamosple/variamos-security", () => ({
-  isAuthenticated: (_req: unknown, _res: unknown, next: () => void) => {
+  isAuthenticated: (_req: express.Request, _res: express.Response, next: express.NextFunction) => {
     next();
   },
 }));
@@ -50,6 +50,9 @@ describe("CountriesV1Router Integration Tests", () => {
       const body = response.body as CountriesApiResponse;
       expect(body.data).toEqual(mockCountries);
       expect(CountriesQueryUseCase.prototype.getCountries).toHaveBeenCalledTimes(1);
+      expect(CountriesQueryUseCase.prototype.getCountries).toHaveBeenLastCalledWith(
+        expect.objectContaining({ transactionId: "getCountries" }),
+      );
     });
 
     it("should return 500 when CountriesQueryUseCase throws an exception", async () => {
@@ -60,6 +63,7 @@ describe("CountriesV1Router Integration Tests", () => {
       const response = await supertest(app).get("/v1/countries");
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body).toEqual(expect.objectContaining({ transactionId: "getCountries" }));
     });
   });
 });

@@ -20,7 +20,7 @@ export function createRolePermissionsRouter(rolePermissionUseCase: RolePermissio
     const { pageNumber, pageSize } = req.query;
     const roleId = req.params.roleId;
     try {
-      if (!roleId || Number.isNaN(+roleId)) {
+      if (!roleId || Number.isNaN(Number(roleId))) {
         return res
           .status(HttpStatusCodes.BAD_REQUEST)
           .json(
@@ -58,7 +58,12 @@ export function createRolePermissionsRouter(rolePermissionUseCase: RolePermissio
     const roleId = req.params.roleId;
     const { permissionId } = req.body as { permissionId?: string };
     try {
-      if (!roleId || Number.isNaN(+roleId) || !permissionId || Number.isNaN(+permissionId)) {
+      if (
+        !roleId ||
+        Number.isNaN(Number(roleId)) ||
+        !permissionId ||
+        Number.isNaN(Number(permissionId))
+      ) {
         return res
           .status(HttpStatusCodes.BAD_REQUEST)
           .json(
@@ -99,7 +104,12 @@ export function createRolePermissionsRouter(rolePermissionUseCase: RolePermissio
       const transactionId = "deleteRolePermission";
       const { roleId, permissionId } = req.params;
       try {
-        if (!roleId || Number.isNaN(+roleId) || !permissionId || Number.isNaN(+permissionId)) {
+        if (
+          !roleId ||
+          Number.isNaN(Number(roleId)) ||
+          !permissionId ||
+          Number.isNaN(Number(permissionId))
+        ) {
           return res
             .status(HttpStatusCodes.BAD_REQUEST)
             .json(

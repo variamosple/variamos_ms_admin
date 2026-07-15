@@ -32,4 +32,8 @@ describe("errorMapper Unit Tests", () => {
       HttpStatusCodes.INTERNAL_SERVER_ERROR,
     );
   });
+
+  it("should return parsed number if errorCode is a numeric string", () => {
+    expect(mapDomainErrorToHttpStatus("404")).toBe(404);
+  });
 });

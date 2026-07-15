@@ -14,9 +14,10 @@ import { mock } from "jest-mock-extended";
 jest.mock("@src/Domain/Role/UseCase/RoleQueryUseCase");
 jest.mock("@src/Domain/Role/UseCase/RoleManagementUseCase");
 jest.mock("@variamosple/variamos-security", () => ({
-  hasPermissions: () => (_req: unknown, _res: unknown, next: () => void) => {
-    next();
-  },
+  hasPermissions:
+    () => (_req: express.Request, _res: express.Response, next: express.NextFunction) => {
+      next();
+    },
 }));
 
 import { IRoleRepository } from "@src/Domain/Role/Repository/IRoleRepository";
@@ -49,6 +50,9 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(RoleQueryUseCase.prototype.queryRoles).toHaveBeenCalledTimes(1);
+      expect(RoleQueryUseCase.prototype.queryRoles).toHaveBeenLastCalledWith(
+        expect.objectContaining({ transactionId: "queryRoles" }),
+      );
     });
 
     it("should return error status code when query fails", async () => {
@@ -71,6 +75,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).get("/v1/roles");
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body).toEqual(expect.objectContaining({ transactionId: "queryRoles" }));
     });
   });
 
@@ -84,6 +89,9 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
 
       expect(response.status).toBe(HttpStatusCodes.CREATED);
       expect(RoleManagementUseCase.prototype.createRole).toHaveBeenCalledTimes(1);
+      expect(RoleManagementUseCase.prototype.createRole).toHaveBeenLastCalledWith(
+        expect.objectContaining({ transactionId: "createRole" }),
+      );
     });
 
     it("should return 400 when name is missing", async () => {
@@ -112,6 +120,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).post("/v1/roles").send({ name: "Exception" });
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body).toEqual(expect.objectContaining({ transactionId: "createRole" }));
     });
   });
 
@@ -124,6 +133,9 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(RoleManagementUseCase.prototype.deleteRole).toHaveBeenCalledTimes(1);
+      expect(RoleManagementUseCase.prototype.deleteRole).toHaveBeenLastCalledWith(
+        expect.objectContaining({ transactionId: "deleteRole" }),
+      );
     });
 
     it("should return 400 when roleId is invalid", async () => {
@@ -152,6 +164,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).delete("/v1/roles/123");
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body).toEqual(expect.objectContaining({ transactionId: "deleteRole" }));
     });
   });
 
@@ -165,6 +178,9 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(RoleQueryUseCase.prototype.queryById).toHaveBeenCalledTimes(1);
+      expect(RoleQueryUseCase.prototype.queryById).toHaveBeenLastCalledWith(
+        expect.objectContaining({ transactionId: "queryRoleById" }),
+      );
     });
 
     it("should return 400 when roleId is invalid", async () => {
@@ -193,6 +209,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).get("/v1/roles/123");
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body).toEqual(expect.objectContaining({ transactionId: "queryRoleById" }));
     });
   });
 
@@ -206,6 +223,9 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(RoleManagementUseCase.prototype.updateRole).toHaveBeenCalledTimes(1);
+      expect(RoleManagementUseCase.prototype.updateRole).toHaveBeenLastCalledWith(
+        expect.objectContaining({ transactionId: "updateRole" }),
+      );
     });
 
     it("should return 400 when roleId is invalid", async () => {
@@ -240,6 +260,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).put("/v1/roles/123").send({ name: "Test" });
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body).toEqual(expect.objectContaining({ transactionId: "updateRole" }));
     });
   });
 });
