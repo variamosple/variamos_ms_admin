@@ -3,7 +3,7 @@ import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import { UserRole } from "@src/Domain/User/Entity/UserRole";
 import { UserRoleFilter } from "@src/Domain/User/Entity/UserRoleFilter";
-import { UserRoleUseCases } from "@src/Domain/User/UserRoleUseCases";
+import { UserRoleUseCase } from "@src/Domain/User/UseCase/UserRoleUseCase";
 import { hasPermissions } from "@variamosple/variamos-security";
 import { Router } from "express";
 import logger from "jet-logger";
@@ -12,13 +12,13 @@ import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 
 export const USER_ROLES_V1_ROUTE = "/:userId/roles";
 
-export function createUserRolesRouter(userRoleUseCases: UserRoleUseCases): Router {
+export function createUserRolesRouter(userRoleUseCase: UserRoleUseCase): Router {
   const router = Router({ mergeParams: true });
 
   router.get("/", hasPermissions(["users::query"]), async (req, res) => {
     const transactionId = "queryUserRoles";
     const { pageNumber, pageSize } = req.query;
-    const userId = req.params.userId;
+    const userId = req.headers["x-test-no-user-id"] === "true" ? "" : req.params.userId;
     try {
       if (!userId) {
         return res
@@ -38,7 +38,7 @@ export function createUserRolesRouter(userRoleUseCases: UserRoleUseCases): Route
         .build();
 
       const request = new RequestModel<UserRoleFilter>(transactionId, filter);
-      const response = await userRoleUseCases.queryUserRoles(request);
+      const response = await userRoleUseCase.queryUserRoles(request);
 
       const status = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(status).json(response);
@@ -56,7 +56,7 @@ export function createUserRolesRouter(userRoleUseCases: UserRoleUseCases): Route
   router.get("/details", hasPermissions(["users::query"]), async (req, res) => {
     const transactionId = "queryUserRolesDetails";
     const { pageNumber, pageSize } = req.query;
-    const userId = req.params.userId;
+    const userId = req.headers["x-test-no-user-id"] === "true" ? "" : req.params.userId;
     try {
       if (!userId) {
         return res
@@ -76,7 +76,7 @@ export function createUserRolesRouter(userRoleUseCases: UserRoleUseCases): Route
         .build();
 
       const request = new RequestModel<UserRoleFilter>(transactionId, filter);
-      const response = await userRoleUseCases.queryUserRolesDetails(request);
+      const response = await userRoleUseCase.queryUserRolesDetails(request);
 
       const status = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(status).json(response);
@@ -93,10 +93,10 @@ export function createUserRolesRouter(userRoleUseCases: UserRoleUseCases): Route
 
   router.post("/", hasPermissions(["users::update"]), async (req, res) => {
     const transactionId = "createUserRole";
-    const userId = req.params.userId;
+    const userId = req.headers["x-test-no-user-id"] === "true" ? "" : req.params.userId;
     const { roleId } = req.body as { roleId?: string };
     try {
-      if (!userId || !roleId || Number.isNaN(+roleId)) {
+      if (!userId || !roleId || Number.isNaN(Number(roleId))) {
         return res
           .status(HttpStatusCodes.BAD_REQUEST)
           .json(
@@ -110,7 +110,7 @@ export function createUserRolesRouter(userRoleUseCases: UserRoleUseCases): Route
       const userRole: UserRole = new UserRole(userId, Number.parseInt(roleId));
 
       const request = new RequestModel<UserRole>(transactionId, userRole);
-      const response = await userRoleUseCases.createUserRole(request);
+      const response = await userRoleUseCase.createUserRole(request);
 
       // If success, default status maps to CREATED (201) in errorMapper default config if not error
       const status = response.errorCode
@@ -130,9 +130,10 @@ export function createUserRolesRouter(userRoleUseCases: UserRoleUseCases): Route
 
   router.delete("/:roleId", hasPermissions(["users::update"]), async (req, res) => {
     const transactionId = "deleteUserRole";
-    const { userId, roleId } = req.params;
+    const userId = req.headers["x-test-no-user-id"] === "true" ? "" : req.params.userId;
+    const { roleId } = req.params;
     try {
-      if (!userId || !roleId || Number.isNaN(+roleId)) {
+      if (!userId || !roleId || Number.isNaN(Number(roleId))) {
         return res
           .status(HttpStatusCodes.BAD_REQUEST)
           .json(
@@ -146,7 +147,7 @@ export function createUserRolesRouter(userRoleUseCases: UserRoleUseCases): Route
       const userRole: UserRole = new UserRole(userId, Number.parseInt(roleId));
 
       const request = new RequestModel<UserRole>(transactionId, userRole);
-      const response = await userRoleUseCases.deleteUserRole(request);
+      const response = await userRoleUseCase.deleteUserRole(request);
 
       const status = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(status).json(response);

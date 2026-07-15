@@ -14,7 +14,8 @@
     "projectType": "custom",
     "configFile": "jest.config.ts",
     "config": {
-      "testMatch": ["**/src/**/*.spec.ts", "**/src/**/*.test.ts"]
+      "testMatch": ["**/src/**/*.spec.ts", "**/src/**/*.test.ts"],
+      "maxWorkers": 1
     }
   },
   "reporters": ["progress", "clear-text", "html"],

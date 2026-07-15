@@ -2,7 +2,7 @@ import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
 import express from "express";
 import supertest from "supertest";
 import { createVisitsRouter } from "./VisitsV1Router";
-import { VisitsUseCases } from "@src/Domain/Visit/VisitUseCases";
+import { VisitUseCase } from "@src/Domain/Visit/UseCase/VisitUseCase";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import { Visit } from "@src/Domain/Visit/Entity/Visit";
@@ -14,7 +14,7 @@ interface CustomRequest {
 }
 
 // Mock dependencies
-jest.mock("@src/Domain/Visit/VisitUseCases");
+jest.mock("@src/Domain/Visit/UseCase/VisitUseCase");
 jest.mock("@variamosple/variamos-security", () => ({
   isAuthenticated: (req: express.Request, _res: express.Response, next: () => void) => {
     (req as CustomRequest).user = { id: "user-123" };
@@ -31,11 +31,11 @@ describe("VisitsV1Router Integration Tests - Extended Coverage", () => {
   beforeAll(() => {
     app = express();
     app.use(express.json());
-    const mockVisitsUseCases = new VisitsUseCases(
+    const mockVisitUseCase = new VisitUseCase(
       mock<IVisitRepository>(),
       mock<ICountriesRepository>(),
     );
-    app.use("/v1/visits", createVisitsRouter(mockVisitsUseCases));
+    app.use("/v1/visits", createVisitsRouter(mockVisitUseCase));
   });
 
   beforeEach(() => {
@@ -46,7 +46,7 @@ describe("VisitsV1Router Integration Tests - Extended Coverage", () => {
     it("should return 200 on success when using x-forwarded-for header", async () => {
       const mockVisit = new Visit("home-page", "user-123");
       const expectedResponse = new ResponseModel("createVisit").withResponse(mockVisit);
-      (VisitsUseCases.prototype.registerVisit as jest.Mock).mockResolvedValue(expectedResponse);
+      (VisitUseCase.prototype.registerVisit as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
         .post("/v1/visits")
@@ -54,18 +54,24 @@ describe("VisitsV1Router Integration Tests - Extended Coverage", () => {
         .send({ pageId: "home-page" });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(VisitsUseCases.prototype.registerVisit).toHaveBeenCalledTimes(1);
+      expect(VisitUseCase.prototype.registerVisit).toHaveBeenCalledWith(
+        expect.objectContaining({ transactionId: "createVisit" }),
+        "127.0.0.1",
+      );
     });
 
     it("should return 200 on success when using fallback client ip", async () => {
       const mockVisit = new Visit("home-page", "user-123");
       const expectedResponse = new ResponseModel("createVisit").withResponse(mockVisit);
-      (VisitsUseCases.prototype.registerVisit as jest.Mock).mockResolvedValue(expectedResponse);
+      (VisitUseCase.prototype.registerVisit as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).post("/v1/visits").send({ pageId: "home-page" });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(VisitsUseCases.prototype.registerVisit).toHaveBeenCalledTimes(1);
+      expect(VisitUseCase.prototype.registerVisit).toHaveBeenCalledWith(
+        expect.objectContaining({ transactionId: "createVisit" }),
+        expect.stringMatching(/^(::ffff:)?127\.0\.0\.1$/),
+      );
     });
 
     it("should return 400 when pageId is missing", async () => {
@@ -77,9 +83,9 @@ describe("VisitsV1Router Integration Tests - Extended Coverage", () => {
     it("should return error status code when register fails", async () => {
       const expectedResponse = new ResponseModel("createVisit").withError(
         DomainErrorCodes.INVALID_INPUT,
-        "Register failed",
+        "register failed",
       );
-      (VisitsUseCases.prototype.registerVisit as jest.Mock).mockResolvedValue(expectedResponse);
+      (VisitUseCase.prototype.registerVisit as jest.Mock).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).post("/v1/visits").send({ pageId: "home-page" });
 
@@ -87,7 +93,7 @@ describe("VisitsV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when register throws an exception", async () => {
-      (VisitsUseCases.prototype.registerVisit as jest.Mock).mockRejectedValue(
+      (VisitUseCase.prototype.registerVisit as jest.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 

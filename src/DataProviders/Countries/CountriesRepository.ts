@@ -15,12 +15,13 @@ export class CountriesRepositoryImpl extends BaseRepository implements ICountrie
 
     try {
       response.data = await CountryModel.findAll().then((result) =>
-        result.map(({ code, name, latitude, longitude }) =>
+        result.map(({ code, name, latitude, longitude, code3 }) =>
           Country.builder()
             .setCode(code)
             .setName(name)
             .setLatitude(latitude)
             .setLongitude(longitude)
+            .setCode3(code3)
             .build(),
         ),
       );

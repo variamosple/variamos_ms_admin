@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schema.stryker-mutator.io/stryker-config.json",
+  "mutate": [
+    "src/EntryPoints/**/*.ts",
+    "!src/EntryPoints/**/*.{test,spec}.ts"
+  ],
+  "testRunner": "jest",
+  "checkers": ["typescript"],
+  "tsconfigFile": "tsconfig.json",
+  "jest": {
+    "projectType": "custom",
+    "configFile": "jest.config.ts",
+    "config": {
+      "testMatch": ["**/src/**/*.spec.ts", "**/src/**/*.test.ts"],
+      "maxWorkers": 1
+    }
+  },
+  "reporters": ["progress", "clear-text", "html"],
+  "concurrency": 2,
+  "incremental": true,
+  "ignoreStatic": true,
+  "coverageAnalysis": "perTest",
+  "incrementalFile": "reports/stryker-incremental-entrypoints.json",
+  "thresholds": {
+    "break": 60
+  }
+}

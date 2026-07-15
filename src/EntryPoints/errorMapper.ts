@@ -17,12 +17,11 @@ export function mapDomainErrorToHttpStatus(
       return HttpStatusCodes.INTERNAL_SERVER_ERROR;
     case DomainErrorCodes.DUPLICATE_ENTITY:
       return HttpStatusCodes.CONFLICT;
-    default:
+    default: {
       if (typeof errorCode === "number") return errorCode;
-      if (typeof errorCode === "string") {
-        const parsed = Number(errorCode);
-        if (!isNaN(parsed)) return parsed;
-      }
+      const parsed = Number(errorCode);
+      if (!isNaN(parsed)) return parsed;
       return HttpStatusCodes.INTERNAL_SERVER_ERROR;
+    }
   }
 }

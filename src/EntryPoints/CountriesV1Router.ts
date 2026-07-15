@@ -1,6 +1,6 @@
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { CountriesUseCases } from "@src/Domain/Countries/CountriesUseCases";
+import { CountriesQueryUseCase } from "@src/Domain/Countries/UseCase/CountriesQueryUseCase";
 
 import { isAuthenticated } from "@variamosple/variamos-security";
 import { Router } from "express";
@@ -11,7 +11,7 @@ import HttpStatusCodes from "@src/common/HttpStatusCodes";
 
 export const COUNTRIES_V1_ROUTE = "/v1/countries";
 
-export function createCountriesRouter(countriesUseCases: CountriesUseCases): Router {
+export function createCountriesRouter(countriesQueryUseCase: CountriesQueryUseCase): Router {
   const countriesV1Router = Router();
 
   countriesV1Router.get("/", isAuthenticated, async (_, res) => {
@@ -19,7 +19,7 @@ export function createCountriesRouter(countriesUseCases: CountriesUseCases): Rou
 
     try {
       const request = new RequestModel<void>(transactionId);
-      const response = await countriesUseCases.getCountries(request);
+      const response = await countriesQueryUseCase.getCountries(request);
 
       const status = mapDomainErrorToHttpStatus(response.errorCode);
 

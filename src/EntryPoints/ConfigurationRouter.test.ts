@@ -23,6 +23,7 @@ describe("ConfigurationRouter Integration Tests", () => {
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       const body = response.body as MenuApiResponse;
+      expect(response.body.transactionId).toBe("getMenu");
       expect(body.data).toBeDefined();
       expect(body.data.items).toBeDefined();
       expect(body.data.items.length).toBeGreaterThan(0);

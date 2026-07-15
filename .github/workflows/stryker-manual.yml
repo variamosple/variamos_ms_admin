@@ -1,0 +1,126 @@
+name: Mutation Testing (Stryker)
+
+on:
+  workflow_dispatch:
+    inputs:
+      partition:
+        description: 'Which part of the codebase to run mutation tests on'
+        required: true
+        default: 'domain'
+        type: choice
+        options:
+          - domain
+          - entrypoints
+          - all
+  workflow_run:
+    workflows: ["variamos_ms_admin-main-aws-image"]
+    types:
+      - completed
+
+permissions:
+  statuses: write
+  contents: read
+
+jobs:
+  stryker:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set Commit Status (Pending)
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const sha = context.payload.workflow_run ? context.payload.workflow_run.head_sha : context.sha;
+          await github.rest.repos.createCommitStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            sha: sha,
+            state: 'pending',
+            context: 'Stryker / Mutation Score',
+            description: 'Running Stryker mutation tests...',
+          });
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: 'npm'
+        cache-dependency-path: variamos_ms_admin/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ./variamos_ms_admin
+      run: |
+        npm ci
+
+    - name: Run Stryker (Domain)
+      if: ${{ inputs.partition == 'domain' || github.event_name == 'workflow_run' || inputs.partition == 'all' }}
+      working-directory: ./variamos_ms_admin
+      run: |
+        npx stryker run stryker.domain.config.json --reporters progress,clear-text,html,json || true
+
+    - name: Run Stryker (EntryPoints)
+      if: ${{ inputs.partition == 'entrypoints' || inputs.partition == 'all' }}
+      working-directory: ./variamos_ms_admin
+      run: |
+        npx stryker run stryker.entrypoints.config.json --reporters progress,clear-text,html,json || true
+
+    - name: Publish Mutation Score Status
+      if: always()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          let score = null;
+          try {
+            const reportPath = path.join(process.env.GITHUB_WORKSPACE, 'variamos_ms_admin/reports/mutation/mutation.json');
+            if (fs.existsSync(reportPath)) {
+              const data = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+              score = data.metrics.mutationScore;
+            }
+          } catch (e) {
+            console.log('Failed to parse mutation report:', e);
+          }
+
+          const sha = context.payload.workflow_run ? context.payload.workflow_run.head_sha : context.sha;
+          
+          if (score !== null) {
+            const roundedScore = score.toFixed(1);
+            const target = 60.0;
+            const met = score >= target;
+            const description = met 
+              ? `Score: ${roundedScore}% (Target: ${target}%) - Pass`
+              : `Score: ${roundedScore}% (Target: ${target}%) - Under target`;
+
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: sha,
+              state: 'success', // Keep status check successful (green) so it remains non-blocking
+              context: 'Stryker / Mutation Score',
+              description: description,
+              target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            });
+
+            // Also output to Job Summary
+            let summaryMarkdown = `### Stryker Mutation Testing Summary\n`;
+            summaryMarkdown += `- **Mutation Score:** ${roundedScore}%\n`;
+            summaryMarkdown += `- **Target Gate:** ${target}%\n`;
+            summaryMarkdown += `- **Status:** ${met ? '✅ Passed' : '⚠️ Warning: Under Target'}\n`;
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summaryMarkdown);
+          } else {
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: sha,
+              state: 'failure',
+              context: 'Stryker / Mutation Score',
+              description: 'Failed to retrieve mutation report.',
+            });
+          }

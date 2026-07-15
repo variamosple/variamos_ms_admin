@@ -3,12 +3,12 @@ export interface Labels {
 }
 
 export class MicroService {
-  private id: string;
-  private names: string[];
-  private created: Date;
-  private labels: Labels;
-  private state: string;
-  private status: string;
+  private readonly id: string;
+  private readonly names: string[];
+  private readonly created: Date;
+  private readonly labels: Labels;
+  private readonly state: string;
+  private readonly status: string;
 
   public constructor(
     id: string,
@@ -18,6 +18,19 @@ export class MicroService {
     state: string,
     status: string,
   ) {
+    if (!id || id.trim() === "") {
+      throw new Error("Microservice ID is required.");
+    }
+    if (!names || names.length === 0 || names.some((n) => !n || n.trim() === "")) {
+      throw new Error("Microservice names must be a non-empty list of non-empty strings.");
+    }
+    if (!state || state.trim() === "") {
+      throw new Error("Microservice state is required.");
+    }
+    if (!status || status.trim() === "") {
+      throw new Error("Microservice status is required.");
+    }
+
     this.id = id;
     this.names = names;
     this.created = created;
@@ -66,7 +79,7 @@ export class MicroService {
   }
 }
 
-class MicroServiceBuilder {
+export class MicroServiceBuilder {
   private id!: string;
   private names!: string[];
   private created!: Date;

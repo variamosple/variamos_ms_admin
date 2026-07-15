@@ -22,8 +22,8 @@ const config: Config = {
   collectCoverageFrom: [
     "src/Domain/**/*.ts",
     "src/EntryPoints/**/*.ts",
-    "!src/Domain/**/Entity/*.ts",
     "!src/EntryPoints/index.ts",
+    "!src/Domain/Validations/ValidationMessages.ts",
     "!src/**/*.d.ts",
   ],
   coverageThreshold: {

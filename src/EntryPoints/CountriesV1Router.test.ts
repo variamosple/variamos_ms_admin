@@ -1,16 +1,16 @@
 import express from "express";
 import supertest from "supertest";
 import { createCountriesRouter } from "./CountriesV1Router";
-import { CountriesUseCases } from "@src/Domain/Countries/CountriesUseCases";
+import { CountriesQueryUseCase } from "@src/Domain/Countries/UseCase/CountriesQueryUseCase";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
 
 import { mock } from "jest-mock-extended";
 
 // Mock dependencies
-jest.mock("@src/Domain/Countries/CountriesUseCases");
+jest.mock("@src/Domain/Countries/UseCase/CountriesQueryUseCase");
 jest.mock("@variamosple/variamos-security", () => ({
-  isAuthenticated: (_req: unknown, _res: unknown, next: () => void) => {
+  isAuthenticated: (_req: express.Request, _res: express.Response, next: express.NextFunction) => {
     next();
   },
 }));
@@ -27,8 +27,8 @@ describe("CountriesV1Router Integration Tests", () => {
   beforeAll(() => {
     app = express();
     app.use(express.json());
-    const mockCountriesUseCases = new CountriesUseCases(mock<ICountriesRepository>());
-    app.use("/v1/countries", createCountriesRouter(mockCountriesUseCases));
+    const mockCountriesUseCase = new CountriesQueryUseCase(mock<ICountriesRepository>());
+    app.use("/v1/countries", createCountriesRouter(mockCountriesUseCase));
   });
 
   beforeEach(() => {
@@ -40,24 +40,30 @@ describe("CountriesV1Router Integration Tests", () => {
       const mockCountries = ["Colombia", "France", "Spain"];
       const expectedResponse = new ResponseModel("getCountries").withResponse(mockCountries);
 
-      (CountriesUseCases.prototype.getCountries as jest.Mock).mockResolvedValue(expectedResponse);
+      (CountriesQueryUseCase.prototype.getCountries as jest.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app).get("/v1/countries");
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       const body = response.body as CountriesApiResponse;
       expect(body.data).toEqual(mockCountries);
-      expect(CountriesUseCases.prototype.getCountries).toHaveBeenCalledTimes(1);
+      expect(CountriesQueryUseCase.prototype.getCountries).toHaveBeenCalledTimes(1);
+      expect(CountriesQueryUseCase.prototype.getCountries).toHaveBeenLastCalledWith(
+        expect.objectContaining({ transactionId: "getCountries" }),
+      );
     });
 
-    it("should return 500 when CountriesUseCases throws an exception", async () => {
-      (CountriesUseCases.prototype.getCountries as jest.Mock).mockRejectedValue(
+    it("should return 500 when CountriesQueryUseCase throws an exception", async () => {
+      (CountriesQueryUseCase.prototype.getCountries as jest.Mock).mockRejectedValue(
         new Error("Database error"),
       );
 
       const response = await supertest(app).get("/v1/countries");
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body).toEqual(expect.objectContaining({ transactionId: "getCountries" }));
     });
   });
 });

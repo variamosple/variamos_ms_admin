@@ -68,4 +68,30 @@ describe("User Entity & Builder - Unit Tests", () => {
     expect(builder.getRoles()).toBe(roles);
     expect(builder.getPermissions()).toBe(permissions);
   });
+
+  test("should throw an error if name is empty or whitespaces", () => {
+    const builder = User.builder()
+      .setId("user-123")
+      .setUser("testuser")
+      .setName("   ")
+      .setEmail("test@example.com")
+      .setIsEnabled(true)
+      .setIsDeleted(false)
+      .setCreatedAt(new Date());
+
+    expect(() => builder.build()).toThrow("Name is required.");
+  });
+
+  test("should validate email format in constructor", () => {
+    const builder = User.builder()
+      .setId("user-123")
+      .setUser("testuser")
+      .setName("Test User")
+      .setEmail("invalid-email")
+      .setIsEnabled(true)
+      .setIsDeleted(false)
+      .setCreatedAt(new Date());
+
+    expect(() => builder.build()).toThrow("Invalid email format.");
+  });
 });
