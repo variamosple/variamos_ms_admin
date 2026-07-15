@@ -12,10 +12,8 @@ on:
           - domain
           - entrypoints
           - all
-  workflow_run:
-    workflows: ["variamos_ms_admin-main-aws-image"]
-    types:
-      - completed
+  schedule:
+    - cron: '0 4 * * *'
 
 permissions:
   statuses: write
@@ -31,11 +29,29 @@ jobs:
       with:
         fetch-depth: 0
 
+    - name: Check for commits in the last 24 hours
+      id: check_commits
+      run: |
+        if [ "${{ github.event_name }}" = "schedule" ]; then
+          # Count commits in the last 24 hours
+          COMMITS=$(git log --oneline --since="24 hours ago" | wc -l)
+          echo "Found $COMMITS commit(s) in the last 24 hours."
+          if [ "$COMMITS" -eq 0 ]; then
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          else
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "Manual trigger, running unconditionally."
+          echo "should_run=true" >> $GITHUB_OUTPUT
+        fi
+
     - name: Set Commit Status (Pending)
+      if: steps.check_commits.outputs.should_run == 'true'
       uses: actions/github-script@v6
       with:
         script: |
-          const sha = context.payload.workflow_run ? context.payload.workflow_run.head_sha : context.sha;
+          const sha = context.sha;
           await github.rest.repos.createCommitStatus({
             owner: context.repo.owner,
             repo: context.repo.repo,
@@ -46,28 +62,41 @@ jobs:
           });
 
     - name: Set up Node.js
+      if: steps.check_commits.outputs.should_run == 'true'
       uses: actions/setup-node@v4
       with:
         node-version: 20
         cache: 'npm'
         cache-dependency-path: '**/package-lock.json'
 
+    - name: Cache Stryker Incremental Data
+      if: steps.check_commits.outputs.should_run == 'true'
+      uses: actions/cache@v3
+      with:
+        path: |
+          reports/stryker-incremental-domain.json
+          reports/stryker-incremental-entrypoints.json
+        key: stryker-incremental-${{ github.sha }}
+        restore-keys: |
+          stryker-incremental-
+
     - name: Install dependencies
+      if: steps.check_commits.outputs.should_run == 'true'
       run: |
         npm ci
 
     - name: Run Stryker (Domain)
-      if: ${{ inputs.partition == 'domain' || github.event_name == 'workflow_run' || inputs.partition == 'all' }}
+      if: ${{ steps.check_commits.outputs.should_run == 'true' && (inputs.partition == 'domain' || github.event_name == 'schedule' || inputs.partition == 'all') }}
       run: |
         npx stryker run stryker.domain.config.json --reporters progress,clear-text,html,json || true
 
     - name: Run Stryker (EntryPoints)
-      if: ${{ inputs.partition == 'entrypoints' || inputs.partition == 'all' }}
+      if: ${{ steps.check_commits.outputs.should_run == 'true' && (inputs.partition == 'entrypoints' || inputs.partition == 'all') }}
       run: |
         npx stryker run stryker.entrypoints.config.json --reporters progress,clear-text,html,json || true
 
     - name: Publish Mutation Score Status
-      if: always()
+      if: ${{ always() && steps.check_commits.outputs.should_run == 'true' }}
       uses: actions/github-script@v6
       with:
         script: |
@@ -85,7 +114,7 @@ jobs:
             console.log('Failed to parse mutation report:', e);
           }
 
-          const sha = context.payload.workflow_run ? context.payload.workflow_run.head_sha : context.sha;
+          const sha = context.sha;
           
           if (score !== null) {
             const roundedScore = score.toFixed(1);
