@@ -29,6 +29,10 @@ export class UserQueryUseCase {
           .setUser(response.data.user)
           .setCountryCode(response.data.countryCode)
           .setCountryName(response.data.countryName)
+          .setIsEnabled(response.data.isEnabled)
+          .setIsDeleted(response.data.isDeleted)
+          .setCreatedAt(response.data.createdAt)
+          .setLastLogin(response.data.lastLogin)
           .build();
       }
       return response;

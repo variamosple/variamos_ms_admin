@@ -70,8 +70,17 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
         offset: (pageNumber - 1) * pageSize,
         order: [["name", "ASC"]],
       }).then((res) =>
-        res.map(({ id, user, name, email }) =>
-          User.builder().setId(id).setUser(user).setName(name).setEmail(email).build(),
+        res.map(({ id, user, name, email, isEnabled, isDeleted, createdAt, lastLogin }) =>
+          User.builder()
+            .setId(id)
+            .setUser(user)
+            .setName(name)
+            .setEmail(email)
+            .setIsEnabled(isEnabled ?? true)
+            .setIsDeleted(isDeleted ?? false)
+            .setCreatedAt(createdAt ?? new Date())
+            .setLastLogin(lastLogin)
+            .build(),
         ),
       );
     } catch (error) {

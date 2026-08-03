@@ -19,8 +19,8 @@ export class CountriesRepositoryImpl extends BaseRepository implements ICountrie
           Country.builder()
             .setCode(code)
             .setName(name)
-            .setLatitude(latitude)
-            .setLongitude(longitude)
+            .setLatitude(Number(latitude))
+            .setLongitude(Number(longitude))
             .setCode3(code3)
             .build(),
         ),

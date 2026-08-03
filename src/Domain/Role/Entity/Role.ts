@@ -6,12 +6,12 @@ export class Role {
   public readonly name: string;
   public readonly permissions?: Permission[];
 
-  private static readonly ROLE_NAME_REGEX = /^[A-Z][a-z]*(?:\s[a-z]+)*$/;
+  private static readonly ROLE_NAME_REGEX = /^[A-Z][a-z]*(?:\s[A-Za-z][a-z]*)*$/;
 
   public constructor(id: Nullable<number>, name: string, permissions?: Permission[]) {
     if (!name || !Role.ROLE_NAME_REGEX.test(name)) {
       throw new Error(
-        "Role name must start with an uppercase letter, and subsequent words must be lowercase.",
+        "Role name must start with an uppercase letter, and subsequent words must start with a letter.",
       );
     }
     this.id = id;

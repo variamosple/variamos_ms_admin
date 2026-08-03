@@ -91,7 +91,7 @@ const MENU: Menu = {
   options: [
     {
       title: "My account",
-      location: "https://app.variamos.com/variamos_admin/#/my-account",
+      location: "/variamos_admin/#/my-account",
       allowedPermissions: ["my-account::query"],
     },
     {
@@ -142,10 +142,19 @@ const MENU: Menu = {
 export function createConfigurationRouter(): Router {
   const configurationV1Router = Router();
 
-  configurationV1Router.get("/menu", (_: Request, res) => {
+  configurationV1Router.get("/menu", (req: Request, res) => {
     const response = new ResponseModel<Menu>("getMenu");
 
-    res.status(200).json(response.withResponse(MENU));
+    const menuCopy = JSON.parse(JSON.stringify(MENU)) as Menu;
+    const referer = req.headers.referer || "";
+    const hasAdminSubpath = referer.includes("/variamos_admin/");
+
+    const myAccountOption = menuCopy.options?.find((opt) => opt.title === "My account");
+    if (myAccountOption) {
+      myAccountOption.location = hasAdminSubpath ? "/variamos_admin/#/my-account" : "/my-account";
+    }
+
+    res.status(200).json(response.withResponse(menuCopy));
   });
 
   return configurationV1Router;
