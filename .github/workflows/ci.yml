@@ -45,7 +45,7 @@ jobs:
         npx prettier --check "src/**/*.ts"
 
     - name: Cache ESLint
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: .eslintcache
         key: ${{ runner.os }}-eslint-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
