@@ -46,7 +46,7 @@
     "cookie-parser": "~1.4.4",
     "cors": "^2.8.5",
     "dockerode": "^5.0.1",
-    "dotenv": "^16.4.5",
+    "dotenv": "^17.4.2",
     "express": "^4.21.0",
     "express-async-errors": "^3.1.1",
     "google-auth-library": "^9.14.1",
