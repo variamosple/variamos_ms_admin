@@ -96,7 +96,7 @@
     "jest-mock-extended": "^4.0.1",
     "knip": "^6.24.0",
     "lint-staged": "^16.4.0",
-    "nodemon": "^3.1.4",
+    "nodemon": "^3.1.14",
     "prettier": "^3.9.6",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.11",
