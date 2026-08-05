@@ -71,7 +71,7 @@ jobs:
 
     - name: Cache Stryker Incremental Data
       if: steps.check_commits.outputs.should_run == 'true'
-      uses: actions/cache@v3
+      uses: actions/cache@v6
       with:
         path: |
           reports/stryker-incremental-domain.json
