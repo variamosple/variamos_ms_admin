@@ -1,6 +1,14 @@
 name: Backend CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-test:
@@ -23,6 +31,11 @@ jobs:
       run: |
         npm ci
 
+    - name: Verify commit message format
+      if: github.event_name == 'pull_request'
+      run: |
+        npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
+
     - name: Audit npm dependencies for high vulnerabilities
       run: |
         npm audit --audit-level=high
@@ -31,9 +44,18 @@ jobs:
       run: |
         npx prettier --check "src/**/*.ts"
 
+    - name: Cache ESLint
+      uses: actions/cache@v4
+      with:
+        path: .eslintcache
+        key: ${{ runner.os }}-eslint-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-eslint-${{ hashFiles('package-lock.json') }}-
+          ${{ runner.os }}-eslint-
+
     - name: Run linter (ESLint)
       run: |
-        npm run lint
+        npm run lint -- --cache --cache-location .eslintcache
 
     - name: Verify TypeScript types
       run: |
@@ -46,6 +68,10 @@ jobs:
     - name: Run unit tests
       run: |
         npm run test
+
+    - name: Verify production build
+      run: |
+        npm run build
 
     - name: Run TruffleHog Secret Scan
       uses: trufflesecurity/trufflehog@main

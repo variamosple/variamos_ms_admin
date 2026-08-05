@@ -121,3 +121,46 @@ docker network connect variamos <container-name>
 ```
 
 Replace `<container-name>` with the name of your PostgreSQL container.
+
+---
+
+## Code Quality & Testing
+
+We enforce strict quality control and clean architecture boundaries using several tooling scripts.
+
+### Code Quality Checks
+
+- **Linting & Formatting**: Analyze code syntax and auto-fix simple styling violations:
+  ```shell
+  npm run lint
+  ```
+- **Type Checking**: Validate TypeScript compilation without emitting output:
+  ```shell
+  npm run typecheck
+  ```
+- **Clean Architecture Boundaries**: Ensure proper dependency rules are followed between layers (Domain, Infrastructure, EntryPoints) using dependency-cruiser:
+  ```shell
+  npm run check-arch
+  ```
+
+### Testing Suite
+
+*For detailed specifications, testing layers, and mutation testing guidelines, see the [Backend Testing & Mutation Guide](README-tests.md).*
+
+- **Run Tests**: Execute the unit and integration test suite:
+  ```shell
+  npm run test
+  ```
+- **Run Tests with Coverage**: Generate HTML and terminal coverage reports:
+  ```shell
+  npm run test:coverage
+  ```
+- **Mutation Testing (Stryker)**: Validate the quality and robustness of your test assertions by injecting mutants into the code:
+  - Run mutation tests on Domain Logic:
+    ```shell
+    npm run stryker:domain
+    ```
+  - Run mutation tests on EntryPoints:
+    ```shell
+    npm run stryker:entrypoints
+    ```
