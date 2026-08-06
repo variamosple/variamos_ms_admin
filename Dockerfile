@@ -1,5 +1,5 @@
 # FROM node:lts-bullseye-slim
-FROM node:20-alpine
+FROM node:24-alpine
 
 WORKDIR /variaMosAdminService
 COPY ./tsconfig.prod.json ./tsconfig.prod.json

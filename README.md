@@ -4,7 +4,7 @@
 
 ### Prerequisites
 
-- Node.js version 18 or greater
+- Node.js version 24 or greater
 - PostgreSQL database
 
 ### Configuration
