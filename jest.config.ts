@@ -3,7 +3,7 @@ import * as dotenv from "dotenv";
 import * as path from "path";
 
 // Load the test environment variables before anything else
-dotenv.config({ path: path.join(__dirname, "env/test.env") });
+dotenv.config({ path: path.join(process.cwd(), "env/test.env") });
 
 const config: Config = {
   preset: "ts-jest",

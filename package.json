@@ -36,7 +36,7 @@
     "@src": "dist"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=24.0.0"
   },
   "dependencies": {
     "@variamosple/variamos-security": "^0.0.15",
@@ -107,5 +107,12 @@
   "overrides": {
     "uuid": "^11.1.1",
     "qs": "^6.15.2"
+  },
+  "allowScripts": {
+    "bcrypt@6.0.0": true,
+    "cpu-features@0.0.10": true,
+    "protobufjs@7.6.5": true,
+    "ssh2@1.17.0": true,
+    "unrs-resolver@1.12.2": true
   }
 }
