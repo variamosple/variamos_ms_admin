@@ -6,8 +6,12 @@
 
 // NOTE: DO NOT IMPORT ANY SOURCE CODE HERE
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import { parse } from "ts-command-line-args";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // **** Types **** //
 

@@ -1,7 +1,11 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { IStorageService } from "@src/Domain/Core/Service/IStorageService.js";
 import logger from "jet-logger";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export class DiskStorageService implements IStorageService {
   public async deleteFile(filePath: string): Promise<void> {

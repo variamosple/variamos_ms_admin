@@ -60,6 +60,22 @@ jobs:
       run: |
         npm run build
 
+    - name: Build Docker image for testing
+      run: |
+        docker build -t backend-test .
+
+    - name: Run Docker container smoke test
+      run: |
+        docker run -d --name test-app -p 4000:4000 backend-test
+        sleep 5
+        if [ "$(docker inspect -f '{{.State.Running}}' test-app)" != "true" ]; then
+          echo "Error: Container crashed on startup!"
+          docker logs test-app
+          exit 1
+        fi
+        docker stop test-app
+        docker rm test-app
+
     - name: Run TruffleHog Secret Scan
       uses: trufflesecurity/trufflehog@main
       with:
