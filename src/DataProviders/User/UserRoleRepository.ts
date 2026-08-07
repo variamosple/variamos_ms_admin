@@ -1,22 +1,25 @@
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Role } from "@src/Domain/Role/Entity/Role";
-import { Permission } from "@src/Domain/Permission/Entity/Permission";
+import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import { Permission } from "@src/Domain/Permission/Entity/Permission.js";
+import { Role } from "@src/Domain/Role/Entity/Role.js";
 
-import { UserRole } from "@src/Domain/User/Entity/UserRole";
-import { UserRoleFilter } from "@src/Domain/User/Entity/UserRoleFilter";
-import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
+import { UserRole } from "@src/Domain/User/Entity/UserRole.js";
+import type { UserRoleFilter } from "@src/Domain/User/Entity/UserRoleFilter.js";
+import type { IUserRoleRepository } from "@src/Domain/User/Repository/IUserRoleRepository.js";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM.js";
 import logger from "jet-logger";
 import { QueryTypes } from "sequelize";
-import { BaseRepository } from "../BaseRepository";
-import { PermissionModel } from "../Permission/Permission";
-import { RoleModel } from "../Role/Role";
-import { UserModel } from "./User";
-import { UserRoleModel } from "./UserRole";
-import { IUserRoleRepository } from "@src/Domain/User/Repository/IUserRoleRepository";
+import { BaseRepository } from "../BaseRepository.js";
+import { PermissionModel } from "../Permission/Permission.js";
+import { RoleModel } from "../Role/Role.js";
+import { UserModel } from "./User.js";
+import { UserRoleModel } from "./UserRole.js";
 
-export class UserRoleRepositoryImpl extends BaseRepository implements IUserRoleRepository {
+export class UserRoleRepositoryImpl
+  extends BaseRepository
+  implements IUserRoleRepository
+{
   public async queryUserRoles(
     request: RequestModel<UserRoleFilter>,
   ): Promise<ResponseModel<Role[]>> {
@@ -47,7 +50,6 @@ export class UserRoleRepositoryImpl extends BaseRepository implements IUserRoleR
         return countObj ? Number(countObj.count) : 0;
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       response.data = await VARIAMOS_ORM.query<RoleModel>(
         `
         SELECT r.*
@@ -66,7 +68,10 @@ export class UserRoleRepositoryImpl extends BaseRepository implements IUserRoleR
       logger.err("Error in queryUserRoles:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
@@ -99,12 +104,16 @@ export class UserRoleRepositoryImpl extends BaseRepository implements IUserRoleR
         attributes: ["id", "name"],
       }).then((roles) =>
         roles.map((role) => {
-          const typedRole = role as RoleModel & { permissions?: PermissionModel[] };
+          const typedRole = role as RoleModel & {
+            permissions?: PermissionModel[];
+          };
           return new Role(
             typedRole.id,
             typedRole.name,
             typedRole.permissions
-              ? typedRole.permissions.map(({ id, name }) => new Permission(id, name))
+              ? typedRole.permissions.map(
+                  ({ id, name }) => new Permission(id, name),
+                )
               : undefined,
           );
         }),
@@ -114,19 +123,27 @@ export class UserRoleRepositoryImpl extends BaseRepository implements IUserRoleR
       logger.err("Error in queryUserRolesDetails:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
   }
 
-  public async createUserRole(request: RequestModel<UserRole>): Promise<ResponseModel<UserRole>> {
+  public async createUserRole(
+    request: RequestModel<UserRole>,
+  ): Promise<ResponseModel<UserRole>> {
     const response = new ResponseModel<UserRole>(request.transactionId);
 
     try {
       const { data } = request;
       if (!data) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "UserRole data is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "UserRole data is required.",
+        );
       }
 
       const userId = data.userId;
@@ -160,19 +177,27 @@ export class UserRoleRepositoryImpl extends BaseRepository implements IUserRoleR
       logger.err("Error in createUserRole:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
   }
 
-  public async deleteUserRole(request: RequestModel<UserRole>): Promise<ResponseModel<void>> {
+  public async deleteUserRole(
+    request: RequestModel<UserRole>,
+  ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
 
     try {
       const { data } = request;
       if (!data) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "UserRole data is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "UserRole data is required.",
+        );
       }
 
       const userId = data.userId;
@@ -192,7 +217,10 @@ export class UserRoleRepositoryImpl extends BaseRepository implements IUserRoleR
       logger.err("Error in deleteUserRole:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;

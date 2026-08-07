@@ -1,5 +1,8 @@
+import type {
+  GitHubIssue,
+  IIssueTrackerService,
+} from "@src/Domain/Core/Service/IIssueTrackerService.js";
 import axios from "axios";
-import { IIssueTrackerService, GitHubIssue } from "@src/Domain/Core/Service/IIssueTrackerService";
 import logger from "jet-logger";
 
 interface GitHubError {
@@ -79,11 +82,19 @@ export class GitHubIssuesService implements IIssueTrackerService {
     }
   }
 
-  public async closeIssue(repo: string, issueNumber: number, token: string): Promise<boolean> {
+  public async closeIssue(
+    repo: string,
+    issueNumber: number,
+    token: string,
+  ): Promise<boolean> {
     const url = `https://api.github.com/repos/${repo}/issues/${issueNumber}`;
 
     try {
-      await axios.patch(url, { state: "closed" }, { headers: this.getHeaders(token) });
+      await axios.patch(
+        url,
+        { state: "closed" },
+        { headers: this.getHeaders(token) },
+      );
       return true;
     } catch (error) {
       const err = error as GitHubError;
@@ -93,11 +104,19 @@ export class GitHubIssuesService implements IIssueTrackerService {
     }
   }
 
-  public async reopenIssue(repo: string, issueNumber: number, token: string): Promise<boolean> {
+  public async reopenIssue(
+    repo: string,
+    issueNumber: number,
+    token: string,
+  ): Promise<boolean> {
     const url = `https://api.github.com/repos/${repo}/issues/${issueNumber}`;
 
     try {
-      await axios.patch(url, { state: "open" }, { headers: this.getHeaders(token) });
+      await axios.patch(
+        url,
+        { state: "open" },
+        { headers: this.getHeaders(token) },
+      );
       return true;
     } catch (error) {
       const err = error as GitHubError;
@@ -107,7 +126,10 @@ export class GitHubIssuesService implements IIssueTrackerService {
     }
   }
 
-  public async getIssues(repo: string, token: string): Promise<GitHubIssue[] | null> {
+  public async getIssues(
+    repo: string,
+    token: string,
+  ): Promise<GitHubIssue[] | null> {
     const url = `https://api.github.com/repos/${repo}/issues?state=all&per_page=100`;
 
     try {

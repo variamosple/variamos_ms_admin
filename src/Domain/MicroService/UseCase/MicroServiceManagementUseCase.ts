@@ -1,12 +1,16 @@
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { IMicroServiceRepository } from "@src/Domain/MicroService/Repository/IMicroServiceRepository";
+import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import type { IMicroServiceRepository } from "@src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 
 export class MicroServiceManagementUseCase {
-  public constructor(private readonly microServiceRepository: IMicroServiceRepository) {}
+  public constructor(
+    private readonly microServiceRepository: IMicroServiceRepository,
+  ) {}
 
-  public async startMicroService(request: RequestModel<string>): Promise<ResponseModel<void>> {
+  public async startMicroService(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<void>> {
     const defaultResponse = new ResponseModel<void>(request.transactionId);
     if (!request.data) {
       return defaultResponse.withError(
@@ -15,7 +19,8 @@ export class MicroServiceManagementUseCase {
       );
     }
 
-    const microserviceResponse = await this.microServiceRepository.queryById(request);
+    const microserviceResponse =
+      await this.microServiceRepository.queryById(request);
 
     if (microserviceResponse.errorCode) {
       return defaultResponse.withError(
@@ -34,7 +39,9 @@ export class MicroServiceManagementUseCase {
     return this.microServiceRepository.startMicroService(request);
   }
 
-  public async stopMicroService(request: RequestModel<string>): Promise<ResponseModel<void>> {
+  public async stopMicroService(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<void>> {
     const defaultResponse = new ResponseModel<void>(request.transactionId);
     if (!request.data) {
       return defaultResponse.withError(
@@ -43,7 +50,8 @@ export class MicroServiceManagementUseCase {
       );
     }
 
-    const microserviceResponse = await this.microServiceRepository.queryById(request);
+    const microserviceResponse =
+      await this.microServiceRepository.queryById(request);
 
     if (microserviceResponse.errorCode) {
       return defaultResponse.withError(
@@ -62,7 +70,9 @@ export class MicroServiceManagementUseCase {
     return this.microServiceRepository.stopMicroService(request);
   }
 
-  public async restartMicroService(request: RequestModel<string>): Promise<ResponseModel<void>> {
+  public async restartMicroService(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<void>> {
     const defaultResponse = new ResponseModel<void>(request.transactionId);
     if (!request.data) {
       return defaultResponse.withError(
@@ -71,7 +81,8 @@ export class MicroServiceManagementUseCase {
       );
     }
 
-    const microserviceResponse = await this.microServiceRepository.queryById(request);
+    const microserviceResponse =
+      await this.microServiceRepository.queryById(request);
 
     if (microserviceResponse.errorCode) {
       return defaultResponse.withError(

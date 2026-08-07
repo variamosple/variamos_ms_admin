@@ -1,11 +1,11 @@
-import { mock, MockProxy } from "jest-mock-extended";
-import { VisitUseCase } from "./VisitUseCase";
-import { IVisitRepository } from "@src/Domain/Visit/Repository/IVisitRepository";
-import { ICountriesRepository } from "@src/Domain/Countries/Repository/ICountriesRepository";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Visit } from "@src/Domain/Visit/Entity/Visit";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ICountriesRepository } from "@src/Domain/Countries/Repository/ICountriesRepository.js";
+import { Visit } from "@src/Domain/Visit/Entity/Visit.js";
+import type { IVisitRepository } from "@src/Domain/Visit/Repository/IVisitRepository.js";
+import { type MockProxy, mock } from "vitest-mock-extended";
+import { VisitUseCase } from "./VisitUseCase.js";
 
 describe("VisitUseCase - Unit Tests", () => {
   let useCase: VisitUseCase;
@@ -33,7 +33,9 @@ describe("VisitUseCase - Unit Tests", () => {
       DomainErrorCodes.SYSTEM_ERROR,
       "Database not responding",
     );
-    mockCountriesRepository.getUserCountryCode.mockResolvedValue(mockErrorResponse);
+    mockCountriesRepository.getUserCountryCode.mockResolvedValue(
+      mockErrorResponse,
+    );
 
     const req = new RequestModel<Visit>("tx-1", visit);
     const res = await useCase.registerVisit(req);
@@ -45,11 +47,17 @@ describe("VisitUseCase - Unit Tests", () => {
 
   test("should register visit successfully using user country code", async () => {
     const visit = new Visit("home", "user-123");
-    const mockCountryResponse = new ResponseModel<string>("tx-1").withResponse("FR");
-    mockCountriesRepository.getUserCountryCode.mockResolvedValue(mockCountryResponse);
+    const mockCountryResponse = new ResponseModel<string>("tx-1").withResponse(
+      "FR",
+    );
+    mockCountriesRepository.getUserCountryCode.mockResolvedValue(
+      mockCountryResponse,
+    );
 
     const mockSavedVisit = new Visit("home", "user-123", "FR");
-    const mockRegisterResponse = new ResponseModel<Visit>("tx-1").withResponse(mockSavedVisit);
+    const mockRegisterResponse = new ResponseModel<Visit>("tx-1").withResponse(
+      mockSavedVisit,
+    );
     mockVisitRepository.registerVisit.mockResolvedValue(mockRegisterResponse);
 
     const req = new RequestModel<Visit>("tx-1", visit);
@@ -65,14 +73,24 @@ describe("VisitUseCase - Unit Tests", () => {
 
   test("should fallback to IP country code when user country code is null and ipAddress is provided", async () => {
     const visit = new Visit("home", "user-123");
-    const mockUserCountryResponse = new ResponseModel<string>("tx-1").withResponse(null);
-    mockCountriesRepository.getUserCountryCode.mockResolvedValue(mockUserCountryResponse);
+    const mockUserCountryResponse = new ResponseModel<string>(
+      "tx-1",
+    ).withResponse(null);
+    mockCountriesRepository.getUserCountryCode.mockResolvedValue(
+      mockUserCountryResponse,
+    );
 
-    const mockIpCountryResponse = new ResponseModel<string>("tx-1").withResponse("US");
-    mockCountriesRepository.getIpCountryCode.mockResolvedValue(mockIpCountryResponse);
+    const mockIpCountryResponse = new ResponseModel<string>(
+      "tx-1",
+    ).withResponse("US");
+    mockCountriesRepository.getIpCountryCode.mockResolvedValue(
+      mockIpCountryResponse,
+    );
 
     const mockSavedVisit = new Visit("home", "user-123", "US");
-    const mockRegisterResponse = new ResponseModel<Visit>("tx-1").withResponse(mockSavedVisit);
+    const mockRegisterResponse = new ResponseModel<Visit>("tx-1").withResponse(
+      mockSavedVisit,
+    );
     mockVisitRepository.registerVisit.mockResolvedValue(mockRegisterResponse);
 
     const req = new RequestModel<Visit>("tx-1", visit);
@@ -90,7 +108,9 @@ describe("VisitUseCase - Unit Tests", () => {
     const mockErrorResponse = new ResponseModel<string>("tx-1");
     mockErrorResponse.errorCode = DomainErrorCodes.SYSTEM_ERROR;
     mockErrorResponse.message = undefined;
-    mockCountriesRepository.getUserCountryCode.mockResolvedValue(mockErrorResponse);
+    mockCountriesRepository.getUserCountryCode.mockResolvedValue(
+      mockErrorResponse,
+    );
 
     const req = new RequestModel<Visit>("tx-1", visit);
     const res = await useCase.registerVisit(req);
@@ -101,14 +121,24 @@ describe("VisitUseCase - Unit Tests", () => {
 
   test("should fallback to null countryCode if ipCountryResponse has no data", async () => {
     const visit = new Visit("home", "user-123");
-    const mockUserCountryResponse = new ResponseModel<string>("tx-1").withResponse(null);
-    mockCountriesRepository.getUserCountryCode.mockResolvedValue(mockUserCountryResponse);
+    const mockUserCountryResponse = new ResponseModel<string>(
+      "tx-1",
+    ).withResponse(null);
+    mockCountriesRepository.getUserCountryCode.mockResolvedValue(
+      mockUserCountryResponse,
+    );
 
-    const mockIpCountryResponse = new ResponseModel<string>("tx-1").withResponse(null);
-    mockCountriesRepository.getIpCountryCode.mockResolvedValue(mockIpCountryResponse);
+    const mockIpCountryResponse = new ResponseModel<string>(
+      "tx-1",
+    ).withResponse(null);
+    mockCountriesRepository.getIpCountryCode.mockResolvedValue(
+      mockIpCountryResponse,
+    );
 
     const mockSavedVisit = new Visit("home", "user-123", null);
-    const mockRegisterResponse = new ResponseModel<Visit>("tx-1").withResponse(mockSavedVisit);
+    const mockRegisterResponse = new ResponseModel<Visit>("tx-1").withResponse(
+      mockSavedVisit,
+    );
     mockVisitRepository.registerVisit.mockResolvedValue(mockRegisterResponse);
 
     const req = new RequestModel<Visit>("tx-1", visit);
@@ -120,11 +150,17 @@ describe("VisitUseCase - Unit Tests", () => {
 
   test("should not query IP country code if ipAddress is not provided", async () => {
     const visit = new Visit("home", "user-123");
-    const mockUserCountryResponse = new ResponseModel<string>("tx-1").withResponse(null);
-    mockCountriesRepository.getUserCountryCode.mockResolvedValue(mockUserCountryResponse);
+    const mockUserCountryResponse = new ResponseModel<string>(
+      "tx-1",
+    ).withResponse(null);
+    mockCountriesRepository.getUserCountryCode.mockResolvedValue(
+      mockUserCountryResponse,
+    );
 
     const mockSavedVisit = new Visit("home", "user-123", null);
-    const mockRegisterResponse = new ResponseModel<Visit>("tx-1").withResponse(mockSavedVisit);
+    const mockRegisterResponse = new ResponseModel<Visit>("tx-1").withResponse(
+      mockSavedVisit,
+    );
     mockVisitRepository.registerVisit.mockResolvedValue(mockRegisterResponse);
 
     const req = new RequestModel<Visit>("tx-1", visit);
@@ -136,8 +172,12 @@ describe("VisitUseCase - Unit Tests", () => {
 
   test("should fallback to null countryCode if ipCountryResponse is null", async () => {
     const visit = new Visit("home", "user-123");
-    const mockUserCountryResponse = new ResponseModel<string>("tx-1").withResponse(null);
-    mockCountriesRepository.getUserCountryCode.mockResolvedValue(mockUserCountryResponse);
+    const mockUserCountryResponse = new ResponseModel<string>(
+      "tx-1",
+    ).withResponse(null);
+    mockCountriesRepository.getUserCountryCode.mockResolvedValue(
+      mockUserCountryResponse,
+    );
 
     const getNullResponse = (): ResponseModel<string> | null => null;
     mockCountriesRepository.getIpCountryCode.mockResolvedValue(
@@ -145,7 +185,9 @@ describe("VisitUseCase - Unit Tests", () => {
     );
 
     const mockSavedVisit = new Visit("home", "user-123", null);
-    const mockRegisterResponse = new ResponseModel<Visit>("tx-1").withResponse(mockSavedVisit);
+    const mockRegisterResponse = new ResponseModel<Visit>("tx-1").withResponse(
+      mockSavedVisit,
+    );
     mockVisitRepository.registerVisit.mockResolvedValue(mockRegisterResponse);
 
     const req = new RequestModel<Visit>("tx-1", visit);

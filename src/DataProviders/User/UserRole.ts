@@ -1,14 +1,17 @@
-import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM.js";
 import { Model, NUMBER, TEXT } from "sequelize";
-import { RoleModel } from "../Role/Role";
-import { UserModel } from "./User";
+import { RoleModel } from "../Role/Role.js";
+import { UserModel } from "./User.js";
 
 interface UserRoleAttributes {
   userId: string;
   roleId: number;
 }
 
-export class UserRoleModel extends Model<UserRoleAttributes> implements UserRoleAttributes {
+export class UserRoleModel
+  extends Model<UserRoleAttributes>
+  implements UserRoleAttributes
+{
   public userId!: string;
   public roleId!: number;
 }

@@ -32,7 +32,15 @@ export interface IIssueTrackerService {
     labels: string[],
     token: string,
   ): Promise<boolean>;
-  closeIssue(repo: string, issueNumber: number, token: string): Promise<boolean>;
-  reopenIssue(repo: string, issueNumber: number, token: string): Promise<boolean>;
+  closeIssue(
+    repo: string,
+    issueNumber: number,
+    token: string,
+  ): Promise<boolean>;
+  reopenIssue(
+    repo: string,
+    issueNumber: number,
+    token: string,
+  ): Promise<boolean>;
   getIssues(repo: string, token: string): Promise<GitHubIssue[] | null>;
 }

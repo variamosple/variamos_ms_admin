@@ -1,4 +1,4 @@
-import { BugNote } from "./BugNote";
+import { BugNote } from "./BugNote.js";
 
 describe("BugNote Entity - Unit Tests", () => {
   it("should successfully build a BugNote using builder", () => {

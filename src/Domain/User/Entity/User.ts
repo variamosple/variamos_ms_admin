@@ -1,5 +1,5 @@
-import { Nullable } from "@src/Domain/Core/Entity/Nullable";
-import { Email } from "./Email";
+import type { Nullable } from "@src/Domain/Core/Entity/Nullable.js";
+import { Email } from "./Email.js";
 
 export class User {
   public id: Nullable<string>;

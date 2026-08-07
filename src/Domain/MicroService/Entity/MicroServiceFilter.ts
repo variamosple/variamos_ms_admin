@@ -1,5 +1,5 @@
-import { Nullable } from "@src/Domain/Core/Entity/Nullable";
-import { PagedModel } from "@src/Domain/Core/Entity/PagedModel";
+import type { Nullable } from "@src/Domain/Core/Entity/Nullable.js";
+import { PagedModel } from "@src/Domain/Core/Entity/PagedModel.js";
 
 export class MicroServiceFilter extends PagedModel {
   public constructor(
@@ -15,7 +15,11 @@ export class MicroServiceFilter extends PagedModel {
   }
 
   public static build(builder: MicroServiceFilterBuilder): MicroServiceFilter {
-    return new MicroServiceFilter(builder.name ?? undefined, builder.pageNumber, builder.pageSize);
+    return new MicroServiceFilter(
+      builder.name ?? undefined,
+      builder.pageNumber,
+      builder.pageSize,
+    );
   }
 }
 

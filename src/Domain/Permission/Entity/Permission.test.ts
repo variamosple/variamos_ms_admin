@@ -1,4 +1,4 @@
-import { Permission } from "./Permission";
+import { Permission } from "./Permission.js";
 
 describe("Permission Entity - Unit Tests", () => {
   it("should build a Permission successfully", () => {
@@ -6,7 +6,10 @@ describe("Permission Entity - Unit Tests", () => {
     expect(permission1.id).toBe(1);
     expect(permission1.name).toBe("my-account::query");
 
-    const permission2 = Permission.builder().setId(2).setName("languages::create").build();
+    const permission2 = Permission.builder()
+      .setId(2)
+      .setName("languages::create")
+      .build();
     expect(permission2.id).toBe(2);
     expect(permission2.name).toBe("languages::create");
 

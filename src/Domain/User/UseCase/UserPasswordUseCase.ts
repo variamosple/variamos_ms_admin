@@ -1,10 +1,10 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import { IUserRepository } from "@src/Domain/User/IUserRepository";
-import { IMailService } from "@src/Domain/Mail/IMailService";
-import { PasswordResetTokenService } from "@src/Domain/User/Service/PasswordResetTokenService";
-import crypto from "crypto";
+import crypto from "node:crypto";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import type { IMailService } from "@src/Domain/Mail/IMailService.js";
+import type { IUserRepository } from "@src/Domain/User/IUserRepository.js";
+import { PasswordResetTokenService } from "@src/Domain/User/Service/PasswordResetTokenService.js";
 import logger from "jet-logger";
 
 export interface UserPasswordUseCaseConfig {
@@ -23,12 +23,17 @@ export class UserPasswordUseCase {
     this.tokenService = new PasswordResetTokenService(userRepository);
   }
 
-  public async requestReset(request: RequestModel<string>): Promise<ResponseModel<void>> {
+  public async requestReset(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
     try {
       const email = request.data || "";
       if (!email) {
-        return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "Email is required.");
+        return response.withErrorPromise(
+          DomainErrorCodes.INVALID_INPUT,
+          "Email is required.",
+        );
       }
 
       const user = await this.userRepository.getUserByEmail(email);
@@ -54,7 +59,10 @@ export class UserPasswordUseCase {
       }
 
       const recoveryLink = `${this.config.adminHomeUri}/#/reset-password?token=${token}`;
-      const emailSent = await this.mailService.sendPasswordResetMail(email, recoveryLink);
+      const emailSent = await this.mailService.sendPasswordResetMail(
+        email,
+        recoveryLink,
+      );
       if (!emailSent) {
         return response.withErrorPromise(
           DomainErrorCodes.SYSTEM_ERROR,
@@ -72,27 +80,42 @@ export class UserPasswordUseCase {
     }
   }
 
-  public async verifyToken(request: RequestModel<string>): Promise<ResponseModel<void>> {
+  public async verifyToken(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
     try {
       const token = request.data || "";
       if (!token) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Token is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Token is required.",
+        );
       }
 
       const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-      const dbToken = await this.userRepository.getPasswordResetToken(tokenHash);
+      const dbToken =
+        await this.userRepository.getPasswordResetToken(tokenHash);
 
       if (!dbToken) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Invalid token.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Invalid token.",
+        );
       }
 
       if (dbToken.usedAt) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Token already used.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Token already used.",
+        );
       }
 
       if (new Date() > new Date(dbToken.expiresAt)) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Token expired.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Token expired.",
+        );
       }
 
       return response;
@@ -123,40 +146,67 @@ export class UserPasswordUseCase {
       }
 
       // Verify token validity
-      const verifyRequest = new RequestModel<string>(request.transactionId, token);
+      const verifyRequest = new RequestModel<string>(
+        request.transactionId,
+        token,
+      );
       const verifyRes = await this.verifyToken(verifyRequest);
       if (verifyRes.errorCode) {
-        return response.withError(verifyRes.errorCode, verifyRes.message || "Invalid token.");
+        return response.withError(
+          verifyRes.errorCode,
+          verifyRes.message || "Invalid token.",
+        );
       }
 
       const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-      const dbToken = await this.userRepository.getPasswordResetToken(tokenHash);
+      const dbToken =
+        await this.userRepository.getPasswordResetToken(tokenHash);
       if (!dbToken) {
-        return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "Invalid token.");
+        return response.withErrorPromise(
+          DomainErrorCodes.INVALID_INPUT,
+          "Invalid token.",
+        );
       }
       const userId = dbToken.userId;
 
       // Reset password in repository
-      await this.userRepository.resetPasswordAndUpdateToken(userId, password, tokenHash);
+      await this.userRepository.resetPasswordAndUpdateToken(
+        userId,
+        password,
+        tokenHash,
+      );
 
       return response;
     } catch (error) {
       logger.err("Error resetting password:");
       logger.err(error as Error);
 
-      const errorMessage = error instanceof Error ? error.message : "Error resetting password";
-      if (errorMessage.includes("New password cannot be the same as the old password")) {
-        return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, errorMessage);
+      const errorMessage =
+        error instanceof Error ? error.message : "Error resetting password";
+      if (
+        errorMessage.includes(
+          "New password cannot be the same as the old password",
+        )
+      ) {
+        return response.withErrorPromise(
+          DomainErrorCodes.INVALID_INPUT,
+          errorMessage,
+        );
       }
 
-      return response.withErrorPromise(DomainErrorCodes.SYSTEM_ERROR, "Error resetting password");
+      return response.withErrorPromise(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Error resetting password",
+      );
     }
   }
 
   public async generateLink(
     request: RequestModel<{ userId: string; adminId: string }>,
   ): Promise<ResponseModel<{ recoveryUrl: string }>> {
-    const response = new ResponseModel<{ recoveryUrl: string }>(request.transactionId);
+    const response = new ResponseModel<{ recoveryUrl: string }>(
+      request.transactionId,
+    );
     const { userId, adminId } = (request.data || {}) as Partial<{
       userId: string;
       adminId: string;

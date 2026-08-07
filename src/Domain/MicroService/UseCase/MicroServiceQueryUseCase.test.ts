@@ -1,12 +1,12 @@
-import { mock, MockProxy } from "jest-mock-extended";
-import { MicroServiceQueryUseCase } from "./MicroServiceQueryUseCase";
-import { IMicroServiceRepository } from "@src/Domain/MicroService/Repository/IMicroServiceRepository";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { MicroService } from "@src/Domain/MicroService/Entity/MicroService";
-import { MicroServiceFilter } from "@src/Domain/MicroService/Entity/MicroServiceFilter";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import { Readable } from "stream";
+import { Readable } from "node:stream";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import { MicroService } from "@src/Domain/MicroService/Entity/MicroService.js";
+import { MicroServiceFilter } from "@src/Domain/MicroService/Entity/MicroServiceFilter.js";
+import type { IMicroServiceRepository } from "@src/Domain/MicroService/Repository/IMicroServiceRepository.js";
+import { type MockProxy, mock } from "vitest-mock-extended";
+import { MicroServiceQueryUseCase } from "./MicroServiceQueryUseCase.js";
 
 describe("MicroServiceQueryUseCase - Unit Tests", () => {
   let useCase: MicroServiceQueryUseCase;
@@ -24,21 +24,27 @@ describe("MicroServiceQueryUseCase - Unit Tests", () => {
       .setCreated(new Date())
       .setLabels({ key: "val" })
       .setState(state)
-      .setStatus("Status: " + state)
+      .setStatus(`Status: ${state}`)
       .build();
   };
 
   test("should query microservices", async () => {
     const filter = new MicroServiceFilter();
     const mockServices = [createMockService("ms-1", "running")];
-    const mockResponse = new ResponseModel<MicroService[]>("tx-1").withResponse(mockServices);
-    mockMicroServiceRepository.queryMicroServices.mockResolvedValue(mockResponse);
+    const mockResponse = new ResponseModel<MicroService[]>("tx-1").withResponse(
+      mockServices,
+    );
+    mockMicroServiceRepository.queryMicroServices.mockResolvedValue(
+      mockResponse,
+    );
 
     const req = new RequestModel<MicroServiceFilter>("tx-1", filter);
     const res = await useCase.queryMicroServices(req);
 
     expect(res.data).toBe(mockServices);
-    expect(mockMicroServiceRepository.queryMicroServices).toHaveBeenCalledWith(req);
+    expect(mockMicroServiceRepository.queryMicroServices).toHaveBeenCalledWith(
+      req,
+    );
   });
 
   describe("watchMicroServiceLogs", () => {
@@ -52,16 +58,20 @@ describe("MicroServiceQueryUseCase - Unit Tests", () => {
 
     test("should watch microservice logs successfully", async () => {
       const mockStream = new Readable();
-      const mockResponse = new ResponseModel<NodeJS.ReadableStream>("tx-1").withResponse(
-        mockStream,
+      const mockResponse = new ResponseModel<NodeJS.ReadableStream>(
+        "tx-1",
+      ).withResponse(mockStream);
+      mockMicroServiceRepository.watchMicroServiceLogs.mockResolvedValue(
+        mockResponse,
       );
-      mockMicroServiceRepository.watchMicroServiceLogs.mockResolvedValue(mockResponse);
 
       const req = new RequestModel<string>("tx-1", "ms-1");
       const res = await useCase.watchMicroServiceLogs(req);
 
       expect(res.data).toBe(mockStream);
-      expect(mockMicroServiceRepository.watchMicroServiceLogs).toHaveBeenCalledWith(req);
+      expect(
+        mockMicroServiceRepository.watchMicroServiceLogs,
+      ).toHaveBeenCalledWith(req);
     });
   });
 });

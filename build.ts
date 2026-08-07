@@ -14,7 +14,7 @@ import logger from "jet-logger";
     // Remove current build
     await remove("./dist/");
     // Copy back-end files
-    await exec("tsc --build tsconfig.prod.json", "./");
+    await exec("tsc --build tsconfig.prod.json && npx tsc-alias -p tsconfig.prod.json", "./");
   } catch (err) {
     logger.err(err);
     process.exit(1);

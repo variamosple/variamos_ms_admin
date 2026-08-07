@@ -1,4 +1,4 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 
 /**
  * Error with status code and message.
@@ -23,6 +23,6 @@ export class ValidationErr extends RouteError {
   }
 
   public static GetMsg(param: string) {
-    return ValidationErr.MSG + param + '".';
+    return `${ValidationErr.MSG + param}".`;
   }
 }

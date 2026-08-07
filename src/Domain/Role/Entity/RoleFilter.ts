@@ -1,5 +1,5 @@
-import { Nullable } from "@src/Domain/Core/Entity/Nullable";
-import { PagedModel } from "@src/Domain/Core/Entity/PagedModel";
+import type { Nullable } from "@src/Domain/Core/Entity/Nullable.js";
+import { PagedModel } from "@src/Domain/Core/Entity/PagedModel.js";
 
 export class RoleFilter extends PagedModel {
   public constructor(
@@ -16,7 +16,12 @@ export class RoleFilter extends PagedModel {
   }
 
   public static build(builder: RoleFilterBuilder): RoleFilter {
-    return new RoleFilter(builder.id, builder.name, builder.pageNumber, builder.pageSize);
+    return new RoleFilter(
+      builder.id,
+      builder.name,
+      builder.pageNumber,
+      builder.pageSize,
+    );
   }
 }
 

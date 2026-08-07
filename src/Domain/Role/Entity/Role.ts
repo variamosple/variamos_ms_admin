@@ -1,14 +1,19 @@
-import { Nullable } from "@src/Domain/Core/Entity/Nullable";
-import { Permission } from "@src/Domain/Permission/Entity/Permission";
+import type { Nullable } from "@src/Domain/Core/Entity/Nullable.js";
+import type { Permission } from "@src/Domain/Permission/Entity/Permission.js";
 
 export class Role {
   public readonly id: Nullable<number>;
   public readonly name: string;
   public readonly permissions?: Permission[];
 
-  private static readonly ROLE_NAME_REGEX = /^[A-Z][a-z]*(?:\s[A-Za-z][a-z]*)*$/;
+  private static readonly ROLE_NAME_REGEX =
+    /^[A-Z][a-z]*(?:\s[A-Za-z][a-z]*)*$/;
 
-  public constructor(id: Nullable<number>, name: string, permissions?: Permission[]) {
+  public constructor(
+    id: Nullable<number>,
+    name: string,
+    permissions?: Permission[],
+  ) {
     if (!name || !Role.ROLE_NAME_REGEX.test(name)) {
       throw new Error(
         "Role name must start with an uppercase letter, and subsequent words must start with a letter.",

@@ -1,8 +1,10 @@
-import { Bug } from "./Bug";
+import { Bug } from "./Bug.js";
 
 describe("Bug Entity", () => {
   it("should successfully build a Bug entity using the builder", () => {
-    const attachments = [{ id: 1, filePath: "/a.png", fileType: "image/png", bugId: "bug-123" }];
+    const attachments = [
+      { id: 1, filePath: "/a.png", fileType: "image/png", bugId: "bug-123" },
+    ];
     const assignedAdmins = [{ id: "admin-1", name: "Admin One" }];
 
     const bug = Bug.builder()
@@ -30,8 +32,12 @@ describe("Bug Entity", () => {
   });
 
   it("should throw an error for empty title", () => {
-    expect(() => Bug.builder().setTitle("").build()).toThrow("Bug title cannot be empty.");
-    expect(() => Bug.builder().setTitle("   ").build()).toThrow("Bug title cannot be empty.");
+    expect(() => Bug.builder().setTitle("").build()).toThrow(
+      "Bug title cannot be empty.",
+    );
+    expect(() => Bug.builder().setTitle("   ").build()).toThrow(
+      "Bug title cannot be empty.",
+    );
   });
 
   it("should throw an error for empty description", () => {
@@ -52,7 +58,9 @@ describe("Bug Entity", () => {
 
   describe("creatorName getter", () => {
     it("should return the name of the creator if createdBy is defined", () => {
-      const bug = Bug.builder().setCreatedBy({ id: "user-123", name: "John Doe" }).build();
+      const bug = Bug.builder()
+        .setCreatedBy({ id: "user-123", name: "John Doe" })
+        .build();
 
       expect(bug.creatorName).toBe("John Doe");
     });

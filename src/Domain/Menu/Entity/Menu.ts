@@ -1,4 +1,8 @@
-export type NavigationTarget = "newWindow" | "sameWindow" | "parentContainer" | "rootContainer";
+export type NavigationTarget =
+  | "newWindow"
+  | "sameWindow"
+  | "parentContainer"
+  | "rootContainer";
 
 export interface MenuItemBase {
   title: string;

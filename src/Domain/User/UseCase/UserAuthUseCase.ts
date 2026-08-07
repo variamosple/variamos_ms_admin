@@ -1,11 +1,11 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import { IUserRepository } from "@src/Domain/User/IUserRepository";
-import { IGuestRoleRepository } from "@src/Domain/Role/Repository/IGuestRoleRepository";
-import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration";
-import { Credentials } from "@src/Domain/User/Entity/Credentials";
-import { User } from "@src/Domain/User/Entity/User";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import type { IGuestRoleRepository } from "@src/Domain/Role/Repository/IGuestRoleRepository.js";
+import type { Credentials } from "@src/Domain/User/Entity/Credentials.js";
+import { User } from "@src/Domain/User/Entity/User.js";
+import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration.js";
+import type { IUserRepository } from "@src/Domain/User/IUserRepository.js";
 import { v4 as uuidv4 } from "uuid";
 
 export class UserAuthUseCase {
@@ -14,13 +14,17 @@ export class UserAuthUseCase {
     private readonly roleRepository: IGuestRoleRepository,
   ) {}
 
-  public async signUp(request: RequestModel<UserRegistration>): Promise<ResponseModel<User>> {
+  public async signUp(
+    request: RequestModel<UserRegistration>,
+  ): Promise<ResponseModel<User>> {
     const response = new ResponseModel<User>(request.transactionId);
     const data = request.data;
 
     try {
       if (!data) {
-        throw new Error("Full name, Email and password, and password confirmation are required.");
+        throw new Error(
+          "Full name, Email and password, and password confirmation are required.",
+        );
       }
       UserRegistration.builder()
         .setName(data.name)
@@ -29,21 +33,30 @@ export class UserAuthUseCase {
         .setPasswordConfirmation(data.passwordConfirmation)
         .build();
     } catch (error) {
-      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, (error as Error).message);
+      return response.withErrorPromise(
+        DomainErrorCodes.INVALID_INPUT,
+        (error as Error).message,
+      );
     }
 
     return this.userRepository.signUp(request);
   }
 
-  public async signIn(request: RequestModel<Credentials>): Promise<ResponseModel<User>> {
+  public async signIn(
+    request: RequestModel<Credentials>,
+  ): Promise<ResponseModel<User>> {
     return this.userRepository.signIn(request);
   }
 
-  public async findOrCreate(request: RequestModel<User>): Promise<ResponseModel<User>> {
+  public async findOrCreate(
+    request: RequestModel<User>,
+  ): Promise<ResponseModel<User>> {
     return this.userRepository.findOrCreateUser(request);
   }
 
-  public async getGuestData(request: RequestModel<string>): Promise<ResponseModel<User>> {
+  public async getGuestData(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<User>> {
     let guestId = request.data || uuidv4();
     let userExists: boolean;
     const response = new ResponseModel<User>(request.transactionId);

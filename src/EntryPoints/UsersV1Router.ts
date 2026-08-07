@@ -1,15 +1,15 @@
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { UserFilter } from "@src/Domain/User/Entity/UserFilter";
-import { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase";
-import { UserPasswordUseCase } from "@src/Domain/User/UseCase/UserPasswordUseCase";
-import { UserManagementUseCase } from "@src/Domain/User/UseCase/UserManagementUseCase";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import { UserFilter } from "@src/Domain/User/Entity/UserFilter.js";
+import type { UserManagementUseCase } from "@src/Domain/User/UseCase/UserManagementUseCase.js";
+import type { UserPasswordUseCase } from "@src/Domain/User/UseCase/UserPasswordUseCase.js";
+import type { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase.js";
 import { hasPermissions } from "@variamosple/variamos-security";
-import { Router, Request } from "express";
+import { type Request, Router } from "express";
 import logger from "jet-logger";
-import { USER_ROLES_V1_ROUTE } from "./UserRolesV1Router";
-import { mapDomainErrorToHttpStatus } from "./errorMapper";
+import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
+import { USER_ROLES_V1_ROUTE } from "./UserRolesV1Router.js";
 
 export const USERS_V1_ROUTE = "/v1/users";
 
@@ -35,7 +35,9 @@ export function createUsersRouter(
       const request = new RequestModel<UserFilter>(transactionId, filter);
       const response = await userQueryUseCase.queryList(request);
 
-      const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
+      const status = mapDomainErrorToHttpStatus(
+        response.errorCode as DomainErrorCodes,
+      );
       res.status(status).json(response);
     } catch (error) {
       logger.err(error as Error);
@@ -59,7 +61,9 @@ export function createUsersRouter(
         const request = new RequestModel<string>(transactionId, userId);
         const response = await userQueryUseCase.queryById(request);
 
-        const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
+        const status = mapDomainErrorToHttpStatus(
+          response.errorCode as DomainErrorCodes,
+        );
         res.status(status).json(response);
       } catch (error) {
         logger.err(error as Error);
@@ -82,13 +86,18 @@ export function createUsersRouter(
       const adminId = (req.user as { id: string }).id;
 
       try {
-        const request = new RequestModel<{ userId: string; adminId: string }>(transactionId, {
-          userId,
-          adminId,
-        });
+        const request = new RequestModel<{ userId: string; adminId: string }>(
+          transactionId,
+          {
+            userId,
+            adminId,
+          },
+        );
         const response = await userPasswordUseCase.generateLink(request);
 
-        const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
+        const status = mapDomainErrorToHttpStatus(
+          response.errorCode as DomainErrorCodes,
+        );
         res.status(status).json(response);
       } catch (error) {
         logger.err(error as Error);
@@ -113,7 +122,9 @@ export function createUsersRouter(
         const request = new RequestModel<string>(transactionId, userId);
         const response = await userManagementUseCase.disable(request);
 
-        const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
+        const status = mapDomainErrorToHttpStatus(
+          response.errorCode as DomainErrorCodes,
+        );
         res.status(status).json(response);
       } catch (error) {
         logger.err(error as Error);
@@ -138,7 +149,9 @@ export function createUsersRouter(
         const request = new RequestModel<string>(transactionId, userId);
         const response = await userManagementUseCase.enable(request);
 
-        const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
+        const status = mapDomainErrorToHttpStatus(
+          response.errorCode as DomainErrorCodes,
+        );
         res.status(status).json(response);
       } catch (error) {
         logger.err(error as Error);
@@ -163,7 +176,9 @@ export function createUsersRouter(
         const request = new RequestModel<string>(transactionId, userId);
         const response = await userManagementUseCase.delete(request);
 
-        const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
+        const status = mapDomainErrorToHttpStatus(
+          response.errorCode as DomainErrorCodes,
+        );
         res.status(status).json(response);
       } catch (error) {
         logger.err(error as Error);

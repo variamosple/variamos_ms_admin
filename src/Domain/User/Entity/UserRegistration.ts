@@ -1,6 +1,6 @@
-import { Credentials } from "./Credentials";
-import { Email } from "./Email";
-import { Password } from "./Password";
+import { Credentials } from "./Credentials.js";
+import { Email } from "./Email.js";
+import { Password } from "./Password.js";
 
 export class UserRegistration extends Credentials {
   public name: string;
@@ -13,12 +13,15 @@ export class UserRegistration extends Credentials {
     passwordConfirmation: string,
   ) {
     const validatedEmail = email instanceof Email ? email : new Email(email);
-    const validatedPassword = password instanceof Password ? password : new Password(password);
+    const validatedPassword =
+      password instanceof Password ? password : new Password(password);
 
     super(validatedEmail.getValue(), validatedPassword.getValue());
 
     if (!name || name.trim() === "") {
-      throw new Error("Full name, Email and password, and password confirmation are required.");
+      throw new Error(
+        "Full name, Email and password, and password confirmation are required.",
+      );
     }
     if (validatedPassword.getValue() !== passwordConfirmation) {
       throw new Error("Password and password confirmation do not match.");
@@ -60,8 +63,15 @@ export class UserRegistrationBuilder {
   }
 
   public build(): UserRegistration {
-    if (!this.name || !this.email || !this.password || !this.passwordConfirmation) {
-      throw new Error("Full name, Email and password, and password confirmation are required.");
+    if (
+      !this.name ||
+      !this.email ||
+      !this.password ||
+      !this.passwordConfirmation
+    ) {
+      throw new Error(
+        "Full name, Email and password, and password confirmation are required.",
+      );
     }
     const validatedEmail = new Email(this.email);
     const validatedPassword = new Password(this.password);

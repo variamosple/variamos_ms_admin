@@ -1,16 +1,21 @@
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
+import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
 
-import { Country } from "@src/Domain/Countries/Entity/Country";
+import { Country } from "@src/Domain/Countries/Entity/Country.js";
+import type { ICountriesRepository } from "@src/Domain/Countries/Repository/ICountriesRepository.js";
 import logger from "jet-logger";
-import { BaseRepository } from "../BaseRepository";
-import { UserModel } from "../User/User";
-import { CountryModel } from "./Country";
-import { ICountriesRepository } from "@src/Domain/Countries/Repository/ICountriesRepository";
+import { BaseRepository } from "../BaseRepository.js";
+import { UserModel } from "../User/User.js";
+import { CountryModel } from "./Country.js";
 
-export class CountriesRepositoryImpl extends BaseRepository implements ICountriesRepository {
-  public async getCountries(request: RequestModel<void>): Promise<ResponseModel<Country[]>> {
+export class CountriesRepositoryImpl
+  extends BaseRepository
+  implements ICountriesRepository
+{
+  public async getCountries(
+    request: RequestModel<void>,
+  ): Promise<ResponseModel<Country[]>> {
     const response = new ResponseModel<Country[]>(request.transactionId);
 
     try {
@@ -30,7 +35,10 @@ export class CountriesRepositoryImpl extends BaseRepository implements ICountrie
       logger.err("Error in getCountries:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
@@ -40,13 +48,18 @@ export class CountriesRepositoryImpl extends BaseRepository implements ICountrie
     const response = new ResponseModel<string>(request.transactionId);
 
     try {
-      response.data = await UserModel.findByPk(request.data).then((result) => result?.countryCode);
+      response.data = await UserModel.findByPk(request.data).then(
+        (result) => result?.countryCode,
+      );
     } catch (error) {
       const err = error as Error;
       logger.err("Error in getUserCountryCode:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
@@ -54,11 +67,13 @@ export class CountriesRepositoryImpl extends BaseRepository implements ICountrie
 
   public async getIpCountryCode(request: RequestModel<string>) {
     const response = new ResponseModel<string>(request.transactionId);
-    logger.info("IP country code request for IP: " + request.data);
+    logger.info(`IP country code request for IP: ${request.data}`);
 
     await fetch(`https://api.ipquery.io/${request.data}`)
       .then((result) => {
-        return result.json() as Promise<{ location?: { country_code?: string } }>;
+        return result.json() as Promise<{
+          location?: { country_code?: string };
+        }>;
       })
       .then((data) => {
         response.data = data?.location?.country_code;
@@ -68,7 +83,10 @@ export class CountriesRepositoryImpl extends BaseRepository implements ICountrie
         logger.err("Error in getIpCountryCode:");
         logger.err(request);
         logger.err(err);
-        response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+        response.withError(
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal server error",
+        );
       });
 
     return response;

@@ -1,10 +1,13 @@
-import { IBugTrackerConfig } from "../Config/IBugTrackerConfig";
-import crypto from "crypto";
+import crypto from "node:crypto";
 import axios from "axios";
 import logger from "jet-logger";
+import type { IBugTrackerConfig } from "../Config/IBugTrackerConfig.js";
 
 export class GitHubTokenResolver {
-  public readonly tokenCache = new Map<string, { token: string; expiresAt: number }>();
+  public readonly tokenCache = new Map<
+    string,
+    { token: string; expiresAt: number }
+  >();
 
   public constructor(private readonly githubConfig: IBugTrackerConfig) {}
 
@@ -32,7 +35,10 @@ export class GitHubTokenResolver {
         const installationId = installResponse.data.id;
 
         const tokenUrl = `https://api.github.com/app/installations/${installationId}/access_tokens`;
-        const tokenResponse = await axios.post<{ token: string; expires_at: string }>(
+        const tokenResponse = await axios.post<{
+          token: string;
+          expires_at: string;
+        }>(
           tokenUrl,
           {},
           {
@@ -50,10 +56,12 @@ export class GitHubTokenResolver {
         this.tokenCache.set(repo, { token, expiresAt });
         return token;
       } catch (error) {
-        const err = error as { response?: { data?: { message?: string } }; message?: string };
+        const err = error as {
+          response?: { data?: { message?: string } };
+          message?: string;
+        };
         logger.err(
-          `Failed to resolve GitHub App token for ${repo}: ` +
-            (err.response?.data?.message || err.message || "Unknown error"),
+          `Failed to resolve GitHub App token for ${repo}: ${err.response?.data?.message || err.message || "Unknown error"}`,
         );
       }
     }

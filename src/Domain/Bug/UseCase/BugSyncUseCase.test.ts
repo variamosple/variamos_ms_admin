@@ -1,15 +1,15 @@
-import { mock, MockProxy } from "jest-mock-extended";
-import { BugSyncUseCase } from "./BugSyncUseCase";
-import { IBugRepository } from "@src/Domain/Bug/Repository/IBugRepository";
-import {
-  IIssueTrackerService,
+import type { IBugTrackerConfig } from "@src/Domain/Bug/Config/IBugTrackerConfig.js";
+import type { IBugRepository } from "@src/Domain/Bug/Repository/IBugRepository.js";
+import type { GitHubTokenResolver } from "@src/Domain/Bug/Service/GitHubTokenResolver.js";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import type {
   GitHubIssueLabel,
-} from "@src/Domain/Core/Service/IIssueTrackerService";
-import { IBugTrackerConfig } from "@src/Domain/Bug/Config/IBugTrackerConfig";
-import { GitHubTokenResolver } from "@src/Domain/Bug/Service/GitHubTokenResolver";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
+  IIssueTrackerService,
+} from "@src/Domain/Core/Service/IIssueTrackerService.js";
 import logger from "jet-logger";
+import { type MockProxy, mock } from "vitest-mock-extended";
+import { BugSyncUseCase } from "./BugSyncUseCase.js";
 
 describe("BugSyncUseCase", () => {
   let useCase: BugSyncUseCase;
@@ -32,13 +32,17 @@ describe("BugSyncUseCase", () => {
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it("should sync bugs successfully from GitHub issues", async () => {
-    mockGithubConfig.getGitHubAppId = jest.fn().mockReturnValue("app-id");
-    mockGithubConfig.getGitHubPrivateKey = jest.fn().mockReturnValue("private-key");
-    mockGithubConfig.getGitHubManagedRepos.mockReturnValue(["VariaMos/VariaMosAdmin"]);
+    mockGithubConfig.getGitHubAppId = vi.fn().mockReturnValue("app-id");
+    mockGithubConfig.getGitHubPrivateKey = vi
+      .fn()
+      .mockReturnValue("private-key");
+    mockGithubConfig.getGitHubManagedRepos.mockReturnValue([
+      "VariaMos/VariaMosAdmin",
+    ]);
 
     mockTokenResolver.resolveGitHubToken.mockResolvedValue("mock-token");
     mockIssueTracker.getIssues.mockResolvedValue([
@@ -53,13 +57,15 @@ describe("BugSyncUseCase", () => {
     ]);
 
     mockBugRepository.saveOrUpdateBug.mockResolvedValue(
-      new ResponseModel<{ created: boolean; updated: boolean }>("tx-1").withResponse({
+      new ResponseModel<{ created: boolean; updated: boolean }>(
+        "tx-1",
+      ).withResponse({
         created: true,
         updated: false,
       }),
     );
 
-    const loggerInfoSpy = jest.spyOn(logger, "info").mockImplementation(() => {});
+    const loggerInfoSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
 
     const req = new RequestModel<void>("tx-1");
     const res = await useCase.syncBugs(req);
@@ -75,8 +81,8 @@ describe("BugSyncUseCase", () => {
   });
 
   it("should return error if github token/app configs are not defined", async () => {
-    mockGithubConfig.getGitHubAppId = jest.fn().mockReturnValue(undefined);
-    mockGithubConfig.getGitHubPrivateKey = jest.fn().mockReturnValue(undefined);
+    mockGithubConfig.getGitHubAppId = vi.fn().mockReturnValue(undefined);
+    mockGithubConfig.getGitHubPrivateKey = vi.fn().mockReturnValue(undefined);
     mockGithubConfig.getGitHubToken.mockReturnValue("");
 
     const req = new RequestModel<void>("tx-1");
@@ -88,22 +94,24 @@ describe("BugSyncUseCase", () => {
 
   it("should fail validation if credentials contain only whitespace", async () => {
     // Test appId with whitespace only
-    mockGithubConfig.getGitHubAppId = jest.fn().mockReturnValue("   ");
-    mockGithubConfig.getGitHubPrivateKey = jest.fn().mockReturnValue("private-key");
+    mockGithubConfig.getGitHubAppId = vi.fn().mockReturnValue("   ");
+    mockGithubConfig.getGitHubPrivateKey = vi
+      .fn()
+      .mockReturnValue("private-key");
     mockGithubConfig.getGitHubToken.mockReturnValue("");
     let res = await useCase.syncBugs(new RequestModel<void>("tx-1"));
     expect(res.errorCode).toBe("INVALID_INPUT");
 
     // Test privateKey with whitespace only
-    mockGithubConfig.getGitHubAppId = jest.fn().mockReturnValue("app-id");
-    mockGithubConfig.getGitHubPrivateKey = jest.fn().mockReturnValue("   ");
+    mockGithubConfig.getGitHubAppId = vi.fn().mockReturnValue("app-id");
+    mockGithubConfig.getGitHubPrivateKey = vi.fn().mockReturnValue("   ");
     mockGithubConfig.getGitHubToken.mockReturnValue("");
     res = await useCase.syncBugs(new RequestModel<void>("tx-1"));
     expect(res.errorCode).toBe("INVALID_INPUT");
 
     // Test patToken with whitespace only
-    mockGithubConfig.getGitHubAppId = jest.fn().mockReturnValue("");
-    mockGithubConfig.getGitHubPrivateKey = jest.fn().mockReturnValue("");
+    mockGithubConfig.getGitHubAppId = vi.fn().mockReturnValue("");
+    mockGithubConfig.getGitHubPrivateKey = vi.fn().mockReturnValue("");
     mockGithubConfig.getGitHubToken.mockReturnValue("   ");
     res = await useCase.syncBugs(new RequestModel<void>("tx-1"));
     expect(res.errorCode).toBe("INVALID_INPUT");
@@ -111,15 +119,17 @@ describe("BugSyncUseCase", () => {
 
   it("should fail validation if only one of appId or privateKey is provided", async () => {
     // AppId provided, privateKey missing
-    mockGithubConfig.getGitHubAppId = jest.fn().mockReturnValue("app-id");
-    mockGithubConfig.getGitHubPrivateKey = jest.fn().mockReturnValue("");
+    mockGithubConfig.getGitHubAppId = vi.fn().mockReturnValue("app-id");
+    mockGithubConfig.getGitHubPrivateKey = vi.fn().mockReturnValue("");
     mockGithubConfig.getGitHubToken.mockReturnValue("");
     let res = await useCase.syncBugs(new RequestModel<void>("tx-1"));
     expect(res.errorCode).toBe("INVALID_INPUT");
 
     // PrivateKey provided, appId missing
-    mockGithubConfig.getGitHubAppId = jest.fn().mockReturnValue("");
-    mockGithubConfig.getGitHubPrivateKey = jest.fn().mockReturnValue("private-key");
+    mockGithubConfig.getGitHubAppId = vi.fn().mockReturnValue("");
+    mockGithubConfig.getGitHubPrivateKey = vi
+      .fn()
+      .mockReturnValue("private-key");
     mockGithubConfig.getGitHubToken.mockReturnValue("");
     res = await useCase.syncBugs(new RequestModel<void>("tx-1"));
     expect(res.errorCode).toBe("INVALID_INPUT");
@@ -128,10 +138,12 @@ describe("BugSyncUseCase", () => {
   it("should skip repo if token could not be resolved", async () => {
     mockGithubConfig.getGitHubToken.mockReturnValue("pat-token");
     mockGithubConfig.getGitHubManagedRepos.mockReturnValue(["Repo1", "Repo2"]);
-    mockTokenResolver.resolveGitHubToken.mockResolvedValueOnce("").mockResolvedValueOnce("token2");
+    mockTokenResolver.resolveGitHubToken
+      .mockResolvedValueOnce("")
+      .mockResolvedValueOnce("token2");
 
     mockIssueTracker.getIssues.mockResolvedValue([]);
-    const loggerWarnSpy = jest.spyOn(logger, "warn").mockImplementation(() => {});
+    const loggerWarnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
 
     const req = new RequestModel<void>("tx-1");
     await useCase.syncBugs(req);
@@ -168,7 +180,9 @@ describe("BugSyncUseCase", () => {
     ]);
 
     mockBugRepository.saveOrUpdateBug.mockResolvedValue(
-      new ResponseModel<{ created: boolean; updated: boolean }>("tx-1").withResponse({
+      new ResponseModel<{ created: boolean; updated: boolean }>(
+        "tx-1",
+      ).withResponse({
         created: true,
         updated: false,
       }),
@@ -212,7 +226,9 @@ describe("BugSyncUseCase", () => {
     ]);
 
     mockBugRepository.saveOrUpdateBug.mockResolvedValue(
-      new ResponseModel<{ created: boolean; updated: boolean }>("tx-1").withResponse({
+      new ResponseModel<{ created: boolean; updated: boolean }>(
+        "tx-1",
+      ).withResponse({
         created: true,
         updated: false,
       }),
@@ -246,15 +262,42 @@ describe("BugSyncUseCase", () => {
     mockTokenResolver.resolveGitHubToken.mockResolvedValue("token");
 
     const labelsToTest = [
-      { labels: [{ name: "high" }, { name: "other-label" }], expectedPriority: "high" },
-      { labels: [{ name: "p1" }, { name: "other-label" }], expectedPriority: "high" },
-      { labels: [{ name: "critical" }, { name: "other-label" }], expectedPriority: "high" },
-      { labels: [{ name: "urg" }, { name: "other-label" }], expectedPriority: "high" },
-      { labels: [{ name: "important" }, { name: "other-label" }], expectedPriority: "high" },
-      { labels: [{ name: "low" }, { name: "other-label" }], expectedPriority: "low" },
-      { labels: [{ name: "p3" }, { name: "other-label" }], expectedPriority: "low" },
-      { labels: [{ name: "minor" }, { name: "other-label" }], expectedPriority: "low" },
-      { labels: [{ name: "unknown-label" }, { name: "other-label" }], expectedPriority: "medium" },
+      {
+        labels: [{ name: "high" }, { name: "other-label" }],
+        expectedPriority: "high",
+      },
+      {
+        labels: [{ name: "p1" }, { name: "other-label" }],
+        expectedPriority: "high",
+      },
+      {
+        labels: [{ name: "critical" }, { name: "other-label" }],
+        expectedPriority: "high",
+      },
+      {
+        labels: [{ name: "urg" }, { name: "other-label" }],
+        expectedPriority: "high",
+      },
+      {
+        labels: [{ name: "important" }, { name: "other-label" }],
+        expectedPriority: "high",
+      },
+      {
+        labels: [{ name: "low" }, { name: "other-label" }],
+        expectedPriority: "low",
+      },
+      {
+        labels: [{ name: "p3" }, { name: "other-label" }],
+        expectedPriority: "low",
+      },
+      {
+        labels: [{ name: "minor" }, { name: "other-label" }],
+        expectedPriority: "low",
+      },
+      {
+        labels: [{ name: "unknown-label" }, { name: "other-label" }],
+        expectedPriority: "medium",
+      },
     ];
 
     mockIssueTracker.getIssues.mockResolvedValue(
@@ -269,7 +312,9 @@ describe("BugSyncUseCase", () => {
     );
 
     mockBugRepository.saveOrUpdateBug.mockResolvedValue(
-      new ResponseModel<{ created: boolean; updated: boolean }>("tx-1").withResponse({
+      new ResponseModel<{ created: boolean; updated: boolean }>(
+        "tx-1",
+      ).withResponse({
         created: true,
         updated: false,
       }),
@@ -277,7 +322,9 @@ describe("BugSyncUseCase", () => {
 
     await useCase.syncBugs(new RequestModel<void>("tx-1"));
 
-    expect(mockBugRepository.saveOrUpdateBug).toHaveBeenCalledTimes(labelsToTest.length);
+    expect(mockBugRepository.saveOrUpdateBug).toHaveBeenCalledTimes(
+      labelsToTest.length,
+    );
     labelsToTest.forEach((item, index) => {
       expect(mockBugRepository.saveOrUpdateBug).toHaveBeenNthCalledWith(
         index + 1,
@@ -304,7 +351,11 @@ describe("BugSyncUseCase", () => {
         created_at: "2026-07-13T00:00:00Z",
         // 'critical' is high priority. 'eDiToR' (mixed case) should map to 'Editor'
         // We include 'other-label' to kill some -> every mutant (since length > 1)
-        labels: [{ name: "critical" }, { name: "eDiToR" }, { name: "other-label" }],
+        labels: [
+          { name: "critical" },
+          { name: "eDiToR" },
+          { name: "other-label" },
+        ],
       },
       {
         number: 11,
@@ -318,7 +369,9 @@ describe("BugSyncUseCase", () => {
     ]);
 
     mockBugRepository.saveOrUpdateBug.mockResolvedValue(
-      new ResponseModel<{ created: boolean; updated: boolean }>("tx-1").withResponse({
+      new ResponseModel<{ created: boolean; updated: boolean }>(
+        "tx-1",
+      ).withResponse({
         created: true,
         updated: false,
       }),
@@ -373,7 +426,9 @@ describe("BugSyncUseCase", () => {
     ]);
 
     mockBugRepository.saveOrUpdateBug.mockResolvedValue(
-      new ResponseModel<{ created: boolean; updated: boolean }>("tx-1").withResponse({
+      new ResponseModel<{ created: boolean; updated: boolean }>(
+        "tx-1",
+      ).withResponse({
         created: true,
         updated: false,
       }),
@@ -425,7 +480,9 @@ describe("BugSyncUseCase", () => {
     ]);
 
     mockBugRepository.saveOrUpdateBug.mockResolvedValue(
-      new ResponseModel<{ created: boolean; updated: boolean }>("tx-1").withResponse({
+      new ResponseModel<{ created: boolean; updated: boolean }>(
+        "tx-1",
+      ).withResponse({
         created: true,
         updated: false,
       }),
@@ -477,7 +534,9 @@ describe("BugSyncUseCase", () => {
     ]);
 
     mockBugRepository.saveOrUpdateBug.mockResolvedValue(
-      new ResponseModel<{ created: boolean; updated: boolean }>("tx-1").withResponse({
+      new ResponseModel<{ created: boolean; updated: boolean }>(
+        "tx-1",
+      ).withResponse({
         created: true,
         updated: false,
       }),
@@ -537,13 +596,15 @@ describe("BugSyncUseCase", () => {
     ]);
 
     mockBugRepository.saveOrUpdateBug.mockResolvedValue(
-      new ResponseModel<{ created: boolean; updated: boolean }>("tx-1").withResponse({
+      new ResponseModel<{ created: boolean; updated: boolean }>(
+        "tx-1",
+      ).withResponse({
         created: true,
         updated: false,
       }),
     );
 
-    const loggerErrSpy = jest.spyOn(logger, "err").mockImplementation(() => {});
+    const loggerErrSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
 
     await useCase.syncBugs(new RequestModel<void>("tx-1"));
 
@@ -570,7 +631,7 @@ describe("BugSyncUseCase", () => {
     const calls = mockBugRepository.saveOrUpdateBug.mock.calls;
     expect(calls.length).toBe(3);
     const thirdCall = calls[2];
-    if (!thirdCall || !thirdCall[0] || !thirdCall[0].data) {
+    if (!thirdCall?.[0]?.data) {
       throw new Error("Expected third call to have data");
     }
     const updatedAt = thirdCall[0].data.updatedAt;
@@ -609,20 +670,26 @@ describe("BugSyncUseCase", () => {
 
     mockBugRepository.saveOrUpdateBug
       .mockResolvedValueOnce(
-        new ResponseModel<{ created: boolean; updated: boolean }>("tx-1").withResponse({
+        new ResponseModel<{ created: boolean; updated: boolean }>(
+          "tx-1",
+        ).withResponse({
           created: true,
           updated: false,
         }),
       )
       .mockResolvedValueOnce(
-        new ResponseModel<{ created: boolean; updated: boolean }>("tx-1").withResponse({
+        new ResponseModel<{ created: boolean; updated: boolean }>(
+          "tx-1",
+        ).withResponse({
           created: false,
           updated: true,
         }),
       )
-      .mockResolvedValueOnce(new ResponseModel<{ created: boolean; updated: boolean }>("tx-1"));
+      .mockResolvedValueOnce(
+        new ResponseModel<{ created: boolean; updated: boolean }>("tx-1"),
+      );
 
-    const loggerInfoSpy = jest.spyOn(logger, "info").mockImplementation(() => {});
+    const loggerInfoSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
 
     await useCase.syncBugs(new RequestModel<void>("tx-1"));
 

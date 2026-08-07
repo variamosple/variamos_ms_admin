@@ -1,5 +1,5 @@
-import { BugPriority } from "./BugPriority";
-import { BugAttachment } from "./BugAttachment";
+import type { BugAttachment } from "./BugAttachment.js";
+import { BugPriority } from "./BugPriority.js";
 
 export interface BugUserRef {
   id: string;
@@ -149,7 +149,10 @@ class BugBuilder {
     if (this.title !== undefined && (!this.title || this.title.trim() === "")) {
       throw new Error("Bug title cannot be empty.");
     }
-    if (this.description !== undefined && (!this.description || this.description.trim() === "")) {
+    if (
+      this.description !== undefined &&
+      (!this.description || this.description.trim() === "")
+    ) {
       throw new Error("Bug description cannot be empty.");
     }
     if (this.priority !== undefined) {

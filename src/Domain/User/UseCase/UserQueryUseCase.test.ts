@@ -1,10 +1,10 @@
-import { mock, MockProxy } from "jest-mock-extended";
-import { UserQueryUseCase } from "./UserQueryUseCase";
-import { IUserRepository } from "@src/Domain/User/IUserRepository";
-import { User } from "@src/Domain/User/Entity/User";
-import { UserFilter } from "@src/Domain/User/Entity/UserFilter";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { User } from "@src/Domain/User/Entity/User.js";
+import { UserFilter } from "@src/Domain/User/Entity/UserFilter.js";
+import type { IUserRepository } from "@src/Domain/User/IUserRepository.js";
+import { type MockProxy, mock } from "vitest-mock-extended";
+import { UserQueryUseCase } from "./UserQueryUseCase.js";
 
 describe("UserQueryUseCase", () => {
   let useCase: UserQueryUseCase;
@@ -28,7 +28,9 @@ describe("UserQueryUseCase", () => {
   describe("queryList", () => {
     it("should query users with filter", async () => {
       const mockFilter = new UserFilter("1", "testuser");
-      const mockResponse = new ResponseModel<User[]>("tx-1").withResponse([mockUser]);
+      const mockResponse = new ResponseModel<User[]>("tx-1").withResponse([
+        mockUser,
+      ]);
       mockUserRepository.queryUsers.mockResolvedValue(mockResponse);
 
       const req = new RequestModel<UserFilter>("tx-1", mockFilter);
@@ -41,7 +43,9 @@ describe("UserQueryUseCase", () => {
 
   describe("queryById", () => {
     it("should query user by id successfully", async () => {
-      const mockResponse = new ResponseModel<User>("tx-1").withResponse(mockUser);
+      const mockResponse = new ResponseModel<User>("tx-1").withResponse(
+        mockUser,
+      );
       mockUserRepository.queryById.mockResolvedValue(mockResponse);
 
       const req = new RequestModel<string>("tx-1", "user-123");
@@ -54,7 +58,9 @@ describe("UserQueryUseCase", () => {
 
   describe("sessionUser", () => {
     it("should find session user successfully", async () => {
-      const mockResponse = new ResponseModel<User>("tx-1").withResponse(mockUser);
+      const mockResponse = new ResponseModel<User>("tx-1").withResponse(
+        mockUser,
+      );
       mockUserRepository.findSessionUser.mockResolvedValue(mockResponse);
 
       const req = new RequestModel<string>("tx-1", "session-token");

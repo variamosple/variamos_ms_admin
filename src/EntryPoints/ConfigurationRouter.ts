@@ -1,6 +1,6 @@
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Menu } from "@src/Domain/Menu/Entity/Menu";
-import { Request, Router } from "express";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import type { Menu } from "@src/Domain/Menu/Entity/Menu.js";
+import { type Request, Router } from "express";
 
 export const CONFIGURATION_V1_ROUTE = "/v1/configurations";
 
@@ -96,42 +96,42 @@ const MENU: Menu = {
     },
     {
       title: "Report a problem",
-      location: `https://github.com/variamosple/VariaMosLanguages/issues/new`,
+      location: "https://github.com/variamosple/VariaMosLanguages/issues/new",
       accessibleFrom: "/variamos_languages/",
       target: "newWindow",
       allowedPermissions: [],
     },
     {
       title: "Issues",
-      location: `https://github.com/variamosple/VariaMosLanguages/issues/`,
+      location: "https://github.com/variamosple/VariaMosLanguages/issues/",
       accessibleFrom: "/variamos_languages/",
       target: "newWindow",
       allowedPermissions: [],
     },
     {
       title: "Report a problem",
-      location: `https://github.com/variamosple/VariaMosPLE/issues/new`,
+      location: "https://github.com/variamosple/VariaMosPLE/issues/new",
       accessibleFrom: "/",
       target: "newWindow",
       allowedPermissions: [],
     },
     {
       title: "Issues",
-      location: `https://github.com/variamosple/VariaMosPLE/issues/`,
+      location: "https://github.com/variamosple/VariaMosPLE/issues/",
       accessibleFrom: "/",
       target: "newWindow",
       allowedPermissions: [],
     },
     {
       title: "Report a problem",
-      location: `https://github.com/variamosple/VariaMosAdmin/issues/new`,
+      location: "https://github.com/variamosple/VariaMosAdmin/issues/new",
       accessibleFrom: "/variamos_admin/",
       target: "newWindow",
       allowedPermissions: ["languages::create", "product-lines::create"],
     },
     {
       title: "Issues",
-      location: `https://github.com/variamosple/VariaMosAdmin/issues/`,
+      location: "https://github.com/variamosple/VariaMosAdmin/issues/",
       accessibleFrom: "/variamos_admin/",
       target: "newWindow",
       allowedPermissions: ["languages::create", "product-lines::create"],
@@ -149,9 +149,13 @@ export function createConfigurationRouter(): Router {
     const referer = req.headers.referer || "";
     const hasAdminSubpath = referer.includes("/variamos_admin/");
 
-    const myAccountOption = menuCopy.options?.find((opt) => opt.title === "My account");
+    const myAccountOption = menuCopy.options?.find(
+      (opt) => opt.title === "My account",
+    );
     if (myAccountOption) {
-      myAccountOption.location = hasAdminSubpath ? "/variamos_admin/#/my-account" : "/my-account";
+      myAccountOption.location = hasAdminSubpath
+        ? "/variamos_admin/#/my-account"
+        : "/my-account";
     }
 
     res.status(200).json(response.withResponse(menuCopy));

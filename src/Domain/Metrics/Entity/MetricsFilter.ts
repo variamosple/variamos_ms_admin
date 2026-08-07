@@ -26,7 +26,11 @@ export class MetricsFilter {
   }
 
   public static build(builder: MetricsFilterBuilder): MetricsFilter {
-    return new MetricsFilter(builder.getId(), builder.getStartDate(), builder.getEndDate());
+    return new MetricsFilter(
+      builder.getId(),
+      builder.getStartDate(),
+      builder.getEndDate(),
+    );
   }
 }
 

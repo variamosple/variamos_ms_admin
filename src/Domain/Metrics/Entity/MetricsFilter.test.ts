@@ -1,4 +1,4 @@
-import { MetricsFilter } from "./MetricsFilter";
+import { MetricsFilter } from "./MetricsFilter.js";
 
 describe("MetricsFilter Entity - Unit Tests", () => {
   it("should successfully build a MetricsFilter using constructor", () => {

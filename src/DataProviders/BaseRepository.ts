@@ -1,18 +1,29 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/explicit-member-accessibility */
 export interface Replacements {
-  [key: string]: any;
+  [key: string]:
+    | string
+    | number
+    | boolean
+    | null
+    | undefined
+    | Date
+    | string[]
+    | number[];
 }
 
 export abstract class BaseRepository {
-  initializeReplacements(filter: Replacements) {
+  initializeReplacements(filter: object | undefined | null) {
     if (!filter) {
       return {};
     }
 
-    return Object.entries(filter).reduce<Replacements>((result, [key, value]) => {
-      result[key] = value === undefined ? null : value;
+    return Object.entries(filter).reduce<Replacements>(
+      (result, [key, value]) => {
+        result[key] =
+          value === undefined ? null : (value as Replacements[string]);
 
-      return result;
-    }, {});
+        return result;
+      },
+      {},
+    );
   }
 }

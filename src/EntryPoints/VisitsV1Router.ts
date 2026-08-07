@@ -1,13 +1,13 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Visit } from "@src/Domain/Visit/Entity/Visit";
-import { VisitUseCase } from "@src/Domain/Visit/UseCase/VisitUseCase";
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import { Visit } from "@src/Domain/Visit/Entity/Visit.js";
+import type { VisitUseCase } from "@src/Domain/Visit/UseCase/VisitUseCase.js";
 import { isAuthenticated } from "@variamosple/variamos-security";
 import { Router } from "express";
 import logger from "jet-logger";
-import { mapDomainErrorToHttpStatus } from "./errorMapper";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
+import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
 export const VISITS_V1_ROUTE = "/v1/visits";
 
@@ -18,10 +18,11 @@ export function createVisitsRouter(visitUseCase: VisitUseCase): Router {
     const transactionId = "createVisit";
     const user = req.user;
     const { pageId } = req.body as { pageId?: string };
-    const ipAddress: string | undefined = (req.headers["x-forwarded-for"] as string) || req.ip;
+    const ipAddress: string | undefined =
+      (req.headers["x-forwarded-for"] as string) || req.ip;
 
     try {
-      if (!pageId || !user || !user.id) {
+      if (!pageId || !user?.id) {
         return res
           .status(HttpStatusCodes.BAD_REQUEST)
           .json(

@@ -1,7 +1,7 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Role } from "@src/Domain/Role/Entity/Role";
-import { IRoleRepository } from "@src/Domain/Role/Repository/IRoleRepository";
+import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import type { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import type { Role } from "@src/Domain/Role/Entity/Role.js";
+import type { IRoleRepository } from "@src/Domain/Role/Repository/IRoleRepository.js";
 
 export class RoleManagementUseCase {
   public constructor(private readonly roleRepository: IRoleRepository) {}
@@ -10,7 +10,9 @@ export class RoleManagementUseCase {
     return this.roleRepository.createRole(request);
   }
 
-  public deleteRole(request: RequestModel<string>): Promise<ResponseModel<void>> {
+  public deleteRole(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<void>> {
     return this.roleRepository.deleteRole(request);
   }
 

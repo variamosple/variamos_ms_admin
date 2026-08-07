@@ -1,5 +1,5 @@
-import { Nullable } from "@src/Domain/Core/Entity/Nullable";
-import { PagedModel } from "@src/Domain/Core/Entity/PagedModel";
+import type { Nullable } from "@src/Domain/Core/Entity/Nullable.js";
+import { PagedModel } from "@src/Domain/Core/Entity/PagedModel.js";
 
 export class PermissionFilter extends PagedModel {
   public constructor(
@@ -16,7 +16,12 @@ export class PermissionFilter extends PagedModel {
   }
 
   public static build(builder: PermissionFilterBuilder): PermissionFilter {
-    return new PermissionFilter(builder.id, builder.name, builder.pageNumber, builder.pageSize);
+    return new PermissionFilter(
+      builder.id,
+      builder.name,
+      builder.pageNumber,
+      builder.pageSize,
+    );
   }
 }
 

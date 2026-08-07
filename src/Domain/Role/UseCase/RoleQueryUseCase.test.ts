@@ -1,10 +1,10 @@
-import { mock, MockProxy } from "jest-mock-extended";
-import { RoleQueryUseCase } from "./RoleQueryUseCase";
-import { IRoleRepository } from "@src/Domain/Role/Repository/IRoleRepository";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Role } from "@src/Domain/Role/Entity/Role";
-import { RoleFilter } from "@src/Domain/Role/Entity/RoleFilter";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { Role } from "@src/Domain/Role/Entity/Role.js";
+import { RoleFilter } from "@src/Domain/Role/Entity/RoleFilter.js";
+import type { IRoleRepository } from "@src/Domain/Role/Repository/IRoleRepository.js";
+import { type MockProxy, mock } from "vitest-mock-extended";
+import { RoleQueryUseCase } from "./RoleQueryUseCase.js";
 
 describe("RoleQueryUseCase - Unit Tests", () => {
   let useCase: RoleQueryUseCase;
@@ -18,7 +18,9 @@ describe("RoleQueryUseCase - Unit Tests", () => {
   test("should query roles", async () => {
     const mockFilter = new RoleFilter(1, "Admin");
     const mockRoles = [new Role(1, "Admin")];
-    const mockResponse = new ResponseModel<Role[]>("tx-1").withResponse(mockRoles);
+    const mockResponse = new ResponseModel<Role[]>("tx-1").withResponse(
+      mockRoles,
+    );
     mockRoleRepository.queryRoles.mockResolvedValue(mockResponse);
 
     const req = new RequestModel<RoleFilter>("tx-1", mockFilter);

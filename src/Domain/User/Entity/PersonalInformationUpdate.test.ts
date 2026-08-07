@@ -1,4 +1,4 @@
-import { PersonalInformationUpdate } from "./PersonalInformationUpdate";
+import { PersonalInformationUpdate } from "./PersonalInformationUpdate.js";
 
 describe("PersonalInformationUpdate Entity - Unit Tests", () => {
   it("should build a PersonalInformationUpdate using constructor", () => {
@@ -8,7 +8,9 @@ describe("PersonalInformationUpdate Entity - Unit Tests", () => {
   });
 
   it("should build a PersonalInformationUpdate using builder", () => {
-    const builder = PersonalInformationUpdate.builder().setUserId("user-456").setCountryCode("US");
+    const builder = PersonalInformationUpdate.builder()
+      .setUserId("user-456")
+      .setCountryCode("US");
 
     expect(builder.getUserId()).toBe("user-456");
     expect(builder.getCountryCode()).toBe("US");

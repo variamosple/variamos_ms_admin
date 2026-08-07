@@ -1,8 +1,8 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Permission } from "@src/Domain/Permission/Entity/Permission";
-import { RolePermission } from "../Entity/RolePermission";
-import { RolePermissionFilter } from "../Entity/RolePermissionFilter";
+import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import type { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import type { Permission } from "@src/Domain/Permission/Entity/Permission.js";
+import type { RolePermission } from "../Entity/RolePermission.js";
+import type { RolePermissionFilter } from "../Entity/RolePermissionFilter.js";
 
 export interface IRolePermissionRepository {
   queryRolePermissions(
@@ -11,5 +11,7 @@ export interface IRolePermissionRepository {
   createRolePermission(
     request: RequestModel<RolePermission>,
   ): Promise<ResponseModel<RolePermission>>;
-  deleteRolePermission(request: RequestModel<RolePermission>): Promise<ResponseModel<void>>;
+  deleteRolePermission(
+    request: RequestModel<RolePermission>,
+  ): Promise<ResponseModel<void>>;
 }

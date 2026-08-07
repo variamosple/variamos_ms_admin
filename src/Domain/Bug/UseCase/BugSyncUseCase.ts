@@ -1,13 +1,13 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import { IBugRepository } from "@src/Domain/Bug/Repository/IBugRepository";
-import { IIssueTrackerService } from "@src/Domain/Core/Service/IIssueTrackerService";
-import { IBugTrackerConfig } from "@src/Domain/Bug/Config/IBugTrackerConfig";
-import { GitHubTokenResolver } from "@src/Domain/Bug/Service/GitHubTokenResolver";
-import { Bug } from "@src/Domain/Bug/Entity/Bug";
-import { ALLOWED_CATEGORIES } from "./BugQueryUseCase";
+import type { IBugTrackerConfig } from "@src/Domain/Bug/Config/IBugTrackerConfig.js";
+import { Bug } from "@src/Domain/Bug/Entity/Bug.js";
+import type { IBugRepository } from "@src/Domain/Bug/Repository/IBugRepository.js";
+import type { GitHubTokenResolver } from "@src/Domain/Bug/Service/GitHubTokenResolver.js";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import type { IIssueTrackerService } from "@src/Domain/Core/Service/IIssueTrackerService.js";
 import logger from "jet-logger";
+import { ALLOWED_CATEGORIES } from "./BugQueryUseCase.js";
 
 export class BugSyncUseCase {
   public constructor(
@@ -17,7 +17,9 @@ export class BugSyncUseCase {
     private readonly tokenResolver: GitHubTokenResolver,
   ) {}
 
-  public async syncBugs(request: RequestModel<void>): Promise<ResponseModel<void>> {
+  public async syncBugs(
+    request: RequestModel<void>,
+  ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
     try {
       const appId = this.githubConfig.getGitHubAppId?.()?.trim();
@@ -31,7 +33,10 @@ export class BugSyncUseCase {
         logger.warn(
           "GitHub token is not defined in environment variables. Synchronization aborted.",
         );
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "GitHub Sync is not configured.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "GitHub Sync is not configured.",
+        );
       }
 
       const repos = this.githubConfig.getGitHubManagedRepos();
@@ -43,7 +48,9 @@ export class BugSyncUseCase {
       for (const repo of repos) {
         const token = await this.tokenResolver.resolveGitHubToken(repo);
         if (!token) {
-          logger.warn(`GitHub token could not be resolved for repo: ${repo}. Skipping.`);
+          logger.warn(
+            `GitHub token could not be resolved for repo: ${repo}. Skipping.`,
+          );
           continue;
         }
         const issues = await this.issueTrackerService.getIssues(repo, token);
@@ -53,7 +60,7 @@ export class BugSyncUseCase {
           if (issue.pull_request) continue;
 
           let priority: "low" | "medium" | "high" = "medium";
-          let category: string | undefined = undefined;
+          let category: string | undefined;
           if (issue.labels && Array.isArray(issue.labels)) {
             const labelNames = issue.labels.map((l) => l.name.toLowerCase());
             if (
@@ -69,14 +76,17 @@ export class BugSyncUseCase {
               priority = "high";
             } else if (
               labelNames.some(
-                (n: string) => n.includes("low") || n.includes("p3") || n.includes("minor"),
+                (n: string) =>
+                  n.includes("low") || n.includes("p3") || n.includes("minor"),
               )
             ) {
               priority = "low";
             }
 
             for (const label of labelNames) {
-              const matchedCategory = ALLOWED_CATEGORIES.find((cat) => cat.toLowerCase() === label);
+              const matchedCategory = ALLOWED_CATEGORIES.find(
+                (cat) => cat.toLowerCase() === label,
+              );
               if (matchedCategory) {
                 category = matchedCategory;
                 break;

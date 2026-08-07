@@ -1,14 +1,14 @@
-import { mock, MockProxy } from "jest-mock-extended";
-import { BugQueryUseCase, ALLOWED_CATEGORIES } from "./BugQueryUseCase";
-import { IBugRepository } from "@src/Domain/Bug/Repository/IBugRepository";
-import { IBugTrackerConfig } from "@src/Domain/Bug/Config/IBugTrackerConfig";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Bug } from "@src/Domain/Bug/Entity/Bug";
-import { BugFilter } from "@src/Domain/Bug/Entity/BugFilter";
-import { BugStatusLog } from "@src/Domain/Bug/Entity/BugStatusLog";
-import { BugNote } from "@src/Domain/Bug/Entity/BugNote";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
+import type { IBugTrackerConfig } from "@src/Domain/Bug/Config/IBugTrackerConfig.js";
+import type { Bug } from "@src/Domain/Bug/Entity/Bug.js";
+import { BugFilter } from "@src/Domain/Bug/Entity/BugFilter.js";
+import type { BugNote } from "@src/Domain/Bug/Entity/BugNote.js";
+import type { BugStatusLog } from "@src/Domain/Bug/Entity/BugStatusLog.js";
+import type { IBugRepository } from "@src/Domain/Bug/Repository/IBugRepository.js";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import { type MockProxy, mock } from "vitest-mock-extended";
+import { ALLOWED_CATEGORIES, BugQueryUseCase } from "./BugQueryUseCase.js";
 
 describe("BugQueryUseCase", () => {
   let useCase: BugQueryUseCase;
@@ -26,7 +26,9 @@ describe("BugQueryUseCase", () => {
       mockBugRepository.queryBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([]),
       );
-      mockGithubConfig.getGitHubManagedRepos.mockReturnValue(["VariaMos/VariaMosAdmin"]);
+      mockGithubConfig.getGitHubManagedRepos.mockReturnValue([
+        "VariaMos/VariaMosAdmin",
+      ]);
       const filter = new BugFilter("VariaMos/VariaMosAdmin");
       const request = new RequestModel("tx-id", filter);
       await useCase.queryBugs(request);
@@ -40,7 +42,9 @@ describe("BugQueryUseCase", () => {
       mockBugRepository.queryBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([]),
       );
-      mockGithubConfig.getGitHubManagedRepos.mockReturnValue(["VariaMos/VariaMosAdmin"]);
+      mockGithubConfig.getGitHubManagedRepos.mockReturnValue([
+        "VariaMos/VariaMosAdmin",
+      ]);
 
       const request = new RequestModel("tx-id", new BugFilter());
       await useCase.queryBugs(request);
@@ -57,7 +61,9 @@ describe("BugQueryUseCase", () => {
       mockBugRepository.queryBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([]),
       );
-      mockGithubConfig.getGitHubManagedRepos.mockReturnValue(["VariaMos/VariaMosAdmin"]);
+      mockGithubConfig.getGitHubManagedRepos.mockReturnValue([
+        "VariaMos/VariaMosAdmin",
+      ]);
 
       const request = new RequestModel<BugFilter>("tx-id", undefined);
       await useCase.queryBugs(request);
@@ -98,7 +104,9 @@ describe("BugQueryUseCase", () => {
 
   describe("queryBugRepos", () => {
     it("should return the list of managed repos successfully", async () => {
-      mockGithubConfig.getGitHubManagedRepos.mockReturnValue(["VariaMos/VariaMosAdmin"]);
+      mockGithubConfig.getGitHubManagedRepos.mockReturnValue([
+        "VariaMos/VariaMosAdmin",
+      ]);
 
       const request = new RequestModel<void>("tx-id");
       const response = await useCase.queryBugRepos(request);

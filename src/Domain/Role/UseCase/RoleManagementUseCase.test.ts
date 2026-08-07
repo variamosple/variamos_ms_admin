@@ -1,9 +1,9 @@
-import { mock, MockProxy } from "jest-mock-extended";
-import { RoleManagementUseCase } from "./RoleManagementUseCase";
-import { IRoleRepository } from "@src/Domain/Role/Repository/IRoleRepository";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Role } from "@src/Domain/Role/Entity/Role";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { Role } from "@src/Domain/Role/Entity/Role.js";
+import type { IRoleRepository } from "@src/Domain/Role/Repository/IRoleRepository.js";
+import { type MockProxy, mock } from "vitest-mock-extended";
+import { RoleManagementUseCase } from "./RoleManagementUseCase.js";
 
 describe("RoleManagementUseCase - Unit Tests", () => {
   let useCase: RoleManagementUseCase;
@@ -17,7 +17,9 @@ describe("RoleManagementUseCase - Unit Tests", () => {
   test("should create role", async () => {
     const mockRole = new Role(null, "User");
     const createdRole = new Role(2, "User");
-    const mockResponse = new ResponseModel<Role>("tx-2").withResponse(createdRole);
+    const mockResponse = new ResponseModel<Role>("tx-2").withResponse(
+      createdRole,
+    );
     mockRoleRepository.createRole.mockResolvedValue(mockResponse);
 
     const req = new RequestModel<Role>("tx-2", mockRole);

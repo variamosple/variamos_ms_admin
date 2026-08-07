@@ -40,22 +40,9 @@ jobs:
       run: |
         npm audit --audit-level=high
 
-    - name: Check code formatting (Prettier)
+    - name: Run linter and formatter (Biome)
       run: |
-        npx prettier --check "src/**/*.ts"
-
-    - name: Cache ESLint
-      uses: actions/cache@v6
-      with:
-        path: .eslintcache
-        key: ${{ runner.os }}-eslint-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
-        restore-keys: |
-          ${{ runner.os }}-eslint-${{ hashFiles('package-lock.json') }}-
-          ${{ runner.os }}-eslint-
-
-    - name: Run linter (ESLint)
-      run: |
-        npm run lint -- --cache --cache-location .eslintcache
+        npm run lint
 
     - name: Verify TypeScript types
       run: |

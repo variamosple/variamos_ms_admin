@@ -1,11 +1,14 @@
 {
   "src/**/*.ts": [
-    "prettier --write",
-    "eslint --fix",
+    "biome check --write",
     "cspell"
   ],
-  "src/**/*.{js,json,md}": [
-    "prettier --write",
+  "src/**/*.{js,json}": [
+    "biome check --write",
+    "cspell"
+  ],
+  "src/**/*.md": [
+    "biome format --write",
     "cspell"
   ]
 }

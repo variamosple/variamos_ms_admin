@@ -5,7 +5,7 @@
  */
 
 // NOTE: DO NOT IMPORT ANY SOURCE CODE HERE
-import path from "path";
+import path from "node:path";
 import dotenv from "dotenv";
 import { parse } from "ts-command-line-args";
 

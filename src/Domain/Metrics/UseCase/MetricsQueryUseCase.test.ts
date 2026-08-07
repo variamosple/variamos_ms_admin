@@ -1,11 +1,11 @@
-import { mock, MockProxy } from "jest-mock-extended";
-import { MetricsQueryUseCase } from "./MetricsQueryUseCase";
-import { IMetricsRepository } from "@src/Domain/Metrics/Repository/IMetricsRepository";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Metric } from "@src/Domain/Metrics/Entity/Metric";
-import { MetricsFilter } from "@src/Domain/Metrics/Entity/MetricsFilter";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import { Metric } from "@src/Domain/Metrics/Entity/Metric.js";
+import { MetricsFilter } from "@src/Domain/Metrics/Entity/MetricsFilter.js";
+import type { IMetricsRepository } from "@src/Domain/Metrics/Repository/IMetricsRepository.js";
+import { type MockProxy, mock } from "vitest-mock-extended";
+import { MetricsQueryUseCase } from "./MetricsQueryUseCase.js";
 
 describe("MetricsQueryUseCase - Unit Tests", () => {
   let useCase: MetricsQueryUseCase;
@@ -26,7 +26,9 @@ describe("MetricsQueryUseCase - Unit Tests", () => {
           .setDefaultFilter("yearly")
           .build(),
       ];
-      const mockResponse = new ResponseModel<Metric[]>("tx-1").withResponse(mockMetrics);
+      const mockResponse = new ResponseModel<Metric[]>("tx-1").withResponse(
+        mockMetrics,
+      );
       mockMetricsRepository.getMetrics.mockResolvedValue(mockResponse);
 
       const req = new RequestModel<void>("tx-1");
@@ -53,7 +55,10 @@ describe("MetricsQueryUseCase - Unit Tests", () => {
     });
 
     test("should return error if startDate is missing", async () => {
-      const filter = MetricsFilter.builder().setId("metric-1").setEndDate("2026-06-30").build();
+      const filter = MetricsFilter.builder()
+        .setId("metric-1")
+        .setEndDate("2026-06-30")
+        .build();
       const req = new RequestModel<MetricsFilter>("tx-2", filter);
 
       const res = await useCase.queryMetric(req);
@@ -63,7 +68,10 @@ describe("MetricsQueryUseCase - Unit Tests", () => {
     });
 
     test("should return error if endDate is missing", async () => {
-      const filter = MetricsFilter.builder().setId("metric-1").setStartDate("2026-01-01").build();
+      const filter = MetricsFilter.builder()
+        .setId("metric-1")
+        .setStartDate("2026-01-01")
+        .build();
       const req = new RequestModel<MetricsFilter>("tx-2", filter);
 
       const res = await useCase.queryMetric(req);
@@ -116,7 +124,9 @@ describe("MetricsQueryUseCase - Unit Tests", () => {
         .setChartType("bar")
         .setDefaultFilter("yearly")
         .build();
-      const mockResponse = new ResponseModel<Metric>("tx-2").withResponse(mockMetric);
+      const mockResponse = new ResponseModel<Metric>("tx-2").withResponse(
+        mockMetric,
+      );
       mockMetricsRepository.queryMetric.mockResolvedValue(mockResponse);
 
       const res = await useCase.queryMetric(req);

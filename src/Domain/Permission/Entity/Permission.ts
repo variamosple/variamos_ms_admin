@@ -1,10 +1,11 @@
-import { Nullable } from "@src/Domain/Core/Entity/Nullable";
+import type { Nullable } from "@src/Domain/Core/Entity/Nullable.js";
 
 export class Permission {
   public readonly id: Nullable<number>;
   public readonly name: string;
 
-  private static readonly PERMISSION_NAME_REGEX = /^(?:[a-z0-9-]+::)?[a-z0-9-]+::[a-z0-9-]+$/;
+  private static readonly PERMISSION_NAME_REGEX =
+    /^(?:[a-z0-9-]+::)?[a-z0-9-]+::[a-z0-9-]+$/;
 
   public constructor(id: Nullable<number>, name: string) {
     if (!name || !Permission.PERMISSION_NAME_REGEX.test(name)) {

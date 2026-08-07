@@ -1,10 +1,10 @@
-import { mock, MockProxy } from "jest-mock-extended";
-import { PermissionUseCase } from "./PermissionUseCase";
-import { IPermissionRepository } from "@src/Domain/Permission/Repository/IPermissionRepository";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Permission } from "@src/Domain/Permission/Entity/Permission";
-import { PermissionFilter } from "@src/Domain/Permission/Entity/PermissionFilter";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { Permission } from "@src/Domain/Permission/Entity/Permission.js";
+import { PermissionFilter } from "@src/Domain/Permission/Entity/PermissionFilter.js";
+import type { IPermissionRepository } from "@src/Domain/Permission/Repository/IPermissionRepository.js";
+import { type MockProxy, mock } from "vitest-mock-extended";
+import { PermissionUseCase } from "./PermissionUseCase.js";
 
 describe("PermissionUseCase - Unit Tests", () => {
   let useCase: PermissionUseCase;
@@ -18,7 +18,9 @@ describe("PermissionUseCase - Unit Tests", () => {
   test("should query permissions", async () => {
     const mockFilter = new PermissionFilter(1, "permissions::query");
     const mockPermissions = [new Permission(1, "permissions::query")];
-    const mockResponse = new ResponseModel<Permission[]>("tx-1").withResponse(mockPermissions);
+    const mockResponse = new ResponseModel<Permission[]>("tx-1").withResponse(
+      mockPermissions,
+    );
     mockPermissionRepository.queryPermissions.mockResolvedValue(mockResponse);
 
     const req = new RequestModel<PermissionFilter>("tx-1", mockFilter);
@@ -31,7 +33,9 @@ describe("PermissionUseCase - Unit Tests", () => {
   test("should create permission", async () => {
     const mockPermission = new Permission(null, "permissions::create");
     const createdPermission = new Permission(2, "permissions::create");
-    const mockResponse = new ResponseModel<Permission>("tx-2").withResponse(createdPermission);
+    const mockResponse = new ResponseModel<Permission>("tx-2").withResponse(
+      createdPermission,
+    );
     mockPermissionRepository.createPermission.mockResolvedValue(mockResponse);
 
     const req = new RequestModel<Permission>("tx-2", mockPermission);
@@ -54,7 +58,9 @@ describe("PermissionUseCase - Unit Tests", () => {
 
   test("should query permission by id", async () => {
     const mockPermission = new Permission(1, "permissions::query");
-    const mockResponse = new ResponseModel<Permission>("tx-4").withResponse(mockPermission);
+    const mockResponse = new ResponseModel<Permission>("tx-4").withResponse(
+      mockPermission,
+    );
     mockPermissionRepository.queryById.mockResolvedValue(mockResponse);
 
     const req = new RequestModel<number>("tx-4", 1);
@@ -66,7 +72,9 @@ describe("PermissionUseCase - Unit Tests", () => {
 
   test("should update permission", async () => {
     const mockPermission = new Permission(1, "permissions::update");
-    const mockResponse = new ResponseModel<Permission>("tx-5").withResponse(mockPermission);
+    const mockResponse = new ResponseModel<Permission>("tx-5").withResponse(
+      mockPermission,
+    );
     mockPermissionRepository.updatePermission.mockResolvedValue(mockResponse);
 
     const req = new RequestModel<Permission>("tx-5", mockPermission);

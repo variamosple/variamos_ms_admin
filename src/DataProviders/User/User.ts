@@ -1,6 +1,6 @@
-import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM.js";
 import { BOOLEAN, DATE, Model, TEXT, UUID, UUIDV4 } from "sequelize";
-import { CountryModel } from "../Countries/Country";
+import { CountryModel } from "../Countries/Country.js";
 
 export interface UserAttributes {
   id?: string;

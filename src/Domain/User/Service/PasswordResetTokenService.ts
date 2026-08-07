@@ -1,8 +1,8 @@
-import { IUserRepository } from "../IUserRepository";
-import { User } from "../Entity/User";
-import { v4 as uuidv4 } from "uuid";
-import crypto from "crypto";
+import crypto from "node:crypto";
 import logger from "jet-logger";
+import { v4 as uuidv4 } from "uuid";
+import type { User } from "../Entity/User.js";
+import type { IUserRepository } from "../IUserRepository.js";
 
 export class PasswordResetTokenService {
   public constructor(private userRepository: IUserRepository) {}
@@ -16,12 +16,16 @@ export class PasswordResetTokenService {
     auditContext: string,
   ): Promise<string> {
     if (!user.isEnabled) {
-      logger.warn(`[${auditContext}] Failed: User account is disabled (ID: ${user.id}).`);
+      logger.warn(
+        `[${auditContext}] Failed: User account is disabled (ID: ${user.id}).`,
+      );
       throw new Error("User account is disabled.");
     }
 
     if (user.isDeleted) {
-      logger.warn(`[${auditContext}] Failed: User account is marked as deleted (ID: ${user.id}).`);
+      logger.warn(
+        `[${auditContext}] Failed: User account is marked as deleted (ID: ${user.id}).`,
+      );
       throw new Error("User account is deleted.");
     }
 
@@ -29,7 +33,11 @@ export class PasswordResetTokenService {
     const expiresAt = new Date(Date.now() + expiryInMs);
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
-    await this.userRepository.savePasswordResetToken(user.id || "", tokenHash, expiresAt);
+    await this.userRepository.savePasswordResetToken(
+      user.id || "",
+      tokenHash,
+      expiresAt,
+    );
 
     return token;
   }

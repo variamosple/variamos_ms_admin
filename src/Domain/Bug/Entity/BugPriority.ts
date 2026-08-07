@@ -4,7 +4,9 @@ export class BugPriority {
 
   public constructor(value: string) {
     if (!value || !BugPriority.VALID_PRIORITIES.includes(value.toLowerCase())) {
-      throw new Error("Bug priority must be either 'low', 'medium', or 'high'.");
+      throw new Error(
+        "Bug priority must be either 'low', 'medium', or 'high'.",
+      );
     }
     this.value = value.toLowerCase() as "low" | "medium" | "high";
   }

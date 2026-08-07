@@ -1,8 +1,16 @@
-import { UserFilter } from "./UserFilter";
+import { UserFilter } from "./UserFilter.js";
 
 describe("UserFilter Entity - Unit Tests", () => {
   it("should build UserFilter using constructor", () => {
-    const filter = new UserFilter("1", "user", "name", "email@test.com", "search", 1, 10);
+    const filter = new UserFilter(
+      "1",
+      "user",
+      "name",
+      "email@test.com",
+      "search",
+      1,
+      10,
+    );
     expect(filter.id).toBe("1");
     expect(filter.user).toBe("user");
     expect(filter.name).toBe("name");

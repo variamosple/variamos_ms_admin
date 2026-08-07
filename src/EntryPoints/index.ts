@@ -1,46 +1,58 @@
-import EnvVars from "@src/common/EnvVars";
-import { Router } from "express";
-import { createAuthRouter, AUTH_ROUTE } from "./AuthRouter";
-import { createConfigurationRouter, CONFIGURATION_V1_ROUTE } from "./ConfigurationRouter";
-import { createCountriesRouter, COUNTRIES_V1_ROUTE } from "./CountriesV1Router";
-import { createMetricsRouter, METRICS_V1_ROUTE } from "./MetricsV1Router";
-import { createMicroServicesRouter, MICRO_SERVICES_V1_ROUTE } from "./MicroServicesV1Router";
-import { createPermissionsRouter, PERMISSIONS_V1_ROUTE } from "./PermissionsV1Router";
-import { createRolesRouter, ROLES_V1_ROUTE } from "./RolesV1Router";
-import { createRolePermissionsRouter } from "./RolePermissionsV1Router";
-import { createUsersRouter, USERS_V1_ROUTE } from "./UsersV1Router";
-import { createUserRolesRouter } from "./UserRolesV1Router";
-import { createVisitsRouter, VISITS_V1_ROUTE } from "./VisitsV1Router";
-import { createBugRouter, BUG_V1_ROUTE, MulterUpload } from "./BugRouter";
+import EnvVars from "@src/common/EnvVars.js";
+import type { BugAttachmentUseCase } from "@src/Domain/Bug/UseCase/BugAttachmentUseCase.js";
+import type { BugLifecycleUseCase } from "@src/Domain/Bug/UseCase/BugLifecycleUseCase.js";
+import type { BugQueryUseCase } from "@src/Domain/Bug/UseCase/BugQueryUseCase.js";
+// Bug Flow Use Cases
+import type { BugSubmissionUseCase } from "@src/Domain/Bug/UseCase/BugSubmissionUseCase.js";
+import type { BugSyncUseCase } from "@src/Domain/Bug/UseCase/BugSyncUseCase.js";
+import type { CountriesQueryUseCase } from "@src/Domain/Countries/UseCase/CountriesQueryUseCase.js";
+// Other Use Cases
+import type { MetricsQueryUseCase } from "@src/Domain/Metrics/UseCase/MetricsQueryUseCase.js";
+import type { MicroServiceManagementUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
+import type { MicroServiceQueryUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
+import type { PermissionUseCase } from "@src/Domain/Permission/UseCase/PermissionUseCase.js";
+// Role & Permission Use Cases
+import type { RoleManagementUseCase } from "@src/Domain/Role/UseCase/RoleManagementUseCase.js";
+import type { RolePermissionUseCase } from "@src/Domain/Role/UseCase/RolePermissionUseCase.js";
+import type { RoleQueryUseCase } from "@src/Domain/Role/UseCase/RoleQueryUseCase.js";
 
 // User Flow Use Cases
-import { UserAuthUseCase } from "@src/Domain/User/UseCase/UserAuthUseCase";
-import { UserPasswordUseCase } from "@src/Domain/User/UseCase/UserPasswordUseCase";
-import { UserManagementUseCase } from "@src/Domain/User/UseCase/UserManagementUseCase";
-import { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase";
-import { UserRoleUseCase } from "@src/Domain/User/UseCase/UserRoleUseCase";
-
-// Bug Flow Use Cases
-import { BugSubmissionUseCase } from "@src/Domain/Bug/UseCase/BugSubmissionUseCase";
-import { BugLifecycleUseCase } from "@src/Domain/Bug/UseCase/BugLifecycleUseCase";
-import { BugSyncUseCase } from "@src/Domain/Bug/UseCase/BugSyncUseCase";
-import { BugQueryUseCase } from "@src/Domain/Bug/UseCase/BugQueryUseCase";
-import { BugAttachmentUseCase } from "@src/Domain/Bug/UseCase/BugAttachmentUseCase";
-
-// Role & Permission Use Cases
-import { RoleManagementUseCase } from "@src/Domain/Role/UseCase/RoleManagementUseCase";
-import { RoleQueryUseCase } from "@src/Domain/Role/UseCase/RoleQueryUseCase";
-import { RolePermissionUseCase } from "@src/Domain/Role/UseCase/RolePermissionUseCase";
-import { PermissionUseCase } from "@src/Domain/Permission/UseCase/PermissionUseCase";
-
-// Other Use Cases
-import { MetricsQueryUseCase } from "@src/Domain/Metrics/UseCase/MetricsQueryUseCase";
-import { VisitUseCase } from "@src/Domain/Visit/UseCase/VisitUseCase";
-import { CountriesQueryUseCase } from "@src/Domain/Countries/UseCase/CountriesQueryUseCase";
-import { MicroServiceQueryUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceQueryUseCase";
-import { MicroServiceManagementUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceManagementUseCase";
-
+import type { UserAuthUseCase } from "@src/Domain/User/UseCase/UserAuthUseCase.js";
+import type { UserManagementUseCase } from "@src/Domain/User/UseCase/UserManagementUseCase.js";
+import type { UserPasswordUseCase } from "@src/Domain/User/UseCase/UserPasswordUseCase.js";
+import type { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase.js";
+import type { UserRoleUseCase } from "@src/Domain/User/UseCase/UserRoleUseCase.js";
+import type { VisitUseCase } from "@src/Domain/Visit/UseCase/VisitUseCase.js";
 import { isAuthenticated } from "@variamosple/variamos-security";
+import { Router } from "express";
+import { AUTH_ROUTE, createAuthRouter } from "./AuthRouter.js";
+import {
+  BUG_V1_ROUTE,
+  createBugRouter,
+  type MulterUpload,
+} from "./BugRouter.js";
+import {
+  CONFIGURATION_V1_ROUTE,
+  createConfigurationRouter,
+} from "./ConfigurationRouter.js";
+import {
+  COUNTRIES_V1_ROUTE,
+  createCountriesRouter,
+} from "./CountriesV1Router.js";
+import { createMetricsRouter, METRICS_V1_ROUTE } from "./MetricsV1Router.js";
+import {
+  createMicroServicesRouter,
+  MICRO_SERVICES_V1_ROUTE,
+} from "./MicroServicesV1Router.js";
+import {
+  createPermissionsRouter,
+  PERMISSIONS_V1_ROUTE,
+} from "./PermissionsV1Router.js";
+import { createRolePermissionsRouter } from "./RolePermissionsV1Router.js";
+import { createRolesRouter, ROLES_V1_ROUTE } from "./RolesV1Router.js";
+import { createUserRolesRouter } from "./UserRolesV1Router.js";
+import { createUsersRouter, USERS_V1_ROUTE } from "./UsersV1Router.js";
+import { createVisitsRouter, VISITS_V1_ROUTE } from "./VisitsV1Router.js";
 
 export interface UserFlowUseCases {
   auth: UserAuthUseCase;
@@ -96,7 +108,9 @@ export function createBaseRouter(
     usersUseCases.management,
     userRolesRouter,
   );
-  const rolePermissionsRouter = createRolePermissionsRouter(rolesUseCases.permission);
+  const rolePermissionsRouter = createRolePermissionsRouter(
+    rolesUseCases.permission,
+  );
   const rolesV1Router = createRolesRouter(
     rolesUseCases.management,
     rolesUseCases.query,
@@ -131,7 +145,7 @@ export function createBaseRouter(
   baseRouter.use(COUNTRIES_V1_ROUTE, countriesV1Router);
   baseRouter.use(BUG_V1_ROUTE, bugV1Router);
 
-  baseRouter.get("/version", function (_, res) {
+  baseRouter.get("/version", (_, res) => {
     try {
       const data = {
         message: "variamos_ms_admin",

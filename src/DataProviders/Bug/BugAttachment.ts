@@ -1,4 +1,4 @@
-import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM.js";
 import { DATE, INTEGER, Model, TEXT, UUID } from "sequelize";
 
 export interface BugAttachmentAttributes {

@@ -1,4 +1,4 @@
-import { BugStatusLog } from "./BugStatusLog";
+import { BugStatusLog } from "./BugStatusLog.js";
 
 describe("BugStatusLog Entity - Unit Tests", () => {
   it("should successfully build a BugStatusLog using builder", () => {

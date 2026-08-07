@@ -1,9 +1,9 @@
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Visit } from "@src/Domain/Visit/Entity/Visit";
-import { IVisitRepository } from "@src/Domain/Visit/Repository/IVisitRepository";
-import { ICountriesRepository } from "@src/Domain/Countries/Repository/ICountriesRepository";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ICountriesRepository } from "@src/Domain/Countries/Repository/ICountriesRepository.js";
+import type { Visit } from "@src/Domain/Visit/Entity/Visit.js";
+import type { IVisitRepository } from "@src/Domain/Visit/Repository/IVisitRepository.js";
 
 export class VisitUseCase {
   public constructor(
@@ -22,9 +22,10 @@ export class VisitUseCase {
       );
     }
 
-    const countryCodeResponse = await this.countriesRepository.getUserCountryCode(
-      new RequestModel(request.transactionId, request.data.userId),
-    );
+    const countryCodeResponse =
+      await this.countriesRepository.getUserCountryCode(
+        new RequestModel(request.transactionId, request.data.userId),
+      );
 
     if (countryCodeResponse.errorCode) {
       return new ResponseModel<Visit>(request.transactionId).withError(

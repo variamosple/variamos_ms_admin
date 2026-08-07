@@ -1,29 +1,32 @@
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import { Visit } from "@src/Domain/Visit/Entity/Visit.js";
+import { VisitUseCase } from "@src/Domain/Visit/UseCase/VisitUseCase.js";
 import express from "express";
 import supertest from "supertest";
-import { createVisitsRouter } from "./VisitsV1Router";
-import { VisitUseCase } from "@src/Domain/Visit/UseCase/VisitUseCase";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
-import { Visit } from "@src/Domain/Visit/Entity/Visit";
-
-import { mock } from "jest-mock-extended";
+import { mock } from "vitest-mock-extended";
+import { createVisitsRouter } from "./VisitsV1Router.js";
 
 interface CustomRequest {
   user?: { id: string };
 }
 
 // Mock dependencies
-jest.mock("@src/Domain/Visit/UseCase/VisitUseCase");
-jest.mock("@variamosple/variamos-security", () => ({
-  isAuthenticated: (req: express.Request, _res: express.Response, next: () => void) => {
+vi.mock("@src/Domain/Visit/UseCase/VisitUseCase");
+vi.mock("@variamosple/variamos-security", () => ({
+  isAuthenticated: (
+    req: express.Request,
+    _res: express.Response,
+    next: () => void,
+  ) => {
     (req as CustomRequest).user = { id: "user-123" };
     next();
   },
 }));
 
-import { IVisitRepository } from "@src/Domain/Visit/Repository/IVisitRepository";
-import { ICountriesRepository } from "@src/Domain/Countries/Repository/ICountriesRepository";
+import type { ICountriesRepository } from "@src/Domain/Countries/Repository/ICountriesRepository.js";
+import type { IVisitRepository } from "@src/Domain/Visit/Repository/IVisitRepository.js";
 
 describe("VisitsV1Router Integration Tests - Extended Coverage", () => {
   let app: express.Application;
@@ -39,14 +42,18 @@ describe("VisitsV1Router Integration Tests - Extended Coverage", () => {
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe("POST /v1/visits", () => {
     it("should return 200 on success when using x-forwarded-for header", async () => {
       const mockVisit = new Visit("home-page", "user-123");
-      const expectedResponse = new ResponseModel("createVisit").withResponse(mockVisit);
-      (VisitUseCase.prototype.registerVisit as jest.Mock).mockResolvedValue(expectedResponse);
+      const expectedResponse = new ResponseModel("createVisit").withResponse(
+        mockVisit,
+      );
+      (VisitUseCase.prototype.registerVisit as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .post("/v1/visits")
@@ -62,10 +69,16 @@ describe("VisitsV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return 200 on success when using fallback client ip", async () => {
       const mockVisit = new Visit("home-page", "user-123");
-      const expectedResponse = new ResponseModel("createVisit").withResponse(mockVisit);
-      (VisitUseCase.prototype.registerVisit as jest.Mock).mockResolvedValue(expectedResponse);
+      const expectedResponse = new ResponseModel("createVisit").withResponse(
+        mockVisit,
+      );
+      (VisitUseCase.prototype.registerVisit as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
-      const response = await supertest(app).post("/v1/visits").send({ pageId: "home-page" });
+      const response = await supertest(app)
+        .post("/v1/visits")
+        .send({ pageId: "home-page" });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(VisitUseCase.prototype.registerVisit).toHaveBeenCalledWith(
@@ -85,19 +98,25 @@ describe("VisitsV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.INVALID_INPUT,
         "register failed",
       );
-      (VisitUseCase.prototype.registerVisit as jest.Mock).mockResolvedValue(expectedResponse);
+      (VisitUseCase.prototype.registerVisit as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
-      const response = await supertest(app).post("/v1/visits").send({ pageId: "home-page" });
+      const response = await supertest(app)
+        .post("/v1/visits")
+        .send({ pageId: "home-page" });
 
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
     });
 
     it("should return 500 when register throws an exception", async () => {
-      (VisitUseCase.prototype.registerVisit as jest.Mock).mockRejectedValue(
+      (VisitUseCase.prototype.registerVisit as vi.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
-      const response = await supertest(app).post("/v1/visits").send({ pageId: "home-page" });
+      const response = await supertest(app)
+        .post("/v1/visits")
+        .send({ pageId: "home-page" });
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
     });

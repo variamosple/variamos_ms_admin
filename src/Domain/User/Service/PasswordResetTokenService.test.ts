@@ -1,8 +1,8 @@
-import { mock, MockProxy } from "jest-mock-extended";
-import { PasswordResetTokenService } from "./PasswordResetTokenService";
-import { IUserRepository } from "../IUserRepository";
-import { User } from "../Entity/User";
 import logger from "jet-logger";
+import { type MockProxy, mock } from "vitest-mock-extended";
+import type { User } from "../Entity/User.js";
+import type { IUserRepository } from "../IUserRepository.js";
+import { PasswordResetTokenService } from "./PasswordResetTokenService.js";
 
 describe("PasswordResetTokenService", () => {
   let service: PasswordResetTokenService;
@@ -30,7 +30,11 @@ describe("PasswordResetTokenService", () => {
   it("should generate a token and save its hash in the database successfully", async () => {
     mockUserRepository.savePasswordResetToken.mockResolvedValue(undefined);
 
-    const token = await service.createResetToken(mockUser, 3600000, "TEST CONTEXT");
+    const token = await service.createResetToken(
+      mockUser,
+      3600000,
+      "TEST CONTEXT",
+    );
 
     expect(token).toBeDefined();
     expect(token.length).toBe(36); // UUID length
@@ -48,28 +52,36 @@ describe("PasswordResetTokenService", () => {
 
   it("should throw an error if user is disabled", async () => {
     const disabledUser = { ...mockUser, isEnabled: false } as User;
-    const loggerWarnSpy = jest.spyOn(logger, "warn").mockImplementation(() => {});
+    const loggerWarnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
 
-    await expect(service.createResetToken(disabledUser, 3600000, "TEST CONTEXT")).rejects.toThrow(
-      "User account is disabled.",
+    await expect(
+      service.createResetToken(disabledUser, 3600000, "TEST CONTEXT"),
+    ).rejects.toThrow("User account is disabled.");
+
+    expect(loggerWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("TEST CONTEXT"),
     );
-
-    expect(loggerWarnSpy).toHaveBeenCalledWith(expect.stringContaining("TEST CONTEXT"));
-    expect(loggerWarnSpy).toHaveBeenCalledWith(expect.stringContaining("user-123"));
+    expect(loggerWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("user-123"),
+    );
     expect(mockUserRepository.savePasswordResetToken).not.toHaveBeenCalled();
     loggerWarnSpy.mockRestore();
   });
 
   it("should throw an error if user is marked as deleted", async () => {
     const deletedUser = { ...mockUser, isDeleted: true } as User;
-    const loggerWarnSpy = jest.spyOn(logger, "warn").mockImplementation(() => {});
+    const loggerWarnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
 
-    await expect(service.createResetToken(deletedUser, 3600000, "TEST CONTEXT")).rejects.toThrow(
-      "User account is deleted.",
+    await expect(
+      service.createResetToken(deletedUser, 3600000, "TEST CONTEXT"),
+    ).rejects.toThrow("User account is deleted.");
+
+    expect(loggerWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("TEST CONTEXT"),
     );
-
-    expect(loggerWarnSpy).toHaveBeenCalledWith(expect.stringContaining("TEST CONTEXT"));
-    expect(loggerWarnSpy).toHaveBeenCalledWith(expect.stringContaining("user-123"));
+    expect(loggerWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("user-123"),
+    );
     expect(mockUserRepository.savePasswordResetToken).not.toHaveBeenCalled();
     loggerWarnSpy.mockRestore();
   });

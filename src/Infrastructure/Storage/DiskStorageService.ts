@@ -1,7 +1,7 @@
-import { IStorageService } from "@src/Domain/Core/Service/IStorageService";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import type { IStorageService } from "@src/Domain/Core/Service/IStorageService.js";
 import logger from "jet-logger";
-import * as fs from "fs";
-import * as path from "path";
 
 export class DiskStorageService implements IStorageService {
   public async deleteFile(filePath: string): Promise<void> {
@@ -10,7 +10,9 @@ export class DiskStorageService implements IStorageService {
     return new Promise((resolve) => {
       fs.unlink(absolutePath, (err) => {
         if (err) {
-          logger.err(`Failed to delete physical file: ${absolutePath}. ${err.message}`);
+          logger.err(
+            `Failed to delete physical file: ${absolutePath}. ${err.message}`,
+          );
         } else {
           logger.info(`Successfully deleted physical file: ${absolutePath}`);
         }

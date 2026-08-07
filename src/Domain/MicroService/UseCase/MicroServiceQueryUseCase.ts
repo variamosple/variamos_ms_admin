@@ -1,12 +1,14 @@
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { MicroService } from "@src/Domain/MicroService/Entity/MicroService";
-import { MicroServiceFilter } from "@src/Domain/MicroService/Entity/MicroServiceFilter";
-import { IMicroServiceRepository } from "@src/Domain/MicroService/Repository/IMicroServiceRepository";
+import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import type { MicroService } from "@src/Domain/MicroService/Entity/MicroService.js";
+import type { MicroServiceFilter } from "@src/Domain/MicroService/Entity/MicroServiceFilter.js";
+import type { IMicroServiceRepository } from "@src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 
 export class MicroServiceQueryUseCase {
-  public constructor(private readonly microServiceRepository: IMicroServiceRepository) {}
+  public constructor(
+    private readonly microServiceRepository: IMicroServiceRepository,
+  ) {}
 
   public queryMicroServices(
     request: RequestModel<MicroServiceFilter>,
@@ -17,7 +19,9 @@ export class MicroServiceQueryUseCase {
   public async watchMicroServiceLogs(
     request: RequestModel<string>,
   ): Promise<ResponseModel<NodeJS.ReadableStream>> {
-    const defaultResponse = new ResponseModel<NodeJS.ReadableStream>(request.transactionId);
+    const defaultResponse = new ResponseModel<NodeJS.ReadableStream>(
+      request.transactionId,
+    );
 
     if (!request.data) {
       return defaultResponse.withError(

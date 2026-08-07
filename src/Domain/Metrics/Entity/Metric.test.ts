@@ -1,10 +1,18 @@
-import { Metric } from "./Metric";
+import { Metric } from "./Metric.js";
 
 describe("Metric Entity - Unit Tests", () => {
   it("should successfully build a Metric using constructor", () => {
     const filters = ["month", "year"];
     const testData = { value: 100 };
-    const metric = new Metric("met-1", "Test Metric", "bar", "month", filters, "date", testData);
+    const metric = new Metric(
+      "met-1",
+      "Test Metric",
+      "bar",
+      "month",
+      filters,
+      "date",
+      testData,
+    );
 
     expect(metric.getId()).toBe("met-1");
     expect(metric.getTitle()).toBe("Test Metric");
