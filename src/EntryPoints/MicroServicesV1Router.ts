@@ -5,7 +5,7 @@ import { MicroServiceFilter } from "@src/Domain/MicroService/Entity/MicroService
 import { MicroServiceQueryUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceQueryUseCase";
 import { MicroServiceManagementUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceManagementUseCase";
 import { hasPermissions } from "@variamosple/variamos-security";
-import { Router } from "express";
+import { Router, Request } from "express";
 import logger from "jet-logger";
 import { mapDomainErrorToHttpStatus } from "./errorMapper";
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
@@ -48,7 +48,7 @@ export function createMicroServicesRouter(
   microServicesV1Router.put(
     "/:microserviceId/start",
     hasPermissions(["micro-services::update"]),
-    async (req, res) => {
+    async (req: Request<{ microserviceId: string }>, res) => {
       const transactionId = "startMicroService";
       const { microserviceId } = req.params;
 
@@ -73,7 +73,7 @@ export function createMicroServicesRouter(
   microServicesV1Router.put(
     "/:microserviceId/restart",
     hasPermissions(["micro-services::update"]),
-    async (req, res) => {
+    async (req: Request<{ microserviceId: string }>, res) => {
       const transactionId = "restartMicroService";
       const { microserviceId } = req.params;
 
@@ -98,7 +98,7 @@ export function createMicroServicesRouter(
   microServicesV1Router.put(
     "/:microserviceId/stop",
     hasPermissions(["micro-services::update"]),
-    async (req, res) => {
+    async (req: Request<{ microserviceId: string }>, res) => {
       const transactionId = "stopMicroService";
       const { microserviceId } = req.params;
 
@@ -123,7 +123,7 @@ export function createMicroServicesRouter(
   microServicesV1Router.get(
     "/:microserviceId/logs/watch",
     hasPermissions(["micro-services::query"]),
-    async (req, res) => {
+    async (req: Request<{ microserviceId: string }>, res) => {
       const transactionId = "watchMicroServiceLogs";
       const { microserviceId } = req.params;
 
