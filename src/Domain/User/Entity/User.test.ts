@@ -1,4 +1,4 @@
-import { User } from "./User";
+import { User } from "./User.js";
 
 describe("User Entity & Builder - Unit Tests", () => {
   test("should build a User successfully using builder and constructor", () => {

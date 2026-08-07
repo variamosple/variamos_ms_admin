@@ -1,8 +1,12 @@
-import { mock } from "jest-mock-extended";
-const mockValidateSession = jest.fn();
+import { mock } from "vitest-mock-extended";
+const mockValidateSession = vi.fn();
 
-jest.mock("@variamosple/variamos-security", () => ({
-  isAuthenticated: (req: express.Request, _res: express.Response, next: express.NextFunction) => {
+vi.mock("@variamosple/variamos-security", () => ({
+  isAuthenticated: (
+    req: express.Request,
+    _res: express.Response,
+    next: express.NextFunction,
+  ) => {
     (req as { user?: { id: string; email?: string } }).user = {
       id: "admin-123",
       email: "admin@example.com",
@@ -10,35 +14,52 @@ jest.mock("@variamosple/variamos-security", () => ({
     next();
   },
   hasPermissions:
-    () => (req: express.Request, _res: express.Response, next: express.NextFunction) =>
+    () =>
+    (
+      _req: express.Request,
+      _res: express.Response,
+      next: express.NextFunction,
+    ) =>
       next(),
-  isLogged: () => (req: express.Request, _res: express.Response, next: express.NextFunction) =>
-    next(),
-  checkSession: () => (req: express.Request, _res: express.Response, next: express.NextFunction) =>
-    next(),
+  isLogged:
+    () =>
+    (
+      _req: express.Request,
+      _res: express.Response,
+      next: express.NextFunction,
+    ) =>
+      next(),
+  checkSession:
+    () =>
+    (
+      _req: express.Request,
+      _res: express.Response,
+      next: express.NextFunction,
+    ) =>
+      next(),
   validateSession: (token: string) => mockValidateSession(token),
 }));
 
-import request from "supertest";
-import express, { RequestHandler } from "express";
+import { Bug } from "@src/Domain/Bug/Entity/Bug.js";
+import { BugAttachment } from "@src/Domain/Bug/Entity/BugAttachment.js";
+import { BugNote } from "@src/Domain/Bug/Entity/BugNote.js";
+import type { BugStatusLog } from "@src/Domain/Bug/Entity/BugStatusLog.js";
+import type { BugAttachmentUseCase } from "@src/Domain/Bug/UseCase/BugAttachmentUseCase.js";
+import type { BugLifecycleUseCase } from "@src/Domain/Bug/UseCase/BugLifecycleUseCase.js";
+import type { BugQueryUseCase } from "@src/Domain/Bug/UseCase/BugQueryUseCase.js";
+import type { BugSubmissionUseCase } from "@src/Domain/Bug/UseCase/BugSubmissionUseCase.js";
+import type { BugSyncUseCase } from "@src/Domain/Bug/UseCase/BugSyncUseCase.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
 import cookieParser from "cookie-parser";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Bug } from "@src/Domain/Bug/Entity/Bug";
-import { BugNote } from "@src/Domain/Bug/Entity/BugNote";
-import { BugStatusLog } from "@src/Domain/Bug/Entity/BugStatusLog";
-import { BugAttachment } from "@src/Domain/Bug/Entity/BugAttachment";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import { createBugRouter } from "./BugRouter";
-import { BugSubmissionUseCase } from "@src/Domain/Bug/UseCase/BugSubmissionUseCase";
-import { BugLifecycleUseCase } from "@src/Domain/Bug/UseCase/BugLifecycleUseCase";
-import { BugSyncUseCase } from "@src/Domain/Bug/UseCase/BugSyncUseCase";
-import { BugQueryUseCase } from "@src/Domain/Bug/UseCase/BugQueryUseCase";
-import { BugAttachmentUseCase } from "@src/Domain/Bug/UseCase/BugAttachmentUseCase";
-import multer from "multer";
+import express, { type RequestHandler } from "express";
 import logger from "jet-logger";
+import multer from "multer";
+import request from "supertest";
+import { createBugRouter } from "./BugRouter.js";
 
-const mockLoggerInfo = jest.spyOn(logger, "info").mockImplementation();
-const mockLoggerErr = jest.spyOn(logger, "err").mockImplementation();
+const mockLoggerInfo = vi.spyOn(logger, "info").mockImplementation();
+const mockLoggerErr = vi.spyOn(logger, "err").mockImplementation();
 
 const mockBugSubmissionUseCase = mock<BugSubmissionUseCase>();
 const mockBugLifecycleUseCase = mock<BugLifecycleUseCase>();
@@ -48,7 +69,7 @@ const mockBugAttachmentUseCase = mock<BugAttachmentUseCase>();
 
 // Use memory storage for testing to bypass physical disk writes and keep tests clean
 const mockUpload = multer({ storage: multer.memoryStorage() });
-const mockAuth: RequestHandler = (req, res, next) => {
+const mockAuth: RequestHandler = (req, _res, next) => {
   (req as { user?: { id: string; email?: string } }).user = {
     id: "admin-123",
     email: "admin@example.com",
@@ -80,13 +101,17 @@ app.use(
 
 describe("BugRouter HTTP Integration Tests", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe("GET /", () => {
     it("should return 200 and bug list on success", async () => {
       const mockBugs = [
-        Bug.builder().setId("gh-1").setTitle("GitHub Issue 1").setStatus("open").build(),
+        Bug.builder()
+          .setId("gh-1")
+          .setTitle("GitHub Issue 1")
+          .setStatus("open")
+          .build(),
       ];
       mockBugQueryUseCase.queryBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse(mockBugs),
@@ -114,7 +139,9 @@ describe("BugRouter HTTP Integration Tests", () => {
         ),
       );
 
-      const res = await request(app).get("/bugs").query({ repo: "invalid-repo" });
+      const res = await request(app)
+        .get("/bugs")
+        .query({ repo: "invalid-repo" });
 
       expect(res.status).toBe(400);
       expect(res.body.message).toBe("Invalid repository format");
@@ -124,13 +151,19 @@ describe("BugRouter HTTP Integration Tests", () => {
   describe("GET /bugs/local", () => {
     it("should fetch local inbox bugs successfully", async () => {
       const localBugs = [
-        Bug.builder().setId("local-1").setTitle("Local Bug 1").setStatus("pending").build(),
+        Bug.builder()
+          .setId("local-1")
+          .setTitle("Local Bug 1")
+          .setStatus("pending")
+          .build(),
       ];
       mockBugQueryUseCase.queryLocalBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse(localBugs),
       );
 
-      const res = await request(app).get("/bugs/local").query({ status: "pending" });
+      const res = await request(app)
+        .get("/bugs/local")
+        .query({ status: "pending" });
 
       expect(res.status).toBe(200);
       expect(res.body.data[0].id).toBe("local-1");
@@ -144,7 +177,10 @@ describe("BugRouter HTTP Integration Tests", () => {
 
   describe("POST /bugs/:id/reject", () => {
     it("should successfully reject a local bug", async () => {
-      const rejectedBug = Bug.builder().setId("local-1").setStatus("rejected").build();
+      const rejectedBug = Bug.builder()
+        .setId("local-1")
+        .setStatus("rejected")
+        .build();
       mockBugLifecycleUseCase.rejectBug.mockResolvedValue(
         new ResponseModel<Bug>("tx-id").withResponse(rejectedBug),
       );
@@ -178,7 +214,10 @@ describe("BugRouter HTTP Integration Tests", () => {
 
   describe("POST /bugs/:id/restore", () => {
     it("should successfully restore a bug", async () => {
-      const restoredBug = Bug.builder().setId("local-1").setStatus("pending").build();
+      const restoredBug = Bug.builder()
+        .setId("local-1")
+        .setStatus("pending")
+        .build();
       mockBugLifecycleUseCase.restoreBug.mockResolvedValue(
         new ResponseModel<Bug>("tx-id").withResponse(restoredBug),
       );
@@ -199,7 +238,9 @@ describe("BugRouter HTTP Integration Tests", () => {
   describe("GET /bugs/repos", () => {
     it("should successfully query managed repos", async () => {
       mockBugQueryUseCase.queryBugRepos.mockResolvedValue(
-        new ResponseModel<string[]>("tx-id").withResponse(["VariaMos/VariaMosAdmin"]),
+        new ResponseModel<string[]>("tx-id").withResponse([
+          "VariaMos/VariaMosAdmin",
+        ]),
       );
 
       const res = await request(app).get("/bugs/repos");
@@ -214,7 +255,9 @@ describe("BugRouter HTTP Integration Tests", () => {
     });
 
     it("should return 400 when queryBugRepos throws an exception", async () => {
-      mockBugQueryUseCase.queryBugRepos.mockRejectedValue(new Error("Internal Config Fail"));
+      mockBugQueryUseCase.queryBugRepos.mockRejectedValue(
+        new Error("Internal Config Fail"),
+      );
 
       const res = await request(app).get("/bugs/repos");
 
@@ -241,7 +284,9 @@ describe("BugRouter HTTP Integration Tests", () => {
     });
 
     it("should return 400 when queryCategories throws an exception", async () => {
-      mockBugQueryUseCase.queryCategories.mockRejectedValue(new Error("Database Query Failed"));
+      mockBugQueryUseCase.queryCategories.mockRejectedValue(
+        new Error("Database Query Failed"),
+      );
 
       const res = await request(app).get("/bugs/categories");
 
@@ -252,7 +297,10 @@ describe("BugRouter HTTP Integration Tests", () => {
 
   describe("POST /bugs", () => {
     it("should successfully create a new local bug without attachment", async () => {
-      const newBug = Bug.builder().setId("local-new").setTitle("UI Crash").build();
+      const newBug = Bug.builder()
+        .setId("local-new")
+        .setTitle("UI Crash")
+        .build();
       mockBugSubmissionUseCase.createBug.mockResolvedValue(
         new ResponseModel<Bug>("tx-id").withResponse(newBug),
       );
@@ -307,7 +355,9 @@ describe("BugRouter HTTP Integration Tests", () => {
     });
 
     it("should return 400 when creation throws an error", async () => {
-      mockBugSubmissionUseCase.createBug.mockRejectedValue(new Error("Required fields missing"));
+      mockBugSubmissionUseCase.createBug.mockRejectedValue(
+        new Error("Required fields missing"),
+      );
 
       const res = await request(app).post("/bugs").send({});
 
@@ -334,7 +384,9 @@ describe("BugRouter HTTP Integration Tests", () => {
     });
 
     it("should return 400 when fetching history throws", async () => {
-      mockBugQueryUseCase.queryHistory.mockRejectedValue(new Error("DB Query Timeout"));
+      mockBugQueryUseCase.queryHistory.mockRejectedValue(
+        new Error("DB Query Timeout"),
+      );
 
       const res = await request(app).get("/bugs/local-1/history");
 
@@ -345,7 +397,10 @@ describe("BugRouter HTTP Integration Tests", () => {
 
   describe("POST /bugs/:id/status", () => {
     it("should successfully update bug status", async () => {
-      const updatedBug = Bug.builder().setId("local-1").setStatus("closed").build();
+      const updatedBug = Bug.builder()
+        .setId("local-1")
+        .setStatus("closed")
+        .build();
       mockBugLifecycleUseCase.updateStatus.mockResolvedValue(
         new ResponseModel<Bug>("tx-id").withResponse(updatedBug),
       );
@@ -381,9 +436,13 @@ describe("BugRouter HTTP Integration Tests", () => {
     });
 
     it("should return 400 when update status throws", async () => {
-      mockBugLifecycleUseCase.updateStatus.mockRejectedValue(new Error("Update failed"));
+      mockBugLifecycleUseCase.updateStatus.mockRejectedValue(
+        new Error("Update failed"),
+      );
 
-      const res = await request(app).post("/bugs/local-1/status").send({ status: "closed" });
+      const res = await request(app)
+        .post("/bugs/local-1/status")
+        .send({ status: "closed" });
 
       expect(res.status).toBe(400);
       expect(res.body.error).toBe("Update failed");
@@ -392,7 +451,9 @@ describe("BugRouter HTTP Integration Tests", () => {
 
   describe("POST /bugs/:id/reject exception routing", () => {
     it("should return 400 when rejectBug throws exception", async () => {
-      mockBugLifecycleUseCase.rejectBug.mockRejectedValue(new Error("Reject exception"));
+      mockBugLifecycleUseCase.rejectBug.mockRejectedValue(
+        new Error("Reject exception"),
+      );
 
       const res = await request(app).post("/bugs/local-1/reject").send();
 
@@ -403,7 +464,9 @@ describe("BugRouter HTTP Integration Tests", () => {
 
   describe("POST /bugs/:id/restore exception routing", () => {
     it("should return 400 when restoreBug throws exception", async () => {
-      mockBugLifecycleUseCase.restoreBug.mockRejectedValue(new Error("Restore exception"));
+      mockBugLifecycleUseCase.restoreBug.mockRejectedValue(
+        new Error("Restore exception"),
+      );
 
       const res = await request(app).post("/bugs/local-1/restore").send();
 
@@ -414,7 +477,9 @@ describe("BugRouter HTTP Integration Tests", () => {
 
   describe("GET /bugs error routing", () => {
     it("should return 400 when queryBugs throws an exception", async () => {
-      mockBugQueryUseCase.queryBugs.mockRejectedValue(new Error("Query exception"));
+      mockBugQueryUseCase.queryBugs.mockRejectedValue(
+        new Error("Query exception"),
+      );
 
       const res = await request(app).get("/bugs");
 
@@ -425,7 +490,9 @@ describe("BugRouter HTTP Integration Tests", () => {
 
   describe("GET /bugs/local error routing", () => {
     it("should return 400 when queryLocalBugs throws an exception", async () => {
-      mockBugQueryUseCase.queryLocalBugs.mockRejectedValue(new Error("Query local exception"));
+      mockBugQueryUseCase.queryLocalBugs.mockRejectedValue(
+        new Error("Query local exception"),
+      );
 
       const res = await request(app).get("/bugs/local");
 
@@ -467,7 +534,10 @@ describe("BugRouter HTTP Integration Tests", () => {
 
     it("should return the exact numeric code if it is an unknown number", async () => {
       mockBugQueryUseCase.queryBugs.mockResolvedValue(
-        new ResponseModel<Bug[]>("tx-id").withError("418" as unknown as DomainErrorCodes, "Teapot"),
+        new ResponseModel<Bug[]>("tx-id").withError(
+          "418" as unknown as DomainErrorCodes,
+          "Teapot",
+        ),
       );
       const res = await request(app).get("/bugs");
       expect(res.status).toBe(418);
@@ -494,7 +564,9 @@ describe("BugRouter HTTP Integration Tests", () => {
       const res = await request(app).post("/bugs/sync").send();
 
       expect(res.status).toBe(200);
-      expect(res.body.message).toContain("synchronization completed successfully");
+      expect(res.body.message).toContain(
+        "synchronization completed successfully",
+      );
       expect(mockBugSyncUseCase.syncBugs).toHaveBeenCalledWith(
         expect.objectContaining({
           transactionId: "syncBugs",
@@ -517,7 +589,9 @@ describe("BugRouter HTTP Integration Tests", () => {
     });
 
     it("should return 400 when syncBugs throws an exception", async () => {
-      mockBugSyncUseCase.syncBugs.mockRejectedValue(new Error("Sync exception"));
+      mockBugSyncUseCase.syncBugs.mockRejectedValue(
+        new Error("Sync exception"),
+      );
 
       const res = await request(app).post("/bugs/sync").send();
 
@@ -533,7 +607,7 @@ describe("BugRouter HTTP Integration Tests", () => {
       guestApp = express();
       guestApp.use(cookieParser());
       guestApp.use(express.json());
-      const noAuth: RequestHandler = (req, res, next) => next();
+      const noAuth: RequestHandler = (_req, _res, next) => next();
       guestApp.use(
         "/bugs",
         createBugRouter(
@@ -563,7 +637,9 @@ describe("BugRouter HTTP Integration Tests", () => {
 
       expect(res.status).toBe(201);
       expect(mockValidateSession).not.toHaveBeenCalled();
-      expect(mockLoggerInfo).toHaveBeenCalledWith("POST /bugs: Extracted token: none");
+      expect(mockLoggerInfo).toHaveBeenCalledWith(
+        "POST /bugs: Extracted token: none",
+      );
       expect(mockBugSubmissionUseCase.createBug).toHaveBeenCalledWith(
         expect.objectContaining({
           transactionId: "createBug",
@@ -647,7 +723,9 @@ describe("BugRouter HTTP Integration Tests", () => {
       mockBugSubmissionUseCase.createBug.mockResolvedValue(
         new ResponseModel<Bug>("tx-id").withResponse(newBug),
       );
-      mockValidateSession.mockRejectedValue(new Error("Session validation error"));
+      mockValidateSession.mockRejectedValue(
+        new Error("Session validation error"),
+      );
 
       const res = await request(guestApp)
         .post("/bugs")
@@ -797,7 +875,9 @@ describe("BugRouter HTTP Integration Tests", () => {
       });
 
       it("should handle unexpected errors during attachment upload and return 400", async () => {
-        mockBugAttachmentUseCase.addAttachment.mockRejectedValue(new Error("Upload failed"));
+        mockBugAttachmentUseCase.addAttachment.mockRejectedValue(
+          new Error("Upload failed"),
+        );
 
         const res = await request(app)
           .post("/bugs/local-1/attachments")
@@ -833,7 +913,9 @@ describe("BugRouter HTTP Integration Tests", () => {
       });
 
       it("should handle unexpected errors during attachment deletion and return 400", async () => {
-        mockBugAttachmentUseCase.deleteAttachment.mockRejectedValue(new Error("Delete failed"));
+        mockBugAttachmentUseCase.deleteAttachment.mockRejectedValue(
+          new Error("Delete failed"),
+        );
 
         const res = await request(app).delete("/bugs/attachments/1");
 
@@ -857,7 +939,9 @@ describe("BugRouter HTTP Integration Tests", () => {
           ),
         );
 
-        const res = await request(app).post("/bugs/local-1/notes").send({ body: "Hello note" });
+        const res = await request(app)
+          .post("/bugs/local-1/notes")
+          .send({ body: "Hello note" });
 
         expect(res.status).toBe(200);
         expect(res.body.data.id).toBe(10);
@@ -874,9 +958,13 @@ describe("BugRouter HTTP Integration Tests", () => {
       });
 
       it("should handle unexpected errors during note creation and return 400", async () => {
-        mockBugAttachmentUseCase.createNote.mockRejectedValue(new Error("Note creation failed"));
+        mockBugAttachmentUseCase.createNote.mockRejectedValue(
+          new Error("Note creation failed"),
+        );
 
-        const res = await request(app).post("/bugs/local-1/notes").send({ body: "Hello note" });
+        const res = await request(app)
+          .post("/bugs/local-1/notes")
+          .send({ body: "Hello note" });
 
         expect(res.status).toBe(400);
         expect(res.body.error).toBe("Note creation failed");
@@ -905,7 +993,9 @@ describe("BugRouter HTTP Integration Tests", () => {
       });
 
       it("should handle unexpected errors during notes query and return 400", async () => {
-        mockBugQueryUseCase.queryNotes.mockRejectedValue(new Error("Notes query failed"));
+        mockBugQueryUseCase.queryNotes.mockRejectedValue(
+          new Error("Notes query failed"),
+        );
         const res = await request(app).get("/bugs/local-1/notes");
 
         expect(res.status).toBe(400);

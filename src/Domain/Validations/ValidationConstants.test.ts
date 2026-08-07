@@ -1,4 +1,4 @@
-import { PASSWORD_REGEXP } from "./ValidationConstants";
+import { PASSWORD_REGEXP } from "./ValidationConstants.js";
 
 describe("Validation Constants & Messages - Unit Tests", () => {
   describe("PASSWORD_REGEXP", () => {
@@ -12,7 +12,7 @@ describe("Validation Constants & Messages - Unit Tests", () => {
     });
 
     it("should reject passwords that are too long (> 24 chars)", () => {
-      expect(PASSWORD_REGEXP.test("A".repeat(25) + "a1!")).toBe(false);
+      expect(PASSWORD_REGEXP.test(`${"A".repeat(25)}a1!`)).toBe(false);
     });
 
     it("should reject passwords missing a lowercase letter", () => {

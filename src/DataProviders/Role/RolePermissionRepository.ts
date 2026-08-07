@@ -1,16 +1,16 @@
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Permission } from "@src/Domain/Permission/Entity/Permission";
-import { RolePermission } from "@src/Domain/Role/Entity/RolePermission";
-import { RolePermissionFilter } from "@src/Domain/Role/Entity/RolePermissionFilter";
-import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
+import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import { Permission } from "@src/Domain/Permission/Entity/Permission.js";
+import { RolePermission } from "@src/Domain/Role/Entity/RolePermission.js";
+import type { RolePermissionFilter } from "@src/Domain/Role/Entity/RolePermissionFilter.js";
+import type { IRolePermissionRepository } from "@src/Domain/Role/Repository/IRolePermissionRepository.js";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM.js";
 import logger from "jet-logger";
 import { QueryTypes } from "sequelize";
-import { BaseRepository } from "../BaseRepository";
-import { PermissionModel } from "../Permission/Permission";
-import { RolePermissionModel } from "./RolePermission";
-import { IRolePermissionRepository } from "@src/Domain/Role/Repository/IRolePermissionRepository";
+import { BaseRepository } from "../BaseRepository.js";
+import type { PermissionModel } from "../Permission/Permission.js";
+import { RolePermissionModel } from "./RolePermission.js";
 
 export class RolePermissionRepositoryImpl
   extends BaseRepository
@@ -64,7 +64,10 @@ export class RolePermissionRepositoryImpl
       logger.err("Error in queryRolePermissions:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
@@ -120,7 +123,10 @@ export class RolePermissionRepositoryImpl
       logger.err("Error in createRolePermission:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
@@ -159,11 +165,15 @@ export class RolePermissionRepositoryImpl
       logger.err("Error in deleteRolePermission:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
   }
 }
 
-export const RolePermissionRepositoryInstance = new RolePermissionRepositoryImpl();
+export const RolePermissionRepositoryInstance =
+  new RolePermissionRepositoryImpl();

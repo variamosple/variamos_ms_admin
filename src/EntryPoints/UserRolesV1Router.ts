@@ -1,18 +1,20 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { UserRole } from "@src/Domain/User/Entity/UserRole";
-import { UserRoleFilter } from "@src/Domain/User/Entity/UserRoleFilter";
-import { UserRoleUseCase } from "@src/Domain/User/UseCase/UserRoleUseCase";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import { UserRole } from "@src/Domain/User/Entity/UserRole.js";
+import { UserRoleFilter } from "@src/Domain/User/Entity/UserRoleFilter.js";
+import type { UserRoleUseCase } from "@src/Domain/User/UseCase/UserRoleUseCase.js";
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import { hasPermissions } from "@variamosple/variamos-security";
-import { Router, Request } from "express";
+import { type Request, Router } from "express";
 import logger from "jet-logger";
-import { mapDomainErrorToHttpStatus } from "./errorMapper";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
+import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
 export const USER_ROLES_V1_ROUTE = "/:userId/roles";
 
-export function createUserRolesRouter(userRoleUseCase: UserRoleUseCase): Router {
+export function createUserRolesRouter(
+  userRoleUseCase: UserRoleUseCase,
+): Router {
   const router = Router({ mergeParams: true });
 
   router.get(
@@ -21,7 +23,8 @@ export function createUserRolesRouter(userRoleUseCase: UserRoleUseCase): Router 
     async (req: Request<{ userId: string }>, res) => {
       const transactionId = "queryUserRoles";
       const { pageNumber, pageSize } = req.query;
-      const userId = req.headers["x-test-no-user-id"] === "true" ? "" : req.params.userId;
+      const userId =
+        req.headers["x-test-no-user-id"] === "true" ? "" : req.params.userId;
       try {
         if (!userId) {
           return res
@@ -63,7 +66,8 @@ export function createUserRolesRouter(userRoleUseCase: UserRoleUseCase): Router 
     async (req: Request<{ userId: string }>, res) => {
       const transactionId = "queryUserRolesDetails";
       const { pageNumber, pageSize } = req.query;
-      const userId = req.headers["x-test-no-user-id"] === "true" ? "" : req.params.userId;
+      const userId =
+        req.headers["x-test-no-user-id"] === "true" ? "" : req.params.userId;
       try {
         if (!userId) {
           return res
@@ -104,7 +108,8 @@ export function createUserRolesRouter(userRoleUseCase: UserRoleUseCase): Router 
     hasPermissions(["users::update"]),
     async (req: Request<{ userId: string }>, res) => {
       const transactionId = "createUserRole";
-      const userId = req.headers["x-test-no-user-id"] === "true" ? "" : req.params.userId;
+      const userId =
+        req.headers["x-test-no-user-id"] === "true" ? "" : req.params.userId;
       const { roleId } = req.body as { roleId?: string };
       try {
         if (!userId || !roleId || Number.isNaN(Number(roleId))) {
@@ -118,7 +123,10 @@ export function createUserRolesRouter(userRoleUseCase: UserRoleUseCase): Router 
             );
         }
 
-        const userRole: UserRole = new UserRole(userId, Number.parseInt(roleId));
+        const userRole: UserRole = new UserRole(
+          userId,
+          Number.parseInt(roleId),
+        );
 
         const request = new RequestModel<UserRole>(transactionId, userRole);
         const response = await userRoleUseCase.createUserRole(request);
@@ -145,7 +153,8 @@ export function createUserRolesRouter(userRoleUseCase: UserRoleUseCase): Router 
     hasPermissions(["users::update"]),
     async (req: Request<{ userId: string; roleId: string }>, res) => {
       const transactionId = "deleteUserRole";
-      const userId = req.headers["x-test-no-user-id"] === "true" ? "" : req.params.userId;
+      const userId =
+        req.headers["x-test-no-user-id"] === "true" ? "" : req.params.userId;
       const { roleId } = req.params;
       try {
         if (!userId || !roleId || Number.isNaN(Number(roleId))) {
@@ -159,7 +168,10 @@ export function createUserRolesRouter(userRoleUseCase: UserRoleUseCase): Router 
             );
         }
 
-        const userRole: UserRole = new UserRole(userId, Number.parseInt(roleId));
+        const userRole: UserRole = new UserRole(
+          userId,
+          Number.parseInt(roleId),
+        );
 
         const request = new RequestModel<UserRole>(transactionId, userRole);
         const response = await userRoleUseCase.deleteUserRole(request);

@@ -1,14 +1,14 @@
-import { mock, MockProxy } from "jest-mock-extended";
-import { BugSubmissionUseCase } from "./BugSubmissionUseCase";
-import { IBugRepository } from "@src/Domain/Bug/Repository/IBugRepository";
-import { IUserRepository } from "@src/Domain/Bug/Repository/IUserRepository";
-import { IIssueTrackerService } from "@src/Domain/Core/Service/IIssueTrackerService";
-import { IBugTrackerConfig } from "@src/Domain/Bug/Config/IBugTrackerConfig";
-import { GitHubTokenResolver } from "@src/Domain/Bug/Service/GitHubTokenResolver";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Bug } from "@src/Domain/Bug/Entity/Bug";
-import { User } from "@src/Domain/User/Entity/User";
+import type { IBugTrackerConfig } from "@src/Domain/Bug/Config/IBugTrackerConfig.js";
+import { Bug } from "@src/Domain/Bug/Entity/Bug.js";
+import type { IBugRepository } from "@src/Domain/Bug/Repository/IBugRepository.js";
+import type { IUserRepository } from "@src/Domain/Bug/Repository/IUserRepository.js";
+import type { GitHubTokenResolver } from "@src/Domain/Bug/Service/GitHubTokenResolver.js";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import type { IIssueTrackerService } from "@src/Domain/Core/Service/IIssueTrackerService.js";
+import { User } from "@src/Domain/User/Entity/User.js";
+import { type MockProxy, mock } from "vitest-mock-extended";
+import { BugSubmissionUseCase } from "./BugSubmissionUseCase.js";
 
 describe("BugSubmissionUseCase", () => {
   let useCase: BugSubmissionUseCase;
@@ -43,7 +43,9 @@ describe("BugSubmissionUseCase", () => {
       .setStatus("pending")
       .build();
 
-    mockBugRepository.createBug.mockResolvedValue(new ResponseModel<Bug>("tx-1").withResponse(bug));
+    mockBugRepository.createBug.mockResolvedValue(
+      new ResponseModel<Bug>("tx-1").withResponse(bug),
+    );
 
     const req = new RequestModel("tx-1", {
       title: "Guest Bug",
@@ -81,7 +83,9 @@ describe("BugSubmissionUseCase", () => {
     );
     mockTokenResolver.resolveGitHubToken.mockResolvedValue("github-token-abc");
     mockIssueTracker.createIssue.mockResolvedValue(42);
-    mockGithubConfig.getApiBaseUrl = jest.fn().mockReturnValue("http://localhost:4000");
+    mockGithubConfig.getApiBaseUrl = vi
+      .fn()
+      .mockReturnValue("http://localhost:4000");
 
     const bug = Bug.builder()
       .setId("bug-456")
@@ -94,7 +98,9 @@ describe("BugSubmissionUseCase", () => {
       .setGithubHtmlUrl("https://github.com/VariaMos/VariaMosAdmin/issues/42")
       .build();
 
-    mockBugRepository.createBug.mockResolvedValue(new ResponseModel<Bug>("tx-1").withResponse(bug));
+    mockBugRepository.createBug.mockResolvedValue(
+      new ResponseModel<Bug>("tx-1").withResponse(bug),
+    );
 
     const req = new RequestModel("tx-1", {
       title: "GitHub Issue Bug",
@@ -108,7 +114,9 @@ describe("BugSubmissionUseCase", () => {
     const res = await useCase.createBug(req);
 
     expect(res.data).toBe(bug);
-    expect(mockTokenResolver.resolveGitHubToken).toHaveBeenCalledWith("VariaMos/VariaMosAdmin");
+    expect(mockTokenResolver.resolveGitHubToken).toHaveBeenCalledWith(
+      "VariaMos/VariaMosAdmin",
+    );
     expect(mockIssueTracker.createIssue).toHaveBeenCalledWith(
       "VariaMos/VariaMosAdmin",
       "GitHub Issue Bug",
@@ -164,7 +172,9 @@ describe("BugSubmissionUseCase", () => {
     });
     const res = await useCase.createBug(req);
     expect(res.errorCode).toBe("INVALID_INPUT");
-    expect(res.message).toBe("Bug priority must be either 'low', 'medium', or 'high'.");
+    expect(res.message).toBe(
+      "Bug priority must be either 'low', 'medium', or 'high'.",
+    );
   });
 
   it("should return error if category is invalid", async () => {
@@ -188,7 +198,9 @@ describe("BugSubmissionUseCase", () => {
     });
     const res = await useCase.createBug(req);
     expect(res.errorCode).toBe("INVALID_INPUT");
-    expect(res.message).toBe("An email address is required for guest bug submissions.");
+    expect(res.message).toBe(
+      "An email address is required for guest bug submissions.",
+    );
   });
 
   it("should return error if reporter email cannot be resolved for admin", async () => {
@@ -274,10 +286,14 @@ describe("BugSubmissionUseCase", () => {
     );
     mockTokenResolver.resolveGitHubToken.mockResolvedValue("token");
     mockIssueTracker.createIssue.mockResolvedValue(100);
-    mockGithubConfig.getApiBaseUrl = jest.fn().mockReturnValue("http://localhost:4000");
+    mockGithubConfig.getApiBaseUrl = vi
+      .fn()
+      .mockReturnValue("http://localhost:4000");
 
     const bug = Bug.builder().setId("bug-file").build();
-    mockBugRepository.createBug.mockResolvedValue(new ResponseModel<Bug>("tx-1").withResponse(bug));
+    mockBugRepository.createBug.mockResolvedValue(
+      new ResponseModel<Bug>("tx-1").withResponse(bug),
+    );
 
     const req = new RequestModel("tx-1", {
       title: "Bug Title",
@@ -317,7 +333,9 @@ describe("BugSubmissionUseCase", () => {
     mockGithubConfig.getApiBaseUrl = undefined;
 
     const bug = Bug.builder().setId("bug-file-default").build();
-    mockBugRepository.createBug.mockResolvedValue(new ResponseModel<Bug>("tx-1").withResponse(bug));
+    mockBugRepository.createBug.mockResolvedValue(
+      new ResponseModel<Bug>("tx-1").withResponse(bug),
+    );
 
     const req = new RequestModel("tx-1", {
       title: "Bug Title",
@@ -353,7 +371,9 @@ describe("BugSubmissionUseCase", () => {
     );
 
     const bug = Bug.builder().setId("bug-local-admin").build();
-    mockBugRepository.createBug.mockResolvedValue(new ResponseModel<Bug>("tx-1").withResponse(bug));
+    mockBugRepository.createBug.mockResolvedValue(
+      new ResponseModel<Bug>("tx-1").withResponse(bug),
+    );
 
     const req = new RequestModel("tx-1", {
       title: "Bug Title",
@@ -388,10 +408,14 @@ describe("BugSubmissionUseCase", () => {
     );
     mockTokenResolver.resolveGitHubToken.mockResolvedValue("token");
     mockIssueTracker.createIssue.mockResolvedValue(101);
-    mockGithubConfig.getApiBaseUrl = jest.fn().mockReturnValue("http://localhost:4000");
+    mockGithubConfig.getApiBaseUrl = vi
+      .fn()
+      .mockReturnValue("http://localhost:4000");
 
     const bug = Bug.builder().setId("bug-no-priority").build();
-    mockBugRepository.createBug.mockResolvedValue(new ResponseModel<Bug>("tx-1").withResponse(bug));
+    mockBugRepository.createBug.mockResolvedValue(
+      new ResponseModel<Bug>("tx-1").withResponse(bug),
+    );
 
     const reqData: {
       title: string;

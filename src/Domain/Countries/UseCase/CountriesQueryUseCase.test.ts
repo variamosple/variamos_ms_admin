@@ -1,8 +1,8 @@
-import { CountriesQueryUseCase } from "./CountriesQueryUseCase";
-import { ICountriesRepository } from "@src/Domain/Countries/Repository/ICountriesRepository";
-import { Country } from "@src/Domain/Countries/Entity/Country";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { Country } from "@src/Domain/Countries/Entity/Country.js";
+import type { ICountriesRepository } from "@src/Domain/Countries/Repository/ICountriesRepository.js";
+import { CountriesQueryUseCase } from "./CountriesQueryUseCase.js";
 
 describe("CountriesQueryUseCase Unit Tests", () => {
   describe("Country Entity & Builder", () => {
@@ -102,20 +102,24 @@ describe("CountriesQueryUseCase Unit Tests", () => {
           .setCode3("FRA")
           .build(),
       ];
-      const mockResponse = new ResponseModel<Country[]>("getCountries").withResponse(mockCountries);
+      const mockResponse = new ResponseModel<Country[]>(
+        "getCountries",
+      ).withResponse(mockCountries);
 
       // Create a mock of the pure Domain Interface (no data provider imports needed!)
-      const mockCountriesRepository: jest.Mocked<ICountriesRepository> = {
-        getCountries: jest.fn().mockResolvedValue(mockResponse),
-        getUserCountryCode: jest.fn(),
-        getIpCountryCode: jest.fn(),
+      const mockCountriesRepository: vi.Mocked<ICountriesRepository> = {
+        getCountries: vi.fn().mockResolvedValue(mockResponse),
+        getUserCountryCode: vi.fn(),
+        getIpCountryCode: vi.fn(),
       };
 
       const request = new RequestModel<void>("getCountries");
       const useCase = new CountriesQueryUseCase(mockCountriesRepository);
       const result = await useCase.getCountries(request);
 
-      expect(mockCountriesRepository.getCountries).toHaveBeenCalledWith(request);
+      expect(mockCountriesRepository.getCountries).toHaveBeenCalledWith(
+        request,
+      );
       expect(result).toEqual(mockResponse);
     });
   });

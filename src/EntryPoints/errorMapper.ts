@@ -1,5 +1,5 @@
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 
 export function mapDomainErrorToHttpStatus(
   errorCode?: string | number | null,
@@ -20,7 +20,7 @@ export function mapDomainErrorToHttpStatus(
     default: {
       if (typeof errorCode === "number") return errorCode;
       const parsed = Number(errorCode);
-      if (!isNaN(parsed)) return parsed;
+      if (!Number.isNaN(parsed)) return parsed;
       return HttpStatusCodes.INTERNAL_SERVER_ERROR;
     }
   }

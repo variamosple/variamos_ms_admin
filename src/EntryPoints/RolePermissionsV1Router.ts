@@ -1,18 +1,20 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { RolePermission } from "@src/Domain/Role/Entity/RolePermission";
-import { RolePermissionFilter } from "@src/Domain/Role/Entity/RolePermissionFilter";
-import { RolePermissionUseCase } from "@src/Domain/Role/UseCase/RolePermissionUseCase";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import { RolePermission } from "@src/Domain/Role/Entity/RolePermission.js";
+import { RolePermissionFilter } from "@src/Domain/Role/Entity/RolePermissionFilter.js";
+import type { RolePermissionUseCase } from "@src/Domain/Role/UseCase/RolePermissionUseCase.js";
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import { hasPermissions } from "@variamosple/variamos-security";
-import { Router, Request } from "express";
+import { type Request, Router } from "express";
 import logger from "jet-logger";
-import { mapDomainErrorToHttpStatus } from "./errorMapper";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
+import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
 export const ROLE_PERMISSIONS_V1_ROUTE = "/:roleId/permissions";
 
-export function createRolePermissionsRouter(rolePermissionUseCase: RolePermissionUseCase): Router {
+export function createRolePermissionsRouter(
+  rolePermissionUseCase: RolePermissionUseCase,
+): Router {
   const rolePermissionsV1Router = Router({ mergeParams: true });
 
   rolePermissionsV1Router.get(
@@ -40,8 +42,12 @@ export function createRolePermissionsRouter(rolePermissionUseCase: RolePermissio
           .setPageSize(Number(pageSize))
           .build();
 
-        const request = new RequestModel<RolePermissionFilter>(transactionId, filter);
-        const response = await rolePermissionUseCase.queryRolePermissions(request);
+        const request = new RequestModel<RolePermissionFilter>(
+          transactionId,
+          filter,
+        );
+        const response =
+          await rolePermissionUseCase.queryRolePermissions(request);
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
@@ -86,8 +92,12 @@ export function createRolePermissionsRouter(rolePermissionUseCase: RolePermissio
           Number.parseInt(permissionId),
         );
 
-        const request = new RequestModel<RolePermission>(transactionId, rolePermission);
-        const response = await rolePermissionUseCase.createRolePermission(request);
+        const request = new RequestModel<RolePermission>(
+          transactionId,
+          rolePermission,
+        );
+        const response =
+          await rolePermissionUseCase.createRolePermission(request);
 
         const status = response.errorCode
           ? mapDomainErrorToHttpStatus(response.errorCode)
@@ -133,8 +143,12 @@ export function createRolePermissionsRouter(rolePermissionUseCase: RolePermissio
           Number.parseInt(permissionId),
         );
 
-        const request = new RequestModel<RolePermission>(transactionId, rolePermission);
-        const response = await rolePermissionUseCase.deleteRolePermission(request);
+        const request = new RequestModel<RolePermission>(
+          transactionId,
+          rolePermission,
+        );
+        const response =
+          await rolePermissionUseCase.deleteRolePermission(request);
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);

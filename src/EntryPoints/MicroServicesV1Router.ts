@@ -1,14 +1,14 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { MicroServiceFilter } from "@src/Domain/MicroService/Entity/MicroServiceFilter";
-import { MicroServiceQueryUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceQueryUseCase";
-import { MicroServiceManagementUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceManagementUseCase";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import { MicroServiceFilter } from "@src/Domain/MicroService/Entity/MicroServiceFilter.js";
+import type { MicroServiceManagementUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
+import type { MicroServiceQueryUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import { hasPermissions } from "@variamosple/variamos-security";
-import { Router, Request } from "express";
+import { type Request, Router } from "express";
 import logger from "jet-logger";
-import { mapDomainErrorToHttpStatus } from "./errorMapper";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
+import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
 export const MICRO_SERVICES_V1_ROUTE = "/v1/micro-services";
 
@@ -18,32 +18,40 @@ export function createMicroServicesRouter(
 ): Router {
   const microServicesV1Router = Router();
 
-  microServicesV1Router.get("/", hasPermissions(["micro-services::query"]), async (req, res) => {
-    const transactionId = "queryMicroService";
-    const { pageNumber, pageSize, name = null } = req.query;
+  microServicesV1Router.get(
+    "/",
+    hasPermissions(["micro-services::query"]),
+    async (req, res) => {
+      const transactionId = "queryMicroService";
+      const { pageNumber, pageSize, name = null } = req.query;
 
-    try {
-      const filter: MicroServiceFilter = MicroServiceFilter.builder()
-        .setName(name as string)
-        .setPageNumber(Number(pageNumber))
-        .setPageSize(Number(pageSize))
-        .build();
+      try {
+        const filter: MicroServiceFilter = MicroServiceFilter.builder()
+          .setName(name as string)
+          .setPageNumber(Number(pageNumber))
+          .setPageSize(Number(pageSize))
+          .build();
 
-      const request = new RequestModel<MicroServiceFilter>(transactionId, filter);
-      const response = await microServiceQueryUseCase.queryMicroServices(request);
+        const request = new RequestModel<MicroServiceFilter>(
+          transactionId,
+          filter,
+        );
+        const response =
+          await microServiceQueryUseCase.queryMicroServices(request);
 
-      const status = mapDomainErrorToHttpStatus(response.errorCode);
-      res.status(status).json(response);
-    } catch (error) {
-      logger.err(error);
-      const response = new ResponseModel(
-        transactionId,
-        DomainErrorCodes.SYSTEM_ERROR,
-        "Internal Server Error",
-      );
-      res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
-    }
-  });
+        const status = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(status).json(response);
+      } catch (error) {
+        logger.err(error);
+        const response = new ResponseModel(
+          transactionId,
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal Server Error",
+        );
+        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+      }
+    },
+  );
 
   microServicesV1Router.put(
     "/:microserviceId/start",
@@ -54,7 +62,8 @@ export function createMicroServicesRouter(
 
       try {
         const request = new RequestModel<string>(transactionId, microserviceId);
-        const response = await microServiceManagementUseCase.startMicroService(request);
+        const response =
+          await microServiceManagementUseCase.startMicroService(request);
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
@@ -79,7 +88,8 @@ export function createMicroServicesRouter(
 
       try {
         const request = new RequestModel<string>(transactionId, microserviceId);
-        const response = await microServiceManagementUseCase.restartMicroService(request);
+        const response =
+          await microServiceManagementUseCase.restartMicroService(request);
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
@@ -104,7 +114,8 @@ export function createMicroServicesRouter(
 
       try {
         const request = new RequestModel<string>(transactionId, microserviceId);
-        const response = await microServiceManagementUseCase.stopMicroService(request);
+        const response =
+          await microServiceManagementUseCase.stopMicroService(request);
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
@@ -130,10 +141,13 @@ export function createMicroServicesRouter(
       try {
         const request = new RequestModel<string>(transactionId, microserviceId);
 
-        const response = await microServiceQueryUseCase.watchMicroServiceLogs(request);
+        const response =
+          await microServiceQueryUseCase.watchMicroServiceLogs(request);
 
         if (response.errorCode) {
-          res.status(mapDomainErrorToHttpStatus(response.errorCode)).json(response);
+          res
+            .status(mapDomainErrorToHttpStatus(response.errorCode))
+            .json(response);
           return;
         }
 
@@ -143,7 +157,7 @@ export function createMicroServicesRouter(
             .json(
               response.withError(
                 DomainErrorCodes.ENTITY_NOT_FOUND,
-                "No Logs found for microservice with id: " + microserviceId,
+                `No Logs found for microservice with id: ${microserviceId}`,
               ),
             );
           return;

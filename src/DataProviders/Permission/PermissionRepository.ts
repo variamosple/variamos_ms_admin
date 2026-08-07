@@ -1,19 +1,22 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/explicit-member-accessibility, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return */
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Permission } from "@src/Domain/Permission/Entity/Permission";
-import { PermissionFilter } from "@src/Domain/Permission/Entity/PermissionFilter";
-import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
+import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/explicit-member-accessibility */
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import { Permission } from "@src/Domain/Permission/Entity/Permission.js";
+import { PermissionFilter } from "@src/Domain/Permission/Entity/PermissionFilter.js";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM.js";
 import logger from "jet-logger";
-import { Op, QueryTypes, WhereOptions } from "sequelize";
-import { BaseRepository } from "../BaseRepository";
-import { RolePermissionModel } from "../Role/RolePermission";
-import { PermissionAttributes, PermissionModel } from "./Permission";
+import { Op, QueryTypes, type WhereOptions } from "sequelize";
+import { BaseRepository } from "../BaseRepository.js";
+import { RolePermissionModel } from "../Role/RolePermission.js";
+import { type PermissionAttributes, PermissionModel } from "./Permission.js";
 
-import { IPermissionRepository } from "@src/Domain/Permission/Repository/IPermissionRepository";
+import type { IPermissionRepository } from "@src/Domain/Permission/Repository/IPermissionRepository.js";
 
-export class PermissionRepositoryImpl extends BaseRepository implements IPermissionRepository {
+export class PermissionRepositoryImpl
+  extends BaseRepository
+  implements IPermissionRepository
+{
   async queryPermissions(
     request: RequestModel<PermissionFilter>,
   ): Promise<ResponseModel<Permission[]>> {
@@ -31,7 +34,10 @@ export class PermissionRepositoryImpl extends BaseRepository implements IPermiss
             WHERE (:name IS NULL OR name ILIKE '%' || :name || '%');
         `,
         { type: QueryTypes.SELECT, replacements },
-      ).then((result: any) => +result?.[0]?.count || 0);
+      ).then((result) => {
+        const rows = result as Array<{ count: string | number }>;
+        return +rows[0]?.count || 0;
+      });
 
       const where: WhereOptions<PermissionAttributes> = {};
 
@@ -48,25 +54,35 @@ export class PermissionRepositoryImpl extends BaseRepository implements IPermiss
         limit: pageSize,
         offset,
         order: [["name", "ASC"]],
-      }).then((response) => response.map(({ id, name }) => new Permission(id, name)));
+      }).then((response) =>
+        response.map(({ id, name }) => new Permission(id, name)),
+      );
     } catch (error) {
       logger.err("Error in queryPermissions:");
       logger.err(request);
       logger.err(error);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
   }
 
-  async createPermission(request: RequestModel<Permission>): Promise<ResponseModel<Permission>> {
+  async createPermission(
+    request: RequestModel<Permission>,
+  ): Promise<ResponseModel<Permission>> {
     const response = new ResponseModel<Permission>(request.transactionId);
 
     try {
       const { data } = request;
 
       if (!data) {
-        response.withError(DomainErrorCodes.INVALID_INPUT, "Permission data is required.");
+        response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Permission data is required.",
+        );
         return response;
       }
 
@@ -79,13 +95,18 @@ export class PermissionRepositoryImpl extends BaseRepository implements IPermiss
       logger.err("Error in createPermission:");
       logger.err(request);
       logger.err(error);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
   }
 
-  async deletePermission(request: RequestModel<number>): Promise<ResponseModel<void>> {
+  async deletePermission(
+    request: RequestModel<number>,
+  ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
 
     try {
@@ -97,13 +118,18 @@ export class PermissionRepositoryImpl extends BaseRepository implements IPermiss
       logger.err("Error in deletePermission:");
       logger.err(request);
       logger.err(error);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
   }
 
-  async queryById(request: RequestModel<number>): Promise<ResponseModel<Permission>> {
+  async queryById(
+    request: RequestModel<number>,
+  ): Promise<ResponseModel<Permission>> {
     const response = new ResponseModel<Permission>(request.transactionId);
 
     try {
@@ -111,25 +137,35 @@ export class PermissionRepositoryImpl extends BaseRepository implements IPermiss
 
       response.data = await PermissionModel.findOne({
         where: { id: data },
-      }).then((response) => (!response ? undefined : new Permission(response.id, response.name)));
+      }).then((response) =>
+        !response ? undefined : new Permission(response.id, response.name),
+      );
     } catch (error) {
       logger.err("Error in queryById:");
       logger.err(request);
       logger.err(error);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
   }
 
-  async updatePermission(request: RequestModel<Permission>): Promise<ResponseModel<Permission>> {
+  async updatePermission(
+    request: RequestModel<Permission>,
+  ): Promise<ResponseModel<Permission>> {
     const response = new ResponseModel<Permission>(request.transactionId);
 
     try {
       const { data } = request;
 
       if (!data || data.id === undefined) {
-        response.withError(DomainErrorCodes.INVALID_INPUT, "Permission data and ID are required.");
+        response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Permission data and ID are required.",
+        );
         return response;
       }
 
@@ -145,7 +181,10 @@ export class PermissionRepositoryImpl extends BaseRepository implements IPermiss
       logger.err("Error in updatePermission:");
       logger.err(request);
       logger.err(error);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;

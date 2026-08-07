@@ -1,7 +1,7 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Role } from "../Entity/Role";
-import { RoleFilter } from "../Entity/RoleFilter";
+import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import type { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import type { Role } from "../Entity/Role.js";
+import type { RoleFilter } from "../Entity/RoleFilter.js";
 
 export interface IRoleRepository {
   queryRoles(request: RequestModel<RoleFilter>): Promise<ResponseModel<Role[]>>;

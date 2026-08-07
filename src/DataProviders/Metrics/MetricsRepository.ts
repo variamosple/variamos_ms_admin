@@ -1,13 +1,13 @@
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Metric } from "@src/Domain/Metrics/Entity/Metric";
-import { MetricsFilter } from "@src/Domain/Metrics/Entity/MetricsFilter";
-import { IMetricsRepository } from "@src/Domain/Metrics/Repository/IMetricsRepository";
-import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
+import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import { Metric } from "@src/Domain/Metrics/Entity/Metric.js";
+import type { MetricsFilter } from "@src/Domain/Metrics/Entity/MetricsFilter.js";
+import type { IMetricsRepository } from "@src/Domain/Metrics/Repository/IMetricsRepository.js";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM.js";
 import logger from "jet-logger";
 import { QueryTypes } from "sequelize";
-import { BaseRepository } from "../BaseRepository";
+import { BaseRepository } from "../BaseRepository.js";
 
 const METRICS_FUNCTIONS = new Map<string, string>([
   ["visitsByDay", `${DB_SCHEMA}.get_visits_by_day()`],
@@ -21,7 +21,10 @@ const METRICS_FUNCTIONS = new Map<string, string>([
   ["errorRateBySystem", `${DB_SCHEMA}.get_error_rate_by_system()`],
 ]);
 
-export class MetricsRepositoryImpl extends BaseRepository implements IMetricsRepository {
+export class MetricsRepositoryImpl
+  extends BaseRepository
+  implements IMetricsRepository
+{
   private metrics: Metric[] = [];
 
   public constructor() {
@@ -33,9 +36,12 @@ export class MetricsRepositoryImpl extends BaseRepository implements IMetricsRep
     logger.info("Refreshing metrics...");
 
     try {
-      this.metrics = await VARIAMOS_ORM.query(`SELECT ${DB_SCHEMA}.get_metrics() AS data`, {
-        type: QueryTypes.SELECT,
-      }).then(([result]: object[]) => {
+      this.metrics = await VARIAMOS_ORM.query(
+        `SELECT ${DB_SCHEMA}.get_metrics() AS data`,
+        {
+          type: QueryTypes.SELECT,
+        },
+      ).then(([result]: object[]) => {
         const resObj = result as
           | {
               data?: {
@@ -50,16 +56,17 @@ export class MetricsRepositoryImpl extends BaseRepository implements IMetricsRep
             }
           | undefined;
         if (!resObj || !resObj.data) return [];
-        return resObj.data.map(({ id, title, chartType, defaultFilter, filters, labelKey, data }) =>
-          Metric.builder()
-            .setId(id)
-            .setTitle(title)
-            .setChartType(chartType)
-            .setDefaultFilter(defaultFilter)
-            .setFilters(filters)
-            .setLabelKey(labelKey)
-            .setData(data)
-            .build(),
+        return resObj.data.map(
+          ({ id, title, chartType, defaultFilter, filters, labelKey, data }) =>
+            Metric.builder()
+              .setId(id)
+              .setTitle(title)
+              .setChartType(chartType)
+              .setDefaultFilter(defaultFilter)
+              .setFilters(filters)
+              .setLabelKey(labelKey)
+              .setData(data)
+              .build(),
         );
       });
 
@@ -71,7 +78,9 @@ export class MetricsRepositoryImpl extends BaseRepository implements IMetricsRep
     }
   }
 
-  public getMetrics(request: RequestModel<void>): Promise<ResponseModel<Metric[]>> {
+  public getMetrics(
+    request: RequestModel<void>,
+  ): Promise<ResponseModel<Metric[]>> {
     const response = new ResponseModel<Metric[]>(request.transactionId);
 
     try {
@@ -81,32 +90,46 @@ export class MetricsRepositoryImpl extends BaseRepository implements IMetricsRep
       logger.err("Error in getMetrics:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return Promise.resolve(response);
   }
 
-  public async queryMetric(request: RequestModel<MetricsFilter>): Promise<ResponseModel<Metric>> {
+  public async queryMetric(
+    request: RequestModel<MetricsFilter>,
+  ): Promise<ResponseModel<Metric>> {
     const response = new ResponseModel<Metric>(request.transactionId);
 
     try {
       const data = request.data;
       if (!data) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Metrics filter is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Metrics filter is required.",
+        );
       }
       const replacements = this.initializeReplacements(data);
 
       const selectedFunction = METRICS_FUNCTIONS.get(String(replacements.id));
 
       if (!selectedFunction) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Invalid metric id");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Invalid metric id",
+        );
       }
 
-      const result = await VARIAMOS_ORM.query(`SELECT ${selectedFunction} AS data`, {
-        type: QueryTypes.SELECT,
-        replacements,
-      }).then(([result]: object[]) => {
+      const result = await VARIAMOS_ORM.query(
+        `SELECT ${selectedFunction} AS data`,
+        {
+          type: QueryTypes.SELECT,
+          replacements,
+        },
+      ).then(([result]: object[]) => {
         const resObj = result as
           | {
               data: {
@@ -120,7 +143,8 @@ export class MetricsRepositoryImpl extends BaseRepository implements IMetricsRep
               };
             }
           | undefined;
-        if (!resObj || !resObj.data) throw new Error("Invalid database response format");
+        if (!resObj || !resObj.data)
+          throw new Error("Invalid database response format");
         const {
           id,
           title,
@@ -148,7 +172,10 @@ export class MetricsRepositoryImpl extends BaseRepository implements IMetricsRep
       logger.err("Error in queryMetric:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;

@@ -1,4 +1,4 @@
-import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM.js";
 import { Model, NUMBER, TEXT } from "sequelize";
 
 export interface PermissionAttributes {
@@ -6,7 +6,10 @@ export interface PermissionAttributes {
   name: string;
 }
 
-export class PermissionModel extends Model<PermissionAttributes> implements PermissionAttributes {
+export class PermissionModel
+  extends Model<PermissionAttributes>
+  implements PermissionAttributes
+{
   public id?: number;
   public name!: string;
 }

@@ -2,18 +2,23 @@
  * Setup express server.
  */
 
+import path from "node:path";
 import cookieParser from "cookie-parser";
 import cors from "cors";
-import express, { NextFunction, Request, Response, Router } from "express";
+import express, {
+  type NextFunction,
+  type Request,
+  type Response,
+  type Router,
+} from "express";
 import helmet from "helmet";
 import logger from "jet-logger";
 import morgan from "morgan";
-import path from "path";
 
-import EnvVars from "@src/common/EnvVars";
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
-import { RouteError } from "@src/common/classes";
-import { NodeEnvs } from "@src/common/misc";
+import EnvVars from "@src/common/EnvVars.js";
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
+import { RouteError } from "@src/common/classes.js";
+import { NodeEnvs } from "@src/common/misc.js";
 
 export function createServer(baseRouter: Router) {
   const app = express();
@@ -33,7 +38,9 @@ export function createServer(baseRouter: Router) {
       if (!origin || "null" === origin) return callback(null, true);
 
       const isAllowed =
-        EnvVars.CORS.AllowedOriginsPatterns.findIndex((pattern) => pattern.test(origin)) !== -1;
+        EnvVars.CORS.AllowedOriginsPatterns.findIndex((pattern) =>
+          pattern.test(origin),
+        ) !== -1;
 
       if (isAllowed) {
         callback(null, true);
@@ -66,7 +73,7 @@ export function createServer(baseRouter: Router) {
       _: Request,
       res: Response,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      next: NextFunction,
+      _next: NextFunction,
     ) => {
       if (EnvVars.NodeEnv !== NodeEnvs.Test.valueOf()) {
         logger.err(err, true);

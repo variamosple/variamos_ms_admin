@@ -1,4 +1,4 @@
-import { Nullable } from "@src/Domain/Core/Entity/Nullable";
+import type { Nullable } from "@src/Domain/Core/Entity/Nullable.js";
 
 export class UserRole {
   public userId: Nullable<string>;

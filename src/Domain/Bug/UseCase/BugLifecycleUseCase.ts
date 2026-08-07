@@ -1,12 +1,12 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import { IBugRepository } from "@src/Domain/Bug/Repository/IBugRepository";
-import { IIssueTrackerService } from "@src/Domain/Core/Service/IIssueTrackerService";
-import { IBugTrackerConfig } from "@src/Domain/Bug/Config/IBugTrackerConfig";
-import { GitHubTokenResolver } from "@src/Domain/Bug/Service/GitHubTokenResolver";
-import { IStorageService } from "@src/Domain/Core/Service/IStorageService";
-import { Bug } from "@src/Domain/Bug/Entity/Bug";
+import type { IBugTrackerConfig } from "@src/Domain/Bug/Config/IBugTrackerConfig.js";
+import { Bug } from "@src/Domain/Bug/Entity/Bug.js";
+import type { IBugRepository } from "@src/Domain/Bug/Repository/IBugRepository.js";
+import type { GitHubTokenResolver } from "@src/Domain/Bug/Service/GitHubTokenResolver.js";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import type { IIssueTrackerService } from "@src/Domain/Core/Service/IIssueTrackerService.js";
+import type { IStorageService } from "@src/Domain/Core/Service/IStorageService.js";
 import logger from "jet-logger";
 
 export class BugLifecycleUseCase {
@@ -35,7 +35,10 @@ export class BugLifecycleUseCase {
     const data = request.data;
     if (!data) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "Request data is required.");
+      return response.withErrorPromise(
+        DomainErrorCodes.INVALID_INPUT,
+        "Request data is required.",
+      );
     }
 
     if (!data.id || !data.status) {
@@ -52,7 +55,10 @@ export class BugLifecycleUseCase {
 
     if (!bugResponse.data) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(DomainErrorCodes.ENTITY_NOT_FOUND, "Bug not found.");
+      return response.withErrorPromise(
+        DomainErrorCodes.ENTITY_NOT_FOUND,
+        "Bug not found.",
+      );
     }
 
     const bug = bugResponse.data;
@@ -60,12 +66,17 @@ export class BugLifecycleUseCase {
     try {
       Bug.builder()
         .setTitle(data.title !== undefined ? data.title : bug.title)
-        .setDescription(data.description !== undefined ? data.description : bug.description)
+        .setDescription(
+          data.description !== undefined ? data.description : bug.description,
+        )
         .setPriority(data.priority !== undefined ? data.priority : bug.priority)
         .build();
     } catch (error) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, (error as Error).message);
+      return response.withErrorPromise(
+        DomainErrorCodes.INVALID_INPUT,
+        (error as Error).message,
+      );
     }
 
     const modifiedFields: string[] = [];
@@ -73,13 +84,19 @@ export class BugLifecycleUseCase {
       modifiedFields.push(`* Title: "${bug.title}" -> "${data.title}"`);
     }
     if (data.description && data.description !== bug.description) {
-      modifiedFields.push(`* Description: "${bug.description}" -> "${data.description}"`);
+      modifiedFields.push(
+        `* Description: "${bug.description}" -> "${data.description}"`,
+      );
     }
     if (data.category && data.category !== bug.category) {
-      modifiedFields.push(`* Category: "${bug.category || "None"}" -> "${data.category}"`);
+      modifiedFields.push(
+        `* Category: "${bug.category || "None"}" -> "${data.category}"`,
+      );
     }
     if (data.priority && data.priority !== bug.priority) {
-      modifiedFields.push(`* Priority: "${bug.priority || "medium"}" -> "${data.priority}"`);
+      modifiedFields.push(
+        `* Priority: "${bug.priority || "medium"}" -> "${data.priority}"`,
+      );
     }
     if (data.githubRepo && data.githubRepo !== bug.githubRepo) {
       modifiedFields.push(`* Target repository set to "${data.githubRepo}"`);
@@ -95,12 +112,16 @@ export class BugLifecycleUseCase {
     let githubHtmlUrl: string | undefined = undefined;
 
     if (data.status === "open" && !bug.gitIssueNumber && bug.githubRepo) {
-      const gitHubToken = await this.tokenResolver.resolveGitHubToken(bug.githubRepo);
+      const gitHubToken = await this.tokenResolver.resolveGitHubToken(
+        bug.githubRepo,
+      );
       if (gitHubToken) {
         let issueBody = bug.description || "No description provided.";
         issueBody += `\n\n---\n*Reported locally by: ${bug.reporterEmail || "Guest"}*`;
         if (data.adminEmail) {
-          const approvalComment = data.comment ? ` (Comment: "${data.comment}")` : "";
+          const approvalComment = data.comment
+            ? ` (Comment: "${data.comment}")`
+            : "";
           issueBody += `\n*Approved and pushed to GitHub by: ${data.adminEmail}${approvalComment}*`;
         }
         if (bug.priority) {
@@ -111,7 +132,8 @@ export class BugLifecycleUseCase {
         }
 
         const attachments = bug.attachments as
-          { filePath?: string; fileType?: string }[] | undefined;
+          | { filePath?: string; fileType?: string }[]
+          | undefined;
         if (attachments && attachments.length > 0) {
           issueBody += "\n\n### Attachments\n";
           for (const attachment of attachments) {
@@ -157,7 +179,9 @@ export class BugLifecycleUseCase {
       }
     }
 
-    const approvalCommentStr = data.comment ? `\n\nAdmin Comment: "${data.comment}"` : "";
+    const approvalCommentStr = data.comment
+      ? `\n\nAdmin Comment: "${data.comment}"`
+      : "";
 
     if (data.status === "open" && modifiedFields.length > 0) {
       const auditBody = `[Audit] The administrator modified the following fields:\n${modifiedFields.join("\n")}${approvalCommentStr}`;
@@ -192,8 +216,14 @@ export class BugLifecycleUseCase {
       }),
     );
 
-    if (dbResponse.data && bug.githubRepo && (bug.gitIssueNumber || gitIssueNumber)) {
-      const gitHubToken = await this.tokenResolver.resolveGitHubToken(bug.githubRepo);
+    if (
+      dbResponse.data &&
+      bug.githubRepo &&
+      (bug.gitIssueNumber || gitIssueNumber)
+    ) {
+      const gitHubToken = await this.tokenResolver.resolveGitHubToken(
+        bug.githubRepo,
+      );
       const resolvedIssueNumber = bug.gitIssueNumber || gitIssueNumber;
       if (gitHubToken && resolvedIssueNumber) {
         if (data.status === "closed") {
@@ -220,12 +250,18 @@ export class BugLifecycleUseCase {
     const data = request.data;
     if (!data) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "Request data is required.");
+      return response.withErrorPromise(
+        DomainErrorCodes.INVALID_INPUT,
+        "Request data is required.",
+      );
     }
 
     if (!data.id) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "Bug ID is required.");
+      return response.withErrorPromise(
+        DomainErrorCodes.INVALID_INPUT,
+        "Bug ID is required.",
+      );
     }
 
     const bugResponse = await this.bugRepository.findById(
@@ -234,7 +270,10 @@ export class BugLifecycleUseCase {
 
     if (!bugResponse.data) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(DomainErrorCodes.ENTITY_NOT_FOUND, "Local bug not found.");
+      return response.withErrorPromise(
+        DomainErrorCodes.ENTITY_NOT_FOUND,
+        "Local bug not found.",
+      );
     }
 
     if (bugResponse.data.status !== "pending") {
@@ -260,12 +299,18 @@ export class BugLifecycleUseCase {
     const data = request.data;
     if (!data) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "Request data is required.");
+      return response.withErrorPromise(
+        DomainErrorCodes.INVALID_INPUT,
+        "Request data is required.",
+      );
     }
 
     if (!data.id) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "Bug ID is required.");
+      return response.withErrorPromise(
+        DomainErrorCodes.INVALID_INPUT,
+        "Bug ID is required.",
+      );
     }
 
     const bugResponse = await this.bugRepository.findById(
@@ -274,7 +319,10 @@ export class BugLifecycleUseCase {
 
     if (!bugResponse.data) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(DomainErrorCodes.ENTITY_NOT_FOUND, "Local bug not found.");
+      return response.withErrorPromise(
+        DomainErrorCodes.ENTITY_NOT_FOUND,
+        "Local bug not found.",
+      );
     }
 
     if (bugResponse.data.status !== "rejected") {
@@ -306,12 +354,15 @@ export class BugLifecycleUseCase {
 
       const expiredBugs = expiredResponse.data || [];
       if (expiredBugs.length === 0) return;
-      logger.info(`Found ${expiredBugs.length} expired rejected bugs to purge.`);
+      logger.info(
+        `Found ${expiredBugs.length} expired rejected bugs to purge.`,
+      );
 
       for (const bug of expiredBugs) {
         let hasAttachments = false;
         const attachments = bug.attachments as
-          { id: number; filePath?: string; fileType?: string }[] | undefined;
+          | { id: number; filePath?: string; fileType?: string }[]
+          | undefined;
         if (attachments && Array.isArray(attachments)) {
           for (const attachment of attachments) {
             if (attachment.filePath && attachment.filePath !== "/purged") {

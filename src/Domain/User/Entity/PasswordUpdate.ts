@@ -67,7 +67,9 @@ class PasswordUpdateBuilder {
     return this;
   }
 
-  public setPasswordConfirmation(passwordConfirmation: string): PasswordUpdateBuilder {
+  public setPasswordConfirmation(
+    passwordConfirmation: string,
+  ): PasswordUpdateBuilder {
     this.passwordConfirmation = passwordConfirmation;
     return this;
   }

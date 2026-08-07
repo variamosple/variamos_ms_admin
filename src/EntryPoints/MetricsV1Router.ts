@@ -1,39 +1,45 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { MetricsFilter } from "@src/Domain/Metrics/Entity/MetricsFilter";
-import { MetricsQueryUseCase } from "@src/Domain/Metrics/UseCase/MetricsQueryUseCase";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { MetricsFilter } from "@src/Domain/Metrics/Entity/MetricsFilter.js";
+import type { MetricsQueryUseCase } from "@src/Domain/Metrics/UseCase/MetricsQueryUseCase.js";
 import { hasPermissions } from "@variamosple/variamos-security";
 
-import { Router, Request } from "express";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
+import { type Request, Router } from "express";
 import logger from "jet-logger";
-import { mapDomainErrorToHttpStatus } from "./errorMapper";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
+import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
 export const METRICS_V1_ROUTE = "/v1/metrics";
 
-export function createMetricsRouter(metricsQueryUseCase: MetricsQueryUseCase): Router {
+export function createMetricsRouter(
+  metricsQueryUseCase: MetricsQueryUseCase,
+): Router {
   const metricsV1Router = Router();
 
-  metricsV1Router.get("/", hasPermissions(["metrics::query"]), async (_, res) => {
-    const transactionId = "getMetrics";
+  metricsV1Router.get(
+    "/",
+    hasPermissions(["metrics::query"]),
+    async (_, res) => {
+      const transactionId = "getMetrics";
 
-    try {
-      const request = new RequestModel<void>(transactionId);
-      const response = await metricsQueryUseCase.getMetrics(request);
+      try {
+        const request = new RequestModel<void>(transactionId);
+        const response = await metricsQueryUseCase.getMetrics(request);
 
-      const status = mapDomainErrorToHttpStatus(response.errorCode);
-      res.status(status).json(response);
-    } catch (error) {
-      logger.err(error);
-      const response = new ResponseModel(
-        transactionId,
-        DomainErrorCodes.SYSTEM_ERROR,
-        "Internal Server Error",
-      );
-      res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
-    }
-  });
+        const status = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(status).json(response);
+      } catch (error) {
+        logger.err(error);
+        const response = new ResponseModel(
+          transactionId,
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal Server Error",
+        );
+        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+      }
+    },
+  );
 
   metricsV1Router.get(
     "/:metricId",

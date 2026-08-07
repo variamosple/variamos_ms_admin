@@ -1,4 +1,4 @@
-import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM.js";
 import { Model, TEXT, UUIDV4 } from "sequelize";
 
 export interface VisitAttributes {
@@ -7,7 +7,10 @@ export interface VisitAttributes {
   countryCode?: string;
 }
 
-export class VisitModel extends Model<VisitAttributes> implements VisitAttributes {
+export class VisitModel
+  extends Model<VisitAttributes>
+  implements VisitAttributes
+{
   public pageId!: string;
   public userId!: string;
   public countryCode?: string;

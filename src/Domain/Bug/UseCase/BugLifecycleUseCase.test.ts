@@ -1,15 +1,15 @@
-import { mock, MockProxy } from "jest-mock-extended";
-import { BugLifecycleUseCase } from "./BugLifecycleUseCase";
-import { IBugRepository } from "@src/Domain/Bug/Repository/IBugRepository";
-import { IIssueTrackerService } from "@src/Domain/Core/Service/IIssueTrackerService";
-import { IBugTrackerConfig } from "@src/Domain/Bug/Config/IBugTrackerConfig";
-import { GitHubTokenResolver } from "@src/Domain/Bug/Service/GitHubTokenResolver";
-import { IStorageService } from "@src/Domain/Core/Service/IStorageService";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Bug } from "@src/Domain/Bug/Entity/Bug";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
+import type { IBugTrackerConfig } from "@src/Domain/Bug/Config/IBugTrackerConfig.js";
+import { Bug } from "@src/Domain/Bug/Entity/Bug.js";
+import type { IBugRepository } from "@src/Domain/Bug/Repository/IBugRepository.js";
+import type { GitHubTokenResolver } from "@src/Domain/Bug/Service/GitHubTokenResolver.js";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import type { IIssueTrackerService } from "@src/Domain/Core/Service/IIssueTrackerService.js";
+import type { IStorageService } from "@src/Domain/Core/Service/IStorageService.js";
 import logger from "jet-logger";
+import { type MockProxy, mock } from "vitest-mock-extended";
+import { BugLifecycleUseCase } from "./BugLifecycleUseCase.js";
 
 describe("BugLifecycleUseCase", () => {
   let useCase: BugLifecycleUseCase;
@@ -46,7 +46,9 @@ describe("BugLifecycleUseCase", () => {
 
   describe("updateStatus", () => {
     it("should fail update if bug not found", async () => {
-      mockBugRepository.findById.mockResolvedValue(new ResponseModel<Bug>("tx-1"));
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug>("tx-1"),
+      );
 
       const req = new RequestModel("tx-1", {
         id: "nonexistent",
@@ -99,7 +101,10 @@ describe("BugLifecycleUseCase", () => {
         new ResponseModel<Bug>("tx-1").withResponse(rejectedBug),
       );
 
-      const req = new RequestModel("tx-1", { id: "bug-1", adminId: "admin-123" });
+      const req = new RequestModel("tx-1", {
+        id: "bug-1",
+        adminId: "admin-123",
+      });
       const res = await useCase.rejectBug(req);
 
       expect(res.data?.status).toBe("rejected");
@@ -114,9 +119,14 @@ describe("BugLifecycleUseCase", () => {
     });
 
     it("should fail to reject if bug is not found", async () => {
-      mockBugRepository.findById.mockResolvedValue(new ResponseModel<Bug>("tx-1"));
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug>("tx-1"),
+      );
 
-      const req = new RequestModel("tx-1", { id: "bug-missing", adminId: "admin-123" });
+      const req = new RequestModel("tx-1", {
+        id: "bug-missing",
+        adminId: "admin-123",
+      });
       const res = await useCase.rejectBug(req);
 
       expect(res.errorCode).toBe(DomainErrorCodes.ENTITY_NOT_FOUND);
@@ -130,7 +140,10 @@ describe("BugLifecycleUseCase", () => {
         new ResponseModel<Bug>("tx-1").withResponse(openBug),
       );
 
-      const req = new RequestModel("tx-1", { id: "bug-2", adminId: "admin-123" });
+      const req = new RequestModel("tx-1", {
+        id: "bug-2",
+        adminId: "admin-123",
+      });
       const res = await useCase.rejectBug(req);
 
       expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
@@ -151,7 +164,10 @@ describe("BugLifecycleUseCase", () => {
         new ResponseModel<Bug>("tx-1").withResponse(pendingBug),
       );
 
-      const req = new RequestModel("tx-1", { id: "bug-1", adminId: "admin-123" });
+      const req = new RequestModel("tx-1", {
+        id: "bug-1",
+        adminId: "admin-123",
+      });
       const res = await useCase.restoreBug(req);
 
       expect(res.data?.status).toBe("pending");
@@ -166,9 +182,14 @@ describe("BugLifecycleUseCase", () => {
     });
 
     it("should fail to restore if bug is not found", async () => {
-      mockBugRepository.findById.mockResolvedValue(new ResponseModel<Bug>("tx-1"));
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug>("tx-1"),
+      );
 
-      const req = new RequestModel("tx-1", { id: "bug-missing", adminId: "admin-123" });
+      const req = new RequestModel("tx-1", {
+        id: "bug-missing",
+        adminId: "admin-123",
+      });
       const res = await useCase.restoreBug(req);
 
       expect(res.errorCode).toBe(DomainErrorCodes.ENTITY_NOT_FOUND);
@@ -182,7 +203,10 @@ describe("BugLifecycleUseCase", () => {
         new ResponseModel<Bug>("tx-1").withResponse(openBug),
       );
 
-      const req = new RequestModel("tx-1", { id: "bug-2", adminId: "admin-123" });
+      const req = new RequestModel("tx-1", {
+        id: "bug-2",
+        adminId: "admin-123",
+      });
       const res = await useCase.restoreBug(req);
 
       expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
@@ -195,12 +219,17 @@ describe("BugLifecycleUseCase", () => {
     it("should process purge for expired bugs and delete attachments", async () => {
       const expiredBug = createMockBug("999", "Old rejected bug", "rejected");
       expiredBug.attachments = [
-        { id: 1, filePath: "/uploads/old.png", fileType: "image/png", bugId: "999" },
+        {
+          id: 1,
+          filePath: "/uploads/old.png",
+          fileType: "image/png",
+          bugId: "999",
+        },
         { id: 2, filePath: "/purged", fileType: "image/png", bugId: "999" },
         { id: 3, filePath: "", fileType: "image/png", bugId: "999" },
       ];
 
-      const infoLogSpy = jest.spyOn(logger, "info").mockImplementation(() => {});
+      const infoLogSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
 
       mockBugRepository.findExpiredRejectedBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([expiredBug]),
@@ -217,12 +246,20 @@ describe("BugLifecycleUseCase", () => {
       }
       const expectedDate = new Date();
       expectedDate.setDate(expectedDate.getDate() - 7);
-      expect(Math.abs(dateArg.getTime() - expectedDate.getTime())).toBeLessThan(5000);
+      expect(Math.abs(dateArg.getTime() - expectedDate.getTime())).toBeLessThan(
+        5000,
+      );
 
-      expect(infoLogSpy).toHaveBeenCalledWith("Found 1 expired rejected bugs to purge.");
-      expect(infoLogSpy).toHaveBeenCalledWith("Expired rejected bugs purging complete.");
+      expect(infoLogSpy).toHaveBeenCalledWith(
+        "Found 1 expired rejected bugs to purge.",
+      );
+      expect(infoLogSpy).toHaveBeenCalledWith(
+        "Expired rejected bugs purging complete.",
+      );
 
-      expect(mockStorageService.deleteFile).toHaveBeenCalledWith("/uploads/old.png");
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
+        "/uploads/old.png",
+      );
       expect(mockStorageService.deleteFile).not.toHaveBeenCalledWith("/purged");
       expect(mockStorageService.deleteFile).not.toHaveBeenCalledWith("");
 
@@ -267,7 +304,7 @@ describe("BugLifecycleUseCase", () => {
       const expiredBug = createMockBug("999", "Old rejected bug", "rejected");
       expiredBug.attachments = [];
 
-      const infoLogSpy = jest.spyOn(logger, "info").mockImplementation(() => {});
+      const infoLogSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
 
       mockBugRepository.findExpiredRejectedBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([expiredBug]),
@@ -295,7 +332,7 @@ describe("BugLifecycleUseCase", () => {
       const expiredBug = createMockBug("999", "Old rejected bug", "rejected");
       expiredBug.attachments = undefined;
 
-      const infoLogSpy = jest.spyOn(logger, "info").mockImplementation(() => {});
+      const infoLogSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
 
       mockBugRepository.findExpiredRejectedBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([expiredBug]),
@@ -319,10 +356,14 @@ describe("BugLifecycleUseCase", () => {
     });
 
     it("should process purge for expired bugs with non-array attachments and not throw loop exceptions", async () => {
-      const expiredBugNonArray = createMockBug("999", "Old rejected bug", "rejected");
+      const expiredBugNonArray = createMockBug(
+        "999",
+        "Old rejected bug",
+        "rejected",
+      );
       Object.assign(expiredBugNonArray, { attachments: { notAnArray: true } });
 
-      const infoLogSpy = jest.spyOn(logger, "info").mockImplementation(() => {});
+      const infoLogSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
 
       mockBugRepository.findExpiredRejectedBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([expiredBugNonArray]),
@@ -337,7 +378,7 @@ describe("BugLifecycleUseCase", () => {
     });
 
     it("should return early and do nothing when no expired bugs are found", async () => {
-      const infoLogSpy = jest.spyOn(logger, "info").mockImplementation(() => {});
+      const infoLogSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
 
       mockBugRepository.findExpiredRejectedBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([]),
@@ -386,16 +427,24 @@ describe("BugLifecycleUseCase", () => {
         expect.objectContaining({
           data: expect.objectContaining({
             bugId: "bug-123",
-            body: expect.stringContaining("The administrator modified the following fields"),
+            body: expect.stringContaining(
+              "The administrator modified the following fields",
+            ),
           }),
         }),
       );
       const noteCall = mockBugRepository.createNote.mock.calls[0][0];
-      expect(noteCall.data?.body).toContain('* Description: "Old Desc" -> "New Desc"');
+      expect(noteCall.data?.body).toContain(
+        '* Description: "Old Desc" -> "New Desc"',
+      );
       expect(noteCall.data?.body).toContain('* Category: "Editor" -> "Model"');
       expect(noteCall.data?.body).toContain('* Priority: "low" -> "high"');
-      expect(noteCall.data?.body).toContain('* Target repository set to "New/Repo"');
-      expect(noteCall.data?.body).toContain('\n\nAdmin Comment: "Approve change"');
+      expect(noteCall.data?.body).toContain(
+        '* Target repository set to "New/Repo"',
+      );
+      expect(noteCall.data?.body).toContain(
+        '\n\nAdmin Comment: "Approve change"',
+      );
     });
 
     it("should log audit comment with default fallback values when category or priority are initially missing", async () => {
@@ -423,7 +472,9 @@ describe("BugLifecycleUseCase", () => {
       await useCase.updateStatus(req);
 
       const noteCall = mockBugRepository.createNote.mock.calls[0][0];
-      expect(noteCall.data?.body).toContain('* Category: "None" -> "NewCategory"');
+      expect(noteCall.data?.body).toContain(
+        '* Category: "None" -> "NewCategory"',
+      );
       expect(noteCall.data?.body).toContain('* Priority: "medium" -> "high"');
     });
 
@@ -432,7 +483,12 @@ describe("BugLifecycleUseCase", () => {
       bug.priority = "high";
       bug.category = "Model";
       bug.attachments = [
-        { id: 1, filePath: "/file1.jpg", fileType: "image/jpeg", bugId: "bug-123" },
+        {
+          id: 1,
+          filePath: "/file1.jpg",
+          fileType: "image/jpeg",
+          bugId: "bug-123",
+        },
         { id: 2, filePath: "/purged", fileType: "image/png", bugId: "bug-123" }, // Should skip purged
         { id: 3, filePath: "/file2.png", fileType: "", bugId: "bug-123" }, // Should default to unknown type
       ];
@@ -445,7 +501,7 @@ describe("BugLifecycleUseCase", () => {
       mockBugRepository.updateStatus.mockResolvedValue(
         new ResponseModel<Bug>("tx-1").withResponse(bug),
       );
-      mockGithubConfig.getApiBaseUrl = jest.fn().mockReturnValue(undefined); // Fallback to http://localhost:4000
+      mockGithubConfig.getApiBaseUrl = vi.fn().mockReturnValue(undefined); // Fallback to http://localhost:4000
 
       const req = new RequestModel("tx-1", {
         id: "bug-123",
@@ -477,7 +533,12 @@ describe("BugLifecycleUseCase", () => {
     it("should format attachments list with custom config API base url when pushing to GitHub", async () => {
       const bug = createMockBug("bug-123", "Title", "pending");
       bug.attachments = [
-        { id: 1, filePath: "/file1.jpg", fileType: "image/jpeg", bugId: "bug-123" },
+        {
+          id: 1,
+          filePath: "/file1.jpg",
+          fileType: "image/jpeg",
+          bugId: "bug-123",
+        },
       ];
 
       mockBugRepository.findById.mockResolvedValue(
@@ -488,7 +549,9 @@ describe("BugLifecycleUseCase", () => {
       mockBugRepository.updateStatus.mockResolvedValue(
         new ResponseModel<Bug>("tx-1").withResponse(bug),
       );
-      mockGithubConfig.getApiBaseUrl = jest.fn().mockReturnValue("https://myapi.com");
+      mockGithubConfig.getApiBaseUrl = vi
+        .fn()
+        .mockReturnValue("https://myapi.com");
 
       const req = new RequestModel("tx-1", {
         id: "bug-123",
@@ -618,10 +681,11 @@ describe("BugLifecycleUseCase", () => {
     });
 
     it("should fail update if request data is missing", async () => {
-      const req = new RequestModel<{ id: string; status: string; adminId: string }>(
-        "tx-1",
-        undefined,
-      );
+      const req = new RequestModel<{
+        id: string;
+        status: string;
+        adminId: string;
+      }>("tx-1", undefined);
       const res = await useCase.updateStatus(req);
       expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("Request data is required.");
@@ -709,7 +773,9 @@ describe("BugLifecycleUseCase", () => {
         expect.objectContaining({
           data: expect.objectContaining({
             bugId: "bug-123",
-            body: expect.stringContaining('* Title: "Old Title" -> "New Title"'),
+            body: expect.stringContaining(
+              '* Title: "Old Title" -> "New Title"',
+            ),
           }),
         }),
       );
@@ -753,7 +819,9 @@ describe("BugLifecycleUseCase", () => {
         expect.objectContaining({
           data: expect.objectContaining({
             bugId: "bug-123",
-            body: expect.stringContaining("The fields were not modified by the administrator."),
+            body: expect.stringContaining(
+              "The fields were not modified by the administrator.",
+            ),
           }),
         }),
       );
@@ -919,7 +987,8 @@ describe("BugLifecycleUseCase", () => {
         expect.objectContaining({
           data: expect.objectContaining({
             gitIssueNumber: 777,
-            githubHtmlUrl: "https://github.com/VariaMos/VariaMosAdmin/issues/777",
+            githubHtmlUrl:
+              "https://github.com/VariaMos/VariaMosAdmin/issues/777",
           }),
         }),
       );
@@ -1107,7 +1176,10 @@ describe("BugLifecycleUseCase", () => {
 
   describe("rejectBug errors", () => {
     it("should return error if reject request data is missing", async () => {
-      const req = new RequestModel<{ id: string; adminId: string }>("tx-1", undefined);
+      const req = new RequestModel<{ id: string; adminId: string }>(
+        "tx-1",
+        undefined,
+      );
       const res = await useCase.rejectBug(req);
       expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
     });
@@ -1121,7 +1193,10 @@ describe("BugLifecycleUseCase", () => {
 
   describe("restoreBug errors", () => {
     it("should return error if restore request data is missing", async () => {
-      const req = new RequestModel<{ id: string; adminId: string }>("tx-1", undefined);
+      const req = new RequestModel<{ id: string; adminId: string }>(
+        "tx-1",
+        undefined,
+      );
       const res = await useCase.restoreBug(req);
       expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
     });
@@ -1138,12 +1213,14 @@ describe("BugLifecycleUseCase", () => {
       mockBugRepository.findExpiredRejectedBugs.mockImplementation(() => {
         throw new Error("Purge Failed");
       });
-      const errLogSpy = jest.spyOn(logger, "err").mockImplementation(() => {});
+      const errLogSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
 
       await useCase.purgeExpiredRejectedBugs();
 
       expect(errLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Failed to purge expired rejected bugs: Purge Failed"),
+        expect.stringContaining(
+          "Failed to purge expired rejected bugs: Purge Failed",
+        ),
       );
       errLogSpy.mockRestore();
     });

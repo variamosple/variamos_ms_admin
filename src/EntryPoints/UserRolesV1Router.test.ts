@@ -1,23 +1,23 @@
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import { UserRole } from "@src/Domain/User/Entity/UserRole.js";
+import { UserRoleUseCase } from "@src/Domain/User/UseCase/UserRoleUseCase.js";
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import express from "express";
 import supertest from "supertest";
-import { createUserRolesRouter } from "./UserRolesV1Router";
-import { UserRoleUseCase } from "@src/Domain/User/UseCase/UserRoleUseCase";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
-import { UserRole } from "@src/Domain/User/Entity/UserRole";
+import { createUserRolesRouter } from "./UserRolesV1Router.js";
 
-import { mock } from "jest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 // Mock dependencies
-jest.mock("@src/Domain/User/UseCase/UserRoleUseCase");
-jest.mock("@variamosple/variamos-security", () => ({
+vi.mock("@src/Domain/User/UseCase/UserRoleUseCase");
+vi.mock("@variamosple/variamos-security", () => ({
   hasPermissions: () => (_req: unknown, _res: unknown, next: () => void) => {
     next();
   },
 }));
 
-import { IUserRoleRepository } from "@src/Domain/User/Repository/IUserRoleRepository";
+import type { IUserRoleRepository } from "@src/Domain/User/Repository/IUserRoleRepository.js";
 
 describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
   let app: express.Application;
@@ -25,18 +25,27 @@ describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
   beforeAll(() => {
     app = express();
     app.use(express.json());
-    const mockUserRoleUseCase = new UserRoleUseCase(mock<IUserRoleRepository>());
-    app.use("/v1/users/:userId/roles", createUserRolesRouter(mockUserRoleUseCase));
+    const mockUserRoleUseCase = new UserRoleUseCase(
+      mock<IUserRoleRepository>(),
+    );
+    app.use(
+      "/v1/users/:userId/roles",
+      createUserRolesRouter(mockUserRoleUseCase),
+    );
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe("GET /v1/users/:userId/roles", () => {
     it("should return 200 on success", async () => {
-      const expectedResponse = new ResponseModel("queryUserRoles").withResponse([]);
-      (UserRoleUseCase.prototype.queryUserRoles as jest.Mock).mockResolvedValue(expectedResponse);
+      const expectedResponse = new ResponseModel("queryUserRoles").withResponse(
+        [],
+      );
+      (UserRoleUseCase.prototype.queryUserRoles as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .get("/v1/users/user-123/roles")
@@ -61,7 +70,9 @@ describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Query failed",
       );
-      (UserRoleUseCase.prototype.queryUserRoles as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserRoleUseCase.prototype.queryUserRoles as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app).get("/v1/users/user-123/roles");
 
@@ -69,7 +80,7 @@ describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when query throws an exception", async () => {
-      (UserRoleUseCase.prototype.queryUserRoles as jest.Mock).mockRejectedValue(
+      (UserRoleUseCase.prototype.queryUserRoles as vi.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -81,18 +92,24 @@ describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
 
   describe("GET /v1/users/:userId/roles/details", () => {
     it("should return 200 on success", async () => {
-      const expectedResponse = new ResponseModel("queryUserRolesDetails").withResponse([]);
-      (UserRoleUseCase.prototype.queryUserRolesDetails as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      const expectedResponse = new ResponseModel(
+        "queryUserRolesDetails",
+      ).withResponse([]);
+      (
+        UserRoleUseCase.prototype.queryUserRolesDetails as vi.Mock
+      ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
         .get("/v1/users/user-123/roles/details")
         .query({ pageNumber: 1, pageSize: 10 });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(UserRoleUseCase.prototype.queryUserRolesDetails).toHaveBeenCalledTimes(1);
-      expect(UserRoleUseCase.prototype.queryUserRolesDetails).toHaveBeenCalledWith(
+      expect(
+        UserRoleUseCase.prototype.queryUserRolesDetails,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        UserRoleUseCase.prototype.queryUserRolesDetails,
+      ).toHaveBeenCalledWith(
         expect.objectContaining({ transactionId: "queryUserRolesDetails" }),
       );
     });
@@ -105,25 +122,28 @@ describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return error status code when query details fails", async () => {
-      const expectedResponse = new ResponseModel("queryUserRolesDetails").withError(
-        DomainErrorCodes.INVALID_INPUT,
-        "Query details failed",
-      );
-      (UserRoleUseCase.prototype.queryUserRolesDetails as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      const expectedResponse = new ResponseModel(
+        "queryUserRolesDetails",
+      ).withError(DomainErrorCodes.INVALID_INPUT, "Query details failed");
+      (
+        UserRoleUseCase.prototype.queryUserRolesDetails as vi.Mock
+      ).mockResolvedValue(expectedResponse);
 
-      const response = await supertest(app).get("/v1/users/user-123/roles/details");
+      const response = await supertest(app).get(
+        "/v1/users/user-123/roles/details",
+      );
 
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
     });
 
     it("should return 500 when query details throws an exception", async () => {
-      (UserRoleUseCase.prototype.queryUserRolesDetails as jest.Mock).mockRejectedValue(
-        new Error("Unexpected error"),
-      );
+      (
+        UserRoleUseCase.prototype.queryUserRolesDetails as vi.Mock
+      ).mockRejectedValue(new Error("Unexpected error"));
 
-      const response = await supertest(app).get("/v1/users/user-123/roles/details");
+      const response = await supertest(app).get(
+        "/v1/users/user-123/roles/details",
+      );
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
     });
@@ -132,10 +152,16 @@ describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
   describe("POST /v1/users/:userId/roles", () => {
     it("should return 201 on success", async () => {
       const mockUserRole = new UserRole("user-123", 2);
-      const expectedResponse = new ResponseModel("createUserRole").withResponse(mockUserRole);
-      (UserRoleUseCase.prototype.createUserRole as jest.Mock).mockResolvedValue(expectedResponse);
+      const expectedResponse = new ResponseModel("createUserRole").withResponse(
+        mockUserRole,
+      );
+      (UserRoleUseCase.prototype.createUserRole as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
-      const response = await supertest(app).post("/v1/users/user-123/roles").send({ roleId: 2 });
+      const response = await supertest(app)
+        .post("/v1/users/user-123/roles")
+        .send({ roleId: 2 });
 
       expect(response.status).toBe(HttpStatusCodes.CREATED);
       expect(UserRoleUseCase.prototype.createUserRole).toHaveBeenCalledTimes(1);
@@ -145,7 +171,9 @@ describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 400 when roleId is missing or invalid", async () => {
-      const response = await supertest(app).post("/v1/users/user-123/roles").send({});
+      const response = await supertest(app)
+        .post("/v1/users/user-123/roles")
+        .send({});
 
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
     });
@@ -172,19 +200,25 @@ describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.DUPLICATE_ENTITY,
         "Conflict",
       );
-      (UserRoleUseCase.prototype.createUserRole as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserRoleUseCase.prototype.createUserRole as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
-      const response = await supertest(app).post("/v1/users/user-123/roles").send({ roleId: 2 });
+      const response = await supertest(app)
+        .post("/v1/users/user-123/roles")
+        .send({ roleId: 2 });
 
       expect(response.status).toBe(HttpStatusCodes.CONFLICT);
     });
 
     it("should return 500 when create throws an exception", async () => {
-      (UserRoleUseCase.prototype.createUserRole as jest.Mock).mockRejectedValue(
+      (UserRoleUseCase.prototype.createUserRole as vi.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
-      const response = await supertest(app).post("/v1/users/user-123/roles").send({ roleId: 2 });
+      const response = await supertest(app)
+        .post("/v1/users/user-123/roles")
+        .send({ roleId: 2 });
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
     });
@@ -192,10 +226,16 @@ describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
 
   describe("DELETE /v1/users/:userId/roles/:roleId", () => {
     it("should return 200 on success", async () => {
-      const expectedResponse = new ResponseModel("deleteUserRole").withResponse(null);
-      (UserRoleUseCase.prototype.deleteUserRole as jest.Mock).mockResolvedValue(expectedResponse);
+      const expectedResponse = new ResponseModel("deleteUserRole").withResponse(
+        null,
+      );
+      (UserRoleUseCase.prototype.deleteUserRole as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
-      const response = await supertest(app).delete("/v1/users/user-123/roles/2");
+      const response = await supertest(app).delete(
+        "/v1/users/user-123/roles/2",
+      );
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(UserRoleUseCase.prototype.deleteUserRole).toHaveBeenCalledTimes(1);
@@ -213,7 +253,9 @@ describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 400 when roleId is invalid", async () => {
-      const response = await supertest(app).delete("/v1/users/user-123/roles/invalid-id");
+      const response = await supertest(app).delete(
+        "/v1/users/user-123/roles/invalid-id",
+      );
 
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
     });
@@ -223,19 +265,25 @@ describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.ENTITY_NOT_FOUND,
         "Not found",
       );
-      (UserRoleUseCase.prototype.deleteUserRole as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserRoleUseCase.prototype.deleteUserRole as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
-      const response = await supertest(app).delete("/v1/users/user-123/roles/2");
+      const response = await supertest(app).delete(
+        "/v1/users/user-123/roles/2",
+      );
 
       expect(response.status).toBe(HttpStatusCodes.NOT_FOUND);
     });
 
     it("should return 500 when delete throws an exception", async () => {
-      (UserRoleUseCase.prototype.deleteUserRole as jest.Mock).mockRejectedValue(
+      (UserRoleUseCase.prototype.deleteUserRole as vi.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
-      const response = await supertest(app).delete("/v1/users/user-123/roles/2");
+      const response = await supertest(app).delete(
+        "/v1/users/user-123/roles/2",
+      );
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
     });

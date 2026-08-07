@@ -1,5 +1,5 @@
-import { DomainErrorCodes } from "../Error/DomainErrorCodes";
-import { Nullable } from "./Nullable";
+import type { DomainErrorCodes } from "../Error/DomainErrorCodes.js";
+import type { Nullable } from "./Nullable.js";
 
 export class ResponseModel<Type> {
   public constructor(
@@ -17,7 +17,10 @@ export class ResponseModel<Type> {
     return this;
   }
 
-  public withResponsePromise(data: Nullable<Type>, totalCount?: number): Promise<this> {
+  public withResponsePromise(
+    data: Nullable<Type>,
+    totalCount?: number,
+  ): Promise<this> {
     this.data = data;
     this.totalCount = totalCount;
 
@@ -31,7 +34,10 @@ export class ResponseModel<Type> {
     return this;
   }
 
-  public withErrorPromise(errorCode: DomainErrorCodes, errorMessage: string): Promise<this> {
+  public withErrorPromise(
+    errorCode: DomainErrorCodes,
+    errorMessage: string,
+  ): Promise<this> {
     this.errorCode = errorCode;
     this.message = errorMessage;
 

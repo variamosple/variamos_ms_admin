@@ -1,4 +1,4 @@
-import { Nullable } from "./Nullable";
+import type { Nullable } from "./Nullable.js";
 
 export class PagedModel {
   public constructor(

@@ -1,15 +1,15 @@
-import { mock, MockProxy } from "jest-mock-extended";
-import { UserAuthUseCase } from "./UserAuthUseCase";
-import { IUserRepository } from "@src/Domain/User/IUserRepository";
-import { IGuestRoleRepository } from "@src/Domain/Role/Repository/IGuestRoleRepository";
-import { Role } from "@src/Domain/Role/Entity/Role";
-import { Permission } from "@src/Domain/Permission/Entity/Permission";
-import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration";
-import { Credentials } from "@src/Domain/User/Entity/Credentials";
-import { User } from "@src/Domain/User/Entity/User";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import { Permission } from "@src/Domain/Permission/Entity/Permission.js";
+import { Role } from "@src/Domain/Role/Entity/Role.js";
+import type { IGuestRoleRepository } from "@src/Domain/Role/Repository/IGuestRoleRepository.js";
+import { Credentials } from "@src/Domain/User/Entity/Credentials.js";
+import { User } from "@src/Domain/User/Entity/User.js";
+import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration.js";
+import type { IUserRepository } from "@src/Domain/User/IUserRepository.js";
+import { type MockProxy, mock } from "vitest-mock-extended";
+import { UserAuthUseCase } from "./UserAuthUseCase.js";
 
 describe("UserAuthUseCase", () => {
   let useCase: UserAuthUseCase;
@@ -45,7 +45,9 @@ describe("UserAuthUseCase", () => {
       const req = new RequestModel<UserRegistration>("tx-1", reg);
       const res = await useCase.signUp(req);
       expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
-      expect(res.message).toBe("Password and password confirmation do not match.");
+      expect(res.message).toBe(
+        "Password and password confirmation do not match.",
+      );
     });
 
     it("should fail if password does not match complex regexp pattern", async () => {
@@ -76,7 +78,9 @@ describe("UserAuthUseCase", () => {
         .setIsDeleted(false)
         .setCreatedAt(new Date())
         .build();
-      const mockResponse = new ResponseModel<User>("tx-1").withResponse(mockUser);
+      const mockResponse = new ResponseModel<User>("tx-1").withResponse(
+        mockUser,
+      );
       mockUserRepository.signUp.mockResolvedValue(mockResponse);
 
       const req = new RequestModel<UserRegistration>("tx-1", reg);
@@ -97,7 +101,9 @@ describe("UserAuthUseCase", () => {
         .setIsDeleted(false)
         .setCreatedAt(new Date())
         .build();
-      const mockResponse = new ResponseModel<User>("tx-1").withResponse(mockUser);
+      const mockResponse = new ResponseModel<User>("tx-1").withResponse(
+        mockUser,
+      );
       mockUserRepository.signIn.mockResolvedValue(mockResponse);
 
       const req = new RequestModel<Credentials>("tx-1", credentials);
@@ -119,7 +125,9 @@ describe("UserAuthUseCase", () => {
         .setIsDeleted(false)
         .setCreatedAt(new Date())
         .build();
-      const mockResponse = new ResponseModel<User>("tx-1").withResponse(mockUser);
+      const mockResponse = new ResponseModel<User>("tx-1").withResponse(
+        mockUser,
+      );
       mockUserRepository.findOrCreateUser.mockResolvedValue(mockResponse);
 
       const req = new RequestModel<User>("tx-1", mockUser);
@@ -132,8 +140,12 @@ describe("UserAuthUseCase", () => {
 
   describe("getGuestData", () => {
     it("should return Guest user details successfully", async () => {
-      const mockExistsResponse1 = new ResponseModel<boolean>("tx-1").withResponse(true);
-      const mockExistsResponse2 = new ResponseModel<boolean>("tx-1").withResponse(false);
+      const mockExistsResponse1 = new ResponseModel<boolean>(
+        "tx-1",
+      ).withResponse(true);
+      const mockExistsResponse2 = new ResponseModel<boolean>(
+        "tx-1",
+      ).withResponse(false);
       mockUserRepository.userExists
         .mockResolvedValueOnce(mockExistsResponse1)
         .mockResolvedValueOnce(mockExistsResponse2);

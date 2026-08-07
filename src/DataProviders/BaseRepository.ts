@@ -1,6 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/explicit-member-accessibility */
 export interface Replacements {
-  [key: string]: any;
+  [key: string]: string | number | boolean | null | Date | string[] | number[];
 }
 
 export abstract class BaseRepository {
@@ -9,10 +8,13 @@ export abstract class BaseRepository {
       return {};
     }
 
-    return Object.entries(filter).reduce<Replacements>((result, [key, value]) => {
-      result[key] = value === undefined ? null : value;
+    return Object.entries(filter).reduce<Replacements>(
+      (result, [key, value]) => {
+        result[key] = value === undefined ? null : value;
 
-      return result;
-    }, {});
+        return result;
+      },
+      {},
+    );
   }
 }

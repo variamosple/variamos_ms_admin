@@ -1,5 +1,5 @@
-import { Nullable } from "@src/Domain/Core/Entity/Nullable";
-import { PagedModel } from "@src/Domain/Core/Entity/PagedModel";
+import type { Nullable } from "@src/Domain/Core/Entity/Nullable.js";
+import { PagedModel } from "@src/Domain/Core/Entity/PagedModel.js";
 
 export class UserFilter extends PagedModel {
   public constructor(

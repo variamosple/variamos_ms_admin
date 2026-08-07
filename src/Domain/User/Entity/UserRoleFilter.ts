@@ -1,4 +1,4 @@
-import { PagedModel } from "@src/Domain/Core/Entity/PagedModel";
+import { PagedModel } from "@src/Domain/Core/Entity/PagedModel.js";
 
 export class UserRoleFilter extends PagedModel {
   public constructor(
@@ -14,7 +14,11 @@ export class UserRoleFilter extends PagedModel {
   }
 
   public static build(builder: UserRoleFilterBuilder): UserRoleFilter {
-    return new UserRoleFilter(builder.userId, builder.pageNumber, builder.pageSize);
+    return new UserRoleFilter(
+      builder.userId,
+      builder.pageNumber,
+      builder.pageSize,
+    );
   }
 }
 

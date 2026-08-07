@@ -1,6 +1,6 @@
-import { mapDomainErrorToHttpStatus } from "./errorMapper";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
+import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
 describe("errorMapper Unit Tests", () => {
   it("should return OK if no error code is provided", () => {
@@ -15,9 +15,9 @@ describe("errorMapper Unit Tests", () => {
     expect(mapDomainErrorToHttpStatus(DomainErrorCodes.ENTITY_NOT_FOUND)).toBe(
       HttpStatusCodes.NOT_FOUND,
     );
-    expect(mapDomainErrorToHttpStatus(DomainErrorCodes.UNAUTHORIZED_ACCESS)).toBe(
-      HttpStatusCodes.UNAUTHORIZED,
-    );
+    expect(
+      mapDomainErrorToHttpStatus(DomainErrorCodes.UNAUTHORIZED_ACCESS),
+    ).toBe(HttpStatusCodes.UNAUTHORIZED);
     expect(mapDomainErrorToHttpStatus(DomainErrorCodes.SYSTEM_ERROR)).toBe(
       HttpStatusCodes.INTERNAL_SERVER_ERROR,
     );
@@ -28,9 +28,9 @@ describe("errorMapper Unit Tests", () => {
   });
 
   it("should return INTERNAL_SERVER_ERROR if it is an unknown domain error code and not a number", () => {
-    expect(mapDomainErrorToHttpStatus("UNKNOWN_ERROR" as DomainErrorCodes)).toBe(
-      HttpStatusCodes.INTERNAL_SERVER_ERROR,
-    );
+    expect(
+      mapDomainErrorToHttpStatus("UNKNOWN_ERROR" as DomainErrorCodes),
+    ).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
   });
 
   it("should return parsed number if errorCode is a numeric string", () => {

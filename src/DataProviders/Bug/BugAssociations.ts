@@ -1,7 +1,7 @@
-import { BugModel } from "./Bug";
-import { BugAttachmentModel } from "./BugAttachment";
-import { BugLogModel } from "./BugLog";
-import { UserModel } from "../User/User";
+import { UserModel } from "../User/User.js";
+import { BugModel } from "./Bug.js";
+import { BugAttachmentModel } from "./BugAttachment.js";
+import { BugLogModel } from "./BugLog.js";
 
 // Bug Associations
 BugModel.hasMany(BugAttachmentModel, {
@@ -36,7 +36,7 @@ BugLogModel.belongsTo(UserModel, {
   as: "changedBy",
 });
 
-import { BugNoteModel } from "./BugNote";
+import { BugNoteModel } from "./BugNote.js";
 
 BugModel.hasMany(BugNoteModel, {
   foreignKey: "bug_id",

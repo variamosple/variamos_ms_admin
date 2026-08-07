@@ -1,4 +1,4 @@
-import { MicroService } from "./MicroService";
+import { MicroService } from "./MicroService.js";
 
 describe("MicroService Entity - Unit Tests", () => {
   const validCreated = new Date();
@@ -49,28 +49,65 @@ describe("MicroService Entity - Unit Tests", () => {
 
   it("should throw an error for empty ID", () => {
     expect(
-      () => new MicroService("", ["gateway"], validCreated, validLabels, "running", "up"),
+      () =>
+        new MicroService(
+          "",
+          ["gateway"],
+          validCreated,
+          validLabels,
+          "running",
+          "up",
+        ),
     ).toThrow("Microservice ID is required.");
   });
 
   it("should throw an error for empty names list", () => {
-    expect(() => new MicroService("s1", [], validCreated, validLabels, "running", "up")).toThrow(
+    expect(
+      () =>
+        new MicroService("s1", [], validCreated, validLabels, "running", "up"),
+    ).toThrow(
       "Microservice names must be a non-empty list of non-empty strings.",
     );
-    expect(() => new MicroService("s1", [""], validCreated, validLabels, "running", "up")).toThrow(
+    expect(
+      () =>
+        new MicroService(
+          "s1",
+          [""],
+          validCreated,
+          validLabels,
+          "running",
+          "up",
+        ),
+    ).toThrow(
       "Microservice names must be a non-empty list of non-empty strings.",
     );
   });
 
   it("should throw an error for empty state", () => {
-    expect(() => new MicroService("s1", ["gateway"], validCreated, validLabels, "", "up")).toThrow(
-      "Microservice state is required.",
-    );
+    expect(
+      () =>
+        new MicroService(
+          "s1",
+          ["gateway"],
+          validCreated,
+          validLabels,
+          "",
+          "up",
+        ),
+    ).toThrow("Microservice state is required.");
   });
 
   it("should throw an error for empty status", () => {
     expect(
-      () => new MicroService("s1", ["gateway"], validCreated, validLabels, "running", ""),
+      () =>
+        new MicroService(
+          "s1",
+          ["gateway"],
+          validCreated,
+          validLabels,
+          "running",
+          "",
+        ),
     ).toThrow("Microservice status is required.");
   });
 });

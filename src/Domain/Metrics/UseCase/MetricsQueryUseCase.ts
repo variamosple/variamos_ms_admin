@@ -1,24 +1,32 @@
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Metric } from "@src/Domain/Metrics/Entity/Metric";
-import { MetricsFilter } from "@src/Domain/Metrics/Entity/MetricsFilter";
-import { IMetricsRepository } from "@src/Domain/Metrics/Repository/IMetricsRepository";
+import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import type { Metric } from "@src/Domain/Metrics/Entity/Metric.js";
+import type { MetricsFilter } from "@src/Domain/Metrics/Entity/MetricsFilter.js";
+import type { IMetricsRepository } from "@src/Domain/Metrics/Repository/IMetricsRepository.js";
 
 export class MetricsQueryUseCase {
   public constructor(private readonly metricsRepository: IMetricsRepository) {}
 
-  public getMetrics(request: RequestModel<void>): Promise<ResponseModel<Metric[]>> {
+  public getMetrics(
+    request: RequestModel<void>,
+  ): Promise<ResponseModel<Metric[]>> {
     return this.metricsRepository.getMetrics(request);
   }
 
-  public queryMetric(request: RequestModel<MetricsFilter>): Promise<ResponseModel<Metric>> {
+  public queryMetric(
+    request: RequestModel<MetricsFilter>,
+  ): Promise<ResponseModel<Metric>> {
     const defaultResponse = new ResponseModel<Metric>(request.transactionId);
     const data = request.data;
 
     if (!data?.getId()) {
-      return defaultResponse.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "id is required.");
-    } else if (!data.getStartDate() || !data.getEndDate()) {
+      return defaultResponse.withErrorPromise(
+        DomainErrorCodes.INVALID_INPUT,
+        "id is required.",
+      );
+    }
+    if (!data.getStartDate() || !data.getEndDate()) {
       return defaultResponse.withErrorPromise(
         DomainErrorCodes.INVALID_INPUT,
         "startDate and endDate are required.",

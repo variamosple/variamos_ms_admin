@@ -1,29 +1,32 @@
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { User } from "@src/Domain/User/Entity/User";
-import { UserFilter } from "@src/Domain/User/Entity/UserFilter";
-import { Credentials } from "@src/Domain/User/Entity/Credentials";
-import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration";
-import { PasswordUpdate } from "@src/Domain/User/Entity/PasswordUpdate";
-import { PersonalInformationUpdate } from "@src/Domain/User/Entity/PersonalInformationUpdate";
-import { IUserRepository } from "@src/Domain/User/IUserRepository";
+import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import type { Credentials } from "@src/Domain/User/Entity/Credentials.js";
+import type { PasswordUpdate } from "@src/Domain/User/Entity/PasswordUpdate.js";
+import type { PersonalInformationUpdate } from "@src/Domain/User/Entity/PersonalInformationUpdate.js";
+import { User } from "@src/Domain/User/Entity/User.js";
+import { UserFilter } from "@src/Domain/User/Entity/UserFilter.js";
+import type { UserRegistration } from "@src/Domain/User/Entity/UserRegistration.js";
+import type { IUserRepository } from "@src/Domain/User/IUserRepository.js";
 
-import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
-import logger from "jet-logger";
-import { Op, QueryTypes, WhereOptions } from "sequelize";
-import { BaseRepository } from "../BaseRepository";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM.js";
 import bcrypt from "bcrypt";
-import { RoleModel } from "../Role/Role";
-import { PermissionModel } from "../Permission/Permission";
-import { CountryModel } from "../Countries/Country";
-import { UserAttributes, UserModel } from "./User";
+import logger from "jet-logger";
+import { Op, QueryTypes, type WhereOptions } from "sequelize";
+import { BaseRepository } from "../BaseRepository.js";
+import { CountryModel } from "../Countries/Country.js";
+import type { PermissionModel } from "../Permission/Permission.js";
+import type { RoleModel } from "../Role/Role.js";
+import { type UserAttributes, UserModel } from "./User.js";
 
 interface UserModelWithCountry extends UserModel {
   country?: CountryModel | null;
 }
 
-export class UserRepositoryImpl extends BaseRepository implements IUserRepository {
+export class UserRepositoryImpl
+  extends BaseRepository
+  implements IUserRepository
+{
   private readonly bcryptSaltRounds: number;
 
   public constructor(config: { bcryptSaltRounds: number }) {
@@ -31,7 +34,9 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
     this.bcryptSaltRounds = config.bcryptSaltRounds;
   }
 
-  public async queryUsers(request: RequestModel<UserFilter>): Promise<ResponseModel<User[]>> {
+  public async queryUsers(
+    request: RequestModel<UserFilter>,
+  ): Promise<ResponseModel<User[]>> {
     const response = new ResponseModel<User[]>(request.transactionId);
 
     try {
@@ -55,7 +60,9 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
               { name: { [Op.iLike]: `%${String(replacements.search)}%` } },
               { email: { [Op.iLike]: `%${String(replacements.search)}%` } },
             ],
-            ...(filter.name ? { name: { [Op.iLike]: `%${String(replacements.name)}%` } } : {}),
+            ...(filter.name
+              ? { name: { [Op.iLike]: `%${String(replacements.name)}%` } }
+              : {}),
           }
         : filter.name
           ? { name: { [Op.iLike]: `%${String(replacements.name)}%` } }
@@ -70,17 +77,27 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
         offset: (pageNumber - 1) * pageSize,
         order: [["name", "ASC"]],
       }).then((res) =>
-        res.map(({ id, user, name, email, isEnabled, isDeleted, createdAt, lastLogin }) =>
-          User.builder()
-            .setId(id)
-            .setUser(user)
-            .setName(name)
-            .setEmail(email)
-            .setIsEnabled(isEnabled ?? true)
-            .setIsDeleted(isDeleted ?? false)
-            .setCreatedAt(createdAt ?? new Date())
-            .setLastLogin(lastLogin)
-            .build(),
+        res.map(
+          ({
+            id,
+            user,
+            name,
+            email,
+            isEnabled,
+            isDeleted,
+            createdAt,
+            lastLogin,
+          }) =>
+            User.builder()
+              .setId(id)
+              .setUser(user)
+              .setName(name)
+              .setEmail(email)
+              .setIsEnabled(isEnabled ?? true)
+              .setIsDeleted(isDeleted ?? false)
+              .setCreatedAt(createdAt ?? new Date())
+              .setLastLogin(lastLogin)
+              .build(),
         ),
       );
     } catch (error) {
@@ -88,20 +105,28 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       logger.err("Error in getUsers:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
   }
 
-  public async findSessionUser(request: RequestModel<string>): Promise<ResponseModel<User>> {
+  public async findSessionUser(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<User>> {
     const response = new ResponseModel<User>(request.transactionId);
 
     try {
       const { data: userId } = request;
 
       if (!userId) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "UserId is required");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "UserId is required",
+        );
       }
 
       const dbUser = await UserModel.findOne({
@@ -109,15 +134,24 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       });
 
       if (!dbUser) {
-        return response.withError(DomainErrorCodes.ENTITY_NOT_FOUND, "User not found.");
+        return response.withError(
+          DomainErrorCodes.ENTITY_NOT_FOUND,
+          "User not found.",
+        );
       }
 
       if (!dbUser.isEnabled) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Your account is disabled.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Your account is disabled.",
+        );
       }
 
       if (dbUser.isDeleted) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Your account is deleted.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Your account is deleted.",
+        );
       }
 
       response.data = User.builder()
@@ -133,13 +167,18 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       logger.err("Error in findSessionUser:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
   }
 
-  public async findOrCreateUser(request: RequestModel<User>): Promise<ResponseModel<User>> {
+  public async findOrCreateUser(
+    request: RequestModel<User>,
+  ): Promise<ResponseModel<User>> {
     const response = new ResponseModel<User>(request.transactionId);
 
     try {
@@ -177,11 +216,17 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       });
 
       if (!dbUser.isEnabled) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Your account is disabled.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Your account is disabled.",
+        );
       }
 
       if (dbUser.isDeleted) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Your account is deleted.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Your account is deleted.",
+        );
       }
 
       if (!crated) {
@@ -208,19 +253,27 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       logger.err("Error in findOrCreateUser:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
   }
 
-  public async signIn(request: RequestModel<Credentials>): Promise<ResponseModel<User>> {
+  public async signIn(
+    request: RequestModel<Credentials>,
+  ): Promise<ResponseModel<User>> {
     const response = new ResponseModel<User>(request.transactionId);
 
     try {
       const { data } = request;
       if (!data) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Credentials are required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Credentials are required.",
+        );
       }
 
       const email = data.email;
@@ -238,7 +291,12 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
 
       const errorMessage = "Incorrect username or password.";
 
-      if (!dbUser || !dbUser.password || !dbUser.isEnabled || dbUser.isDeleted) {
+      if (
+        !dbUser ||
+        !dbUser.password ||
+        !dbUser.isEnabled ||
+        dbUser.isDeleted
+      ) {
         return response.withError(DomainErrorCodes.INVALID_INPUT, errorMessage);
       }
 
@@ -270,13 +328,18 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       logger.err("Error in signIn:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
   }
 
-  public async signUp(request: RequestModel<UserRegistration>): Promise<ResponseModel<User>> {
+  public async signUp(
+    request: RequestModel<UserRegistration>,
+  ): Promise<ResponseModel<User>> {
     const response = new ResponseModel<User>(request.transactionId);
 
     try {
@@ -331,19 +394,27 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       logger.err("Error in signUp:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
   }
 
-  public async queryById(request: RequestModel<string>): Promise<ResponseModel<User>> {
+  public async queryById(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<User>> {
     const response = new ResponseModel<User>(request.transactionId);
 
     try {
       const { data } = request;
       if (!data) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "User ID is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "User ID is required.",
+        );
       }
 
       response.data = await UserModel.findOne({
@@ -375,19 +446,27 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       logger.err("Error in queryById:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
   }
 
-  public async disableUser(request: RequestModel<string>): Promise<ResponseModel<void>> {
+  public async disableUser(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
 
     try {
       const { data } = request;
       if (!data) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "User ID is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "User ID is required.",
+        );
       }
 
       await UserModel.update(
@@ -403,19 +482,27 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       logger.err("Error in disableUser:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
   }
 
-  public async enableUser(request: RequestModel<string>): Promise<ResponseModel<void>> {
+  public async enableUser(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
 
     try {
       const { data } = request;
       if (!data) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "User ID is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "User ID is required.",
+        );
       }
 
       await UserModel.update(
@@ -431,19 +518,27 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       logger.err("Error in enableUser:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
   }
 
-  public async deleteUser(request: RequestModel<string>): Promise<ResponseModel<void>> {
+  public async deleteUser(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
 
     try {
       const { data } = request;
       if (!data) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "User ID is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "User ID is required.",
+        );
       }
 
       await UserModel.update(
@@ -459,7 +554,10 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       logger.err("Error in deleteUser:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
@@ -519,7 +617,10 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       });
 
       if (!dbUser) {
-        return response.withError(DomainErrorCodes.ENTITY_NOT_FOUND, "User not found.");
+        return response.withError(
+          DomainErrorCodes.ENTITY_NOT_FOUND,
+          "User not found.",
+        );
       }
 
       const passwordMatch = await bcrypt.compare(
@@ -528,10 +629,16 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       );
 
       if (!passwordMatch) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Current password is incorrect.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Current password is incorrect.",
+        );
       }
 
-      const newHashedPassword = await bcrypt.hash(passwordUpdate.getNewPassword(), 10);
+      const newHashedPassword = await bcrypt.hash(
+        passwordUpdate.getNewPassword(),
+        10,
+      );
 
       await UserModel.update(
         { password: newHashedPassword },
@@ -545,11 +652,13 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       const err = error as Error;
       logger.err("Error in updateUserPassword:");
       logger.err(
-        "Error trying to update user password with id: " +
-          (request.data ? request.data.getId() : ""),
+        `Error trying to update user password with id: ${request.data ? request.data.getId() : ""}`,
       );
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
@@ -574,7 +683,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
         .setCreatedAt(dbUser.createdAt || new Date())
         .build();
     } catch (error) {
-      logger.err("Error in getUserByEmail: " + error);
+      logger.err(`Error in getUserByEmail: ${error}`);
       return null;
     }
   }
@@ -601,7 +710,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
         },
       );
     } catch (error) {
-      logger.err("Error in savePasswordResetToken: " + error);
+      logger.err(`Error in savePasswordResetToken: ${error}`);
       throw error;
     }
   }
@@ -632,7 +741,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       );
       return results.length > 0 ? results[0] : null;
     } catch (error) {
-      logger.err("Error in getPasswordResetToken: " + error);
+      logger.err(`Error in getPasswordResetToken: ${error}`);
       return null;
     }
   }
@@ -653,13 +762,22 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
         throw new Error("User not found.");
       }
 
-      const isSamePassword = await bcrypt.compare(passwordPlain, dbUser.password || "");
+      const isSamePassword = await bcrypt.compare(
+        passwordPlain,
+        dbUser.password || "",
+      );
       if (isSamePassword) {
         throw new Error("New password cannot be the same as the old password.");
       }
 
-      const passwordHash = await bcrypt.hash(passwordPlain, this.bcryptSaltRounds);
-      await UserModel.update({ password: passwordHash }, { where: { id: userId }, transaction });
+      const passwordHash = await bcrypt.hash(
+        passwordPlain,
+        this.bcryptSaltRounds,
+      );
+      await UserModel.update(
+        { password: passwordHash },
+        { where: { id: userId }, transaction },
+      );
 
       await VARIAMOS_ORM.query(
         `
@@ -676,7 +794,7 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       await transaction.commit();
     } catch (error) {
       await transaction.rollback();
-      logger.err("Error in resetPasswordAndUpdateToken: " + error);
+      logger.err(`Error in resetPasswordAndUpdateToken: ${error}`);
       throw error;
     }
   }
@@ -707,23 +825,30 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       const err = error as Error;
       logger.err("Error in updatePersonalInformation:");
       logger.err(
-        "Error trying to update user information with id: " +
-          (request.data ? request.data.getUserId() : ""),
+        `Error trying to update user information with id: ${request.data ? request.data.getUserId() : ""}`,
       );
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
   }
 
-  public async userExists(request: RequestModel<string>): Promise<ResponseModel<boolean>> {
+  public async userExists(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<boolean>> {
     const response = new ResponseModel<boolean>(request.transactionId);
 
     try {
       const { data: userId } = request;
       if (!userId) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "User ID is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "User ID is required.",
+        );
       }
 
       response.data = await UserModel.count({
@@ -734,7 +859,10 @@ export class UserRepositoryImpl extends BaseRepository implements IUserRepositor
       logger.err("Error in userExists:");
       logger.err(request);
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;

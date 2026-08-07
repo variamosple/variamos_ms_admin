@@ -1,20 +1,20 @@
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Bug } from "@src/Domain/Bug/Entity/Bug";
-import { BugStatusLog } from "@src/Domain/Bug/Entity/BugStatusLog";
-import { BugFilter } from "@src/Domain/Bug/Entity/BugFilter";
-import { BugModel } from "./Bug";
-import { BugAttachmentModel } from "./BugAttachment";
-import { BugLogModel } from "./BugLog";
-import { BugNoteModel } from "./BugNote";
-import { UserModel } from "../User/User";
-import { Op, Transaction, WhereOptions } from "sequelize";
+import { Bug } from "@src/Domain/Bug/Entity/Bug.js";
+import { BugAttachment } from "@src/Domain/Bug/Entity/BugAttachment.js";
+import { BugFilter } from "@src/Domain/Bug/Entity/BugFilter.js";
+import { BugNote } from "@src/Domain/Bug/Entity/BugNote.js";
+import { BugStatusLog } from "@src/Domain/Bug/Entity/BugStatusLog.js";
+import type { IBugRepository } from "@src/Domain/Bug/Repository/IBugRepository.js";
+import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM.js";
 import logger from "jet-logger";
-import { IBugRepository } from "@src/Domain/Bug/Repository/IBugRepository";
-import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM";
-import { BugNote } from "@src/Domain/Bug/Entity/BugNote";
-import { BugAttachment } from "@src/Domain/Bug/Entity/BugAttachment";
+import { Op, type Transaction, type WhereOptions } from "sequelize";
+import { UserModel } from "../User/User.js";
+import { BugModel } from "./Bug.js";
+import { BugAttachmentModel } from "./BugAttachment.js";
+import { BugLogModel } from "./BugLog.js";
+import { BugNoteModel } from "./BugNote.js";
 
 interface DbBugAttachment {
   id?: number;
@@ -46,13 +46,22 @@ interface DbBugNoteWithAssociations extends BugNoteModel {
 }
 
 export class BugRepositoryImpl implements IBugRepository {
-  public async queryBugs(request: RequestModel<BugFilter>): Promise<ResponseModel<Bug[]>> {
+  public async queryBugs(
+    request: RequestModel<BugFilter>,
+  ): Promise<ResponseModel<Bug[]>> {
     const response = new ResponseModel<Bug[]>(request.transactionId);
     try {
       const filter = request.data || new BugFilter();
       const whereClause: Record<
         string | symbol,
-        string | number | boolean | object | null | undefined | string[] | object[]
+        | string
+        | number
+        | boolean
+        | object
+        | null
+        | undefined
+        | string[]
+        | object[]
       > = {
         githubRepo: { [Op.ne]: null },
         gitIssueNumber: { [Op.ne]: null },
@@ -71,7 +80,7 @@ export class BugRepositoryImpl implements IBugRepository {
         ];
 
         const numericSearch = Number(filter.search);
-        if (!isNaN(numericSearch)) {
+        if (!Number.isNaN(numericSearch)) {
           orConditions.push({ gitIssueNumber: numericSearch });
         }
 
@@ -125,13 +134,22 @@ export class BugRepositoryImpl implements IBugRepository {
     return response;
   }
 
-  public async queryLocalBugs(request: RequestModel<BugFilter>): Promise<ResponseModel<Bug[]>> {
+  public async queryLocalBugs(
+    request: RequestModel<BugFilter>,
+  ): Promise<ResponseModel<Bug[]>> {
     const response = new ResponseModel<Bug[]>(request.transactionId);
     try {
       const filter = request.data || new BugFilter();
       const whereClause: Record<
         string | symbol,
-        string | number | boolean | object | null | undefined | string[] | object[]
+        | string
+        | number
+        | boolean
+        | object
+        | null
+        | undefined
+        | string[]
+        | object[]
       > = {
         reporterEmail: { [Op.ne]: null },
       };
@@ -196,12 +214,17 @@ export class BugRepositoryImpl implements IBugRepository {
     return response;
   }
 
-  public async findById(request: RequestModel<string>): Promise<ResponseModel<Bug | null>> {
+  public async findById(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<Bug | null>> {
     const response = new ResponseModel<Bug | null>(request.transactionId);
     try {
       const id = request.data;
       if (!id) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Bug ID is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Bug ID is required.",
+        );
       }
       const dbBug = await BugModel.findByPk(id, {
         include: [
@@ -256,7 +279,10 @@ export class BugRepositoryImpl implements IBugRepository {
     try {
       const bug = request.data;
       if (!bug) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Bug data is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Bug data is required.",
+        );
       }
       const dbBug = await BugModel.findOne({
         where: {
@@ -314,7 +340,9 @@ export class BugRepositoryImpl implements IBugRepository {
           dbBug.githubAssignee = bug.githubAssignee;
           changed = true;
         }
-        if (dbBug.githubCreatedAt?.toISOString() !== bug.createdAt?.toISOString()) {
+        if (
+          dbBug.githubCreatedAt?.toISOString() !== bug.createdAt?.toISOString()
+        ) {
           dbBug.githubCreatedAt = bug.createdAt;
           changed = true;
         }
@@ -341,14 +369,20 @@ export class BugRepositoryImpl implements IBugRepository {
     try {
       const data = request.data;
       if (!data) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Request data is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Request data is required.",
+        );
       }
       const { id, adminId, logComment } = data;
       await VARIAMOS_ORM.transaction(async (t) => {
         const dbBug = await BugModel.findByPk(id, { transaction: t });
 
         if (!dbBug) {
-          response.withError(DomainErrorCodes.ENTITY_NOT_FOUND, "Local bug not found");
+          response.withError(
+            DomainErrorCodes.ENTITY_NOT_FOUND,
+            "Local bug not found",
+          );
           return;
         }
 
@@ -367,7 +401,10 @@ export class BugRepositoryImpl implements IBugRepository {
           { transaction: t },
         );
 
-        response.data = Bug.builder().setId(dbBug.id).setStatus(dbBug.status).build();
+        response.data = Bug.builder()
+          .setId(dbBug.id)
+          .setStatus(dbBug.status)
+          .build();
       });
     } catch (error) {
       const err = error as Error;
@@ -384,14 +421,20 @@ export class BugRepositoryImpl implements IBugRepository {
     try {
       const data = request.data;
       if (!data) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Request data is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Request data is required.",
+        );
       }
       const { id, adminId, logComment } = data;
       await VARIAMOS_ORM.transaction(async (t) => {
         const dbBug = await BugModel.findByPk(id, { transaction: t });
 
         if (!dbBug) {
-          response.withError(DomainErrorCodes.ENTITY_NOT_FOUND, "Local bug not found");
+          response.withError(
+            DomainErrorCodes.ENTITY_NOT_FOUND,
+            "Local bug not found",
+          );
           return;
         }
 
@@ -410,7 +453,10 @@ export class BugRepositoryImpl implements IBugRepository {
           { transaction: t },
         );
 
-        response.data = Bug.builder().setId(dbBug.id).setStatus(dbBug.status).build();
+        response.data = Bug.builder()
+          .setId(dbBug.id)
+          .setStatus(dbBug.status)
+          .build();
       });
     } catch (error) {
       const err = error as Error;
@@ -420,12 +466,17 @@ export class BugRepositoryImpl implements IBugRepository {
     return response;
   }
 
-  public async findExpiredRejectedBugs(request: RequestModel<Date>): Promise<ResponseModel<Bug[]>> {
+  public async findExpiredRejectedBugs(
+    request: RequestModel<Date>,
+  ): Promise<ResponseModel<Bug[]>> {
     const response = new ResponseModel<Bug[]>(request.transactionId);
     try {
       const thresholdDate = request.data;
       if (!thresholdDate) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Threshold date is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Threshold date is required.",
+        );
       }
       const dbBugs = await BugModel.findAll({
         where: {
@@ -468,7 +519,10 @@ export class BugRepositoryImpl implements IBugRepository {
     try {
       const data = request.data;
       if (!data) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Request data is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Request data is required.",
+        );
       }
       const { id, filePath } = data;
       await BugAttachmentModel.update({ filePath }, { where: { id } });
@@ -492,7 +546,10 @@ export class BugRepositoryImpl implements IBugRepository {
     try {
       const data = request.data;
       if (!data) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Log data is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Log data is required.",
+        );
       }
       const { action, comment, bugId, operatorId } = data;
       await BugLogModel.create({
@@ -529,7 +586,10 @@ export class BugRepositoryImpl implements IBugRepository {
     try {
       const data = request.data;
       if (!data) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Request data is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Request data is required.",
+        );
       }
       const {
         title,
@@ -628,12 +688,17 @@ export class BugRepositoryImpl implements IBugRepository {
     return response;
   }
 
-  public async queryHistory(request: RequestModel<string>): Promise<ResponseModel<BugStatusLog[]>> {
+  public async queryHistory(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<BugStatusLog[]>> {
     const response = new ResponseModel<BugStatusLog[]>(request.transactionId);
     try {
       const bugId = request.data;
       if (!bugId) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Bug ID is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Bug ID is required.",
+        );
       }
       const logs = await BugLogModel.findAll({
         where: { bugId },
@@ -686,7 +751,10 @@ export class BugRepositoryImpl implements IBugRepository {
     try {
       const data = request.data;
       if (!data) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Request data is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Request data is required.",
+        );
       }
       const {
         id,
@@ -704,7 +772,10 @@ export class BugRepositoryImpl implements IBugRepository {
       await VARIAMOS_ORM.transaction(async (t) => {
         const dbBug = await BugModel.findByPk(id, { transaction: t });
         if (!dbBug) {
-          response.withError(DomainErrorCodes.ENTITY_NOT_FOUND, "Bug not found");
+          response.withError(
+            DomainErrorCodes.ENTITY_NOT_FOUND,
+            "Bug not found",
+          );
           return;
         }
 
@@ -744,7 +815,10 @@ export class BugRepositoryImpl implements IBugRepository {
           { transaction: t },
         );
 
-        response.data = Bug.builder().setId(dbBug.id).setStatus(dbBug.status).build();
+        response.data = Bug.builder()
+          .setId(dbBug.id)
+          .setStatus(dbBug.status)
+          .build();
       });
     } catch (error) {
       const err = error as Error;
@@ -765,7 +839,10 @@ export class BugRepositoryImpl implements IBugRepository {
     try {
       const data = request.data;
       if (!data) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Attachment data is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Attachment data is required.",
+        );
       }
       const { filePath, fileType, bugId } = data;
       const attachment = await BugAttachmentModel.create({
@@ -787,12 +864,17 @@ export class BugRepositoryImpl implements IBugRepository {
     return response;
   }
 
-  public async deleteAttachment(request: RequestModel<string>): Promise<ResponseModel<void>> {
+  public async deleteAttachment(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
     try {
       const id = request.data;
       if (!id) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Attachment ID is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Attachment ID is required.",
+        );
       }
       await BugAttachmentModel.destroy({ where: { id } });
     } catch (error) {
@@ -806,11 +888,16 @@ export class BugRepositoryImpl implements IBugRepository {
   public async findAttachmentById(
     request: RequestModel<string>,
   ): Promise<ResponseModel<BugAttachment | null>> {
-    const response = new ResponseModel<BugAttachment | null>(request.transactionId);
+    const response = new ResponseModel<BugAttachment | null>(
+      request.transactionId,
+    );
     try {
       const id = request.data;
       if (!id) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Attachment ID is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Attachment ID is required.",
+        );
       }
       const attachment = await BugAttachmentModel.findByPk(id);
       response.data = attachment
@@ -845,12 +932,17 @@ export class BugRepositoryImpl implements IBugRepository {
     try {
       const data = request.data;
       if (!data) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Note data is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Note data is required.",
+        );
       }
       const { bugId, body, authorId } = data;
 
       // Prevent FK violation by ensuring authorId exists in local user table
-      const resolvedAuthorId = authorId ? await this.resolveOperatorId(authorId) : undefined;
+      const resolvedAuthorId = authorId
+        ? await this.resolveOperatorId(authorId)
+        : undefined;
 
       const dbNote = await BugNoteModel.create({
         bugId,
@@ -880,12 +972,17 @@ export class BugRepositoryImpl implements IBugRepository {
     return response;
   }
 
-  public async queryNotes(request: RequestModel<string>): Promise<ResponseModel<BugNote[]>> {
+  public async queryNotes(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<BugNote[]>> {
     const response = new ResponseModel<BugNote[]>(request.transactionId);
     try {
       const bugId = request.data;
       if (!bugId) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, "Bug ID is required.");
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Bug ID is required.",
+        );
       }
       const dbNotes = await BugNoteModel.findAll({
         where: { bugId },

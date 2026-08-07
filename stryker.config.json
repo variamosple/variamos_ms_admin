@@ -7,16 +7,11 @@
     "!src/Domain/**/*.{test,spec}.ts",
     "!src/EntryPoints/**/*.{test,spec}.ts"
   ],
-  "testRunner": "jest",
+  "testRunner": "vitest",
   "checkers": ["typescript"],
   "tsconfigFile": "tsconfig.json",
-  "jest": {
-    "projectType": "custom",
-    "configFile": "jest.config.ts",
-    "config": {
-      "testMatch": ["**/src/**/*.spec.ts", "**/src/**/*.test.ts"],
-      "maxWorkers": 1
-    }
+  "vitest": {
+    "configFile": "vitest.config.ts"
   },
   "reporters": ["progress", "clear-text", "html"],
   "concurrency": 2,

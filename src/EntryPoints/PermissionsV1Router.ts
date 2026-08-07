@@ -1,90 +1,103 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Permission } from "@src/Domain/Permission/Entity/Permission";
-import { PermissionFilter } from "@src/Domain/Permission/Entity/PermissionFilter";
-import { PermissionUseCase } from "@src/Domain/Permission/UseCase/PermissionUseCase";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import { Permission } from "@src/Domain/Permission/Entity/Permission.js";
+import { PermissionFilter } from "@src/Domain/Permission/Entity/PermissionFilter.js";
+import type { PermissionUseCase } from "@src/Domain/Permission/UseCase/PermissionUseCase.js";
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import { hasPermissions } from "@variamosple/variamos-security";
-import { Router, Request } from "express";
+import { type Request, Router } from "express";
 import logger from "jet-logger";
-import { mapDomainErrorToHttpStatus } from "./errorMapper";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
+import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
 export const PERMISSIONS_V1_ROUTE = "/v1/permissions";
 
-export function createPermissionsRouter(permissionUseCase: PermissionUseCase): Router {
+export function createPermissionsRouter(
+  permissionUseCase: PermissionUseCase,
+): Router {
   const permissionsV1Router = Router();
 
-  permissionsV1Router.get("/", hasPermissions(["permissions::query"]), async (req, res) => {
-    const transactionId = "queryPermissions";
-    const { pageNumber, pageSize, name = null } = req.query;
-    try {
-      const filter: PermissionFilter = PermissionFilter.builder()
-        .setName(name as string)
-        .setPageNumber(Number(pageNumber))
-        .setPageSize(Number(pageSize))
-        .build();
-
-      const request = new RequestModel<PermissionFilter>(transactionId, filter);
-      const response = await permissionUseCase.queryPermissions(request);
-
-      const status = mapDomainErrorToHttpStatus(response.errorCode);
-      res.status(status).json(response);
-    } catch (error) {
-      logger.err(error);
-      const response = new ResponseModel(
-        transactionId,
-        DomainErrorCodes.SYSTEM_ERROR,
-        "Internal Server Error",
-      );
-      res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
-    }
-  });
-
-  permissionsV1Router.post("/", hasPermissions(["permissions::create"]), async (req, res) => {
-    const transactionId = "createPermission";
-    const { name } = req.body as { name?: string };
-    try {
-      if (!name) {
-        return res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json(
-            new ResponseModel<void>(transactionId).withError(
-              DomainErrorCodes.INVALID_INPUT,
-              "name is required.",
-            ),
-          );
-      }
-
-      let permission: Permission;
+  permissionsV1Router.get(
+    "/",
+    hasPermissions(["permissions::query"]),
+    async (req, res) => {
+      const transactionId = "queryPermissions";
+      const { pageNumber, pageSize, name = null } = req.query;
       try {
-        permission = new Permission(null, name);
+        const filter: PermissionFilter = PermissionFilter.builder()
+          .setName(name as string)
+          .setPageNumber(Number(pageNumber))
+          .setPageSize(Number(pageSize))
+          .build();
+
+        const request = new RequestModel<PermissionFilter>(
+          transactionId,
+          filter,
+        );
+        const response = await permissionUseCase.queryPermissions(request);
+
+        const status = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(status).json(response);
       } catch (error) {
-        return res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json(
-            new ResponseModel<void>(transactionId).withError(
-              DomainErrorCodes.INVALID_INPUT,
-              (error as Error).message,
-            ),
-          );
+        logger.err(error);
+        const response = new ResponseModel(
+          transactionId,
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal Server Error",
+        );
+        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
       }
+    },
+  );
 
-      const request = new RequestModel<Permission>(transactionId, permission);
-      const response = await permissionUseCase.createPermission(request);
+  permissionsV1Router.post(
+    "/",
+    hasPermissions(["permissions::create"]),
+    async (req, res) => {
+      const transactionId = "createPermission";
+      const { name } = req.body as { name?: string };
+      try {
+        if (!name) {
+          return res
+            .status(HttpStatusCodes.BAD_REQUEST)
+            .json(
+              new ResponseModel<void>(transactionId).withError(
+                DomainErrorCodes.INVALID_INPUT,
+                "name is required.",
+              ),
+            );
+        }
 
-      const status = mapDomainErrorToHttpStatus(response.errorCode);
-      res.status(status).json(response);
-    } catch (error) {
-      logger.err(error);
-      const response = new ResponseModel(
-        transactionId,
-        DomainErrorCodes.SYSTEM_ERROR,
-        "Internal Server Error",
-      );
-      res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
-    }
-  });
+        let permission: Permission;
+        try {
+          permission = new Permission(null, name);
+        } catch (error) {
+          return res
+            .status(HttpStatusCodes.BAD_REQUEST)
+            .json(
+              new ResponseModel<void>(transactionId).withError(
+                DomainErrorCodes.INVALID_INPUT,
+                (error as Error).message,
+              ),
+            );
+        }
+
+        const request = new RequestModel<Permission>(transactionId, permission);
+        const response = await permissionUseCase.createPermission(request);
+
+        const status = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(status).json(response);
+      } catch (error) {
+        logger.err(error);
+        const response = new ResponseModel(
+          transactionId,
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal Server Error",
+        );
+        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+      }
+    },
+  );
 
   permissionsV1Router.delete(
     "/:permissionId",
@@ -104,7 +117,10 @@ export function createPermissionsRouter(permissionUseCase: PermissionUseCase): R
             );
         }
 
-        const request = new RequestModel<number>(transactionId, Number.parseInt(permissionId));
+        const request = new RequestModel<number>(
+          transactionId,
+          Number.parseInt(permissionId),
+        );
         const response = await permissionUseCase.deletePermission(request);
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);
@@ -140,7 +156,10 @@ export function createPermissionsRouter(permissionUseCase: PermissionUseCase): R
             );
         }
 
-        const request = new RequestModel<number>(transactionId, Number.parseInt(permissionId));
+        const request = new RequestModel<number>(
+          transactionId,
+          Number.parseInt(permissionId),
+        );
         const response = await permissionUseCase.queryById(request);
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);

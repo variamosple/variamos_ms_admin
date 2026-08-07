@@ -1,4 +1,4 @@
-import { Password } from "./Password";
+import { Password } from "./Password.js";
 
 describe("Password Value Object", () => {
   it("should create a valid password successfully", () => {
@@ -22,6 +22,8 @@ describe("Password Value Object", () => {
   });
 
   it("should throw an error for password too long", () => {
-    expect(() => new Password("SecurePass123!SecurePass123!")).toThrow(expectedError);
+    expect(() => new Password("SecurePass123!SecurePass123!")).toThrow(
+      expectedError,
+    );
   });
 });

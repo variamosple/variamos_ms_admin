@@ -1,4 +1,4 @@
-import { Email } from "./Email";
+import { Email } from "./Email.js";
 
 describe("Email Value Object", () => {
   it("should create a valid email successfully and normalize it", () => {

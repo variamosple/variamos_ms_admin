@@ -21,7 +21,12 @@ export class Country {
     if (!name || name.trim() === "") {
       throw new Error("Country name is required.");
     }
-    if (typeof latitude !== "number" || Number.isNaN(latitude) || latitude < -90 || latitude > 90) {
+    if (
+      typeof latitude !== "number" ||
+      Number.isNaN(latitude) ||
+      latitude < -90 ||
+      latitude > 90
+    ) {
       throw new Error("Latitude must be a valid number between -90 and 90.");
     }
     if (
@@ -128,6 +133,12 @@ export class CountryBuilder {
   }
 
   public build(): Country {
-    return new Country(this.code, this.name, this.latitude, this.longitude, this.code3);
+    return new Country(
+      this.code,
+      this.name,
+      this.latitude,
+      this.longitude,
+      this.code3,
+    );
   }
 }

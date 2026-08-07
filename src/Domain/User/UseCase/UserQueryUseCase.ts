@@ -1,25 +1,33 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { IUserRepository } from "@src/Domain/User/IUserRepository";
-import { User } from "@src/Domain/User/Entity/User";
-import { UserFilter } from "@src/Domain/User/Entity/UserFilter";
+import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import type { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { User } from "@src/Domain/User/Entity/User.js";
+import type { UserFilter } from "@src/Domain/User/Entity/UserFilter.js";
+import type { IUserRepository } from "@src/Domain/User/IUserRepository.js";
 
 export class UserQueryUseCase {
   public constructor(private readonly userRepository: IUserRepository) {}
 
-  public async queryList(request: RequestModel<UserFilter>): Promise<ResponseModel<User[]>> {
+  public async queryList(
+    request: RequestModel<UserFilter>,
+  ): Promise<ResponseModel<User[]>> {
     return this.userRepository.queryUsers(request);
   }
 
-  public async queryById(request: RequestModel<string>): Promise<ResponseModel<User>> {
+  public async queryById(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<User>> {
     return this.userRepository.queryById(request);
   }
 
-  public async sessionUser(request: RequestModel<string>): Promise<ResponseModel<User>> {
+  public async sessionUser(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<User>> {
     return this.userRepository.findSessionUser(request);
   }
 
-  public async myAccount(request: RequestModel<string>): Promise<ResponseModel<User>> {
+  public async myAccount(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<User>> {
     return this.userRepository.queryById(request).then((response) => {
       if (response.data) {
         response.data = User.builder()

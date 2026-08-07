@@ -1,11 +1,11 @@
-import { mock, MockProxy } from "jest-mock-extended";
-import { UserManagementUseCase } from "./UserManagementUseCase";
-import { IUserRepository } from "@src/Domain/User/IUserRepository";
-import { PasswordUpdate } from "@src/Domain/User/Entity/PasswordUpdate";
-import { PersonalInformationUpdate } from "@src/Domain/User/Entity/PersonalInformationUpdate";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import { PasswordUpdate } from "@src/Domain/User/Entity/PasswordUpdate.js";
+import { PersonalInformationUpdate } from "@src/Domain/User/Entity/PersonalInformationUpdate.js";
+import type { IUserRepository } from "@src/Domain/User/IUserRepository.js";
+import { type MockProxy, mock } from "vitest-mock-extended";
+import { UserManagementUseCase } from "./UserManagementUseCase.js";
 
 describe("UserManagementUseCase", () => {
   let useCase: UserManagementUseCase;
@@ -18,7 +18,9 @@ describe("UserManagementUseCase", () => {
 
   describe("enable", () => {
     it("should enable user successfully", async () => {
-      mockUserRepository.enableUser.mockResolvedValue(new ResponseModel<void>("tx-1"));
+      mockUserRepository.enableUser.mockResolvedValue(
+        new ResponseModel<void>("tx-1"),
+      );
       const req = new RequestModel("tx-1", "user-123");
       const res = await useCase.enable(req);
       expect(res.errorCode).toBeUndefined();
@@ -28,7 +30,9 @@ describe("UserManagementUseCase", () => {
 
   describe("disable", () => {
     it("should disable user successfully", async () => {
-      mockUserRepository.disableUser.mockResolvedValue(new ResponseModel<void>("tx-1"));
+      mockUserRepository.disableUser.mockResolvedValue(
+        new ResponseModel<void>("tx-1"),
+      );
       const req = new RequestModel("tx-1", "user-123");
       const res = await useCase.disable(req);
       expect(res.errorCode).toBeUndefined();
@@ -38,7 +42,9 @@ describe("UserManagementUseCase", () => {
 
   describe("delete", () => {
     it("should delete user successfully", async () => {
-      mockUserRepository.deleteUser.mockResolvedValue(new ResponseModel<void>("tx-1"));
+      mockUserRepository.deleteUser.mockResolvedValue(
+        new ResponseModel<void>("tx-1"),
+      );
       const req = new RequestModel("tx-1", "user-123");
       const res = await useCase.delete(req);
       expect(res.errorCode).toBeUndefined();
@@ -57,7 +63,9 @@ describe("UserManagementUseCase", () => {
       const res = await useCase.updateProfile(req);
 
       expect(res.errorCode).toBeUndefined();
-      expect(mockUserRepository.updatePersonalInformation).toHaveBeenCalledWith(req);
+      expect(mockUserRepository.updatePersonalInformation).toHaveBeenCalledWith(
+        req,
+      );
     });
   });
 
@@ -69,7 +77,9 @@ describe("UserManagementUseCase", () => {
         "NewPass123!",
         "NewPass123!",
       );
-      mockUserRepository.updateUserPassword.mockResolvedValue(new ResponseModel<void>("tx-1"));
+      mockUserRepository.updateUserPassword.mockResolvedValue(
+        new ResponseModel<void>("tx-1"),
+      );
 
       const req = new RequestModel<PasswordUpdate>("tx-1", mockUpdate);
       const res = await useCase.updatePassword(req);
@@ -79,7 +89,12 @@ describe("UserManagementUseCase", () => {
     });
 
     it("should fail to update password if missing fields", async () => {
-      const mockUpdate = new PasswordUpdate("user-123", "", "NewPass123!", "NewPass123!");
+      const mockUpdate = new PasswordUpdate(
+        "user-123",
+        "",
+        "NewPass123!",
+        "NewPass123!",
+      );
 
       const req = new RequestModel<PasswordUpdate>("tx-1", mockUpdate);
       const res = await useCase.updatePassword(req);
@@ -100,11 +115,18 @@ describe("UserManagementUseCase", () => {
       const res = await useCase.updatePassword(req);
 
       expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
-      expect(res.message).toBe("New password and password confirmation do not match.");
+      expect(res.message).toBe(
+        "New password and password confirmation do not match.",
+      );
     });
 
     it("should fail to update password if new password is too simple", async () => {
-      const mockUpdate = new PasswordUpdate("user-123", "OldPass123!", "simple", "simple");
+      const mockUpdate = new PasswordUpdate(
+        "user-123",
+        "OldPass123!",
+        "simple",
+        "simple",
+      );
 
       const req = new RequestModel<PasswordUpdate>("tx-1", mockUpdate);
       const res = await useCase.updatePassword(req);

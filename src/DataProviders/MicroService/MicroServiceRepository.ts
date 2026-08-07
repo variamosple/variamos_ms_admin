@@ -1,13 +1,13 @@
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { MicroService } from "@src/Domain/MicroService/Entity/MicroService";
-import { MicroServiceFilter } from "@src/Domain/MicroService/Entity/MicroServiceFilter";
+import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import { MicroService } from "@src/Domain/MicroService/Entity/MicroService.js";
+import { MicroServiceFilter } from "@src/Domain/MicroService/Entity/MicroServiceFilter.js";
 
 import Docker from "dockerode";
 import logger from "jet-logger";
 
-import { IMicroServiceRepository } from "@src/Domain/MicroService/Repository/IMicroServiceRepository";
+import type { IMicroServiceRepository } from "@src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 
 export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
   private dockerConnection: Docker;
@@ -35,7 +35,9 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
             (container) =>
               !filter.name ||
               container.Names.findIndex((name) =>
-                name.toLowerCase().includes(filter.name ? filter.name.toLowerCase() : ""),
+                name
+                  .toLowerCase()
+                  .includes(filter.name ? filter.name.toLowerCase() : ""),
               ) !== -1,
           ),
         );
@@ -66,27 +68,35 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
       logger.err("Error in queryMicroServices:");
       logger.err(request);
       logger.err(error);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
   }
 
-  public async queryById(request: RequestModel<string>): Promise<ResponseModel<MicroService>> {
+  public async queryById(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<MicroService>> {
     const response = new ResponseModel<MicroService>(request.transactionId);
 
     try {
       const { data: id } = request;
 
       if (!id) {
-        response.withError(DomainErrorCodes.INVALID_INPUT, "Microservice ID is required");
+        response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Microservice ID is required",
+        );
         return response;
       }
 
       const container = this.dockerConnection.getContainer(id);
       const containerInfo = await container.inspect();
 
-      if (!!container) {
+      if (container) {
         response.data = MicroService.builder()
           .setId(container.id)
           .setNames([containerInfo.Name])
@@ -99,20 +109,28 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
       logger.err("Error in queryMicroServiceById:");
       logger.err(request);
       logger.err(error);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
   }
 
-  public async startMicroService(request: RequestModel<string>): Promise<ResponseModel<void>> {
+  public async startMicroService(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
 
     try {
       const { data: id } = request;
 
       if (!id) {
-        response.withError(DomainErrorCodes.INVALID_INPUT, "Microservice ID is required");
+        response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Microservice ID is required",
+        );
         return response;
       }
 
@@ -122,20 +140,28 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
       logger.err("Error in startMicroService:");
       logger.err(request);
       logger.err(error);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
   }
 
-  public async stopMicroService(request: RequestModel<string>): Promise<ResponseModel<void>> {
+  public async stopMicroService(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
 
     try {
       const { data: id } = request;
 
       if (!id) {
-        response.withError(DomainErrorCodes.INVALID_INPUT, "Microservice ID is required");
+        response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Microservice ID is required",
+        );
         return response;
       }
 
@@ -145,20 +171,28 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
       logger.err("Error in stopMicroService:");
       logger.err(request);
       logger.err(error);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
   }
 
-  public async restartMicroService(request: RequestModel<string>): Promise<ResponseModel<void>> {
+  public async restartMicroService(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
 
     try {
       const { data: id } = request;
 
       if (!id) {
-        response.withError(DomainErrorCodes.INVALID_INPUT, "Microservice ID is required");
+        response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Microservice ID is required",
+        );
         return response;
       }
 
@@ -168,7 +202,10 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
       logger.err("Error in restartMicroService:");
       logger.err(request);
       logger.err(error);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;
@@ -177,13 +214,18 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
   public async watchMicroServiceLogs(
     request: RequestModel<string>,
   ): Promise<ResponseModel<NodeJS.ReadableStream>> {
-    const response = new ResponseModel<NodeJS.ReadableStream>(request.transactionId);
+    const response = new ResponseModel<NodeJS.ReadableStream>(
+      request.transactionId,
+    );
 
     try {
       const { data: id } = request;
 
       if (!id) {
-        response.withError(DomainErrorCodes.INVALID_INPUT, "Microservice ID is required");
+        response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Microservice ID is required",
+        );
         return response;
       }
 
@@ -200,7 +242,10 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
       logger.err("Error in watchMicroServiceLogs:");
       logger.err(request);
       logger.err(error);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, "Internal server error");
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
     }
 
     return response;

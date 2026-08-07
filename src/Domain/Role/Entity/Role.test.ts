@@ -1,4 +1,4 @@
-import { Role } from "./Role";
+import { Role } from "./Role.js";
 
 describe("Role Entity - Unit Tests", () => {
   it("should build a Role successfully with valid names", () => {

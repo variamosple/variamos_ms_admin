@@ -1,13 +1,13 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import { IBugRepository } from "@src/Domain/Bug/Repository/IBugRepository";
-import { IUserRepository } from "@src/Domain/Bug/Repository/IUserRepository";
-import { IIssueTrackerService } from "@src/Domain/Core/Service/IIssueTrackerService";
-import { IBugTrackerConfig } from "@src/Domain/Bug/Config/IBugTrackerConfig";
-import { GitHubTokenResolver } from "@src/Domain/Bug/Service/GitHubTokenResolver";
-import { Bug } from "@src/Domain/Bug/Entity/Bug";
-import { ALLOWED_CATEGORIES } from "./BugQueryUseCase";
+import type { IBugTrackerConfig } from "@src/Domain/Bug/Config/IBugTrackerConfig.js";
+import { Bug } from "@src/Domain/Bug/Entity/Bug.js";
+import type { IBugRepository } from "@src/Domain/Bug/Repository/IBugRepository.js";
+import type { IUserRepository } from "@src/Domain/Bug/Repository/IUserRepository.js";
+import type { GitHubTokenResolver } from "@src/Domain/Bug/Service/GitHubTokenResolver.js";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import type { IIssueTrackerService } from "@src/Domain/Core/Service/IIssueTrackerService.js";
+import { ALLOWED_CATEGORIES } from "./BugQueryUseCase.js";
 
 export class BugSubmissionUseCase {
   public constructor(
@@ -36,7 +36,10 @@ export class BugSubmissionUseCase {
     const data = request.data;
     if (!data) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, "Request data is required.");
+      return response.withErrorPromise(
+        DomainErrorCodes.INVALID_INPUT,
+        "Request data is required.",
+      );
     }
 
     if (!data.title || !data.description || !data.category) {
@@ -55,7 +58,10 @@ export class BugSubmissionUseCase {
         .build();
     } catch (error) {
       const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, (error as Error).message);
+      return response.withErrorPromise(
+        DomainErrorCodes.INVALID_INPUT,
+        (error as Error).message,
+      );
     }
 
     if (!ALLOWED_CATEGORIES.includes(data.category)) {
@@ -79,7 +85,7 @@ export class BugSubmissionUseCase {
       const userResponse = await this.userRepository.findSessionUser(
         new RequestModel(request.transactionId, data.createdById),
       );
-      if (userResponse.data && userResponse.data.email) {
+      if (userResponse.data?.email) {
         reporterEmail = userResponse.data.email;
       }
     }
@@ -92,7 +98,8 @@ export class BugSubmissionUseCase {
       );
     }
 
-    let resolvedFile: { filePath: string; fileType: string } | undefined = undefined;
+    let resolvedFile: { filePath: string; fileType: string } | undefined =
+      undefined;
     if (data.file) {
       resolvedFile = {
         filePath: `/uploads/${data.file.filename}`,
@@ -105,7 +112,9 @@ export class BugSubmissionUseCase {
     let githubHtmlUrl: string | undefined = undefined;
 
     if (data.githubRepo && data.createdById) {
-      const gitHubToken = await this.tokenResolver.resolveGitHubToken(data.githubRepo);
+      const gitHubToken = await this.tokenResolver.resolveGitHubToken(
+        data.githubRepo,
+      );
       if (gitHubToken) {
         let issueBody = data.description || "No description provided.";
         issueBody += "\n\n---\n*Reported directly by Admin*";

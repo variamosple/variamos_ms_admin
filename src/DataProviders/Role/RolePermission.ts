@@ -1,7 +1,7 @@
-import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM";
+import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM.js";
 import { Model, NUMBER } from "sequelize";
-import { PermissionModel } from "../Permission/Permission";
-import { RoleModel } from "./Role";
+import { PermissionModel } from "../Permission/Permission.js";
+import { RoleModel } from "./Role.js";
 
 interface RolePermissionAttributes {
   roleId: number;

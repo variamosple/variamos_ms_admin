@@ -21,8 +21,14 @@ export class MicroService {
     if (!id || id.trim() === "") {
       throw new Error("Microservice ID is required.");
     }
-    if (!names || names.length === 0 || names.some((n) => !n || n.trim() === "")) {
-      throw new Error("Microservice names must be a non-empty list of non-empty strings.");
+    if (
+      !names ||
+      names.length === 0 ||
+      names.some((n) => !n || n.trim() === "")
+    ) {
+      throw new Error(
+        "Microservice names must be a non-empty list of non-empty strings.",
+      );
     }
     if (!state || state.trim() === "") {
       throw new Error("Microservice state is required.");

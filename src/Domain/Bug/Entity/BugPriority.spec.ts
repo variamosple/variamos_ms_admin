@@ -1,4 +1,4 @@
-import { BugPriority } from "./BugPriority";
+import { BugPriority } from "./BugPriority.js";
 
 describe("BugPriority Value Object", () => {
   it("should create a valid priority successfully", () => {

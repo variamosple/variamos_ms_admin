@@ -1,33 +1,38 @@
-import EnvVars from "@src/common/EnvVars";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
-import { Nullable } from "@src/Domain/Core/Entity/Nullable";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Credentials } from "@src/Domain/User/Entity/Credentials";
-import { PasswordUpdate } from "@src/Domain/User/Entity/PasswordUpdate";
-import { PersonalInformationUpdate } from "@src/Domain/User/Entity/PersonalInformationUpdate";
-import { SessionInfoResponse } from "@src/Domain/User/Entity/SessionInfoResponse";
-import { SingInResponse } from "@src/Domain/User/Entity/SingInResponse";
-import { User } from "@src/Domain/User/Entity/User";
-import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration";
-import { UserAuthUseCase } from "@src/Domain/User/UseCase/UserAuthUseCase";
-import { UserPasswordUseCase } from "@src/Domain/User/UseCase/UserPasswordUseCase";
-import { UserManagementUseCase } from "@src/Domain/User/UseCase/UserManagementUseCase";
-import { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase";
+import type { Nullable } from "@src/Domain/Core/Entity/Nullable.js";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import { Credentials } from "@src/Domain/User/Entity/Credentials.js";
+import { PasswordUpdate } from "@src/Domain/User/Entity/PasswordUpdate.js";
+import { PersonalInformationUpdate } from "@src/Domain/User/Entity/PersonalInformationUpdate.js";
+import type { SessionInfoResponse } from "@src/Domain/User/Entity/SessionInfoResponse.js";
+import type { SingInResponse } from "@src/Domain/User/Entity/SingInResponse.js";
+import { User } from "@src/Domain/User/Entity/User.js";
+import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration.js";
+import type { UserAuthUseCase } from "@src/Domain/User/UseCase/UserAuthUseCase.js";
+import type { UserManagementUseCase } from "@src/Domain/User/UseCase/UserManagementUseCase.js";
+import type { UserPasswordUseCase } from "@src/Domain/User/UseCase/UserPasswordUseCase.js";
+import type { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase.js";
+import EnvVars from "@src/common/EnvVars.js";
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import {
+  type SessionUser,
   createJwt,
   getToken,
   hasPermissions,
   isSessionExpired,
   sessionInfoToSessionUser,
-  SessionUser,
   validateToken,
 } from "@variamosple/variamos-security";
-import { CookieOptions, Request, Response, Router } from "express";
+import {
+  type CookieOptions,
+  type Request,
+  type Response,
+  Router,
+} from "express";
 import { OAuth2Client } from "google-auth-library";
 import logger from "jet-logger";
-import { mapDomainErrorToHttpStatus } from "./errorMapper";
+import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
 export const AUTH_ROUTE = "/auth";
 
@@ -39,24 +44,31 @@ export function createAuthRouter(
 ): Router {
   const authRouter = Router();
 
-  const HOME_URL = new URL(EnvVars.Auth.APP.HOME_REDIRECT_URI || "http://localhost:3000");
+  const HOME_URL = new URL(
+    EnvVars.Auth.APP.HOME_REDIRECT_URI || "http://localhost:3000",
+  );
   const HOME_URL_HOST_REGEX = new RegExp(`^${HOME_URL.hostname}$`);
 
-  const isExternalDomain = (host?: string): boolean => !!host && !HOME_URL_HOST_REGEX.test(host);
+  const isExternalDomain = (host?: string): boolean =>
+    !!host && !HOME_URL_HOST_REGEX.test(host);
 
   const isAllowedOrigin = (origin: string): boolean => {
     if ("null" === origin) {
       return true;
     }
 
-    return EnvVars.CORS.AllowedOriginsPatterns.findIndex((pattern) => pattern.test(origin)) !== -1;
+    return (
+      EnvVars.CORS.AllowedOriginsPatterns.findIndex((pattern) =>
+        pattern.test(origin),
+      ) !== -1
+    );
   };
 
   const getRedirectUrl = (
     transactionId: string,
     req: Request,
     res: Response,
-    remove: boolean = true,
+    remove = true,
   ): URL | undefined => {
     const redirectUrl = req.cookies.redirectTo as string | undefined;
 
@@ -65,7 +77,10 @@ export function createAuthRouter(
     }
 
     if (remove) {
-      res.clearCookie("redirectTo", getCookieOptions({ sameSite: "none", maxAge: false }));
+      res.clearCookie(
+        "redirectTo",
+        getCookieOptions({ sameSite: "none", maxAge: false }),
+      );
     }
 
     return getUrl(transactionId, redirectUrl);
@@ -95,7 +110,9 @@ export function createAuthRouter(
     maxAge?: boolean;
   }
 
-  const getCookieOptions = (options: CookieOptionsInput = {}): CookieOptions => {
+  const getCookieOptions = (
+    options: CookieOptionsInput = {},
+  ): CookieOptions => {
     const domain = options.domain ?? EnvVars.CookieProps.Options.domain;
     const httpOnly = options.httpOnly ?? EnvVars.CookieProps.Options.httpOnly;
     const sameSite = options.sameSite ?? "strict";
@@ -128,8 +145,11 @@ export function createAuthRouter(
       const user = validationResponse.data;
 
       if (validationResponse.errorCode) {
-        return res.status(validationResponse.errorCode).json(validationResponse);
-      } else if (!isSessionExpired(user?.exp)) {
+        return res
+          .status(validationResponse.errorCode)
+          .json(validationResponse);
+      }
+      if (!isSessionExpired(user?.exp)) {
         const redirect = getRedirectUrl("getSessionInfo", req, res);
         setRedirectAuthToken(redirect, authToken);
 
@@ -155,7 +175,8 @@ export function createAuthRouter(
       const currentDateInMs = Date.now();
 
       // Get max refresh time
-      const refreshTimeInMs = user.iat * 1000 + EnvVars.CookieProps.Options.maxAge;
+      const refreshTimeInMs =
+        user.iat * 1000 + EnvVars.CookieProps.Options.maxAge;
 
       if (currentDateInMs > refreshTimeInMs) {
         return res
@@ -168,16 +189,25 @@ export function createAuthRouter(
           );
       }
 
-      const isGuest = user.roles?.some((role: string) => role.toLowerCase() === "guest") ?? false;
+      const isGuest =
+        user.roles?.some((role: string) => role.toLowerCase() === "guest") ??
+        false;
 
-      const findSessionUserRequest = new RequestModel<string>("getSessionInfo", user.sub);
+      const findSessionUserRequest = new RequestModel<string>(
+        "getSessionInfo",
+        user.sub,
+      );
 
       let refreshedUser: ResponseModel<User>;
 
       if (isGuest) {
-        refreshedUser = await userAuthUseCase.getGuestData(findSessionUserRequest);
+        refreshedUser = await userAuthUseCase.getGuestData(
+          findSessionUserRequest,
+        );
       } else {
-        refreshedUser = await userQueryUseCase.sessionUser(findSessionUserRequest);
+        refreshedUser = await userQueryUseCase.sessionUser(
+          findSessionUserRequest,
+        );
       }
 
       if (!!refreshedUser.errorCode || !refreshedUser.data) {
@@ -191,7 +221,14 @@ export function createAuthRouter(
           );
       }
 
-      const { id, name, user: userName, email, roles, permissions } = refreshedUser.data;
+      const {
+        id,
+        name,
+        user: userName,
+        email,
+        roles,
+        permissions,
+      } = refreshedUser.data;
 
       const sessionUser: SessionUser = {
         id: id || "",
@@ -214,7 +251,10 @@ export function createAuthRouter(
             user: sessionUser,
             authToken:
               isExternalDomain(user.aud) &&
-              isExternalDomain(getUrl(response.transactionId || "", req.headers.origin)?.hostname)
+              isExternalDomain(
+                getUrl(response.transactionId || "", req.headers.origin)
+                  ?.hostname,
+              )
                 ? token
                 : undefined,
             redirect: redirect?.toString(),
@@ -225,7 +265,12 @@ export function createAuthRouter(
       logger.err(error as Error);
       res
         .status(HttpStatusCodes.UNAUTHORIZED)
-        .json(response.withError(DomainErrorCodes.UNAUTHORIZED_ACCESS, "Session validation error"));
+        .json(
+          response.withError(
+            DomainErrorCodes.UNAUTHORIZED_ACCESS,
+            "Session validation error",
+          ),
+        );
     }
   });
 
@@ -239,7 +284,10 @@ export function createAuthRouter(
         return res
           .status(HttpStatusCodes.BAD_REQUEST)
           .json(
-            response.withError(DomainErrorCodes.INVALID_INPUT, "Email and password are required."),
+            response.withError(
+              DomainErrorCodes.INVALID_INPUT,
+              "Email and password are required.",
+            ),
           );
       }
 
@@ -255,10 +303,18 @@ export function createAuthRouter(
       }
 
       if (!singInResponse.data) {
-        return res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(singInResponse);
+        return res
+          .status(HttpStatusCodes.INTERNAL_SERVER_ERROR)
+          .json(singInResponse);
       }
 
-      const { id, name, user: username, roles, permissions } = singInResponse.data;
+      const {
+        id,
+        name,
+        user: username,
+        roles,
+        permissions,
+      } = singInResponse.data;
 
       const sessionUser: SessionUser = {
         id: id || "",
@@ -280,7 +336,9 @@ export function createAuthRouter(
       setRedirectAuthToken(redirect, token);
 
       response.data = {
-        redirect: redirect ? redirect.toString() : `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`,
+        redirect: redirect
+          ? redirect.toString()
+          : `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`,
       };
 
       res.status(200).json(response);
@@ -299,10 +357,8 @@ export function createAuthRouter(
 
   authRouter.post("/sign-up", async (req, res) => {
     const transactionId = "signUp";
-    const { name, email, password, passwordConfirmation } = (req.body || {}) as Record<
-      string,
-      string
-    >;
+    const { name, email, password, passwordConfirmation } = (req.body ||
+      {}) as Record<string, string>;
     const successfulResponse = new ResponseModel<void>(
       transactionId,
       undefined,
@@ -311,7 +367,12 @@ export function createAuthRouter(
 
     let registration: UserRegistration;
     try {
-      registration = new UserRegistration(name, email, password, passwordConfirmation);
+      registration = new UserRegistration(
+        name,
+        email,
+        password,
+        passwordConfirmation,
+      );
     } catch (error) {
       return res
         .status(HttpStatusCodes.BAD_REQUEST)
@@ -324,7 +385,10 @@ export function createAuthRouter(
     }
 
     try {
-      const request = new RequestModel<UserRegistration>(transactionId, registration);
+      const request = new RequestModel<UserRegistration>(
+        transactionId,
+        registration,
+      );
       const response = await userAuthUseCase.signUp(request);
 
       if (DomainErrorCodes.DUPLICATE_ENTITY === response.errorCode) {
@@ -333,7 +397,9 @@ export function createAuthRouter(
 
       if (response.errorCode) {
         return res
-          .status(mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes))
+          .status(
+            mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes),
+          )
           .json(response);
       }
 
@@ -360,7 +426,9 @@ export function createAuthRouter(
     res.status(200).json(new ResponseModel<void>("logout"));
   });
 
-  const validateGoogleCode = async (token: string): Promise<User | undefined> => {
+  const validateGoogleCode = async (
+    token: string,
+  ): Promise<User | undefined> => {
     try {
       const client = new OAuth2Client(EnvVars.Auth.GOOGLE.CLIENT_ID);
 
@@ -414,7 +482,14 @@ export function createAuthRouter(
         );
       }
 
-      const { id, name, user: username, email, roles, permissions } = response.data;
+      const {
+        id,
+        name,
+        user: username,
+        email,
+        roles,
+        permissions,
+      } = response.data;
 
       const sessionUser: SessionUser = {
         id: id || "",
@@ -436,30 +511,39 @@ export function createAuthRouter(
       res.redirect(302, `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`);
     } catch (err) {
       logger.err(err as Error, true);
-      res.redirect(302, `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?errorMessage=Login error.`);
-    }
-  });
-
-  authRouter.get("/my-account", hasPermissions(["my-account::query"]), async (req, res) => {
-    const transactionId = "myAccount";
-    const user = req.user as SessionUser;
-    try {
-      const request = new RequestModel<string>(transactionId, user.id);
-
-      const response = await userQueryUseCase.myAccount(request);
-
-      const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
-      res.status(status).json(response);
-    } catch (error) {
-      logger.err(error as Error, true);
-      const response = new ResponseModel(
-        transactionId,
-        DomainErrorCodes.SYSTEM_ERROR,
-        "Internal Server Error",
+      res.redirect(
+        302,
+        `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?errorMessage=Login error.`,
       );
-      res.status(500).json(response);
     }
   });
+
+  authRouter.get(
+    "/my-account",
+    hasPermissions(["my-account::query"]),
+    async (req, res) => {
+      const transactionId = "myAccount";
+      const user = req.user as SessionUser;
+      try {
+        const request = new RequestModel<string>(transactionId, user.id);
+
+        const response = await userQueryUseCase.myAccount(request);
+
+        const status = mapDomainErrorToHttpStatus(
+          response.errorCode as DomainErrorCodes,
+        );
+        res.status(status).json(response);
+      } catch (error) {
+        logger.err(error as Error, true);
+        const response = new ResponseModel(
+          transactionId,
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal Server Error",
+        );
+        res.status(500).json(response);
+      }
+    },
+  );
 
   authRouter.put(
     "/my-account/information",
@@ -467,7 +551,9 @@ export function createAuthRouter(
     async (req, res) => {
       const transactionId = "updateMyAccountInformation";
       const user = req.user as SessionUser;
-      const personalInformation = (req.body || {}) as { countryCode?: string | null };
+      const personalInformation = (req.body || {}) as {
+        countryCode?: string | null;
+      };
 
       try {
         const personalInformationUpdate = PersonalInformationUpdate.builder()
@@ -482,7 +568,9 @@ export function createAuthRouter(
 
         const response = await userManagementUseCase.updateProfile(request);
 
-        const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
+        const status = mapDomainErrorToHttpStatus(
+          response.errorCode as DomainErrorCodes,
+        );
         res.status(status).json(response);
       } catch (error) {
         logger.err(error as Error, true);
@@ -496,37 +584,41 @@ export function createAuthRouter(
     },
   );
 
-  authRouter.put("/password-update", hasPermissions(["my-account::update"]), async (req, res) => {
-    const transactionId = "passwordUpdate";
-    const user = req.user as SessionUser;
-    const { currentPassword, newPassword, passwordConfirmation } = (req.body || {}) as Record<
-      string,
-      string
-    >;
-    try {
-      const passwordUpdate = PasswordUpdate.builder()
-        .setId(user.id)
-        .setCurrentPassword(currentPassword)
-        .setNewPassword(newPassword)
-        .setPasswordConfirmation(passwordConfirmation)
-        .build();
+  authRouter.put(
+    "/password-update",
+    hasPermissions(["my-account::update"]),
+    async (req, res) => {
+      const transactionId = "passwordUpdate";
+      const user = req.user as SessionUser;
+      const { currentPassword, newPassword, passwordConfirmation } =
+        (req.body || {}) as Record<string, string>;
+      try {
+        const passwordUpdate = PasswordUpdate.builder()
+          .setId(user.id)
+          .setCurrentPassword(currentPassword)
+          .setNewPassword(newPassword)
+          .setPasswordConfirmation(passwordConfirmation)
+          .build();
 
-      const response = await userManagementUseCase.updatePassword(
-        new RequestModel(transactionId, passwordUpdate),
-      );
+        const response = await userManagementUseCase.updatePassword(
+          new RequestModel(transactionId, passwordUpdate),
+        );
 
-      const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
-      res.status(status).json(response);
-    } catch (error) {
-      logger.err(error as Error, true);
-      const response = new ResponseModel(
-        transactionId,
-        DomainErrorCodes.SYSTEM_ERROR,
-        "Internal Server Error",
-      );
-      res.status(500).json(response);
-    }
-  });
+        const status = mapDomainErrorToHttpStatus(
+          response.errorCode as DomainErrorCodes,
+        );
+        res.status(status).json(response);
+      } catch (error) {
+        logger.err(error as Error, true);
+        const response = new ResponseModel(
+          transactionId,
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal Server Error",
+        );
+        res.status(500).json(response);
+      }
+    },
+  );
 
   authRouter.post("/guest/sign-in", async (req, res) => {
     const transactionId = "signInAsGuest";
@@ -538,11 +630,15 @@ export function createAuthRouter(
       const guestResponse = await userAuthUseCase.getGuestData(request);
 
       if (guestResponse.errorCode) {
-        return res.status(mapDomainErrorToHttpStatus(guestResponse.errorCode)).json(guestResponse);
+        return res
+          .status(mapDomainErrorToHttpStatus(guestResponse.errorCode))
+          .json(guestResponse);
       }
 
       if (!guestResponse.data) {
-        return res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(guestResponse);
+        return res
+          .status(HttpStatusCodes.INTERNAL_SERVER_ERROR)
+          .json(guestResponse);
       }
 
       const { id, name, user, email, roles, permissions } = guestResponse.data;
@@ -567,7 +663,9 @@ export function createAuthRouter(
 
       response.data = {
         id: id || "",
-        redirect: redirect ? redirect.toString() : `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`,
+        redirect: redirect
+          ? redirect.toString()
+          : `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`,
       };
 
       res.status(200).json(response);
@@ -671,7 +769,10 @@ export function createAuthRouter(
 
   authRouter.post("/reset-password", async (req, res) => {
     const transactionId = "resetPassword";
-    const { token = "", password = "" } = (req.body || {}) as Record<string, string>;
+    const { token = "", password = "" } = (req.body || {}) as Record<
+      string,
+      string
+    >;
 
     try {
       const resetResponse = await userPasswordUseCase.resetPassword(
@@ -682,7 +783,9 @@ export function createAuthRouter(
       );
 
       if (resetResponse.errorCode) {
-        return res.status(mapDomainErrorToHttpStatus(resetResponse.errorCode)).json(resetResponse);
+        return res
+          .status(mapDomainErrorToHttpStatus(resetResponse.errorCode))
+          .json(resetResponse);
       }
 
       res.status(200).json(resetResponse);

@@ -1,11 +1,11 @@
-import { mock, MockProxy } from "jest-mock-extended";
-import { UserRoleUseCase } from "./UserRoleUseCase";
-import { IUserRoleRepository } from "../Repository/IUserRoleRepository";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { Role } from "@src/Domain/Role/Entity/Role";
-import { UserRole } from "../Entity/UserRole";
-import { UserRoleFilter } from "../Entity/UserRoleFilter";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import type { Role } from "@src/Domain/Role/Entity/Role.js";
+import { type MockProxy, mock } from "vitest-mock-extended";
+import { UserRole } from "../Entity/UserRole.js";
+import { UserRoleFilter } from "../Entity/UserRoleFilter.js";
+import type { IUserRoleRepository } from "../Repository/IUserRoleRepository.js";
+import { UserRoleUseCase } from "./UserRoleUseCase.js";
 
 describe("UserRoleUseCase", () => {
   let useCase: UserRoleUseCase;
@@ -46,7 +46,9 @@ describe("UserRoleUseCase", () => {
 
   it("should delete user role", async () => {
     const mockUserRole = new UserRole("user-1", 1);
-    mockRepository.deleteUserRole.mockResolvedValue(new ResponseModel<void>("tx-1"));
+    mockRepository.deleteUserRole.mockResolvedValue(
+      new ResponseModel<void>("tx-1"),
+    );
     const req = new RequestModel("tx-1", mockUserRole);
     const res = await useCase.deleteUserRole(req);
     expect(res.errorCode).toBeUndefined();

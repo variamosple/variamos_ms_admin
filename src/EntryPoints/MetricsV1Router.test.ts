@@ -1,18 +1,23 @@
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { Metric } from "@src/Domain/Metrics/Entity/Metric.js";
+import { MetricsQueryUseCase } from "@src/Domain/Metrics/UseCase/MetricsQueryUseCase.js";
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import express from "express";
 import supertest from "supertest";
-import { createMetricsRouter } from "./MetricsV1Router";
-import { MetricsQueryUseCase } from "@src/Domain/Metrics/UseCase/MetricsQueryUseCase";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
-import { Metric } from "@src/Domain/Metrics/Entity/Metric";
+import { createMetricsRouter } from "./MetricsV1Router.js";
 
-import { mock } from "jest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 // Mock dependencies
-jest.mock("@src/Domain/Metrics/UseCase/MetricsQueryUseCase");
-jest.mock("@variamosple/variamos-security", () => ({
+vi.mock("@src/Domain/Metrics/UseCase/MetricsQueryUseCase");
+vi.mock("@variamosple/variamos-security", () => ({
   hasPermissions:
-    () => (_req: express.Request, _res: express.Response, next: express.NextFunction) => {
+    () =>
+    (
+      _req: express.Request,
+      _res: express.Response,
+      next: express.NextFunction,
+    ) => {
       next();
     },
 }));
@@ -32,7 +37,7 @@ interface SingleMetricApiResponse {
   data: SerializedMetric;
 }
 
-import { IMetricsRepository } from "@src/Domain/Metrics/Repository/IMetricsRepository";
+import type { IMetricsRepository } from "@src/Domain/Metrics/Repository/IMetricsRepository.js";
 
 describe("MetricsV1Router Integration Tests", () => {
   let app: express.Application;
@@ -40,12 +45,14 @@ describe("MetricsV1Router Integration Tests", () => {
   beforeAll(() => {
     app = express();
     app.use(express.json());
-    const mockMetricsUseCase = new MetricsQueryUseCase(mock<IMetricsRepository>());
+    const mockMetricsUseCase = new MetricsQueryUseCase(
+      mock<IMetricsRepository>(),
+    );
     app.use("/v1/metrics", createMetricsRouter(mockMetricsUseCase));
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe("GET /v1/metrics", () => {
@@ -58,9 +65,13 @@ describe("MetricsV1Router Integration Tests", () => {
           .setDefaultFilter("")
           .build(),
       ];
-      const expectedResponse = new ResponseModel("getMetrics").withResponse(mockMetrics);
+      const expectedResponse = new ResponseModel("getMetrics").withResponse(
+        mockMetrics,
+      );
 
-      (MetricsQueryUseCase.prototype.getMetrics as jest.Mock).mockResolvedValue(expectedResponse);
+      (MetricsQueryUseCase.prototype.getMetrics as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app).get("/v1/metrics");
 
@@ -74,14 +85,16 @@ describe("MetricsV1Router Integration Tests", () => {
     });
 
     it("should return 500 when MetricsQueryUseCase throws an exception", async () => {
-      (MetricsQueryUseCase.prototype.getMetrics as jest.Mock).mockRejectedValue(
+      (MetricsQueryUseCase.prototype.getMetrics as vi.Mock).mockRejectedValue(
         new Error("Query error"),
       );
 
       const response = await supertest(app).get("/v1/metrics");
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
-      expect(response.body).toEqual(expect.objectContaining({ transactionId: "getMetrics" }));
+      expect(response.body).toEqual(
+        expect.objectContaining({ transactionId: "getMetrics" }),
+      );
     });
   });
 
@@ -93,9 +106,13 @@ describe("MetricsV1Router Integration Tests", () => {
         .setChartType("bar")
         .setDefaultFilter("")
         .build();
-      const expectedResponse = new ResponseModel("queryMetric").withResponse(mockMetric);
+      const expectedResponse = new ResponseModel("queryMetric").withResponse(
+        mockMetric,
+      );
 
-      (MetricsQueryUseCase.prototype.queryMetric as jest.Mock).mockResolvedValue(expectedResponse);
+      (MetricsQueryUseCase.prototype.queryMetric as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .get("/v1/metrics/metric-1")
@@ -104,21 +121,27 @@ describe("MetricsV1Router Integration Tests", () => {
       expect(response.status).toBe(HttpStatusCodes.OK);
       const body = response.body as SingleMetricApiResponse;
       expect(body.data.id).toBe("metric-1");
-      expect(MetricsQueryUseCase.prototype.queryMetric).toHaveBeenCalledTimes(1);
-      expect(MetricsQueryUseCase.prototype.queryMetric).toHaveBeenLastCalledWith(
+      expect(MetricsQueryUseCase.prototype.queryMetric).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(
+        MetricsQueryUseCase.prototype.queryMetric,
+      ).toHaveBeenLastCalledWith(
         expect.objectContaining({ transactionId: "queryMetric" }),
       );
     });
 
     it("should return 500 when queryMetric throws an exception", async () => {
-      (MetricsQueryUseCase.prototype.queryMetric as jest.Mock).mockRejectedValue(
+      (MetricsQueryUseCase.prototype.queryMetric as vi.Mock).mockRejectedValue(
         new Error("Query error"),
       );
 
       const response = await supertest(app).get("/v1/metrics/metric-1");
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
-      expect(response.body).toEqual(expect.objectContaining({ transactionId: "queryMetric" }));
+      expect(response.body).toEqual(
+        expect.objectContaining({ transactionId: "queryMetric" }),
+      );
     });
   });
 });

@@ -1,5 +1,5 @@
-import { DomainErrorCodes } from "../Error/DomainErrorCodes";
-import { ResponseModel } from "./ResponseModel";
+import { DomainErrorCodes } from "../Error/DomainErrorCodes.js";
+import { ResponseModel } from "./ResponseModel.js";
 
 describe("ResponseModel Entity", () => {
   it("should support helper promise wrappers not covered elsewhere", async () => {

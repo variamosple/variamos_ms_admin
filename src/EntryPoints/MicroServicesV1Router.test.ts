@@ -1,26 +1,31 @@
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
+import { Readable } from "node:stream";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import { MicroServiceManagementUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
+import { MicroServiceQueryUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import express from "express";
 import supertest from "supertest";
-import { createMicroServicesRouter } from "./MicroServicesV1Router";
-import { MicroServiceQueryUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceQueryUseCase";
-import { MicroServiceManagementUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceManagementUseCase";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
-import { Readable } from "stream";
+import { createMicroServicesRouter } from "./MicroServicesV1Router.js";
 
-import { mock } from "jest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 // Mock dependencies
-jest.mock("@src/Domain/MicroService/UseCase/MicroServiceQueryUseCase");
-jest.mock("@src/Domain/MicroService/UseCase/MicroServiceManagementUseCase");
-jest.mock("@variamosple/variamos-security", () => ({
+vi.mock("@src/Domain/MicroService/UseCase/MicroServiceQueryUseCase");
+vi.mock("@src/Domain/MicroService/UseCase/MicroServiceManagementUseCase");
+vi.mock("@variamosple/variamos-security", () => ({
   hasPermissions:
-    () => (_req: express.Request, _res: express.Response, next: express.NextFunction) => {
+    () =>
+    (
+      _req: express.Request,
+      _res: express.Response,
+      next: express.NextFunction,
+    ) => {
       next();
     },
 }));
 
-import { IMicroServiceRepository } from "@src/Domain/MicroService/Repository/IMicroServiceRepository";
+import type { IMicroServiceRepository } from "@src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 
 describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
   let app: express.Application;
@@ -28,7 +33,9 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
   beforeAll(() => {
     app = express();
     app.use(express.json());
-    const mockQueryUseCase = new MicroServiceQueryUseCase(mock<IMicroServiceRepository>());
+    const mockQueryUseCase = new MicroServiceQueryUseCase(
+      mock<IMicroServiceRepository>(),
+    );
     const mockManagementUseCase = new MicroServiceManagementUseCase(
       mock<IMicroServiceRepository>(),
     );
@@ -39,23 +46,29 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe("GET /v1/micro-services", () => {
     it("should return 200 on success", async () => {
-      const expectedResponse = new ResponseModel("queryMicroService").withResponse([]);
-      (MicroServiceQueryUseCase.prototype.queryMicroServices as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      const expectedResponse = new ResponseModel(
+        "queryMicroService",
+      ).withResponse([]);
+      (
+        MicroServiceQueryUseCase.prototype.queryMicroServices as vi.Mock
+      ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
         .get("/v1/micro-services")
         .query({ pageNumber: 1, pageSize: 10, name: "test" });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(MicroServiceQueryUseCase.prototype.queryMicroServices).toHaveBeenCalledTimes(1);
-      expect(MicroServiceQueryUseCase.prototype.queryMicroServices).toHaveBeenLastCalledWith(
+      expect(
+        MicroServiceQueryUseCase.prototype.queryMicroServices,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        MicroServiceQueryUseCase.prototype.queryMicroServices,
+      ).toHaveBeenLastCalledWith(
         expect.objectContaining({ transactionId: "queryMicroService" }),
       );
     });
@@ -65,9 +78,9 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Query failed",
       );
-      (MicroServiceQueryUseCase.prototype.queryMicroServices as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      (
+        MicroServiceQueryUseCase.prototype.queryMicroServices as vi.Mock
+      ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).get("/v1/micro-services");
 
@@ -75,9 +88,9 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when query throws an exception", async () => {
-      (MicroServiceQueryUseCase.prototype.queryMicroServices as jest.Mock).mockRejectedValue(
-        new Error("Unexpected error"),
-      );
+      (
+        MicroServiceQueryUseCase.prototype.queryMicroServices as vi.Mock
+      ).mockRejectedValue(new Error("Unexpected error"));
 
       const response = await supertest(app).get("/v1/micro-services");
 
@@ -90,16 +103,24 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
   describe("PUT /v1/micro-services/:microserviceId/start", () => {
     it("should return 200 on success", async () => {
-      const expectedResponse = new ResponseModel("startMicroService").withResponse(null);
-      (MicroServiceManagementUseCase.prototype.startMicroService as jest.Mock).mockResolvedValue(
-        expectedResponse,
+      const expectedResponse = new ResponseModel(
+        "startMicroService",
+      ).withResponse(null);
+      (
+        MicroServiceManagementUseCase.prototype.startMicroService as vi.Mock
+      ).mockResolvedValue(expectedResponse);
+
+      const response = await supertest(app).put(
+        "/v1/micro-services/ms-123/start",
       );
 
-      const response = await supertest(app).put("/v1/micro-services/ms-123/start");
-
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(MicroServiceManagementUseCase.prototype.startMicroService).toHaveBeenCalledTimes(1);
-      expect(MicroServiceManagementUseCase.prototype.startMicroService).toHaveBeenLastCalledWith(
+      expect(
+        MicroServiceManagementUseCase.prototype.startMicroService,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        MicroServiceManagementUseCase.prototype.startMicroService,
+      ).toHaveBeenLastCalledWith(
         expect.objectContaining({ transactionId: "startMicroService" }),
       );
     });
@@ -109,21 +130,25 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Start failed",
       );
-      (MicroServiceManagementUseCase.prototype.startMicroService as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      (
+        MicroServiceManagementUseCase.prototype.startMicroService as vi.Mock
+      ).mockResolvedValue(expectedResponse);
 
-      const response = await supertest(app).put("/v1/micro-services/ms-123/start");
+      const response = await supertest(app).put(
+        "/v1/micro-services/ms-123/start",
+      );
 
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
     });
 
     it("should return 500 when start throws an exception", async () => {
-      (MicroServiceManagementUseCase.prototype.startMicroService as jest.Mock).mockRejectedValue(
-        new Error("Unexpected error"),
-      );
+      (
+        MicroServiceManagementUseCase.prototype.startMicroService as vi.Mock
+      ).mockRejectedValue(new Error("Unexpected error"));
 
-      const response = await supertest(app).put("/v1/micro-services/ms-123/start");
+      const response = await supertest(app).put(
+        "/v1/micro-services/ms-123/start",
+      );
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
       expect(response.body).toEqual(
@@ -134,40 +159,51 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
   describe("PUT /v1/micro-services/:microserviceId/restart", () => {
     it("should return 200 on success", async () => {
-      const expectedResponse = new ResponseModel("restartMicroService").withResponse(null);
-      (MicroServiceManagementUseCase.prototype.restartMicroService as jest.Mock).mockResolvedValue(
-        expectedResponse,
+      const expectedResponse = new ResponseModel(
+        "restartMicroService",
+      ).withResponse(null);
+      (
+        MicroServiceManagementUseCase.prototype.restartMicroService as vi.Mock
+      ).mockResolvedValue(expectedResponse);
+
+      const response = await supertest(app).put(
+        "/v1/micro-services/ms-123/restart",
       );
 
-      const response = await supertest(app).put("/v1/micro-services/ms-123/restart");
-
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(MicroServiceManagementUseCase.prototype.restartMicroService).toHaveBeenCalledTimes(1);
-      expect(MicroServiceManagementUseCase.prototype.restartMicroService).toHaveBeenLastCalledWith(
+      expect(
+        MicroServiceManagementUseCase.prototype.restartMicroService,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        MicroServiceManagementUseCase.prototype.restartMicroService,
+      ).toHaveBeenLastCalledWith(
         expect.objectContaining({ transactionId: "restartMicroService" }),
       );
     });
 
     it("should return error status code when restart fails", async () => {
-      const expectedResponse = new ResponseModel("restartMicroService").withError(
-        DomainErrorCodes.INVALID_INPUT,
-        "Restart failed",
-      );
-      (MicroServiceManagementUseCase.prototype.restartMicroService as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      const expectedResponse = new ResponseModel(
+        "restartMicroService",
+      ).withError(DomainErrorCodes.INVALID_INPUT, "Restart failed");
+      (
+        MicroServiceManagementUseCase.prototype.restartMicroService as vi.Mock
+      ).mockResolvedValue(expectedResponse);
 
-      const response = await supertest(app).put("/v1/micro-services/ms-123/restart");
+      const response = await supertest(app).put(
+        "/v1/micro-services/ms-123/restart",
+      );
 
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
     });
 
     it("should return 500 when restart throws an exception", async () => {
-      (MicroServiceManagementUseCase.prototype.restartMicroService as jest.Mock).mockRejectedValue(
-        new Error("Unexpected error"),
-      );
+      (
+        MicroServiceManagementUseCase.prototype.restartMicroService as vi.Mock
+      ).mockRejectedValue(new Error("Unexpected error"));
 
-      const response = await supertest(app).put("/v1/micro-services/ms-123/restart");
+      const response = await supertest(app).put(
+        "/v1/micro-services/ms-123/restart",
+      );
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
       expect(response.body).toEqual(
@@ -178,16 +214,24 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
   describe("PUT /v1/micro-services/:microserviceId/stop", () => {
     it("should return 200 on success", async () => {
-      const expectedResponse = new ResponseModel("stopMicroService").withResponse(null);
-      (MicroServiceManagementUseCase.prototype.stopMicroService as jest.Mock).mockResolvedValue(
-        expectedResponse,
+      const expectedResponse = new ResponseModel(
+        "stopMicroService",
+      ).withResponse(null);
+      (
+        MicroServiceManagementUseCase.prototype.stopMicroService as vi.Mock
+      ).mockResolvedValue(expectedResponse);
+
+      const response = await supertest(app).put(
+        "/v1/micro-services/ms-123/stop",
       );
 
-      const response = await supertest(app).put("/v1/micro-services/ms-123/stop");
-
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(MicroServiceManagementUseCase.prototype.stopMicroService).toHaveBeenCalledTimes(1);
-      expect(MicroServiceManagementUseCase.prototype.stopMicroService).toHaveBeenLastCalledWith(
+      expect(
+        MicroServiceManagementUseCase.prototype.stopMicroService,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        MicroServiceManagementUseCase.prototype.stopMicroService,
+      ).toHaveBeenLastCalledWith(
         expect.objectContaining({ transactionId: "stopMicroService" }),
       );
     });
@@ -197,24 +241,30 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Stop failed",
       );
-      (MicroServiceManagementUseCase.prototype.stopMicroService as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      (
+        MicroServiceManagementUseCase.prototype.stopMicroService as vi.Mock
+      ).mockResolvedValue(expectedResponse);
 
-      const response = await supertest(app).put("/v1/micro-services/ms-123/stop");
+      const response = await supertest(app).put(
+        "/v1/micro-services/ms-123/stop",
+      );
 
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
     });
 
     it("should return 500 when stop throws an exception", async () => {
-      (MicroServiceManagementUseCase.prototype.stopMicroService as jest.Mock).mockRejectedValue(
-        new Error("Unexpected error"),
+      (
+        MicroServiceManagementUseCase.prototype.stopMicroService as vi.Mock
+      ).mockRejectedValue(new Error("Unexpected error"));
+
+      const response = await supertest(app).put(
+        "/v1/micro-services/ms-123/stop",
       );
 
-      const response = await supertest(app).put("/v1/micro-services/ms-123/stop");
-
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
-      expect(response.body).toEqual(expect.objectContaining({ transactionId: "stopMicroService" }));
+      expect(response.body).toEqual(
+        expect.objectContaining({ transactionId: "stopMicroService" }),
+      );
     });
   });
 
@@ -228,12 +278,12 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         },
       });
 
-      const expectedResponse = new ResponseModel<Readable>("watchMicroServiceLogs").withResponse(
-        mockStream,
-      );
-      (MicroServiceQueryUseCase.prototype.watchMicroServiceLogs as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      const expectedResponse = new ResponseModel<Readable>(
+        "watchMicroServiceLogs",
+      ).withResponse(mockStream);
+      (
+        MicroServiceQueryUseCase.prototype.watchMicroServiceLogs as vi.Mock
+      ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
         .get("/v1/micro-services/ms-123/logs/watch")
@@ -248,28 +298,31 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return error code when use case watchMicroServiceLogs returns error code", async () => {
-      const expectedResponse = new ResponseModel<Readable>("watchMicroServiceLogs").withError(
-        DomainErrorCodes.INVALID_INPUT,
-        "Failed to watch logs",
-      );
-      (MicroServiceQueryUseCase.prototype.watchMicroServiceLogs as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      const expectedResponse = new ResponseModel<Readable>(
+        "watchMicroServiceLogs",
+      ).withError(DomainErrorCodes.INVALID_INPUT, "Failed to watch logs");
+      (
+        MicroServiceQueryUseCase.prototype.watchMicroServiceLogs as vi.Mock
+      ).mockResolvedValue(expectedResponse);
 
-      const response = await supertest(app).get("/v1/micro-services/ms-123/logs/watch");
+      const response = await supertest(app).get(
+        "/v1/micro-services/ms-123/logs/watch",
+      );
 
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
     });
 
     it("should return 404 when no logs stream is returned", async () => {
-      const expectedResponse = new ResponseModel<Readable>("watchMicroServiceLogs").withResponse(
-        null,
-      );
-      (MicroServiceQueryUseCase.prototype.watchMicroServiceLogs as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      const expectedResponse = new ResponseModel<Readable>(
+        "watchMicroServiceLogs",
+      ).withResponse(null);
+      (
+        MicroServiceQueryUseCase.prototype.watchMicroServiceLogs as vi.Mock
+      ).mockResolvedValue(expectedResponse);
 
-      const response = await supertest(app).get("/v1/micro-services/ms-123/logs/watch");
+      const response = await supertest(app).get(
+        "/v1/micro-services/ms-123/logs/watch",
+      );
 
       expect(response.status).toBe(HttpStatusCodes.NOT_FOUND);
     });
@@ -281,12 +334,12 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         },
       });
 
-      const expectedResponse = new ResponseModel<Readable>("watchMicroServiceLogs").withResponse(
-        mockStream,
-      );
-      (MicroServiceQueryUseCase.prototype.watchMicroServiceLogs as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      const expectedResponse = new ResponseModel<Readable>(
+        "watchMicroServiceLogs",
+      ).withResponse(mockStream);
+      (
+        MicroServiceQueryUseCase.prototype.watchMicroServiceLogs as vi.Mock
+      ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
         .get("/v1/micro-services/ms-123/logs/watch")
@@ -296,11 +349,13 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when logs watch throws an exception", async () => {
-      (MicroServiceQueryUseCase.prototype.watchMicroServiceLogs as jest.Mock).mockRejectedValue(
-        new Error("Unexpected error"),
-      );
+      (
+        MicroServiceQueryUseCase.prototype.watchMicroServiceLogs as vi.Mock
+      ).mockRejectedValue(new Error("Unexpected error"));
 
-      const response = await supertest(app).get("/v1/micro-services/ms-123/logs/watch");
+      const response = await supertest(app).get(
+        "/v1/micro-services/ms-123/logs/watch",
+      );
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
       expect(response.body).toEqual(

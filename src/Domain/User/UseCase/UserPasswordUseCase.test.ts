@@ -1,13 +1,16 @@
-import { mock, MockProxy } from "jest-mock-extended";
-import { UserPasswordUseCase, UserPasswordUseCaseConfig } from "./UserPasswordUseCase";
-import { IUserRepository } from "@src/Domain/User/IUserRepository";
-import { IMailService } from "@src/Domain/Mail/IMailService";
-import { PasswordResetTokenService } from "@src/Domain/User/Service/PasswordResetTokenService";
-import { User } from "@src/Domain/User/Entity/User";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import type { IMailService } from "@src/Domain/Mail/IMailService.js";
+import type { User } from "@src/Domain/User/Entity/User.js";
+import type { IUserRepository } from "@src/Domain/User/IUserRepository.js";
+import { PasswordResetTokenService } from "@src/Domain/User/Service/PasswordResetTokenService.js";
 import logger from "jet-logger";
+import { type MockProxy, mock } from "vitest-mock-extended";
+import {
+  UserPasswordUseCase,
+  type UserPasswordUseCaseConfig,
+} from "./UserPasswordUseCase.js";
 
 describe("UserPasswordUseCase", () => {
   let useCase: UserPasswordUseCase;
@@ -36,7 +39,11 @@ describe("UserPasswordUseCase", () => {
   beforeEach(() => {
     mockUserRepository = mock<IUserRepository>();
     mockMailService = mock<IMailService>();
-    useCase = new UserPasswordUseCase(mockUserRepository, mockMailService, mockConfig);
+    useCase = new UserPasswordUseCase(
+      mockUserRepository,
+      mockMailService,
+      mockConfig,
+    );
   });
 
   describe("requestReset", () => {
@@ -51,7 +58,9 @@ describe("UserPasswordUseCase", () => {
       const res = await useCase.requestReset(req);
 
       expect(res.errorCode).toBeUndefined();
-      expect(mockUserRepository.getUserByEmail).toHaveBeenCalledWith("user@example.com");
+      expect(mockUserRepository.getUserByEmail).toHaveBeenCalledWith(
+        "user@example.com",
+      );
       expect(createTokenSpy).toHaveBeenCalledWith(
         mockUser,
         mockConfig.passwordResetExpiryInMs,
@@ -66,7 +75,10 @@ describe("UserPasswordUseCase", () => {
 
     it("should return empty response if user is not found", async () => {
       mockUserRepository.getUserByEmail.mockResolvedValue(null);
-      const createTokenSpy = jest.spyOn(PasswordResetTokenService.prototype, "createResetToken");
+      const createTokenSpy = vi.spyOn(
+        PasswordResetTokenService.prototype,
+        "createResetToken",
+      );
 
       const req = new RequestModel("tx-1", "nonexistent@example.com");
       const res = await useCase.requestReset(req);
@@ -102,7 +114,9 @@ describe("UserPasswordUseCase", () => {
       const res = await useCase.requestReset(req);
 
       expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
-      expect(res.message).toBe("Failed to send recovery email. Please try again later.");
+      expect(res.message).toBe(
+        "Failed to send recovery email. Please try again later.",
+      );
       createTokenSpy.mockRestore();
     });
   });
@@ -171,13 +185,20 @@ describe("UserPasswordUseCase", () => {
         expiresAt: tomorrow,
         usedAt: null,
       });
-      mockUserRepository.resetPasswordAndUpdateToken.mockResolvedValue(undefined);
+      mockUserRepository.resetPasswordAndUpdateToken.mockResolvedValue(
+        undefined,
+      );
 
-      const req = new RequestModel("tx-1", { token: "token-123", password: "NewPassword123!" });
+      const req = new RequestModel("tx-1", {
+        token: "token-123",
+        password: "NewPassword123!",
+      });
       const res = await useCase.resetPassword(req);
 
       expect(res.errorCode).toBeUndefined();
-      expect(mockUserRepository.resetPasswordAndUpdateToken).toHaveBeenCalledWith(
+      expect(
+        mockUserRepository.resetPasswordAndUpdateToken,
+      ).toHaveBeenCalledWith(
         "user-123",
         "NewPassword123!",
         "034192845dc489deca291f9f5ae0bb8e5472c991020bf64b3ebc6dec5a1d7e47",
@@ -187,11 +208,16 @@ describe("UserPasswordUseCase", () => {
     it("should return verification error if token is invalid", async () => {
       mockUserRepository.getPasswordResetToken.mockResolvedValue(null);
 
-      const req = new RequestModel("tx-1", { token: "expired-token", password: "NewPassword123!" });
+      const req = new RequestModel("tx-1", {
+        token: "expired-token",
+        password: "NewPassword123!",
+      });
       const res = await useCase.resetPassword(req);
 
       expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
-      expect(mockUserRepository.resetPasswordAndUpdateToken).not.toHaveBeenCalled();
+      expect(
+        mockUserRepository.resetPasswordAndUpdateToken,
+      ).not.toHaveBeenCalled();
     });
 
     it("should return verification error if token is already used", async () => {
@@ -201,12 +227,17 @@ describe("UserPasswordUseCase", () => {
         usedAt: new Date(),
       });
 
-      const req = new RequestModel("tx-1", { token: "used-token", password: "NewPassword123!" });
+      const req = new RequestModel("tx-1", {
+        token: "used-token",
+        password: "NewPassword123!",
+      });
       const res = await useCase.resetPassword(req);
 
       expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("Token already used.");
-      expect(mockUserRepository.resetPasswordAndUpdateToken).not.toHaveBeenCalled();
+      expect(
+        mockUserRepository.resetPasswordAndUpdateToken,
+      ).not.toHaveBeenCalled();
     });
 
     it("should return SYSTEM_ERROR if resetPasswordAndUpdateToken throws a general error", async () => {
@@ -220,7 +251,10 @@ describe("UserPasswordUseCase", () => {
         new Error("Database connection lost"),
       );
 
-      const req = new RequestModel("tx-1", { token: "token-123", password: "NewPassword123!" });
+      const req = new RequestModel("tx-1", {
+        token: "token-123",
+        password: "NewPassword123!",
+      });
       const res = await useCase.resetPassword(req);
 
       expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
@@ -236,9 +270,14 @@ describe("UserPasswordUseCase", () => {
       const createTokenSpy = jest
         .spyOn(PasswordResetTokenService.prototype, "createResetToken")
         .mockResolvedValue("generated-token");
-      const loggerInfoSpy = jest.spyOn(logger, "info").mockImplementation(() => {});
+      const loggerInfoSpy = vi
+        .spyOn(logger, "info")
+        .mockImplementation(() => {});
 
-      const req = new RequestModel("tx-1", { userId: "user-123", adminId: "admin-456" });
+      const req = new RequestModel("tx-1", {
+        userId: "user-123",
+        adminId: "admin-456",
+      });
       const res = await useCase.generateLink(req);
 
       expect(res.errorCode).toBeUndefined();
@@ -251,8 +290,12 @@ describe("UserPasswordUseCase", () => {
         mockConfig.passwordResetExpiryInMs,
         "ADMIN PASSWORD RESET ATTEMPT",
       );
-      expect(loggerInfoSpy).toHaveBeenCalledWith(expect.stringContaining("admin-456"));
-      expect(loggerInfoSpy).toHaveBeenCalledWith(expect.stringContaining("user-123"));
+      expect(loggerInfoSpy).toHaveBeenCalledWith(
+        expect.stringContaining("admin-456"),
+      );
+      expect(loggerInfoSpy).toHaveBeenCalledWith(
+        expect.stringContaining("user-123"),
+      );
       createTokenSpy.mockRestore();
       loggerInfoSpy.mockRestore();
     });
@@ -261,17 +304,29 @@ describe("UserPasswordUseCase", () => {
       mockUserRepository.queryById.mockResolvedValue(
         new ResponseModel<User>("tx-1").withResponse(null),
       );
-      const createTokenSpy = jest.spyOn(PasswordResetTokenService.prototype, "createResetToken");
-      const loggerWarnSpy = jest.spyOn(logger, "warn").mockImplementation(() => {});
+      const createTokenSpy = vi.spyOn(
+        PasswordResetTokenService.prototype,
+        "createResetToken",
+      );
+      const loggerWarnSpy = vi
+        .spyOn(logger, "warn")
+        .mockImplementation(() => {});
 
-      const req = new RequestModel("tx-1", { userId: "user-123", adminId: "admin-456" });
+      const req = new RequestModel("tx-1", {
+        userId: "user-123",
+        adminId: "admin-456",
+      });
       const res = await useCase.generateLink(req);
 
       expect(res.errorCode).toBeUndefined();
       expect(res.data).toBeUndefined();
       expect(createTokenSpy).not.toHaveBeenCalled();
-      expect(loggerWarnSpy).toHaveBeenCalledWith(expect.stringContaining("admin-456"));
-      expect(loggerWarnSpy).toHaveBeenCalledWith(expect.stringContaining("user-123"));
+      expect(loggerWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("admin-456"),
+      );
+      expect(loggerWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("user-123"),
+      );
       createTokenSpy.mockRestore();
       loggerWarnSpy.mockRestore();
     });
@@ -284,7 +339,10 @@ describe("UserPasswordUseCase", () => {
         .spyOn(PasswordResetTokenService.prototype, "createResetToken")
         .mockRejectedValue(new Error("User account is disabled."));
 
-      const req = new RequestModel("tx-1", { userId: "user-123", adminId: "admin-456" });
+      const req = new RequestModel("tx-1", {
+        userId: "user-123",
+        adminId: "admin-456",
+      });
       const res = await useCase.generateLink(req);
 
       expect(res.errorCode).toBeUndefined();
@@ -293,7 +351,10 @@ describe("UserPasswordUseCase", () => {
     });
 
     it("should return INVALID_INPUT if request parameters are missing", async () => {
-      const req = new RequestModel("tx-1", { userId: "", adminId: "admin-456" });
+      const req = new RequestModel("tx-1", {
+        userId: "",
+        adminId: "admin-456",
+      });
       const res = await useCase.generateLink(req);
       expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("User ID and Admin ID are required.");
@@ -301,10 +362,16 @@ describe("UserPasswordUseCase", () => {
 
     it("should return error if queryById returns error response", async () => {
       mockUserRepository.queryById.mockResolvedValue(
-        new ResponseModel<User>("tx-1").withError(DomainErrorCodes.SYSTEM_ERROR, "DB Error"),
+        new ResponseModel<User>("tx-1").withError(
+          DomainErrorCodes.SYSTEM_ERROR,
+          "DB Error",
+        ),
       );
 
-      const req = new RequestModel("tx-1", { userId: "user-123", adminId: "admin-456" });
+      const req = new RequestModel("tx-1", {
+        userId: "user-123",
+        adminId: "admin-456",
+      });
       const res = await useCase.generateLink(req);
 
       expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
@@ -319,7 +386,10 @@ describe("UserPasswordUseCase", () => {
         .spyOn(PasswordResetTokenService.prototype, "createResetToken")
         .mockRejectedValue(new Error("Unexpected token creation issue"));
 
-      const req = new RequestModel("tx-1", { userId: "user-123", adminId: "admin-456" });
+      const req = new RequestModel("tx-1", {
+        userId: "user-123",
+        adminId: "admin-456",
+      });
       const res = await useCase.generateLink(req);
 
       expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
@@ -358,7 +428,9 @@ describe("UserPasswordUseCase", () => {
     });
 
     it("should catch errors in verifyToken and return SYSTEM_ERROR", async () => {
-      mockUserRepository.getPasswordResetToken.mockRejectedValue(new Error("DB error"));
+      mockUserRepository.getPasswordResetToken.mockRejectedValue(
+        new Error("DB error"),
+      );
       const req = new RequestModel("tx-1", "token-abc");
       const res = await useCase.verifyToken(req);
       expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
@@ -383,7 +455,10 @@ describe("UserPasswordUseCase", () => {
         })
         .mockResolvedValueOnce(null);
 
-      const req = new RequestModel("tx-1", { token: "token-123", password: "NewPassword123!" });
+      const req = new RequestModel("tx-1", {
+        token: "token-123",
+        password: "NewPassword123!",
+      });
       const res = await useCase.resetPassword(req);
 
       expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
@@ -401,11 +476,16 @@ describe("UserPasswordUseCase", () => {
         new Error("New password cannot be the same as the old password"),
       );
 
-      const req = new RequestModel("tx-1", { token: "token-123", password: "NewPassword123!" });
+      const req = new RequestModel("tx-1", {
+        token: "token-123",
+        password: "NewPassword123!",
+      });
       const res = await useCase.resetPassword(req);
 
       expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
-      expect(res.message).toBe("New password cannot be the same as the old password");
+      expect(res.message).toBe(
+        "New password cannot be the same as the old password",
+      );
     });
   });
 });

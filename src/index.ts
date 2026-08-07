@@ -1,46 +1,46 @@
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
 import logger from "jet-logger";
-import "./pre-start"; // Must be the first import
+import "./pre-start.js"; // Must be the first import
 
-import EnvVars from "@src/common/EnvVars";
+import type { Readable } from "node:stream";
+import EnvVars from "@src/common/EnvVars.js";
 import { initKeyStore, validateSession } from "@variamosple/variamos-security";
-import * as cookie from "cookie";
-import { Readable } from "stream";
+import { parseCookie } from "cookie";
 import { WebSocket, WebSocketServer } from "ws";
-import { RequestModel } from "./Domain/Core/Entity/RequestModel";
-import { createBaseRouter } from "./EntryPoints";
-import { createServer } from "./server";
+import { RequestModel } from "./Domain/Core/Entity/RequestModel.js";
+import { createBaseRouter } from "./EntryPoints/index.js";
+import { createServer } from "./server.js";
 
 import {
+  productionBugAttachmentUseCase,
+  productionBugLifecycleUseCase,
+  productionBugQueryUseCase,
+  productionBugSubmissionUseCase,
+  productionBugSyncUseCase,
+  productionCountriesQueryUseCase,
+  productionMetricsQueryUseCase,
+  productionMicroServiceManagementUseCase,
+  productionMicroServiceQueryUseCase,
+  productionPermissionUseCase,
+  productionRoleManagementUseCase,
+  productionRolePermissionUseCase,
+  productionRoleQueryUseCase,
   productionUserAuthUseCase,
-  productionUserPasswordUseCase,
   productionUserManagementUseCase,
+  productionUserPasswordUseCase,
   productionUserQueryUseCase,
   productionUserRoleUseCase,
-  productionBugSubmissionUseCase,
-  productionBugLifecycleUseCase,
-  productionBugSyncUseCase,
-  productionBugQueryUseCase,
-  productionBugAttachmentUseCase,
-  productionMicroServiceQueryUseCase,
-  productionMicroServiceManagementUseCase,
-  productionRoleManagementUseCase,
-  productionRoleQueryUseCase,
-  productionRolePermissionUseCase,
-  productionMetricsQueryUseCase,
-  productionPermissionUseCase,
   productionVisitUseCase,
-  productionCountriesQueryUseCase,
-} from "./CompositionRoot";
+} from "./CompositionRoot.js";
 
-import { BugModel } from "./DataProviders/Bug/Bug";
-import { BugAttachmentModel } from "./DataProviders/Bug/BugAttachment";
-import { BugLogModel } from "./DataProviders/Bug/BugLog";
-import "./DataProviders/Bug/BugAssociations";
+import { BugModel } from "./DataProviders/Bug/Bug.js";
+import { BugAttachmentModel } from "./DataProviders/Bug/BugAttachment.js";
+import { BugLogModel } from "./DataProviders/Bug/BugLog.js";
+import "./DataProviders/Bug/BugAssociations.js";
 
+import fs from "node:fs";
+import path from "node:path";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, "./public/uploads");
@@ -54,7 +54,7 @@ const storage = multer.diskStorage({
     cb(null, uploadsDir);
   },
   filename: (_req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
     cb(null, uniqueSuffix + path.extname(file.originalname));
   },
 });
@@ -93,7 +93,7 @@ const baseRouter = createBaseRouter(
 
 const app = createServer(baseRouter);
 
-const SERVER_START_MSG = "Express server started on port: " + EnvVars.Port.toString();
+const SERVER_START_MSG = `Express server started on port: ${EnvVars.Port.toString()}`;
 
 const server = app.listen(EnvVars.Port, async () => {
   initKeyStore().then();
@@ -111,7 +111,7 @@ const server = app.listen(EnvVars.Port, async () => {
     await productionBugLifecycleUseCase.purgeExpiredRejectedBugs();
   } catch (e) {
     const err = e as Error;
-    logger.err("Failed to synchronize Bug tracker models: " + err.message);
+    logger.err(`Failed to synchronize Bug tracker models: ${err.message}`);
   }
 
   // Run periodic bugs sync every 15 minutes
@@ -123,7 +123,7 @@ const server = app.listen(EnvVars.Port, async () => {
       await productionBugSyncUseCase.syncBugs(request);
     } catch (e) {
       const err = e as Error;
-      logger.err("Failed to execute periodic bugs sync: " + err.message);
+      logger.err(`Failed to execute periodic bugs sync: ${err.message}`);
     }
   }, SYNC_INTERVAL);
 
@@ -135,7 +135,9 @@ const server = app.listen(EnvVars.Port, async () => {
       await productionBugLifecycleUseCase.purgeExpiredRejectedBugs();
     } catch (e) {
       const err = e as Error;
-      logger.err("Failed to execute periodic expired bugs purge: " + err.message);
+      logger.err(
+        `Failed to execute periodic expired bugs purge: ${err.message}`,
+      );
     }
   }, PURGE_INTERVAL);
 });
@@ -145,7 +147,7 @@ const webSocketServer = new WebSocketServer({ server });
 webSocketServer.on("connection", async (ws, req) => {
   logger.info("WebSocket connection established");
 
-  const cookies = req.headers.cookie ? cookie.parse(req.headers.cookie) : {};
+  const cookies = req.headers.cookie ? parseCookie(req.headers.cookie) : {};
 
   const validationResponse = await validateSession(cookies.authToken);
 
@@ -155,17 +157,23 @@ webSocketServer.on("connection", async (ws, req) => {
   }
 
   ws.on("message", async (message) => {
-    const messageStr = Buffer.isBuffer(message) ? message.toString("utf8") : String(message);
-    logger.info("Message received: " + messageStr);
+    const messageStr = Buffer.isBuffer(message)
+      ? message.toString("utf8")
+      : String(message);
+    logger.info(`Message received: ${messageStr}`);
 
     try {
       const parsedData = JSON.parse(messageStr) as { microserviceId?: string };
       const microserviceId = parsedData.microserviceId;
       const transactionId = "watchMicroServiceLogs";
 
-      const request = new RequestModel<string>(transactionId, microserviceId as string);
+      const request = new RequestModel<string>(
+        transactionId,
+        microserviceId as string,
+      );
 
-      const response = await productionMicroServiceQueryUseCase.watchMicroServiceLogs(request);
+      const response =
+        await productionMicroServiceQueryUseCase.watchMicroServiceLogs(request);
 
       if (response.errorCode) {
         return ws.send(JSON.stringify(response));
@@ -176,7 +184,7 @@ webSocketServer.on("connection", async (ws, req) => {
           JSON.stringify(
             response.withError(
               DomainErrorCodes.ENTITY_NOT_FOUND,
-              "No Logs found for microservice with id: " + microserviceId,
+              `No Logs found for microservice with id: ${microserviceId}`,
             ),
           ),
         );

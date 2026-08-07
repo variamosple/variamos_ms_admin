@@ -1,5 +1,5 @@
 // Mock google-auth-library as a standard class to bypass Jest resetMocks: true
-jest.mock("google-auth-library", () => {
+vi.mock("google-auth-library", () => {
   return {
     OAuth2Client: class {
       public verifyIdToken({ idToken }: { idToken: string }) {
@@ -22,67 +22,76 @@ jest.mock("google-auth-library", () => {
   };
 });
 
-jest.mock("./errorMapper", () => {
-  const actual = jest.requireActual("./errorMapper");
+vi.mock("./errorMapper", async () => {
+  const actual =
+    await vi.importActual<typeof import("./errorMapper.js")>(
+      "./errorMapper.js",
+    );
   return {
     ...actual,
-    mapDomainErrorToHttpStatus: jest.fn(),
+    mapDomainErrorToHttpStatus: vi.fn(),
   };
 });
 
+import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import { User } from "@src/Domain/User/Entity/User.js";
+import { UserAuthUseCase } from "@src/Domain/User/UseCase/UserAuthUseCase.js";
+import { UserManagementUseCase } from "@src/Domain/User/UseCase/UserManagementUseCase.js";
+import {
+  UserPasswordUseCase,
+  type UserPasswordUseCaseConfig,
+} from "@src/Domain/User/UseCase/UserPasswordUseCase.js";
+import { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase.js";
+import EnvVars from "@src/common/EnvVars.js";
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
+import {
+  ResponseModel as SecurityResponseModel,
+  type SessionInfo,
+  createJwt,
+  getToken,
+  hasPermissions,
+  isSessionExpired,
+  sessionInfoToSessionUser,
+  validateToken,
+} from "@variamosple/variamos-security";
+import cookieParser from "cookie-parser";
 import express from "express";
 import logger from "jet-logger";
 import supertest from "supertest";
-import EnvVars from "@src/common/EnvVars";
-import cookieParser from "cookie-parser";
-import { createAuthRouter, AUTH_ROUTE } from "./AuthRouter";
-import { mapDomainErrorToHttpStatus } from "./errorMapper";
-import { UserAuthUseCase } from "@src/Domain/User/UseCase/UserAuthUseCase";
-import {
-  UserPasswordUseCase,
-  UserPasswordUseCaseConfig,
-} from "@src/Domain/User/UseCase/UserPasswordUseCase";
-import { UserManagementUseCase } from "@src/Domain/User/UseCase/UserManagementUseCase";
-import { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel";
-import HttpStatusCodes from "@src/common/HttpStatusCodes";
-import { User } from "@src/Domain/User/Entity/User";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
-import {
-  getToken,
-  validateToken,
-  isSessionExpired,
-  sessionInfoToSessionUser,
-  createJwt,
-  SessionInfo,
-  ResponseModel as SecurityResponseModel,
-  hasPermissions,
-} from "@variamosple/variamos-security";
+import { AUTH_ROUTE, createAuthRouter } from "./AuthRouter.js";
+import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
-import { IUserRepository } from "@src/Domain/User/IUserRepository";
-import { IMailService } from "@src/Domain/Mail/IMailService";
-import { IGuestRoleRepository } from "@src/Domain/Role/Repository/IGuestRoleRepository";
-import { mock } from "jest-mock-extended";
+import type { IMailService } from "@src/Domain/Mail/IMailService.js";
+import type { IGuestRoleRepository } from "@src/Domain/Role/Repository/IGuestRoleRepository.js";
+import type { IUserRepository } from "@src/Domain/User/IUserRepository.js";
+import { mock } from "vitest-mock-extended";
 
 // Mock other dependencies
-jest.mock("@src/Domain/User/UseCase/UserAuthUseCase");
-jest.mock("@src/Domain/User/UseCase/UserPasswordUseCase");
-jest.mock("@src/Domain/User/UseCase/UserManagementUseCase");
-jest.mock("@src/Domain/User/UseCase/UserQueryUseCase");
-jest.mock("@variamosple/variamos-security", () => {
-  const actual = jest.requireActual("@variamosple/variamos-security");
+vi.mock("@src/Domain/User/UseCase/UserAuthUseCase");
+vi.mock("@src/Domain/User/UseCase/UserPasswordUseCase");
+vi.mock("@src/Domain/User/UseCase/UserManagementUseCase");
+vi.mock("@src/Domain/User/UseCase/UserQueryUseCase");
+vi.mock("@variamosple/variamos-security", async () => {
+  const actual = await vi.importActual<
+    typeof import("@variamosple/variamos-security")
+  >("@variamosple/variamos-security");
   return {
     ...actual,
-    getToken: jest.fn(),
-    validateToken: jest.fn(),
-    isSessionExpired: jest.fn(),
-    sessionInfoToSessionUser: jest.fn(),
-    createJwt: jest.fn(),
-    hasPermissions: jest
+    getToken: vi.fn(),
+    validateToken: vi.fn(),
+    isSessionExpired: vi.fn(),
+    sessionInfoToSessionUser: vi.fn(),
+    createJwt: vi.fn(),
+    hasPermissions: vi
       .fn()
       .mockImplementation(
         (_permissions?: string[], _roles?: string[]) =>
-          (req: express.Request, _res: express.Response, next: express.NextFunction) => {
+          (
+            req: express.Request,
+            _res: express.Response,
+            next: express.NextFunction,
+          ) => {
             req.user = {
               id: "user-123",
               name: "John Doe",
@@ -112,7 +121,10 @@ interface TestSessionApiResponse {
 }
 
 function parseCookies(response: supertest.Response): string[] {
-  const rawCookies = response.headers["set-cookie"] as string | string[] | undefined;
+  const rawCookies = response.headers["set-cookie"] as
+    | string
+    | string[]
+    | undefined;
   if (!rawCookies) {
     return [];
   }
@@ -135,7 +147,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       mock<IMailService>(),
       mock<UserPasswordUseCaseConfig>(),
     );
-    const mockUserManagementUseCase = new UserManagementUseCase(mock<IUserRepository>());
+    const mockUserManagementUseCase = new UserManagementUseCase(
+      mock<IUserRepository>(),
+    );
     const mockUserQueryUseCase = new UserQueryUseCase(mock<IUserRepository>());
     app.use(
       AUTH_ROUTE,
@@ -148,32 +162,35 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     );
   });
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    const actualErrorMapper = jest.requireActual("./errorMapper");
-    jest
-      .mocked(mapDomainErrorToHttpStatus)
-      .mockImplementation(
-        actualErrorMapper.mapDomainErrorToHttpStatus as typeof mapDomainErrorToHttpStatus,
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const actualErrorMapper =
+      await vi.importActual<typeof import("./errorMapper.js")>(
+        "./errorMapper.js",
       );
+    vi.mocked(mapDomainErrorToHttpStatus).mockImplementation(
+      actualErrorMapper.mapDomainErrorToHttpStatus as typeof mapDomainErrorToHttpStatus,
+    );
 
-    jest
-      .mocked(hasPermissions)
-      .mockImplementation(
-        (_permissions?: string[], _roles?: string[]) =>
-          (req: express.Request, _res: express.Response, next: express.NextFunction) => {
-            req.user = {
-              id: "user-123",
-              name: "John Doe",
-              email: "john@example.com",
-              user: "john",
-              roles: ["guest"],
-              permissions: ["my-account::query", "my-account::update"],
-            };
-            next();
-            return Promise.resolve();
-          },
-      );
+    vi.mocked(hasPermissions).mockImplementation(
+      (_permissions?: string[], _roles?: string[]) =>
+        (
+          req: express.Request,
+          _res: express.Response,
+          next: express.NextFunction,
+        ) => {
+          req.user = {
+            id: "user-123",
+            name: "John Doe",
+            email: "john@example.com",
+            user: "john",
+            roles: ["guest"],
+            permissions: ["my-account::query", "my-account::update"],
+          };
+          next();
+          return Promise.resolve();
+        },
+    );
   });
 
   describe("AUTH_ROUTE Constant", () => {
@@ -200,10 +217,10 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         email: "john@example.com",
       };
 
-      jest.mocked(getToken).mockReturnValue(mockToken);
-      jest.mocked(validateToken).mockResolvedValue(validationResponse);
-      jest.mocked(isSessionExpired).mockReturnValue(false);
-      jest.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
+      vi.mocked(getToken).mockReturnValue(mockToken);
+      vi.mocked(validateToken).mockResolvedValue(validationResponse);
+      vi.mocked(isSessionExpired).mockReturnValue(false);
+      vi.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
 
       const response = await supertest(app).get("/auth/session-info");
 
@@ -213,12 +230,11 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return error code if validationResponse has error", async () => {
-      const validationResponse = new SecurityResponseModel<SessionInfo>("getSessionInfo").withError(
-        HttpStatusCodes.UNAUTHORIZED,
-        "Invalid Token",
-      );
-      jest.mocked(getToken).mockReturnValue("bad-token");
-      jest.mocked(validateToken).mockResolvedValue(validationResponse);
+      const validationResponse = new SecurityResponseModel<SessionInfo>(
+        "getSessionInfo",
+      ).withError(HttpStatusCodes.UNAUTHORIZED, "Invalid Token");
+      vi.mocked(getToken).mockReturnValue("bad-token");
+      vi.mocked(validateToken).mockResolvedValue(validationResponse);
 
       const response = await supertest(app).get("/auth/session-info");
 
@@ -228,19 +244,25 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("should return 401 if session is expired", async () => {
       const mockToken = "expired-token";
-      const mockUserPayload = { sub: "user-123", exp: 1000, iat: 1000 } as SessionInfo;
+      const mockUserPayload = {
+        sub: "user-123",
+        exp: 1000,
+        iat: 1000,
+      } as SessionInfo;
       const validationResponse = new SecurityResponseModel<SessionInfo>(
         "getSessionInfo",
       ).withResponse(mockUserPayload);
 
-      jest.mocked(getToken).mockReturnValue(mockToken);
-      jest.mocked(validateToken).mockResolvedValue(validationResponse);
-      jest.mocked(isSessionExpired).mockReturnValue(true);
+      vi.mocked(getToken).mockReturnValue(mockToken);
+      vi.mocked(validateToken).mockResolvedValue(validationResponse);
+      vi.mocked(isSessionExpired).mockReturnValue(true);
 
       const response = await supertest(app).get("/auth/session-info");
 
       expect(response.status).toBe(HttpStatusCodes.UNAUTHORIZED);
-      expect(response.body.message).toBe("Your session has expired, please log in again.");
+      expect(response.body.message).toBe(
+        "Your session has expired, please log in again.",
+      );
     });
 
     it("should return 401 if user is missing iat during expired check", async () => {
@@ -249,9 +271,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         "getSessionInfo",
       ).withResponse(mockUserPayload);
 
-      jest.mocked(getToken).mockReturnValue("expired-token-no-iat");
-      jest.mocked(validateToken).mockResolvedValue(validationResponse);
-      jest.mocked(isSessionExpired).mockReturnValue(true);
+      vi.mocked(getToken).mockReturnValue("expired-token-no-iat");
+      vi.mocked(validateToken).mockResolvedValue(validationResponse);
+      vi.mocked(isSessionExpired).mockReturnValue(true);
 
       const response = await supertest(app).get("/auth/session-info");
 
@@ -259,7 +281,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 401 when session-info logic throws an exception (AuthRouter handles this as 401)", async () => {
-      jest.mocked(getToken).mockImplementation(() => {
+      vi.mocked(getToken).mockImplementation(() => {
         throw new Error("Unexpected error");
       });
 
@@ -293,10 +315,10 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         email: "john@example.com",
       };
 
-      jest.mocked(getToken).mockReturnValue(mockToken);
-      jest.mocked(validateToken).mockResolvedValue(validationResponse);
-      jest.mocked(isSessionExpired).mockReturnValue(false);
-      jest.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
+      vi.mocked(getToken).mockReturnValue(mockToken);
+      vi.mocked(validateToken).mockResolvedValue(validationResponse);
+      vi.mocked(isSessionExpired).mockReturnValue(false);
+      vi.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
 
       const response = await supertest(app)
         .get("/auth/session-info")
@@ -308,9 +330,14 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       expect(redirectToCookie).toBeDefined();
       expect(redirectToCookie?.includes("redirectTo=;")).toBe(true);
       expect(
-        redirectToCookie?.includes("Max-Age=0") || !redirectToCookie?.includes("Max-Age="),
+        redirectToCookie?.includes("Max-Age=0") ||
+          !redirectToCookie?.includes("Max-Age="),
       ).toBe(true);
-      expect(cookies.some((c) => c.includes("SameSite=None") && c.includes("Secure"))).toBe(true);
+      expect(
+        cookies.some(
+          (c) => c.includes("SameSite=None") && c.includes("Secure"),
+        ),
+      ).toBe(true);
 
       // Restore AllowedOrigins
       Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
@@ -337,17 +364,19 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         email: "john@example.com",
       };
 
-      jest.mocked(getToken).mockReturnValue(mockToken);
-      jest.mocked(validateToken).mockResolvedValue(validationResponse);
-      jest.mocked(isSessionExpired).mockReturnValue(false);
-      jest.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
+      vi.mocked(getToken).mockReturnValue(mockToken);
+      vi.mocked(validateToken).mockResolvedValue(validationResponse);
+      vi.mocked(isSessionExpired).mockReturnValue(false);
+      vi.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
 
       const response = await supertest(app)
         .get("/auth/session-info")
         .set("Cookie", ["redirectTo=data:text/html,Hello"]);
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      const body = response.body as TestSessionApiResponse & { data: { redirect?: string } };
+      const body = response.body as TestSessionApiResponse & {
+        data: { redirect?: string };
+      };
       expect(body.data.redirect).toBe("data:text/html,Hello");
     });
 
@@ -368,17 +397,19 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         email: "john@example.com",
       };
 
-      jest.mocked(getToken).mockReturnValue(mockToken);
-      jest.mocked(validateToken).mockResolvedValue(validationResponse);
-      jest.mocked(isSessionExpired).mockReturnValue(false);
-      jest.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
+      vi.mocked(getToken).mockReturnValue(mockToken);
+      vi.mocked(validateToken).mockResolvedValue(validationResponse);
+      vi.mocked(isSessionExpired).mockReturnValue(false);
+      vi.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
 
       const response = await supertest(app)
         .get("/auth/session-info")
         .set("Cookie", ["redirectTo=not-a-valid-url"]);
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      const body = response.body as TestSessionApiResponse & { data: { redirect?: string } };
+      const body = response.body as TestSessionApiResponse & {
+        data: { redirect?: string };
+      };
       expect(body.data.redirect).toBeUndefined();
     });
 
@@ -402,10 +433,10 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .setPermissions([])
         .build();
 
-      jest.mocked(getToken).mockReturnValue(mockToken);
-      jest.mocked(validateToken).mockResolvedValue(validationResponse);
-      jest.mocked(isSessionExpired).mockReturnValue(true);
-      (UserQueryUseCase.prototype.sessionUser as jest.Mock).mockResolvedValue(
+      vi.mocked(getToken).mockReturnValue(mockToken);
+      vi.mocked(validateToken).mockResolvedValue(validationResponse);
+      vi.mocked(isSessionExpired).mockReturnValue(true);
+      (UserQueryUseCase.prototype.sessionUser as vi.Mock).mockResolvedValue(
         new ResponseModel<User>("getSessionInfo").withResponse(mockDomainUser),
       );
 
@@ -432,10 +463,10 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         email: "john@example.com",
       };
 
-      jest.mocked(getToken).mockReturnValue(mockToken);
-      jest.mocked(validateToken).mockResolvedValue(validationResponse);
-      jest.mocked(isSessionExpired).mockReturnValue(false);
-      jest.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
+      vi.mocked(getToken).mockReturnValue(mockToken);
+      vi.mocked(validateToken).mockResolvedValue(validationResponse);
+      vi.mocked(isSessionExpired).mockReturnValue(false);
+      vi.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
 
       const response = await supertest(app)
         .get("/auth/session-info")
@@ -460,23 +491,29 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         user: "john",
         email: "john@example.com",
       };
-      const refreshedResponse = new ResponseModel("getSessionInfo").withResponse(
+      const refreshedResponse = new ResponseModel(
+        "getSessionInfo",
+      ).withResponse(
         User.builder().setId("user-123").setName("John Doe").build(),
       );
 
-      jest.mocked(getToken).mockReturnValue(mockToken);
-      jest.mocked(validateToken).mockResolvedValue(validationResponse);
-      jest.mocked(isSessionExpired).mockReturnValue(true);
-      jest.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
-      (UserQueryUseCase.prototype.sessionUser as jest.Mock).mockResolvedValue(refreshedResponse);
-      jest.mocked(createJwt).mockResolvedValue("new-jwt-token");
+      vi.mocked(getToken).mockReturnValue(mockToken);
+      vi.mocked(validateToken).mockResolvedValue(validationResponse);
+      vi.mocked(isSessionExpired).mockReturnValue(true);
+      vi.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
+      (UserQueryUseCase.prototype.sessionUser as vi.Mock).mockResolvedValue(
+        refreshedResponse,
+      );
+      vi.mocked(createJwt).mockResolvedValue("new-jwt-token");
 
       const response = await supertest(app)
         .get("/auth/session-info")
         .set("Cookie", ["redirectTo=http://localhost:3000/dashboard"]);
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      const body = response.body as { data: { redirect: string; authToken?: string } };
+      const body = response.body as {
+        data: { redirect: string; authToken?: string };
+      };
       expect(body.data.redirect).toBe("http://localhost:3000/dashboard");
       // Local redirects must NOT expose the authToken in the body
       expect(body.data.authToken).toBeUndefined();
@@ -507,15 +544,19 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         email: "guest@example.com",
         roles: ["guest"],
       };
-      const refreshedResponse = new ResponseModel("getSessionInfo").withResponse(
+      const refreshedResponse = new ResponseModel(
+        "getSessionInfo",
+      ).withResponse(
         User.builder().setId("user-123").setName("Guest User").build(),
       );
 
-      jest.mocked(getToken).mockReturnValue(mockToken);
-      jest.mocked(validateToken).mockResolvedValue(validationResponse);
-      jest.mocked(isSessionExpired).mockReturnValue(true);
-      jest.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
-      (UserAuthUseCase.prototype.getGuestData as jest.Mock).mockResolvedValue(refreshedResponse);
+      vi.mocked(getToken).mockReturnValue(mockToken);
+      vi.mocked(validateToken).mockResolvedValue(validationResponse);
+      vi.mocked(isSessionExpired).mockReturnValue(true);
+      vi.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
+      (UserAuthUseCase.prototype.getGuestData as vi.Mock).mockResolvedValue(
+        refreshedResponse,
+      );
 
       const response = await supertest(app).get("/auth/session-info");
       expect(response.status).toBe(HttpStatusCodes.OK);
@@ -544,11 +585,13 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         "Expired",
       );
 
-      jest.mocked(getToken).mockReturnValue(mockToken);
-      jest.mocked(validateToken).mockResolvedValue(validationResponse);
-      jest.mocked(isSessionExpired).mockReturnValue(true);
-      jest.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
-      (UserAuthUseCase.prototype.getGuestData as jest.Mock).mockResolvedValue(refreshedResponse);
+      vi.mocked(getToken).mockReturnValue(mockToken);
+      vi.mocked(validateToken).mockResolvedValue(validationResponse);
+      vi.mocked(isSessionExpired).mockReturnValue(true);
+      vi.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
+      (UserAuthUseCase.prototype.getGuestData as vi.Mock).mockResolvedValue(
+        refreshedResponse,
+      );
 
       const response = await supertest(app).get("/auth/session-info");
       expect(response.status).toBe(HttpStatusCodes.UNAUTHORIZED);
@@ -572,15 +615,19 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         email: "admin@example.com",
         roles: ["admin"],
       };
-      const refreshedResponse = new ResponseModel("getSessionInfo").withResponse(
+      const refreshedResponse = new ResponseModel(
+        "getSessionInfo",
+      ).withResponse(
         User.builder().setId("user-123").setName("Admin User").build(),
       );
 
-      jest.mocked(getToken).mockReturnValue(mockToken);
-      jest.mocked(validateToken).mockResolvedValue(validationResponse);
-      jest.mocked(isSessionExpired).mockReturnValue(true);
-      jest.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
-      (UserQueryUseCase.prototype.sessionUser as jest.Mock).mockResolvedValue(refreshedResponse);
+      vi.mocked(getToken).mockReturnValue(mockToken);
+      vi.mocked(validateToken).mockResolvedValue(validationResponse);
+      vi.mocked(isSessionExpired).mockReturnValue(true);
+      vi.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
+      (UserQueryUseCase.prototype.sessionUser as vi.Mock).mockResolvedValue(
+        refreshedResponse,
+      );
 
       const response = await supertest(app).get("/auth/session-info");
       expect(response.status).toBe(HttpStatusCodes.OK);
@@ -611,16 +658,20 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         email: "admin@example.com",
         roles: ["admin"],
       };
-      const refreshedResponse = new ResponseModel("getSessionInfo").withResponse(
+      const refreshedResponse = new ResponseModel(
+        "getSessionInfo",
+      ).withResponse(
         User.builder().setId("user-123").setName("Admin User").build(),
       );
 
-      jest.mocked(getToken).mockReturnValue(mockToken);
-      jest.mocked(validateToken).mockResolvedValue(validationResponse);
-      jest.mocked(isSessionExpired).mockReturnValue(true);
-      jest.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
-      (UserQueryUseCase.prototype.sessionUser as jest.Mock).mockResolvedValue(refreshedResponse);
-      jest.mocked(createJwt).mockResolvedValue("new-refreshed-jwt-token");
+      vi.mocked(getToken).mockReturnValue(mockToken);
+      vi.mocked(validateToken).mockResolvedValue(validationResponse);
+      vi.mocked(isSessionExpired).mockReturnValue(true);
+      vi.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
+      (UserQueryUseCase.prototype.sessionUser as vi.Mock).mockResolvedValue(
+        refreshedResponse,
+      );
+      vi.mocked(createJwt).mockResolvedValue("new-refreshed-jwt-token");
 
       const response = await supertest(app)
         .get("/auth/session-info")
@@ -640,11 +691,18 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
   describe("POST /auth/sign-in", () => {
     it("should return 200 and set cookie on successful sign in", async () => {
-      const mockUser = User.builder().setId("user-123").setName("John Doe").build();
-      const expectedResponse = new ResponseModel("signIn").withResponse(mockUser);
+      const mockUser = User.builder()
+        .setId("user-123")
+        .setName("John Doe")
+        .build();
+      const expectedResponse = new ResponseModel("signIn").withResponse(
+        mockUser,
+      );
 
-      jest.mocked(createJwt).mockResolvedValue("jwt-token");
-      (UserAuthUseCase.prototype.signIn as jest.Mock).mockResolvedValue(expectedResponse);
+      vi.mocked(createJwt).mockResolvedValue("jwt-token");
+      (UserAuthUseCase.prototype.signIn as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .post("/auth/sign-in")
@@ -657,7 +715,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       const cookies = parseCookies(response);
       // Default SameSite must be Strict, and Max-Age/Expires must be present (maxAge = true)
       expect(cookies.some((c) => c.includes("SameSite=Strict"))).toBe(true);
-      expect(cookies.some((c) => c.includes("Max-Age=") || c.includes("Expires="))).toBe(true);
+      expect(
+        cookies.some((c) => c.includes("Max-Age=") || c.includes("Expires=")),
+      ).toBe(true);
       expect(cookies.some((c) => c.includes("Domain=localhost"))).toBe(true);
       expect(cookies.some((c) => c.includes("HttpOnly"))).toBe(true);
     });
@@ -667,7 +727,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.UNAUTHORIZED_ACCESS,
         "Invalid credentials",
       );
-      (UserAuthUseCase.prototype.signIn as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserAuthUseCase.prototype.signIn as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .post("/auth/sign-in")
@@ -683,11 +745,18 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         configurable: true,
       });
 
-      const mockUser = User.builder().setId("user-123").setName("John Doe").build();
-      const expectedResponse = new ResponseModel("signIn").withResponse(mockUser);
+      const mockUser = User.builder()
+        .setId("user-123")
+        .setName("John Doe")
+        .build();
+      const expectedResponse = new ResponseModel("signIn").withResponse(
+        mockUser,
+      );
 
-      jest.mocked(createJwt).mockResolvedValue("jwt-token");
-      (UserAuthUseCase.prototype.signIn as jest.Mock).mockResolvedValue(expectedResponse);
+      vi.mocked(createJwt).mockResolvedValue("jwt-token");
+      (UserAuthUseCase.prototype.signIn as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .post("/auth/sign-in")
@@ -696,7 +765,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       const body = response.body as { data: { redirect: string } };
-      expect(body.data.redirect).toBe("http://allowed-origin.com/dashboard?authToken=jwt-token");
+      expect(body.data.redirect).toBe(
+        "http://allowed-origin.com/dashboard?authToken=jwt-token",
+      );
 
       Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
         value: originalPatterns,
@@ -730,7 +801,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when sign-in throws an exception", async () => {
-      (UserAuthUseCase.prototype.signIn as jest.Mock).mockRejectedValue(
+      (UserAuthUseCase.prototype.signIn as vi.Mock).mockRejectedValue(
         new Error("Unexpected sign-in error"),
       );
 
@@ -745,10 +816,17 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
   describe("POST /auth/sign-up", () => {
     it("should return 200 on successful sign up", async () => {
-      const mockUser = User.builder().setId("user-123").setName("John Doe").build();
-      const expectedResponse = new ResponseModel("signUp").withResponse(mockUser);
+      const mockUser = User.builder()
+        .setId("user-123")
+        .setName("John Doe")
+        .build();
+      const expectedResponse = new ResponseModel("signUp").withResponse(
+        mockUser,
+      );
 
-      (UserAuthUseCase.prototype.signUp as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserAuthUseCase.prototype.signUp as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app).post("/auth/sign-up").send({
         name: "John Doe",
@@ -766,7 +844,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.DUPLICATE_ENTITY,
         "User already exists",
       );
-      (UserAuthUseCase.prototype.signUp as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserAuthUseCase.prototype.signUp as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app).post("/auth/sign-up").send({
         name: "John Doe",
@@ -783,7 +863,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Passwords do not match",
       );
-      (UserAuthUseCase.prototype.signUp as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserAuthUseCase.prototype.signUp as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app).post("/auth/sign-up").send({
         name: "John Doe",
@@ -800,7 +882,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Invalid name",
       );
-      (UserAuthUseCase.prototype.signUp as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserAuthUseCase.prototype.signUp as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app).post("/auth/sign-up").send({
         name: "",
@@ -813,7 +897,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when sign-up throws an exception", async () => {
-      (UserAuthUseCase.prototype.signUp as jest.Mock).mockRejectedValue(
+      (UserAuthUseCase.prototype.signUp as vi.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -840,11 +924,18 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
   describe("POST /auth/guest/sign-in", () => {
     it("should return 200 and set cookie on guest sign in", async () => {
-      const mockUser = User.builder().setId("guest-123").setName("Guest").build();
-      const expectedResponse = new ResponseModel("signInAsGuest").withResponse(mockUser);
+      const mockUser = User.builder()
+        .setId("guest-123")
+        .setName("Guest")
+        .build();
+      const expectedResponse = new ResponseModel("signInAsGuest").withResponse(
+        mockUser,
+      );
 
-      jest.mocked(createJwt).mockResolvedValue("guest-jwt-token");
-      (UserAuthUseCase.prototype.getGuestData as jest.Mock).mockResolvedValue(expectedResponse);
+      vi.mocked(createJwt).mockResolvedValue("guest-jwt-token");
+      (UserAuthUseCase.prototype.getGuestData as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .post("/auth/guest/sign-in")
@@ -859,7 +950,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Invalid guest id",
       );
-      (UserAuthUseCase.prototype.getGuestData as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserAuthUseCase.prototype.getGuestData as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .post("/auth/guest/sign-in")
@@ -869,7 +962,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when guest sign-in throws an exception", async () => {
-      (UserAuthUseCase.prototype.getGuestData as jest.Mock).mockRejectedValue(
+      (UserAuthUseCase.prototype.getGuestData as vi.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -887,11 +980,18 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         configurable: true,
       });
 
-      const mockUser = User.builder().setId("guest-123").setName("Guest").build();
-      const expectedResponse = new ResponseModel("signInAsGuest").withResponse(mockUser);
+      const mockUser = User.builder()
+        .setId("guest-123")
+        .setName("Guest")
+        .build();
+      const expectedResponse = new ResponseModel("signInAsGuest").withResponse(
+        mockUser,
+      );
 
-      jest.mocked(createJwt).mockResolvedValue("guest-jwt-token");
-      (UserAuthUseCase.prototype.getGuestData as jest.Mock).mockResolvedValue(expectedResponse);
+      vi.mocked(createJwt).mockResolvedValue("guest-jwt-token");
+      (UserAuthUseCase.prototype.getGuestData as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .post("/auth/guest/sign-in")
@@ -913,9 +1013,16 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
   describe("GET /auth/my-account", () => {
     it("should return 200 on successful fetch", async () => {
-      const mockUser = User.builder().setId("user-123").setName("John Doe").build();
-      const expectedResponse = new ResponseModel("myAccount").withResponse(mockUser);
-      (UserQueryUseCase.prototype.myAccount as jest.Mock).mockResolvedValue(expectedResponse);
+      const mockUser = User.builder()
+        .setId("user-123")
+        .setName("John Doe")
+        .build();
+      const expectedResponse = new ResponseModel("myAccount").withResponse(
+        mockUser,
+      );
+      (UserQueryUseCase.prototype.myAccount as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app).get("/auth/my-account");
 
@@ -923,7 +1030,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when getMyAccount throws an exception", async () => {
-      (UserQueryUseCase.prototype.myAccount as jest.Mock).mockRejectedValue(
+      (UserQueryUseCase.prototype.myAccount as vi.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -935,10 +1042,12 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
   describe("PUT /auth/my-account/information", () => {
     it("should return 200 on successful update", async () => {
-      const expectedResponse = new ResponseModel("updateMyAccountInformation").withResponse(null);
-      (UserManagementUseCase.prototype.updateProfile as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      const expectedResponse = new ResponseModel(
+        "updateMyAccountInformation",
+      ).withResponse(null);
+      (
+        UserManagementUseCase.prototype.updateProfile as vi.Mock
+      ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
         .put("/auth/my-account/information")
@@ -948,9 +1057,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when updatePersonalInformation throws an exception", async () => {
-      (UserManagementUseCase.prototype.updateProfile as jest.Mock).mockRejectedValue(
-        new Error("Unexpected error"),
-      );
+      (
+        UserManagementUseCase.prototype.updateProfile as vi.Mock
+      ).mockRejectedValue(new Error("Unexpected error"));
 
       const response = await supertest(app)
         .put("/auth/my-account/information")
@@ -962,11 +1071,13 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
   describe("PUT /auth/password-update", () => {
     it("should return 200 on successful password update", async () => {
-      const expectedResponse = new ResponseModel("passwordUpdate").withResponse(null);
-
-      (UserManagementUseCase.prototype.updatePassword as jest.Mock).mockResolvedValue(
-        expectedResponse,
+      const expectedResponse = new ResponseModel("passwordUpdate").withResponse(
+        null,
       );
+
+      (
+        UserManagementUseCase.prototype.updatePassword as vi.Mock
+      ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).put("/auth/password-update").send({
         currentPassword: "OldPassword123!",
@@ -982,9 +1093,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Invalid password",
       );
-      (UserManagementUseCase.prototype.updatePassword as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      (
+        UserManagementUseCase.prototype.updatePassword as vi.Mock
+      ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).put("/auth/password-update").send({
         currentPassword: "OldPassword123!",
@@ -996,9 +1107,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when updatePassword throws an exception", async () => {
-      (UserManagementUseCase.prototype.updatePassword as jest.Mock).mockRejectedValue(
-        new Error("Unexpected error"),
-      );
+      (
+        UserManagementUseCase.prototype.updatePassword as vi.Mock
+      ).mockRejectedValue(new Error("Unexpected error"));
 
       const response = await supertest(app).put("/auth/password-update").send({
         currentPassword: "OldPassword123!",
@@ -1017,9 +1128,13 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .setName("John Doe")
         .setEmail("john@example.com")
         .build();
-      const expectedResponse = new ResponseModel("loginWithGoogle").withResponse(mockUser);
-      jest.mocked(createJwt).mockResolvedValue("google-jwt-token");
-      (UserAuthUseCase.prototype.findOrCreate as jest.Mock).mockResolvedValue(expectedResponse);
+      const expectedResponse = new ResponseModel(
+        "loginWithGoogle",
+      ).withResponse(mockUser);
+      vi.mocked(createJwt).mockResolvedValue("google-jwt-token");
+      (UserAuthUseCase.prototype.findOrCreate as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .post("/auth/google/callback")
@@ -1034,14 +1149,18 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Creation failed",
       );
-      (UserAuthUseCase.prototype.findOrCreate as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserAuthUseCase.prototype.findOrCreate as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .post("/auth/google/callback")
         .send({ credential: "mock-google-id-token" });
 
       expect(response.status).toBe(302);
-      expect(response.headers.location).toContain("errorMessage=Creation%20failed");
+      expect(response.headers.location).toContain(
+        "errorMessage=Creation%20failed",
+      );
     });
 
     it("should redirect to login if ticket verification throws an exception", async () => {
@@ -1074,9 +1193,13 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .setName("John Doe")
         .setEmail("john@example.com")
         .build();
-      const expectedResponse = new ResponseModel("loginWithGoogle").withResponse(mockUser);
-      jest.mocked(createJwt).mockResolvedValue("google-jwt-token");
-      (UserAuthUseCase.prototype.findOrCreate as jest.Mock).mockResolvedValue(expectedResponse);
+      const expectedResponse = new ResponseModel(
+        "loginWithGoogle",
+      ).withResponse(mockUser);
+      vi.mocked(createJwt).mockResolvedValue("google-jwt-token");
+      (UserAuthUseCase.prototype.findOrCreate as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .post("/auth/google/callback")
@@ -1104,7 +1227,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         undefined,
         "Password reset email sent",
       ).withResponse(null);
-      (UserPasswordUseCase.prototype.requestReset as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserPasswordUseCase.prototype.requestReset as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .post("/auth/forgot-password")
@@ -1119,7 +1244,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Email not found",
       );
-      (UserPasswordUseCase.prototype.requestReset as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserPasswordUseCase.prototype.requestReset as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .post("/auth/forgot-password")
@@ -1129,7 +1256,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when forgot-password throws an exception", async () => {
-      (UserPasswordUseCase.prototype.requestReset as jest.Mock).mockRejectedValue(
+      (UserPasswordUseCase.prototype.requestReset as vi.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -1148,7 +1275,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         undefined,
         "Token verified",
       ).withResponse(null);
-      (UserPasswordUseCase.prototype.verifyToken as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserPasswordUseCase.prototype.verifyToken as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .get("/auth/verify-token")
@@ -1163,7 +1292,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Token expired",
       );
-      (UserPasswordUseCase.prototype.verifyToken as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserPasswordUseCase.prototype.verifyToken as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .get("/auth/verify-token")
@@ -1173,11 +1304,13 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when verify-token throws an exception", async () => {
-      (UserPasswordUseCase.prototype.verifyToken as jest.Mock).mockRejectedValue(
+      (UserPasswordUseCase.prototype.verifyToken as vi.Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
-      const response = await supertest(app).get("/auth/verify-token").query({ token: "token" });
+      const response = await supertest(app)
+        .get("/auth/verify-token")
+        .query({ token: "token" });
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
     });
@@ -1190,9 +1323,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         undefined,
         "Password updated successfully",
       ).withResponse(null);
-      (UserPasswordUseCase.prototype.resetPassword as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      (
+        UserPasswordUseCase.prototype.resetPassword as vi.Mock
+      ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
         .post("/auth/reset-password")
@@ -1207,9 +1340,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Invalid token",
       );
-      (UserPasswordUseCase.prototype.resetPassword as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      (
+        UserPasswordUseCase.prototype.resetPassword as vi.Mock
+      ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
         .post("/auth/reset-password")
@@ -1219,9 +1352,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when resetPassword throws an exception", async () => {
-      (UserPasswordUseCase.prototype.resetPassword as jest.Mock).mockRejectedValue(
-        new Error("Unexpected error"),
-      );
+      (
+        UserPasswordUseCase.prototype.resetPassword as vi.Mock
+      ).mockRejectedValue(new Error("Unexpected error"));
 
       const response = await supertest(app)
         .post("/auth/reset-password")
@@ -1338,9 +1471,14 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         ),
       );
 
-      const mockUser = User.builder().setId("user-123").setName("John Doe").build();
-      const expectedResponse = new ResponseModel<User>("signIn").withResponse(mockUser);
-      jest.mocked(createJwt).mockResolvedValue("jwt-token");
+      const mockUser = User.builder()
+        .setId("user-123")
+        .setName("John Doe")
+        .build();
+      const expectedResponse = new ResponseModel<User>("signIn").withResponse(
+        mockUser,
+      );
+      vi.mocked(createJwt).mockResolvedValue("jwt-token");
       mockUserAuthUseCase.signIn.mockResolvedValue(expectedResponse);
 
       const response = await supertest(testApp)
@@ -1349,7 +1487,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .send({ email: "john@example.com", password: "Password123!" });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(response.body.data.redirect).toBe("http://localhost:3000/dashboard");
+      expect(response.body.data.redirect).toBe(
+        "http://localhost:3000/dashboard",
+      );
     });
 
     it("should not clear cookie and not return set-cookie for redirectTo if redirectTo cookie is absent (Line 63)", async () => {
@@ -1369,10 +1509,10 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         email: "john@example.com",
       };
 
-      jest.mocked(getToken).mockReturnValue(mockToken);
-      jest.mocked(validateToken).mockResolvedValue(validationResponse);
-      jest.mocked(isSessionExpired).mockReturnValue(false);
-      jest.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
+      vi.mocked(getToken).mockReturnValue(mockToken);
+      vi.mocked(validateToken).mockResolvedValue(validationResponse);
+      vi.mocked(isSessionExpired).mockReturnValue(false);
+      vi.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
 
       const response = await supertest(app).get("/auth/session-info");
       expect(response.status).toBe(HttpStatusCodes.OK);
@@ -1381,7 +1521,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should call logger.err with invalid URL and error when getUrl throws (Lines 83, 84, 85)", async () => {
-      const loggerSpy = jest.spyOn(logger, "err").mockImplementation(() => {});
+      const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
 
       const mockToken = "valid-token";
       const mockUserPayload = {
@@ -1399,10 +1539,10 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         email: "john@example.com",
       };
 
-      jest.mocked(getToken).mockReturnValue(mockToken);
-      jest.mocked(validateToken).mockResolvedValue(validationResponse);
-      jest.mocked(isSessionExpired).mockReturnValue(false);
-      jest.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
+      vi.mocked(getToken).mockReturnValue(mockToken);
+      vi.mocked(validateToken).mockResolvedValue(validationResponse);
+      vi.mocked(isSessionExpired).mockReturnValue(false);
+      vi.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
 
       const response = await supertest(app)
         .get("/auth/session-info")
@@ -1410,7 +1550,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(loggerSpy).toHaveBeenCalledWith(
-        expect.stringContaining("getSessionInfo Invalid URL: http://[invalid-url]"),
+        expect.stringContaining(
+          "getSessionInfo Invalid URL: http://[invalid-url]",
+        ),
       );
       expect(loggerSpy.mock.calls[1][0]).toHaveProperty("message");
       expect(loggerSpy.mock.calls[1][1]).toBe(true);
@@ -1424,10 +1566,17 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         configurable: true,
       });
 
-      const mockUser = User.builder().setId("user-123").setName("John Doe").build();
-      const expectedResponse = new ResponseModel<User>("signIn").withResponse(mockUser);
-      jest.mocked(createJwt).mockResolvedValue("jwt-token");
-      (UserAuthUseCase.prototype.signIn as jest.Mock).mockResolvedValue(expectedResponse);
+      const mockUser = User.builder()
+        .setId("user-123")
+        .setName("John Doe")
+        .build();
+      const expectedResponse = new ResponseModel<User>("signIn").withResponse(
+        mockUser,
+      );
+      vi.mocked(createJwt).mockResolvedValue("jwt-token");
+      (UserAuthUseCase.prototype.signIn as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .post("/auth/sign-in")
@@ -1446,14 +1595,13 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return early when validationResponse has errorCode (Line 130)", async () => {
-      const validationResponse = new SecurityResponseModel<SessionInfo>("getSessionInfo").withError(
-        HttpStatusCodes.UNAUTHORIZED,
-        "Invalid Token",
-      );
-      jest.mocked(getToken).mockReturnValue("bad-token");
-      jest.mocked(validateToken).mockResolvedValue(validationResponse);
+      const validationResponse = new SecurityResponseModel<SessionInfo>(
+        "getSessionInfo",
+      ).withError(HttpStatusCodes.UNAUTHORIZED, "Invalid Token");
+      vi.mocked(getToken).mockReturnValue("bad-token");
+      vi.mocked(validateToken).mockResolvedValue(validationResponse);
 
-      jest.mocked(isSessionExpired).mockClear();
+      vi.mocked(isSessionExpired).mockClear();
 
       const response = await supertest(app).get("/auth/session-info");
 
@@ -1476,11 +1624,13 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         "getSessionInfo",
       ).withResponse(mockUserPayload);
 
-      jest.mocked(getToken).mockReturnValue(mockToken);
-      jest.mocked(validateToken).mockResolvedValue(validationResponse);
-      jest.mocked(isSessionExpired).mockReturnValue(true);
+      vi.mocked(getToken).mockReturnValue(mockToken);
+      vi.mocked(validateToken).mockResolvedValue(validationResponse);
+      vi.mocked(isSessionExpired).mockReturnValue(true);
 
-      const dateSpy = jest.spyOn(Date, "now").mockReturnValue(userIat * 1000 + maxAge + 1);
+      const dateSpy = vi
+        .spyOn(Date, "now")
+        .mockReturnValue(userIat * 1000 + maxAge + 1);
 
       const response = await supertest(app).get("/auth/session-info");
       expect(response.status).toBe(HttpStatusCodes.UNAUTHORIZED);
@@ -1507,18 +1657,21 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .setPermissions([])
         .build();
 
-      jest.mocked(getToken).mockReturnValue(mockToken);
-      jest.mocked(validateToken).mockResolvedValue(validationResponse);
-      jest.mocked(isSessionExpired).mockReturnValue(true);
-      (UserQueryUseCase.prototype.sessionUser as jest.Mock).mockResolvedValue(
+      vi.mocked(getToken).mockReturnValue(mockToken);
+      vi.mocked(validateToken).mockResolvedValue(validationResponse);
+      vi.mocked(isSessionExpired).mockReturnValue(true);
+      (UserQueryUseCase.prototype.sessionUser as vi.Mock).mockResolvedValue(
         new ResponseModel<User>("getSessionInfo").withResponse(mockDomainUser),
       );
-      jest.mocked(createJwt).mockResolvedValue("new-jwt-token");
+      vi.mocked(createJwt).mockResolvedValue("new-jwt-token");
 
       const response = await supertest(app).get("/auth/session-info");
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(UserQueryUseCase.prototype.sessionUser).toHaveBeenCalled();
-      expect(createJwt).toHaveBeenCalledWith(expect.objectContaining({ roles: [] }), undefined);
+      expect(createJwt).toHaveBeenCalledWith(
+        expect.objectContaining({ roles: [] }),
+        undefined,
+      );
     });
 
     it("should return undefined authToken when mixed local/external aud and origin are provided (Line 218)", async () => {
@@ -1548,16 +1701,20 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         email: "admin@example.com",
         roles: ["admin"],
       };
-      const refreshedResponse = new ResponseModel("getSessionInfo").withResponse(
+      const refreshedResponse = new ResponseModel(
+        "getSessionInfo",
+      ).withResponse(
         User.builder().setId("user-123").setName("Admin User").build(),
       );
 
-      jest.mocked(getToken).mockReturnValue(mockToken);
-      jest.mocked(validateToken).mockResolvedValue(validationResponseA);
-      jest.mocked(isSessionExpired).mockReturnValue(true);
-      jest.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
-      (UserQueryUseCase.prototype.sessionUser as jest.Mock).mockResolvedValue(refreshedResponse);
-      jest.mocked(createJwt).mockResolvedValue("new-refreshed-jwt-token");
+      vi.mocked(getToken).mockReturnValue(mockToken);
+      vi.mocked(validateToken).mockResolvedValue(validationResponseA);
+      vi.mocked(isSessionExpired).mockReturnValue(true);
+      vi.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
+      (UserQueryUseCase.prototype.sessionUser as vi.Mock).mockResolvedValue(
+        refreshedResponse,
+      );
+      vi.mocked(createJwt).mockResolvedValue("new-refreshed-jwt-token");
 
       const responseA = await supertest(app).get("/auth/session-info");
       expect(responseA.status).toBe(HttpStatusCodes.OK);
@@ -1575,7 +1732,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         "getSessionInfo",
       ).withResponse(mockUserPayloadB);
 
-      jest.mocked(validateToken).mockResolvedValue(validationResponseB);
+      vi.mocked(validateToken).mockResolvedValue(validationResponseB);
 
       const responseB = await supertest(app)
         .get("/auth/session-info")
@@ -1591,9 +1748,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should call logger.err with error and true flag when signIn throws (Line 290)", async () => {
-      const loggerSpy = jest.spyOn(logger, "err").mockImplementation(() => {});
+      const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
 
-      (UserAuthUseCase.prototype.signIn as jest.Mock).mockRejectedValue(
+      (UserAuthUseCase.prototype.signIn as vi.Mock).mockRejectedValue(
         new Error("Unexpected sign-in error"),
       );
 
@@ -1607,10 +1764,17 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should verify transactionId is returned in signIn and signUp responses (Line 235 & 303)", async () => {
-      const mockUser = User.builder().setId("user-123").setName("John Doe").build();
-      const expectedSignInResponse = new ResponseModel("signIn").withResponse(mockUser);
-      jest.mocked(createJwt).mockResolvedValue("jwt-token");
-      (UserAuthUseCase.prototype.signIn as jest.Mock).mockResolvedValue(expectedSignInResponse);
+      const mockUser = User.builder()
+        .setId("user-123")
+        .setName("John Doe")
+        .build();
+      const expectedSignInResponse = new ResponseModel("signIn").withResponse(
+        mockUser,
+      );
+      vi.mocked(createJwt).mockResolvedValue("jwt-token");
+      (UserAuthUseCase.prototype.signIn as vi.Mock).mockResolvedValue(
+        expectedSignInResponse,
+      );
 
       const signInResponse = await supertest(app)
         .post("/auth/sign-in")
@@ -1619,8 +1783,12 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       expect(signInResponse.status).toBe(HttpStatusCodes.OK);
       expect(signInResponse.body.transactionId).toBe("signIn");
 
-      const expectedSignUpResponse = new ResponseModel("signUp").withResponse(mockUser);
-      (UserAuthUseCase.prototype.signUp as jest.Mock).mockResolvedValue(expectedSignUpResponse);
+      const expectedSignUpResponse = new ResponseModel("signUp").withResponse(
+        mockUser,
+      );
+      (UserAuthUseCase.prototype.signUp as vi.Mock).mockResolvedValue(
+        expectedSignUpResponse,
+      );
 
       const signUpResponse = await supertest(app).post("/auth/sign-up").send({
         name: "John Doe",
@@ -1638,7 +1806,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.SYSTEM_ERROR,
         "System failure",
       );
-      (UserAuthUseCase.prototype.signUp as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserAuthUseCase.prototype.signUp as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app).post("/auth/sign-up").send({
         name: "John Doe",
@@ -1652,8 +1822,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should call logger.err with true flag when signUp throws (Line 344)", async () => {
-      const loggerSpy = jest.spyOn(logger, "err").mockImplementation(() => {});
-      (UserAuthUseCase.prototype.signUp as jest.Mock).mockRejectedValue(
+      const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
+      (UserAuthUseCase.prototype.signUp as vi.Mock).mockRejectedValue(
         new Error("Database offline"),
       );
 
@@ -1676,12 +1846,13 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       const authCookie = cookies.find((c) => c.includes("authToken="));
       expect(authCookie).toBeDefined();
       expect(
-        authCookie?.includes("Max-Age=0") || authCookie?.includes("Expires=Thu, 01 Jan 1970"),
+        authCookie?.includes("Max-Age=0") ||
+          authCookie?.includes("Expires=Thu, 01 Jan 1970"),
       ).toBe(true);
     });
 
     it("should call logger.err in validateGoogleCode when verification throws (Line 390)", async () => {
-      const loggerSpy = jest.spyOn(logger, "err").mockImplementation(() => {});
+      const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
 
       const response = await supertest(app)
         .post("/auth/google/callback")
@@ -1698,9 +1869,13 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .setName("John Doe")
         .setEmail("john@example.com")
         .build();
-      const expectedResponse = new ResponseModel("loginWithGoogle").withResponse(mockUser);
-      jest.mocked(createJwt).mockResolvedValue("google-jwt-token");
-      (UserAuthUseCase.prototype.findOrCreate as jest.Mock).mockResolvedValue(expectedResponse);
+      const expectedResponse = new ResponseModel(
+        "loginWithGoogle",
+      ).withResponse(mockUser);
+      vi.mocked(createJwt).mockResolvedValue("google-jwt-token");
+      (UserAuthUseCase.prototype.findOrCreate as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .post("/auth/google/callback")
@@ -1713,19 +1888,25 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should redirect to login with errorMessage when findOrCreate returns null data (Line 415)", async () => {
-      const expectedResponse = new ResponseModel("loginWithGoogle").withResponse(null);
-      (UserAuthUseCase.prototype.findOrCreate as jest.Mock).mockResolvedValue(expectedResponse);
+      const expectedResponse = new ResponseModel(
+        "loginWithGoogle",
+      ).withResponse(null);
+      (UserAuthUseCase.prototype.findOrCreate as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .post("/auth/google/callback")
         .send({ credential: "mock-google-id-token" });
 
       expect(response.status).toBe(302);
-      expect(response.headers.location).toContain("errorMessage=Login%20failed");
+      expect(response.headers.location).toContain(
+        "errorMessage=Login%20failed",
+      );
     });
 
     it("should call logger.err with true flag when google callback throws (Line 440)", async () => {
-      const loggerSpy = jest.spyOn(logger, "err").mockImplementation(() => {});
+      const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
 
       const response = await supertest(app)
         .post("/auth/google/callback")
@@ -1737,8 +1918,12 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should verify transactionId in myAccount call (Line 446)", async () => {
-      const expectedResponse = new ResponseModel("myAccount").withResponse(null);
-      (UserQueryUseCase.prototype.myAccount as jest.Mock).mockResolvedValue(expectedResponse);
+      const expectedResponse = new ResponseModel("myAccount").withResponse(
+        null,
+      );
+      (UserQueryUseCase.prototype.myAccount as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       await supertest(app).get("/auth/my-account");
       expect(UserQueryUseCase.prototype.myAccount).toHaveBeenCalledWith(
@@ -1747,8 +1932,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should call logger.err with true flag when my-account throws (Line 456)", async () => {
-      const loggerSpy = jest.spyOn(logger, "err").mockImplementation(() => {});
-      (UserQueryUseCase.prototype.myAccount as jest.Mock).mockRejectedValue(
+      const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
+      (UserQueryUseCase.prototype.myAccount as vi.Mock).mockRejectedValue(
         new Error("MyAccount failed"),
       );
 
@@ -1758,62 +1943,84 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should verify transactionId in updateProfile call (Line 470)", async () => {
-      const expectedResponse = new ResponseModel("updateMyAccountInformation").withResponse(null);
-      (UserManagementUseCase.prototype.updateProfile as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      const expectedResponse = new ResponseModel(
+        "updateMyAccountInformation",
+      ).withResponse(null);
+      (
+        UserManagementUseCase.prototype.updateProfile as vi.Mock
+      ).mockResolvedValue(expectedResponse);
 
-      await supertest(app).put("/auth/my-account/information").send({ countryCode: "US" });
+      await supertest(app)
+        .put("/auth/my-account/information")
+        .send({ countryCode: "US" });
 
-      expect(UserManagementUseCase.prototype.updateProfile).toHaveBeenCalledWith(
-        expect.objectContaining({ transactionId: "updateMyAccountInformation" }),
+      expect(
+        UserManagementUseCase.prototype.updateProfile,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionId: "updateMyAccountInformation",
+        }),
       );
     });
 
     it("should call logger.err with true flag when updateProfile throws (Line 490)", async () => {
-      const loggerSpy = jest.spyOn(logger, "err").mockImplementation(() => {});
-      (UserManagementUseCase.prototype.updateProfile as jest.Mock).mockRejectedValue(
-        new Error("Update failed"),
-      );
+      const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
+      (
+        UserManagementUseCase.prototype.updateProfile as vi.Mock
+      ).mockRejectedValue(new Error("Update failed"));
 
-      await supertest(app).put("/auth/my-account/information").send({ countryCode: "US" });
+      await supertest(app)
+        .put("/auth/my-account/information")
+        .send({ countryCode: "US" });
 
       expect(loggerSpy).toHaveBeenCalledWith(expect.any(Error), true);
       loggerSpy.mockRestore();
     });
 
     it("should verify transactionId in updatePassword call (Line 502)", async () => {
-      const expectedResponse = new ResponseModel("passwordUpdate").withResponse(null);
-      (UserManagementUseCase.prototype.updatePassword as jest.Mock).mockResolvedValue(
-        expectedResponse,
+      const expectedResponse = new ResponseModel("passwordUpdate").withResponse(
+        null,
       );
+      (
+        UserManagementUseCase.prototype.updatePassword as vi.Mock
+      ).mockResolvedValue(expectedResponse);
 
-      await supertest(app)
-        .put("/auth/password-update")
-        .send({ currentPassword: "a", newPassword: "b", passwordConfirmation: "b" });
+      await supertest(app).put("/auth/password-update").send({
+        currentPassword: "a",
+        newPassword: "b",
+        passwordConfirmation: "b",
+      });
 
-      expect(UserManagementUseCase.prototype.updatePassword).toHaveBeenCalledWith(
+      expect(
+        UserManagementUseCase.prototype.updatePassword,
+      ).toHaveBeenCalledWith(
         expect.objectContaining({ transactionId: "passwordUpdate" }),
       );
     });
 
     it("should call logger.err with true flag when updatePassword throws (Line 523)", async () => {
-      const loggerSpy = jest.spyOn(logger, "err").mockImplementation(() => {});
-      (UserManagementUseCase.prototype.updatePassword as jest.Mock).mockRejectedValue(
-        new Error("Pass failed"),
-      );
+      const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
+      (
+        UserManagementUseCase.prototype.updatePassword as vi.Mock
+      ).mockRejectedValue(new Error("Pass failed"));
 
-      await supertest(app)
-        .put("/auth/password-update")
-        .send({ currentPassword: "a", newPassword: "b", passwordConfirmation: "b" });
+      await supertest(app).put("/auth/password-update").send({
+        currentPassword: "a",
+        newPassword: "b",
+        passwordConfirmation: "b",
+      });
 
       expect(loggerSpy).toHaveBeenCalledWith(expect.any(Error), true);
       loggerSpy.mockRestore();
     });
 
     it("should verify transactionId in getGuestData call (Line 534)", async () => {
-      const expectedResponse = new ResponseModel("signInAsGuest").withResponse(null);
-      (UserAuthUseCase.prototype.getGuestData as jest.Mock).mockResolvedValue(expectedResponse);
+      const expectedResponse = new ResponseModel("signInAsGuest").withResponse(
+        null,
+      );
+      (UserAuthUseCase.prototype.getGuestData as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       await supertest(app).post("/auth/guest/sign-in").send({ guestId: "abc" });
 
@@ -1823,20 +2030,31 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should fallback to HOME_REDIRECT_URI during guest sign-in when redirect is empty (Line 572)", async () => {
-      const mockUser = User.builder().setId("guest-123").setName("Guest").build();
-      const expectedResponse = new ResponseModel("signInAsGuest").withResponse(mockUser);
-      jest.mocked(createJwt).mockResolvedValue("guest-token");
-      (UserAuthUseCase.prototype.getGuestData as jest.Mock).mockResolvedValue(expectedResponse);
+      const mockUser = User.builder()
+        .setId("guest-123")
+        .setName("Guest")
+        .build();
+      const expectedResponse = new ResponseModel("signInAsGuest").withResponse(
+        mockUser,
+      );
+      vi.mocked(createJwt).mockResolvedValue("guest-token");
+      (UserAuthUseCase.prototype.getGuestData as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
-      const response = await supertest(app).post("/auth/guest/sign-in").send({ guestId: "abc" });
+      const response = await supertest(app)
+        .post("/auth/guest/sign-in")
+        .send({ guestId: "abc" });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(response.body.data.redirect).toBe(EnvVars.Auth.APP.HOME_REDIRECT_URI);
+      expect(response.body.data.redirect).toBe(
+        EnvVars.Auth.APP.HOME_REDIRECT_URI,
+      );
     });
 
     it("should call logger.err with true flag when guest sign-in throws (Line 577)", async () => {
-      const loggerSpy = jest.spyOn(logger, "err").mockImplementation(() => {});
-      (UserAuthUseCase.prototype.getGuestData as jest.Mock).mockRejectedValue(
+      const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
+      (UserAuthUseCase.prototype.getGuestData as vi.Mock).mockRejectedValue(
         new Error("Guest throw"),
       );
 
@@ -1847,7 +2065,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should not execute catch block when url is not provided to /redirects (Line 593)", async () => {
-      const loggerSpy = jest.spyOn(logger, "err").mockImplementation(() => {});
+      const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
 
       const response = await supertest(app).post("/auth/redirects").send({});
 
@@ -1857,14 +2075,16 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should execute catch block and log error when url is invalid in /redirects (Line 603)", async () => {
-      const loggerSpy = jest.spyOn(logger, "err").mockImplementation(() => {});
+      const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
 
       const response = await supertest(app)
         .post("/auth/redirects")
         .send({ url: "not-a-valid-url" });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(loggerSpy).toHaveBeenCalledWith("POST: /auth/redirects Invalid redirect URL:");
+      expect(loggerSpy).toHaveBeenCalledWith(
+        "POST: /auth/redirects Invalid redirect URL:",
+      );
       expect(loggerSpy.mock.calls[1][0]).toHaveProperty("message");
       expect(loggerSpy.mock.calls[2][0]).toHaveProperty("message");
       expect(loggerSpy.mock.calls[2][1]).toBe(true);
@@ -1884,9 +2104,11 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       const cookies = parseCookies(response);
-      expect(cookies.some((c) => c.includes("redirectTo=") && c.includes("SameSite=None"))).toBe(
-        true,
-      );
+      expect(
+        cookies.some(
+          (c) => c.includes("redirectTo=") && c.includes("SameSite=None"),
+        ),
+      ).toBe(true);
 
       Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
         value: originalPatterns,
@@ -1895,10 +2117,16 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should verify transactionId in forgotPassword call (Line 617)", async () => {
-      const expectedResponse = new ResponseModel("forgotPassword").withResponse(null);
-      (UserPasswordUseCase.prototype.requestReset as jest.Mock).mockResolvedValue(expectedResponse);
+      const expectedResponse = new ResponseModel("forgotPassword").withResponse(
+        null,
+      );
+      (UserPasswordUseCase.prototype.requestReset as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
-      await supertest(app).post("/auth/forgot-password").send({ email: "test@example.com" });
+      await supertest(app)
+        .post("/auth/forgot-password")
+        .send({ email: "test@example.com" });
 
       expect(UserPasswordUseCase.prototype.requestReset).toHaveBeenCalledWith(
         expect.objectContaining({ transactionId: "forgotPassword" }),
@@ -1910,28 +2138,38 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Email missing",
       );
-      (UserPasswordUseCase.prototype.requestReset as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserPasswordUseCase.prototype.requestReset as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
-      const response = await supertest(app).post("/auth/forgot-password").send({ email: "" });
+      const response = await supertest(app)
+        .post("/auth/forgot-password")
+        .send({ email: "" });
 
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
     });
 
     it("should call logger.err with true flag when forgot-password throws (Line 633)", async () => {
-      const loggerSpy = jest.spyOn(logger, "err").mockImplementation(() => {});
-      (UserPasswordUseCase.prototype.requestReset as jest.Mock).mockRejectedValue(
+      const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
+      (UserPasswordUseCase.prototype.requestReset as vi.Mock).mockRejectedValue(
         new Error("Forgot error"),
       );
 
-      await supertest(app).post("/auth/forgot-password").send({ email: "test@example.com" });
+      await supertest(app)
+        .post("/auth/forgot-password")
+        .send({ email: "test@example.com" });
 
       expect(loggerSpy).toHaveBeenCalledWith(expect.any(Error), true);
       loggerSpy.mockRestore();
     });
 
     it("should verify transactionId in verifyToken call (Line 646) and query token gets passed (Line 647)", async () => {
-      const expectedResponse = new ResponseModel("verifyToken").withResponse(null);
-      (UserPasswordUseCase.prototype.verifyToken as jest.Mock).mockResolvedValue(expectedResponse);
+      const expectedResponse = new ResponseModel("verifyToken").withResponse(
+        null,
+      );
+      (UserPasswordUseCase.prototype.verifyToken as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       await supertest(app).get("/auth/verify-token").query({ token: "test" });
 
@@ -1948,16 +2186,20 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Expired",
       );
-      (UserPasswordUseCase.prototype.verifyToken as jest.Mock).mockResolvedValue(expectedResponse);
+      (UserPasswordUseCase.prototype.verifyToken as vi.Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
-      const response = await supertest(app).get("/auth/verify-token").query({ token: "expired" });
+      const response = await supertest(app)
+        .get("/auth/verify-token")
+        .query({ token: "expired" });
 
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
     });
 
     it("should call logger.err with true flag when verifyToken throws (Line 662)", async () => {
-      const loggerSpy = jest.spyOn(logger, "err").mockImplementation(() => {});
-      (UserPasswordUseCase.prototype.verifyToken as jest.Mock).mockRejectedValue(
+      const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
+      (UserPasswordUseCase.prototype.verifyToken as vi.Mock).mockRejectedValue(
         new Error("Verify throw"),
       );
 
@@ -1968,12 +2210,16 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should verify transactionId in resetPassword call (Line 675)", async () => {
-      const expectedResponse = new ResponseModel("resetPassword").withResponse(null);
-      (UserPasswordUseCase.prototype.resetPassword as jest.Mock).mockResolvedValue(
-        expectedResponse,
+      const expectedResponse = new ResponseModel("resetPassword").withResponse(
+        null,
       );
+      (
+        UserPasswordUseCase.prototype.resetPassword as vi.Mock
+      ).mockResolvedValue(expectedResponse);
 
-      await supertest(app).post("/auth/reset-password").send({ token: "t", password: "p" });
+      await supertest(app)
+        .post("/auth/reset-password")
+        .send({ token: "t", password: "p" });
 
       expect(UserPasswordUseCase.prototype.resetPassword).toHaveBeenCalledWith(
         expect.objectContaining({ transactionId: "resetPassword" }),
@@ -1985,9 +2231,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Fail",
       );
-      (UserPasswordUseCase.prototype.resetPassword as jest.Mock).mockResolvedValue(
-        expectedResponse,
-      );
+      (
+        UserPasswordUseCase.prototype.resetPassword as vi.Mock
+      ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
         .post("/auth/reset-password")
@@ -1997,12 +2243,14 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should call logger.err with true flag when resetPassword throws (Line 692)", async () => {
-      const loggerSpy = jest.spyOn(logger, "err").mockImplementation(() => {});
-      (UserPasswordUseCase.prototype.resetPassword as jest.Mock).mockRejectedValue(
-        new Error("Reset throw"),
-      );
+      const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
+      (
+        UserPasswordUseCase.prototype.resetPassword as vi.Mock
+      ).mockRejectedValue(new Error("Reset throw"));
 
-      await supertest(app).post("/auth/reset-password").send({ token: "t", password: "p" });
+      await supertest(app)
+        .post("/auth/reset-password")
+        .send({ token: "t", password: "p" });
 
       expect(loggerSpy).toHaveBeenCalledWith(expect.any(Error), true);
       loggerSpy.mockRestore();
@@ -2039,9 +2287,14 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         ),
       );
 
-      const mockUser = User.builder().setId("user-123").setName("John Doe").build();
-      const expectedResponse = new ResponseModel<User>("signIn").withResponse(mockUser);
-      jest.mocked(createJwt).mockResolvedValue("jwt-token");
+      const mockUser = User.builder()
+        .setId("user-123")
+        .setName("John Doe")
+        .build();
+      const expectedResponse = new ResponseModel<User>("signIn").withResponse(
+        mockUser,
+      );
+      vi.mocked(createJwt).mockResolvedValue("jwt-token");
       mockUserAuthUseCase.signIn.mockResolvedValue(expectedResponse);
 
       const response = await supertest(testApp)
@@ -2050,7 +2303,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .send({ email: "john@example.com", password: "Password123!" });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(response.body.data.redirect).toBe("http://my-home-domain.com/dashboard");
+      expect(response.body.data.redirect).toBe(
+        "http://my-home-domain.com/dashboard",
+      );
 
       Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
         value: originalPatterns,
@@ -2059,7 +2314,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should call logger.err with getSessionInfo when invalid redirect is passed during refresh (Line 208)", async () => {
-      const loggerSpy = jest.spyOn(logger, "err").mockImplementation(() => {});
+      const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
 
       const mockToken = "valid-token";
       const mockUserPayload = {
@@ -2078,16 +2333,20 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         email: "admin@example.com",
         roles: ["admin"],
       };
-      const refreshedResponse = new ResponseModel("getSessionInfo").withResponse(
+      const refreshedResponse = new ResponseModel(
+        "getSessionInfo",
+      ).withResponse(
         User.builder().setId("user-123").setName("Admin User").build(),
       );
 
-      jest.mocked(getToken).mockReturnValue(mockToken);
-      jest.mocked(validateToken).mockResolvedValue(validationResponse);
-      jest.mocked(isSessionExpired).mockReturnValue(true);
-      jest.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
-      (UserQueryUseCase.prototype.sessionUser as jest.Mock).mockResolvedValue(refreshedResponse);
-      jest.mocked(createJwt).mockResolvedValue("new-jwt-token");
+      vi.mocked(getToken).mockReturnValue(mockToken);
+      vi.mocked(validateToken).mockResolvedValue(validationResponse);
+      vi.mocked(isSessionExpired).mockReturnValue(true);
+      vi.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
+      (UserQueryUseCase.prototype.sessionUser as vi.Mock).mockResolvedValue(
+        refreshedResponse,
+      );
+      vi.mocked(createJwt).mockResolvedValue("new-jwt-token");
 
       const response = await supertest(app)
         .get("/auth/session-info")
@@ -2095,13 +2354,15 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(loggerSpy).toHaveBeenCalledWith(
-        expect.stringContaining("getSessionInfo Invalid URL: http://[invalid-url]"),
+        expect.stringContaining(
+          "getSessionInfo Invalid URL: http://[invalid-url]",
+        ),
       );
       loggerSpy.mockRestore();
     });
 
     it("should verify permissions are passed correctly to hasPermissions middleware (Lines 445, 468, 501)", () => {
-      jest.mocked(hasPermissions).mockClear();
+      vi.mocked(hasPermissions).mockClear();
 
       createAuthRouter(
         mock<UserAuthUseCase>(),
@@ -2110,7 +2371,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         mock<UserQueryUseCase>(),
       );
 
-      const calls = jest.mocked(hasPermissions).mock.calls;
+      const calls = vi.mocked(hasPermissions).mock.calls;
       expect(calls).toHaveLength(3);
       expect(calls[0][0]).toEqual(["my-account::query"]);
       expect(calls[1][0]).toEqual(["my-account::update"]);
@@ -2136,9 +2397,14 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         ),
       );
 
-      const mockUser = User.builder().setId("user-123").setName("John Doe").build();
-      const expectedResponse = new ResponseModel<User>("signIn").withResponse(mockUser);
-      jest.mocked(createJwt).mockResolvedValue("jwt-token");
+      const mockUser = User.builder()
+        .setId("user-123")
+        .setName("John Doe")
+        .build();
+      const expectedResponse = new ResponseModel<User>("signIn").withResponse(
+        mockUser,
+      );
+      vi.mocked(createJwt).mockResolvedValue("jwt-token");
       mockUserAuthUseCase.signIn.mockResolvedValue(expectedResponse);
 
       const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
@@ -2179,7 +2445,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       const redirectCookie = cookies.find((c) => c.includes("redirectTo="));
       expect(redirectCookie).toBeDefined();
       const decodedCookie = decodeURIComponent(redirectCookie ?? "");
-      expect(decodedCookie.includes("redirectTo=data:text/html,hello")).toBe(true);
+      expect(decodedCookie.includes("redirectTo=data:text/html,hello")).toBe(
+        true,
+      );
 
       Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
         value: originalPatterns,
@@ -2205,13 +2473,13 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .setRoles(["guest", "other-role"])
         .build();
 
-      jest.mocked(getToken).mockReturnValue(mockToken);
-      jest.mocked(validateToken).mockResolvedValue(validationResponse);
-      jest.mocked(isSessionExpired).mockReturnValue(true);
-      (UserAuthUseCase.prototype.getGuestData as jest.Mock).mockResolvedValue(
+      vi.mocked(getToken).mockReturnValue(mockToken);
+      vi.mocked(validateToken).mockResolvedValue(validationResponse);
+      vi.mocked(isSessionExpired).mockReturnValue(true);
+      (UserAuthUseCase.prototype.getGuestData as vi.Mock).mockResolvedValue(
         new ResponseModel<User>("getSessionInfo").withResponse(mockDomainUser),
       );
-      jest.mocked(createJwt).mockResolvedValue("guest-jwt");
+      vi.mocked(createJwt).mockResolvedValue("guest-jwt");
 
       const response = await supertest(app).get("/auth/session-info");
       expect(response.status).toBe(HttpStatusCodes.OK);
