@@ -6,7 +6,7 @@ import { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase";
 import { UserPasswordUseCase } from "@src/Domain/User/UseCase/UserPasswordUseCase";
 import { UserManagementUseCase } from "@src/Domain/User/UseCase/UserManagementUseCase";
 import { hasPermissions } from "@variamosple/variamos-security";
-import { Router } from "express";
+import { Router, Request } from "express";
 import logger from "jet-logger";
 import { USER_ROLES_V1_ROUTE } from "./UserRolesV1Router";
 import { mapDomainErrorToHttpStatus } from "./errorMapper";
@@ -48,114 +48,134 @@ export function createUsersRouter(
     }
   });
 
-  router.get("/:userId", hasPermissions(["users::query"]), async (req, res) => {
-    const transactionId = "queryUserById";
-    const userId = req.params.userId;
+  router.get(
+    "/:userId",
+    hasPermissions(["users::query"]),
+    async (req: Request<{ userId: string }>, res) => {
+      const transactionId = "queryUserById";
+      const userId = req.params.userId;
 
-    try {
-      const request = new RequestModel<string>(transactionId, userId);
-      const response = await userQueryUseCase.queryById(request);
+      try {
+        const request = new RequestModel<string>(transactionId, userId);
+        const response = await userQueryUseCase.queryById(request);
 
-      const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
-      res.status(status).json(response);
-    } catch (error) {
-      logger.err(error as Error);
-      const response = new ResponseModel(
-        transactionId,
-        DomainErrorCodes.SYSTEM_ERROR,
-        "Internal Server Error",
-      );
-      res.status(500).json(response);
-    }
-  });
+        const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
+        res.status(status).json(response);
+      } catch (error) {
+        logger.err(error as Error);
+        const response = new ResponseModel(
+          transactionId,
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal Server Error",
+        );
+        res.status(500).json(response);
+      }
+    },
+  );
 
-  router.post("/:userId/recovery-link", hasPermissions(["users::update"]), async (req, res) => {
-    const transactionId = "generateRecoveryLink";
-    const userId = req.params.userId;
-    const adminId = (req.user as { id: string }).id;
+  router.post(
+    "/:userId/recovery-link",
+    hasPermissions(["users::update"]),
+    async (req: Request<{ userId: string }>, res) => {
+      const transactionId = "generateRecoveryLink";
+      const userId = req.params.userId;
+      const adminId = (req.user as { id: string }).id;
 
-    try {
-      const request = new RequestModel<{ userId: string; adminId: string }>(transactionId, {
-        userId,
-        adminId,
-      });
-      const response = await userPasswordUseCase.generateLink(request);
+      try {
+        const request = new RequestModel<{ userId: string; adminId: string }>(transactionId, {
+          userId,
+          adminId,
+        });
+        const response = await userPasswordUseCase.generateLink(request);
 
-      const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
-      res.status(status).json(response);
-    } catch (error) {
-      logger.err(error as Error);
-      const response = new ResponseModel(
-        transactionId,
-        DomainErrorCodes.SYSTEM_ERROR,
-        "Internal Server Error",
-      );
-      res.status(500).json(response);
-    }
-  });
+        const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
+        res.status(status).json(response);
+      } catch (error) {
+        logger.err(error as Error);
+        const response = new ResponseModel(
+          transactionId,
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal Server Error",
+        );
+        res.status(500).json(response);
+      }
+    },
+  );
 
-  router.put("/:userId/disable", hasPermissions(["users::update"]), async (req, res) => {
-    const transactionId = "disableUser";
-    const userId = req.params.userId;
+  router.put(
+    "/:userId/disable",
+    hasPermissions(["users::update"]),
+    async (req: Request<{ userId: string }>, res) => {
+      const transactionId = "disableUser";
+      const userId = req.params.userId;
 
-    try {
-      const request = new RequestModel<string>(transactionId, userId);
-      const response = await userManagementUseCase.disable(request);
+      try {
+        const request = new RequestModel<string>(transactionId, userId);
+        const response = await userManagementUseCase.disable(request);
 
-      const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
-      res.status(status).json(response);
-    } catch (error) {
-      logger.err(error as Error);
-      const response = new ResponseModel(
-        transactionId,
-        DomainErrorCodes.SYSTEM_ERROR,
-        "Internal Server Error",
-      );
-      res.status(500).json(response);
-    }
-  });
+        const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
+        res.status(status).json(response);
+      } catch (error) {
+        logger.err(error as Error);
+        const response = new ResponseModel(
+          transactionId,
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal Server Error",
+        );
+        res.status(500).json(response);
+      }
+    },
+  );
 
-  router.put("/:userId/enable", hasPermissions(["users::update"]), async (req, res) => {
-    const transactionId = "enableUser";
-    const userId = req.params.userId;
+  router.put(
+    "/:userId/enable",
+    hasPermissions(["users::update"]),
+    async (req: Request<{ userId: string }>, res) => {
+      const transactionId = "enableUser";
+      const userId = req.params.userId;
 
-    try {
-      const request = new RequestModel<string>(transactionId, userId);
-      const response = await userManagementUseCase.enable(request);
+      try {
+        const request = new RequestModel<string>(transactionId, userId);
+        const response = await userManagementUseCase.enable(request);
 
-      const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
-      res.status(status).json(response);
-    } catch (error) {
-      logger.err(error as Error);
-      const response = new ResponseModel(
-        transactionId,
-        DomainErrorCodes.SYSTEM_ERROR,
-        "Internal Server Error",
-      );
-      res.status(500).json(response);
-    }
-  });
+        const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
+        res.status(status).json(response);
+      } catch (error) {
+        logger.err(error as Error);
+        const response = new ResponseModel(
+          transactionId,
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal Server Error",
+        );
+        res.status(500).json(response);
+      }
+    },
+  );
 
-  router.delete("/:userId", hasPermissions(["users::delete"]), async (req, res) => {
-    const transactionId = "deleteUser";
-    const userId = req.params.userId;
+  router.delete(
+    "/:userId",
+    hasPermissions(["users::delete"]),
+    async (req: Request<{ userId: string }>, res) => {
+      const transactionId = "deleteUser";
+      const userId = req.params.userId;
 
-    try {
-      const request = new RequestModel<string>(transactionId, userId);
-      const response = await userManagementUseCase.delete(request);
+      try {
+        const request = new RequestModel<string>(transactionId, userId);
+        const response = await userManagementUseCase.delete(request);
 
-      const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
-      res.status(status).json(response);
-    } catch (error) {
-      logger.err(error as Error);
-      const response = new ResponseModel(
-        transactionId,
-        DomainErrorCodes.SYSTEM_ERROR,
-        "Internal Server Error",
-      );
-      res.status(500).json(response);
-    }
-  });
+        const status = mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes);
+        res.status(status).json(response);
+      } catch (error) {
+        logger.err(error as Error);
+        const response = new ResponseModel(
+          transactionId,
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal Server Error",
+        );
+        res.status(500).json(response);
+      }
+    },
+  );
 
   router.use(USER_ROLES_V1_ROUTE, userRolesRouter);
 

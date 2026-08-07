@@ -10,8 +10,6 @@ import logger from "jet-logger";
 import morgan from "morgan";
 import path from "path";
 
-import "express-async-errors";
-
 import EnvVars from "@src/common/EnvVars";
 import HttpStatusCodes from "@src/common/HttpStatusCodes";
 import { RouteError } from "@src/common/classes";

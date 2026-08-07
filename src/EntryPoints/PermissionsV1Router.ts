@@ -5,7 +5,7 @@ import { Permission } from "@src/Domain/Permission/Entity/Permission";
 import { PermissionFilter } from "@src/Domain/Permission/Entity/PermissionFilter";
 import { PermissionUseCase } from "@src/Domain/Permission/UseCase/PermissionUseCase";
 import { hasPermissions } from "@variamosple/variamos-security";
-import { Router } from "express";
+import { Router, Request } from "express";
 import logger from "jet-logger";
 import { mapDomainErrorToHttpStatus } from "./errorMapper";
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes";
@@ -89,7 +89,7 @@ export function createPermissionsRouter(permissionUseCase: PermissionUseCase): R
   permissionsV1Router.delete(
     "/:permissionId",
     hasPermissions(["permissions::delete"]),
-    async (req, res) => {
+    async (req: Request<{ permissionId: string }>, res) => {
       const transactionId = "deletePermission";
       const permissionId = req.params.permissionId;
       try {
@@ -124,7 +124,7 @@ export function createPermissionsRouter(permissionUseCase: PermissionUseCase): R
   permissionsV1Router.get(
     "/:permissionId",
     hasPermissions(["permissions::query"]),
-    async (req, res) => {
+    async (req: Request<{ permissionId: string }>, res) => {
       const transactionId = "queryPermissionById";
       const permissionId = req.params.permissionId;
 
@@ -160,7 +160,7 @@ export function createPermissionsRouter(permissionUseCase: PermissionUseCase): R
   permissionsV1Router.put(
     "/:permissionId",
     hasPermissions(["permissions::update"]),
-    async (req, res) => {
+    async (req: Request<{ permissionId: string }>, res) => {
       const transactionId = "updatePermission";
       const permissionId = req.params.permissionId;
       const { name } = req.body as { name?: string };

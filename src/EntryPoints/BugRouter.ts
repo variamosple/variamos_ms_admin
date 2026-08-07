@@ -178,104 +178,120 @@ export function createBugRouter(
   });
 
   // Get status log history
-  router.get("/:id/history", authMiddleware, async (req: Request, res: Response) => {
-    const transactionId = "queryHistory";
-    const { id } = req.params;
+  router.get(
+    "/:id/history",
+    authMiddleware,
+    async (req: Request<{ id: string }>, res: Response) => {
+      const transactionId = "queryHistory";
+      const { id } = req.params;
 
-    try {
-      const request = new RequestModel<string>(transactionId, id);
-      const response = await bugQueryUseCase.queryHistory(request);
+      try {
+        const request = new RequestModel<string>(transactionId, id);
+        const response = await bugQueryUseCase.queryHistory(request);
 
-      const code = mapDomainErrorToHttpStatus(response.errorCode);
-      res.status(code).json(response);
-    } catch (error) {
-      logger.err(error);
-      res.status(HttpStatusCodes.BAD_REQUEST).json({ error: (error as Error).message });
-    }
-  });
+        const code = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(code).json(response);
+      } catch (error) {
+        logger.err(error);
+        res.status(HttpStatusCodes.BAD_REQUEST).json({ error: (error as Error).message });
+      }
+    },
+  );
 
   // Update status
-  router.post("/:id/status", authMiddleware, async (req: Request, res: Response) => {
-    const transactionId = "updateStatus";
-    const { id } = req.params;
-    const { status, comment, title, description, priority, category, githubRepo } = req.body as {
-      status?: string;
-      comment?: string;
-      title?: string;
-      description?: string;
-      priority?: string;
-      category?: string;
-      githubRepo?: string;
-    };
-    const adminId = (req as RequestWithUser).user.id;
-    const adminEmail = (req as RequestWithUser).user.email || "";
-
-    try {
-      const validPriorities = ["low", "medium", "high"];
-      const resolvedPriority = validPriorities.includes(priority || "")
-        ? (priority as "low" | "medium" | "high")
-        : undefined;
-
-      const payload = {
-        id,
-        status: status || "",
-        comment: comment || undefined,
-        adminId,
-        adminEmail: adminEmail || undefined,
-        title: title || undefined,
-        description: description || undefined,
-        priority: resolvedPriority,
-        category: category || undefined,
-        githubRepo: githubRepo || undefined,
+  router.post(
+    "/:id/status",
+    authMiddleware,
+    async (req: Request<{ id: string }>, res: Response) => {
+      const transactionId = "updateStatus";
+      const { id } = req.params;
+      const { status, comment, title, description, priority, category, githubRepo } = req.body as {
+        status?: string;
+        comment?: string;
+        title?: string;
+        description?: string;
+        priority?: string;
+        category?: string;
+        githubRepo?: string;
       };
-      const request = new RequestModel<typeof payload>(transactionId, payload);
-      const response = await bugLifecycleUseCase.updateStatus(request);
+      const adminId = (req as RequestWithUser).user.id;
+      const adminEmail = (req as RequestWithUser).user.email || "";
 
-      const code = mapDomainErrorToHttpStatus(response.errorCode);
-      res.status(code).json(response);
-    } catch (error) {
-      logger.err(error);
-      res.status(HttpStatusCodes.BAD_REQUEST).json({ error: (error as Error).message });
-    }
-  });
+      try {
+        const validPriorities = ["low", "medium", "high"];
+        const resolvedPriority = validPriorities.includes(priority || "")
+          ? (priority as "low" | "medium" | "high")
+          : undefined;
+
+        const payload = {
+          id,
+          status: status || "",
+          comment: comment || undefined,
+          adminId,
+          adminEmail: adminEmail || undefined,
+          title: title || undefined,
+          description: description || undefined,
+          priority: resolvedPriority,
+          category: category || undefined,
+          githubRepo: githubRepo || undefined,
+        };
+        const request = new RequestModel<typeof payload>(transactionId, payload);
+        const response = await bugLifecycleUseCase.updateStatus(request);
+
+        const code = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(code).json(response);
+      } catch (error) {
+        logger.err(error);
+        res.status(HttpStatusCodes.BAD_REQUEST).json({ error: (error as Error).message });
+      }
+    },
+  );
 
   // Restore bug
-  router.post("/:id/restore", authMiddleware, async (req: Request, res: Response) => {
-    const transactionId = "restoreBug";
-    const { id } = req.params;
-    const adminId = (req as RequestWithUser).user.id;
+  router.post(
+    "/:id/restore",
+    authMiddleware,
+    async (req: Request<{ id: string }>, res: Response) => {
+      const transactionId = "restoreBug";
+      const { id } = req.params;
+      const adminId = (req as RequestWithUser).user.id;
 
-    try {
-      const payload = { id, adminId };
-      const request = new RequestModel<typeof payload>(transactionId, payload);
-      const response = await bugLifecycleUseCase.restoreBug(request);
+      try {
+        const payload = { id, adminId };
+        const request = new RequestModel<typeof payload>(transactionId, payload);
+        const response = await bugLifecycleUseCase.restoreBug(request);
 
-      const code = mapDomainErrorToHttpStatus(response.errorCode);
-      res.status(code).json(response);
-    } catch (error) {
-      logger.err(error);
-      res.status(HttpStatusCodes.BAD_REQUEST).json({ error: (error as Error).message });
-    }
-  });
+        const code = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(code).json(response);
+      } catch (error) {
+        logger.err(error);
+        res.status(HttpStatusCodes.BAD_REQUEST).json({ error: (error as Error).message });
+      }
+    },
+  );
 
   // Reject bug
-  router.post("/:id/reject", authMiddleware, async (req: Request, res: Response) => {
-    const transactionId = "rejectBug";
-    const { id } = req.params;
-    const adminId = (req as RequestWithUser).user.id;
+  router.post(
+    "/:id/reject",
+    authMiddleware,
+    async (req: Request<{ id: string }>, res: Response) => {
+      const transactionId = "rejectBug";
+      const { id } = req.params;
+      const adminId = (req as RequestWithUser).user.id;
 
-    try {
-      const payload = { id, adminId };
-      const request = new RequestModel<typeof payload>(transactionId, payload);
-      const response = await bugLifecycleUseCase.rejectBug(request);
+      try {
+        const payload = { id, adminId };
+        const request = new RequestModel<typeof payload>(transactionId, payload);
+        const response = await bugLifecycleUseCase.rejectBug(request);
 
-      const code = mapDomainErrorToHttpStatus(response.errorCode);
-      res.status(code).json(response);
-    } catch (error) {
-      logger.err(error);
-      res.status(HttpStatusCodes.BAD_REQUEST).json({ error: (error as Error).message });
-    }
-  });
+        const code = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(code).json(response);
+      } catch (error) {
+        logger.err(error);
+        res.status(HttpStatusCodes.BAD_REQUEST).json({ error: (error as Error).message });
+      }
+    },
+  );
 
   // Synchronize with GitHub
   router.post("/sync", authMiddleware, async (req: Request, res: Response) => {
@@ -303,7 +319,7 @@ export function createBugRouter(
     "/:id/attachments",
     authMiddleware,
     upload.single("file"),
-    async (req: Request, res: Response) => {
+    async (req: Request<{ id: string }>, res: Response) => {
       const transactionId = "addAttachment";
       const { id } = req.params;
       if (!req.file) {
@@ -330,22 +346,26 @@ export function createBugRouter(
   );
 
   // Delete attachment
-  router.delete("/attachments/:id", authMiddleware, async (req: Request, res: Response) => {
-    const transactionId = "deleteAttachment";
-    const { id } = req.params;
-    try {
-      const request = new RequestModel<string>(transactionId, id);
-      const response = await bugAttachmentUseCase.deleteAttachment(request);
-      const code = mapDomainErrorToHttpStatus(response.errorCode);
-      res.status(code).json(response);
-    } catch (error) {
-      logger.err(error);
-      res.status(HttpStatusCodes.BAD_REQUEST).json({ error: (error as Error).message });
-    }
-  });
+  router.delete(
+    "/attachments/:id",
+    authMiddleware,
+    async (req: Request<{ id: string }>, res: Response) => {
+      const transactionId = "deleteAttachment";
+      const { id } = req.params;
+      try {
+        const request = new RequestModel<string>(transactionId, id);
+        const response = await bugAttachmentUseCase.deleteAttachment(request);
+        const code = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(code).json(response);
+      } catch (error) {
+        logger.err(error);
+        res.status(HttpStatusCodes.BAD_REQUEST).json({ error: (error as Error).message });
+      }
+    },
+  );
 
   // Create bug note
-  router.post("/:id/notes", authMiddleware, async (req: Request, res: Response) => {
+  router.post("/:id/notes", authMiddleware, async (req: Request<{ id: string }>, res: Response) => {
     const transactionId = "createBugNote";
     const { id } = req.params;
     const { body } = req.body as { body?: string };
@@ -364,7 +384,7 @@ export function createBugRouter(
   });
 
   // Query bug notes
-  router.get("/:id/notes", authMiddleware, async (req: Request, res: Response) => {
+  router.get("/:id/notes", authMiddleware, async (req: Request<{ id: string }>, res: Response) => {
     const transactionId = "queryBugNotes";
     const { id } = req.params;
 
