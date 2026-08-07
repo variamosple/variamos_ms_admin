@@ -4,5 +4,12 @@
     "sourceMap": false,
     "removeComments": true
   },
-  "exclude": ["spec", "build.ts"]
+  "exclude": [
+    "spec",
+    "build.ts",
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
+    "vitest.setup.ts",
+    "vitest.config.ts"
+  ]
 }
