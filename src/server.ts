@@ -3,6 +3,11 @@
  */
 
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 import { RouteError } from "@src/common/classes.js";
 import EnvVars from "@src/common/EnvVars.js";
 import HttpStatusCodes from "@src/common/HttpStatusCodes.js";

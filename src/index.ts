@@ -38,7 +38,11 @@ import "./DataProviders/Bug/BugAssociations.js";
 
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import multer from "multer";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, "./public/uploads");
