@@ -15,6 +15,10 @@ import logger from "jet-logger";
     await remove("./dist/");
     // Copy back-end files
     await exec("tsc --build tsconfig.prod.json && npx tsc-alias -p tsconfig.prod.json", "./");
+    // Verify production entrypoint exists to prevent deploy startup crashes
+    if (!fs.existsSync("./dist/index.js")) {
+      throw new Error("Build Error: dist/index.js was not generated. Check compilerOptions.rootDir configuration!");
+    }
   } catch (err) {
     logger.err(err);
     process.exit(1);
