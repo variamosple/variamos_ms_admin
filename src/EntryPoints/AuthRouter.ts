@@ -1,3 +1,5 @@
+import EnvVars from "@src/common/EnvVars.js";
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import type { Nullable } from "@src/Domain/Core/Entity/Nullable.js";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
@@ -13,14 +15,12 @@ import type { UserAuthUseCase } from "@src/Domain/User/UseCase/UserAuthUseCase.j
 import type { UserManagementUseCase } from "@src/Domain/User/UseCase/UserManagementUseCase.js";
 import type { UserPasswordUseCase } from "@src/Domain/User/UseCase/UserPasswordUseCase.js";
 import type { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase.js";
-import EnvVars from "@src/common/EnvVars.js";
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import {
-  type SessionUser,
   createJwt,
   getToken,
   hasPermissions,
   isSessionExpired,
+  type SessionUser,
   sessionInfoToSessionUser,
   validateToken,
 } from "@variamosple/variamos-security";
@@ -210,7 +210,7 @@ export function createAuthRouter(
         );
       }
 
-      if (!!refreshedUser.errorCode || !refreshedUser.data) {
+      if (refreshedUser.errorCode || !refreshedUser.data) {
         return res
           .status(HttpStatusCodes.UNAUTHORIZED)
           .json(

@@ -1,14 +1,13 @@
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
 import { Role } from "@src/Domain/Role/Entity/Role.js";
 import { RoleManagementUseCase } from "@src/Domain/Role/UseCase/RoleManagementUseCase.js";
 import { RoleQueryUseCase } from "@src/Domain/Role/UseCase/RoleQueryUseCase.js";
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import express from "express";
 import supertest from "supertest";
-import { createRolesRouter } from "./RolesV1Router.js";
-
 import { mock } from "vitest-mock-extended";
+import { createRolesRouter } from "./RolesV1Router.js";
 
 // Mock dependencies
 vi.mock("@src/Domain/Role/UseCase/RoleQueryUseCase");

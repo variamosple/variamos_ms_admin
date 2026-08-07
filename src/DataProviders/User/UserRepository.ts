@@ -291,12 +291,7 @@ export class UserRepositoryImpl
 
       const errorMessage = "Incorrect username or password.";
 
-      if (
-        !dbUser ||
-        !dbUser.password ||
-        !dbUser.isEnabled ||
-        dbUser.isDeleted
-      ) {
+      if (!dbUser?.password || !dbUser.isEnabled || dbUser.isDeleted) {
         return response.withError(DomainErrorCodes.INVALID_INPUT, errorMessage);
       }
 
@@ -564,7 +559,7 @@ export class UserRepositoryImpl
   }
 
   private async enrichUserRolesAndPermissions(user: User) {
-    if (!user || !user.id) {
+    if (!user?.id) {
       return;
     }
 

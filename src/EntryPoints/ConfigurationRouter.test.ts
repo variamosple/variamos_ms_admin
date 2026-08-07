@@ -1,5 +1,5 @@
-import type { Menu } from "@src/Domain/Menu/Entity/Menu.js";
 import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
+import type { Menu } from "@src/Domain/Menu/Entity/Menu.js";
 import express from "express";
 import supertest from "supertest";
 import { createConfigurationRouter } from "./ConfigurationRouter.js";

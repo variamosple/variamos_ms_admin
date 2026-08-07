@@ -1,19 +1,18 @@
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
 import { User } from "@src/Domain/User/Entity/User.js";
 import { UserManagementUseCase } from "@src/Domain/User/UseCase/UserManagementUseCase.js";
 import { UserPasswordUseCase } from "@src/Domain/User/UseCase/UserPasswordUseCase.js";
 import { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase.js";
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import express, {
+  type NextFunction,
   type Request,
   type Response,
-  type NextFunction,
 } from "express";
 import supertest from "supertest";
-import { createUsersRouter } from "./UsersV1Router.js";
-
 import { mock } from "vitest-mock-extended";
+import { createUsersRouter } from "./UsersV1Router.js";
 
 vi.mock("@src/Domain/User/UseCase/UserQueryUseCase");
 vi.mock("@src/Domain/User/UseCase/UserPasswordUseCase");

@@ -631,7 +631,7 @@ describe("BugSyncUseCase", () => {
     const calls = mockBugRepository.saveOrUpdateBug.mock.calls;
     expect(calls.length).toBe(3);
     const thirdCall = calls[2];
-    if (!thirdCall || !thirdCall[0] || !thirdCall[0].data) {
+    if (!thirdCall?.[0]?.data) {
       throw new Error("Expected third call to have data");
     }
     const updatedAt = thirdCall[0].data.updatedAt;

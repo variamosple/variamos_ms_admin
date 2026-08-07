@@ -1,8 +1,12 @@
 import { vi, afterAll } from "vitest";
 import VARIAMOS_ORM from "./src/Infrastructure/VariamosORM.js";
-
-// Set global jest object to map to Vitest's vi to support all existing test code without rewriting it
-(globalThis as any).jest = vi;
+declare global {
+  namespace vi {
+    type Mock<T extends (...args: any[]) => any = (...args: any[]) => any> = import("vitest").Mock<T>;
+    type Mocked<T> = import("vitest").Mocked<T>;
+    type SpyInstance<T extends (...args: any[]) => any = (...args: any[]) => any> = import("vitest").MockInstance<T>;
+  }
+}
 
 // Silence console logs and errors during test executions to keep output clean
 vi.spyOn(console, "log").mockImplementation(() => {});

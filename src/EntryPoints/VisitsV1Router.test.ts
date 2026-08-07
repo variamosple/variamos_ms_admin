@@ -1,13 +1,12 @@
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
 import { Visit } from "@src/Domain/Visit/Entity/Visit.js";
 import { VisitUseCase } from "@src/Domain/Visit/UseCase/VisitUseCase.js";
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import express from "express";
 import supertest from "supertest";
-import { createVisitsRouter } from "./VisitsV1Router.js";
-
 import { mock } from "vitest-mock-extended";
+import { createVisitsRouter } from "./VisitsV1Router.js";
 
 interface CustomRequest {
   user?: { id: string };

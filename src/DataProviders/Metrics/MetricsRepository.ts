@@ -55,7 +55,7 @@ export class MetricsRepositoryImpl
               }[];
             }
           | undefined;
-        if (!resObj || !resObj.data) return [];
+        if (!resObj?.data) return [];
         return resObj.data.map(
           ({ id, title, chartType, defaultFilter, filters, labelKey, data }) =>
             Metric.builder()
@@ -143,8 +143,7 @@ export class MetricsRepositoryImpl
               };
             }
           | undefined;
-        if (!resObj || !resObj.data)
-          throw new Error("Invalid database response format");
+        if (!resObj?.data) throw new Error("Invalid database response format");
         const {
           id,
           title,

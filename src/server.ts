@@ -3,6 +3,10 @@
  */
 
 import path from "node:path";
+import { RouteError } from "@src/common/classes.js";
+import EnvVars from "@src/common/EnvVars.js";
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
+import { NodeEnvs } from "@src/common/misc.js";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express, {
@@ -14,11 +18,6 @@ import express, {
 import helmet from "helmet";
 import logger from "jet-logger";
 import morgan from "morgan";
-
-import EnvVars from "@src/common/EnvVars.js";
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
-import { RouteError } from "@src/common/classes.js";
-import { NodeEnvs } from "@src/common/misc.js";
 
 export function createServer(baseRouter: Router) {
   const app = express();
@@ -67,24 +66,16 @@ export function createServer(baseRouter: Router) {
   app.use("/", baseRouter);
 
   // Add error handler
-  app.use(
-    (
-      err: Error,
-      _: Request,
-      res: Response,
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      _next: NextFunction,
-    ) => {
-      if (EnvVars.NodeEnv !== NodeEnvs.Test.valueOf()) {
-        logger.err(err, true);
-      }
-      let status = HttpStatusCodes.BAD_REQUEST;
-      if (err instanceof RouteError) {
-        status = err.status;
-      }
-      return res.status(status).json({ error: err.message });
-    },
-  );
+  app.use((err: Error, _: Request, res: Response, _next: NextFunction) => {
+    if (EnvVars.NodeEnv !== NodeEnvs.Test.valueOf()) {
+      logger.err(err, true);
+    }
+    let status = HttpStatusCodes.BAD_REQUEST;
+    if (err instanceof RouteError) {
+      status = err.status;
+    }
+    return res.status(status).json({ error: err.message });
+  });
 
   // **** Front-End Content **** //
 

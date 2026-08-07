@@ -1,3 +1,4 @@
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
@@ -5,12 +6,11 @@ import { Role } from "@src/Domain/Role/Entity/Role.js";
 import { RoleFilter } from "@src/Domain/Role/Entity/RoleFilter.js";
 import type { RoleManagementUseCase } from "@src/Domain/Role/UseCase/RoleManagementUseCase.js";
 import type { RoleQueryUseCase } from "@src/Domain/Role/UseCase/RoleQueryUseCase.js";
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import { hasPermissions } from "@variamosple/variamos-security";
 import { type Request, Router } from "express";
 import logger from "jet-logger";
-import { ROLE_PERMISSIONS_V1_ROUTE } from "./RolePermissionsV1Router.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
+import { ROLE_PERMISSIONS_V1_ROUTE } from "./RolePermissionsV1Router.js";
 
 export const ROLES_V1_ROUTE = "/v1/roles";
 
@@ -200,7 +200,7 @@ export function createRolesRouter(
 
         let permission: Role;
         try {
-          permission = new Role(Number.parseInt(roleId), name);
+          permission = new Role(Number.parseInt(roleId, 10), name);
         } catch (error) {
           return res
             .status(HttpStatusCodes.BAD_REQUEST)

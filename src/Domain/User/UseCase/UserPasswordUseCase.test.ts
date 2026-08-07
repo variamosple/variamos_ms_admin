@@ -49,7 +49,7 @@ describe("UserPasswordUseCase", () => {
   describe("requestReset", () => {
     it("should request password reset successfully when user is found and active", async () => {
       mockUserRepository.getUserByEmail.mockResolvedValue(mockUser);
-      const createTokenSpy = jest
+      const createTokenSpy = vi
         .spyOn(PasswordResetTokenService.prototype, "createResetToken")
         .mockResolvedValue("generated-token");
       mockMailService.sendPasswordResetMail.mockResolvedValue(true);
@@ -91,7 +91,7 @@ describe("UserPasswordUseCase", () => {
 
     it("should return empty response if token service throws validation error", async () => {
       mockUserRepository.getUserByEmail.mockResolvedValue(mockUser);
-      const createTokenSpy = jest
+      const createTokenSpy = vi
         .spyOn(PasswordResetTokenService.prototype, "createResetToken")
         .mockRejectedValue(new Error("User account is disabled."));
 
@@ -105,7 +105,7 @@ describe("UserPasswordUseCase", () => {
 
     it("should return SYSTEM_ERROR if mail service fails to send mail", async () => {
       mockUserRepository.getUserByEmail.mockResolvedValue(mockUser);
-      const createTokenSpy = jest
+      const createTokenSpy = vi
         .spyOn(PasswordResetTokenService.prototype, "createResetToken")
         .mockResolvedValue("generated-token");
       mockMailService.sendPasswordResetMail.mockResolvedValue(false);
@@ -267,7 +267,7 @@ describe("UserPasswordUseCase", () => {
       mockUserRepository.queryById.mockResolvedValue(
         new ResponseModel<User>("tx-1").withResponse(mockUser),
       );
-      const createTokenSpy = jest
+      const createTokenSpy = vi
         .spyOn(PasswordResetTokenService.prototype, "createResetToken")
         .mockResolvedValue("generated-token");
       const loggerInfoSpy = vi
@@ -335,7 +335,7 @@ describe("UserPasswordUseCase", () => {
       mockUserRepository.queryById.mockResolvedValue(
         new ResponseModel<User>("tx-1").withResponse(mockUser),
       );
-      const createTokenSpy = jest
+      const createTokenSpy = vi
         .spyOn(PasswordResetTokenService.prototype, "createResetToken")
         .mockRejectedValue(new Error("User account is disabled."));
 
@@ -382,7 +382,7 @@ describe("UserPasswordUseCase", () => {
       mockUserRepository.queryById.mockResolvedValue(
         new ResponseModel<User>("tx-1").withResponse(mockUser),
       );
-      const createTokenSpy = jest
+      const createTokenSpy = vi
         .spyOn(PasswordResetTokenService.prototype, "createResetToken")
         .mockRejectedValue(new Error("Unexpected token creation issue"));
 
@@ -408,7 +408,7 @@ describe("UserPasswordUseCase", () => {
 
     it("should propagate errors in requestReset when token service throws general error", async () => {
       mockUserRepository.getUserByEmail.mockResolvedValue(mockUser);
-      const createTokenSpy = jest
+      const createTokenSpy = vi
         .spyOn(PasswordResetTokenService.prototype, "createResetToken")
         .mockRejectedValue(new Error("General system crash"));
 

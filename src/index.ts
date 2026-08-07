@@ -7,10 +7,6 @@ import EnvVars from "@src/common/EnvVars.js";
 import { initKeyStore, validateSession } from "@variamosple/variamos-security";
 import { parseCookie } from "cookie";
 import { WebSocket, WebSocketServer } from "ws";
-import { RequestModel } from "./Domain/Core/Entity/RequestModel.js";
-import { createBaseRouter } from "./EntryPoints/index.js";
-import { createServer } from "./server.js";
-
 import {
   productionBugAttachmentUseCase,
   productionBugLifecycleUseCase,
@@ -32,10 +28,12 @@ import {
   productionUserRoleUseCase,
   productionVisitUseCase,
 } from "./CompositionRoot.js";
-
 import { BugModel } from "./DataProviders/Bug/Bug.js";
 import { BugAttachmentModel } from "./DataProviders/Bug/BugAttachment.js";
 import { BugLogModel } from "./DataProviders/Bug/BugLog.js";
+import { RequestModel } from "./Domain/Core/Entity/RequestModel.js";
+import { createBaseRouter } from "./EntryPoints/index.js";
+import { createServer } from "./server.js";
 import "./DataProviders/Bug/BugAssociations.js";
 
 import fs from "node:fs";

@@ -1,10 +1,10 @@
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
 import { Permission } from "@src/Domain/Permission/Entity/Permission.js";
 import { PermissionFilter } from "@src/Domain/Permission/Entity/PermissionFilter.js";
 import type { PermissionUseCase } from "@src/Domain/Permission/UseCase/PermissionUseCase.js";
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import { hasPermissions } from "@variamosple/variamos-security";
 import { type Request, Router } from "express";
 import logger from "jet-logger";
@@ -119,7 +119,7 @@ export function createPermissionsRouter(
 
         const request = new RequestModel<number>(
           transactionId,
-          Number.parseInt(permissionId),
+          Number.parseInt(permissionId, 10),
         );
         const response = await permissionUseCase.deletePermission(request);
 
@@ -158,7 +158,7 @@ export function createPermissionsRouter(
 
         const request = new RequestModel<number>(
           transactionId,
-          Number.parseInt(permissionId),
+          Number.parseInt(permissionId, 10),
         );
         const response = await permissionUseCase.queryById(request);
 
@@ -208,7 +208,7 @@ export function createPermissionsRouter(
 
         let permission: Permission;
         try {
-          permission = new Permission(Number.parseInt(permissionId), name);
+          permission = new Permission(Number.parseInt(permissionId, 10), name);
         } catch (error) {
           return res
             .status(HttpStatusCodes.BAD_REQUEST)

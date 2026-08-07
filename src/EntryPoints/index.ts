@@ -1,10 +1,35 @@
 import EnvVars from "@src/common/EnvVars.js";
+import type { BugAttachmentUseCase } from "@src/Domain/Bug/UseCase/BugAttachmentUseCase.js";
+import type { BugLifecycleUseCase } from "@src/Domain/Bug/UseCase/BugLifecycleUseCase.js";
+import type { BugQueryUseCase } from "@src/Domain/Bug/UseCase/BugQueryUseCase.js";
+// Bug Flow Use Cases
+import type { BugSubmissionUseCase } from "@src/Domain/Bug/UseCase/BugSubmissionUseCase.js";
+import type { BugSyncUseCase } from "@src/Domain/Bug/UseCase/BugSyncUseCase.js";
+import type { CountriesQueryUseCase } from "@src/Domain/Countries/UseCase/CountriesQueryUseCase.js";
+// Other Use Cases
+import type { MetricsQueryUseCase } from "@src/Domain/Metrics/UseCase/MetricsQueryUseCase.js";
+import type { MicroServiceManagementUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
+import type { MicroServiceQueryUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
+import type { PermissionUseCase } from "@src/Domain/Permission/UseCase/PermissionUseCase.js";
+// Role & Permission Use Cases
+import type { RoleManagementUseCase } from "@src/Domain/Role/UseCase/RoleManagementUseCase.js";
+import type { RolePermissionUseCase } from "@src/Domain/Role/UseCase/RolePermissionUseCase.js";
+import type { RoleQueryUseCase } from "@src/Domain/Role/UseCase/RoleQueryUseCase.js";
+
+// User Flow Use Cases
+import type { UserAuthUseCase } from "@src/Domain/User/UseCase/UserAuthUseCase.js";
+import type { UserManagementUseCase } from "@src/Domain/User/UseCase/UserManagementUseCase.js";
+import type { UserPasswordUseCase } from "@src/Domain/User/UseCase/UserPasswordUseCase.js";
+import type { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase.js";
+import type { UserRoleUseCase } from "@src/Domain/User/UseCase/UserRoleUseCase.js";
+import type { VisitUseCase } from "@src/Domain/Visit/UseCase/VisitUseCase.js";
+import { isAuthenticated } from "@variamosple/variamos-security";
 import { Router } from "express";
 import { AUTH_ROUTE, createAuthRouter } from "./AuthRouter.js";
 import {
   BUG_V1_ROUTE,
-  type MulterUpload,
   createBugRouter,
+  type MulterUpload,
 } from "./BugRouter.js";
 import {
   CONFIGURATION_V1_ROUTE,
@@ -14,49 +39,20 @@ import {
   COUNTRIES_V1_ROUTE,
   createCountriesRouter,
 } from "./CountriesV1Router.js";
-import { METRICS_V1_ROUTE, createMetricsRouter } from "./MetricsV1Router.js";
+import { createMetricsRouter, METRICS_V1_ROUTE } from "./MetricsV1Router.js";
 import {
-  MICRO_SERVICES_V1_ROUTE,
   createMicroServicesRouter,
+  MICRO_SERVICES_V1_ROUTE,
 } from "./MicroServicesV1Router.js";
 import {
-  PERMISSIONS_V1_ROUTE,
   createPermissionsRouter,
+  PERMISSIONS_V1_ROUTE,
 } from "./PermissionsV1Router.js";
 import { createRolePermissionsRouter } from "./RolePermissionsV1Router.js";
-import { ROLES_V1_ROUTE, createRolesRouter } from "./RolesV1Router.js";
+import { createRolesRouter, ROLES_V1_ROUTE } from "./RolesV1Router.js";
 import { createUserRolesRouter } from "./UserRolesV1Router.js";
-import { USERS_V1_ROUTE, createUsersRouter } from "./UsersV1Router.js";
-import { VISITS_V1_ROUTE, createVisitsRouter } from "./VisitsV1Router.js";
-
-// User Flow Use Cases
-import type { UserAuthUseCase } from "@src/Domain/User/UseCase/UserAuthUseCase.js";
-import type { UserManagementUseCase } from "@src/Domain/User/UseCase/UserManagementUseCase.js";
-import type { UserPasswordUseCase } from "@src/Domain/User/UseCase/UserPasswordUseCase.js";
-import type { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase.js";
-import type { UserRoleUseCase } from "@src/Domain/User/UseCase/UserRoleUseCase.js";
-
-import type { BugAttachmentUseCase } from "@src/Domain/Bug/UseCase/BugAttachmentUseCase.js";
-import type { BugLifecycleUseCase } from "@src/Domain/Bug/UseCase/BugLifecycleUseCase.js";
-import type { BugQueryUseCase } from "@src/Domain/Bug/UseCase/BugQueryUseCase.js";
-// Bug Flow Use Cases
-import type { BugSubmissionUseCase } from "@src/Domain/Bug/UseCase/BugSubmissionUseCase.js";
-import type { BugSyncUseCase } from "@src/Domain/Bug/UseCase/BugSyncUseCase.js";
-
-import type { PermissionUseCase } from "@src/Domain/Permission/UseCase/PermissionUseCase.js";
-// Role & Permission Use Cases
-import type { RoleManagementUseCase } from "@src/Domain/Role/UseCase/RoleManagementUseCase.js";
-import type { RolePermissionUseCase } from "@src/Domain/Role/UseCase/RolePermissionUseCase.js";
-import type { RoleQueryUseCase } from "@src/Domain/Role/UseCase/RoleQueryUseCase.js";
-
-import type { CountriesQueryUseCase } from "@src/Domain/Countries/UseCase/CountriesQueryUseCase.js";
-// Other Use Cases
-import type { MetricsQueryUseCase } from "@src/Domain/Metrics/UseCase/MetricsQueryUseCase.js";
-import type { MicroServiceManagementUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
-import type { MicroServiceQueryUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
-import type { VisitUseCase } from "@src/Domain/Visit/UseCase/VisitUseCase.js";
-
-import { isAuthenticated } from "@variamosple/variamos-security";
+import { createUsersRouter, USERS_V1_ROUTE } from "./UsersV1Router.js";
+import { createVisitsRouter, VISITS_V1_ROUTE } from "./VisitsV1Router.js";
 
 export interface UserFlowUseCases {
   auth: UserAuthUseCase;

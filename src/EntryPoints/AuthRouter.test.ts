@@ -1,4 +1,4 @@
-// Mock google-auth-library as a standard class to bypass Jest resetMocks: true
+// Mock google-auth-library as a standard class to bypass Vitest restoreMocks: true
 vi.mock("google-auth-library", () => {
   return {
     OAuth2Client: class {
@@ -33,9 +33,14 @@ vi.mock("./errorMapper", async () => {
   };
 });
 
+import EnvVars from "@src/common/EnvVars.js";
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import type { IMailService } from "@src/Domain/Mail/IMailService.js";
+import type { IGuestRoleRepository } from "@src/Domain/Role/Repository/IGuestRoleRepository.js";
 import { User } from "@src/Domain/User/Entity/User.js";
+import type { IUserRepository } from "@src/Domain/User/IUserRepository.js";
 import { UserAuthUseCase } from "@src/Domain/User/UseCase/UserAuthUseCase.js";
 import { UserManagementUseCase } from "@src/Domain/User/UseCase/UserManagementUseCase.js";
 import {
@@ -43,15 +48,13 @@ import {
   type UserPasswordUseCaseConfig,
 } from "@src/Domain/User/UseCase/UserPasswordUseCase.js";
 import { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase.js";
-import EnvVars from "@src/common/EnvVars.js";
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import {
-  ResponseModel as SecurityResponseModel,
-  type SessionInfo,
   createJwt,
   getToken,
   hasPermissions,
   isSessionExpired,
+  ResponseModel as SecurityResponseModel,
+  type SessionInfo,
   sessionInfoToSessionUser,
   validateToken,
 } from "@variamosple/variamos-security";
@@ -59,13 +62,9 @@ import cookieParser from "cookie-parser";
 import express from "express";
 import logger from "jet-logger";
 import supertest from "supertest";
+import { mock } from "vitest-mock-extended";
 import { AUTH_ROUTE, createAuthRouter } from "./AuthRouter.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
-
-import type { IMailService } from "@src/Domain/Mail/IMailService.js";
-import type { IGuestRoleRepository } from "@src/Domain/Role/Repository/IGuestRoleRepository.js";
-import type { IUserRepository } from "@src/Domain/User/IUserRepository.js";
-import { mock } from "vitest-mock-extended";
 
 // Mock other dependencies
 vi.mock("@src/Domain/User/UseCase/UserAuthUseCase");

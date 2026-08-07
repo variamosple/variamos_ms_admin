@@ -1,12 +1,11 @@
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
 import { Metric } from "@src/Domain/Metrics/Entity/Metric.js";
 import { MetricsQueryUseCase } from "@src/Domain/Metrics/UseCase/MetricsQueryUseCase.js";
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import express from "express";
 import supertest from "supertest";
-import { createMetricsRouter } from "./MetricsV1Router.js";
-
 import { mock } from "vitest-mock-extended";
+import { createMetricsRouter } from "./MetricsV1Router.js";
 
 // Mock dependencies
 vi.mock("@src/Domain/Metrics/UseCase/MetricsQueryUseCase");

@@ -1,4 +1,5 @@
 import { mock } from "vitest-mock-extended";
+
 const mockValidateSession = vi.fn();
 
 vi.mock("@variamosple/variamos-security", () => ({
@@ -58,8 +59,8 @@ import multer from "multer";
 import request from "supertest";
 import { createBugRouter } from "./BugRouter.js";
 
-const mockLoggerInfo = vi.spyOn(logger, "info").mockImplementation();
-const mockLoggerErr = vi.spyOn(logger, "err").mockImplementation();
+const mockLoggerInfo = vi.spyOn(logger, "info").mockImplementation(() => {});
+const mockLoggerErr = vi.spyOn(logger, "err").mockImplementation(() => {});
 
 const mockBugSubmissionUseCase = mock<BugSubmissionUseCase>();
 const mockBugLifecycleUseCase = mock<BugLifecycleUseCase>();

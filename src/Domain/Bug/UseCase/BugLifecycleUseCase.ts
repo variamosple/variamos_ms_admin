@@ -108,8 +108,8 @@ export class BugLifecycleUseCase {
     if (data.category) bug.category = data.category;
     if (data.githubRepo) bug.githubRepo = data.githubRepo;
 
-    let gitIssueNumber: number | undefined = undefined;
-    let githubHtmlUrl: string | undefined = undefined;
+    let gitIssueNumber: number | undefined;
+    let githubHtmlUrl: string | undefined;
 
     if (data.status === "open" && !bug.gitIssueNumber && bug.githubRepo) {
       const gitHubToken = await this.tokenResolver.resolveGitHubToken(

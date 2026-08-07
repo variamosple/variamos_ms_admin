@@ -5,7 +5,6 @@ export class Metric {
   private defaultFilter: string;
   private filters?: string[];
   private labelKey?: string;
-  // eslint-disable-next-line no-restricted-syntax
   private data: unknown;
 
   public constructor(
@@ -15,7 +14,6 @@ export class Metric {
     defaultFilter: string,
     filters?: string[],
     labelKey?: string,
-    // eslint-disable-next-line no-restricted-syntax
     data?: unknown,
   ) {
     this.id = id;
@@ -51,7 +49,6 @@ export class Metric {
     return this.labelKey;
   }
 
-  // eslint-disable-next-line no-restricted-syntax
   public getData(): unknown {
     return this.data;
   }
@@ -80,7 +77,6 @@ class MetricBuilder {
   private defaultFilter!: string;
   private filters?: string[];
   private labelKey?: string;
-  // eslint-disable-next-line no-restricted-syntax
   private data!: unknown;
 
   public getId(): string {
@@ -137,12 +133,10 @@ class MetricBuilder {
     return this;
   }
 
-  // eslint-disable-next-line no-restricted-syntax
   public getData(): unknown {
     return this.data;
   }
 
-  // eslint-disable-next-line no-restricted-syntax
   public setData(data: unknown): MetricBuilder {
     this.data = data;
     return this;

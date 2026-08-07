@@ -1,5 +1,5 @@
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
 import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
 
 export function mapDomainErrorToHttpStatus(
   errorCode?: string | number | null,

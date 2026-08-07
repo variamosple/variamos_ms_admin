@@ -1,9 +1,9 @@
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import type { CountriesQueryUseCase } from "@src/Domain/Countries/UseCase/CountriesQueryUseCase.js";
 
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
+import type { CountriesQueryUseCase } from "@src/Domain/Countries/UseCase/CountriesQueryUseCase.js";
 import { isAuthenticated } from "@variamosple/variamos-security";
 import { Router } from "express";
 import logger from "jet-logger";

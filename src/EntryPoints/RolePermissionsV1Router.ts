@@ -1,10 +1,10 @@
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
 import { RolePermission } from "@src/Domain/Role/Entity/RolePermission.js";
 import { RolePermissionFilter } from "@src/Domain/Role/Entity/RolePermissionFilter.js";
 import type { RolePermissionUseCase } from "@src/Domain/Role/UseCase/RolePermissionUseCase.js";
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import { hasPermissions } from "@variamosple/variamos-security";
 import { type Request, Router } from "express";
 import logger from "jet-logger";
@@ -37,7 +37,7 @@ export function createRolePermissionsRouter(
         }
 
         const filter: RolePermissionFilter = RolePermissionFilter.builder()
-          .setRoleId(Number.parseInt(roleId))
+          .setRoleId(Number.parseInt(roleId, 10))
           .setPageNumber(Number(pageNumber))
           .setPageSize(Number(pageSize))
           .build();
@@ -88,8 +88,8 @@ export function createRolePermissionsRouter(
         }
 
         const rolePermission: RolePermission = new RolePermission(
-          Number.parseInt(roleId),
-          Number.parseInt(permissionId),
+          Number.parseInt(roleId, 10),
+          Number.parseInt(permissionId, 10),
         );
 
         const request = new RequestModel<RolePermission>(
@@ -139,8 +139,8 @@ export function createRolePermissionsRouter(
         }
 
         const rolePermission: RolePermission = new RolePermission(
-          Number.parseInt(roleId),
-          Number.parseInt(permissionId),
+          Number.parseInt(roleId, 10),
+          Number.parseInt(permissionId, 10),
         );
 
         const request = new RequestModel<RolePermission>(

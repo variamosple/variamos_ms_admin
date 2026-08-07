@@ -8,8 +8,8 @@ import type { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase
 import { hasPermissions } from "@variamosple/variamos-security";
 import { type Request, Router } from "express";
 import logger from "jet-logger";
-import { USER_ROLES_V1_ROUTE } from "./UserRolesV1Router.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
+import { USER_ROLES_V1_ROUTE } from "./UserRolesV1Router.js";
 
 export const USERS_V1_ROUTE = "/v1/users";
 

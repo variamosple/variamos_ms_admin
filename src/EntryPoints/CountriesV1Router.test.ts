@@ -1,11 +1,10 @@
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
 import { CountriesQueryUseCase } from "@src/Domain/Countries/UseCase/CountriesQueryUseCase.js";
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import express from "express";
 import supertest from "supertest";
-import { createCountriesRouter } from "./CountriesV1Router.js";
-
 import { mock } from "vitest-mock-extended";
+import { createCountriesRouter } from "./CountriesV1Router.js";
 
 // Mock dependencies
 vi.mock("@src/Domain/Countries/UseCase/CountriesQueryUseCase");

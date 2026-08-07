@@ -1,17 +1,15 @@
 import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/explicit-member-accessibility */
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
 import { Permission } from "@src/Domain/Permission/Entity/Permission.js";
 import { PermissionFilter } from "@src/Domain/Permission/Entity/PermissionFilter.js";
+import type { IPermissionRepository } from "@src/Domain/Permission/Repository/IPermissionRepository.js";
 import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM.js";
 import logger from "jet-logger";
 import { Op, QueryTypes, type WhereOptions } from "sequelize";
 import { BaseRepository } from "../BaseRepository.js";
 import { RolePermissionModel } from "../Role/RolePermission.js";
 import { type PermissionAttributes, PermissionModel } from "./Permission.js";
-
-import type { IPermissionRepository } from "@src/Domain/Permission/Repository/IPermissionRepository.js";
 
 export class PermissionRepositoryImpl
   extends BaseRepository

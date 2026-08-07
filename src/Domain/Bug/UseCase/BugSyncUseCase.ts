@@ -60,7 +60,7 @@ export class BugSyncUseCase {
           if (issue.pull_request) continue;
 
           let priority: "low" | "medium" | "high" = "medium";
-          let category: string | undefined = undefined;
+          let category: string | undefined;
           if (issue.labels && Array.isArray(issue.labels)) {
             const labelNames = issue.labels.map((l) => l.name.toLowerCase());
             if (

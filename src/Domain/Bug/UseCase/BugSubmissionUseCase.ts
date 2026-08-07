@@ -98,8 +98,7 @@ export class BugSubmissionUseCase {
       );
     }
 
-    let resolvedFile: { filePath: string; fileType: string } | undefined =
-      undefined;
+    let resolvedFile: { filePath: string; fileType: string } | undefined;
     if (data.file) {
       resolvedFile = {
         filePath: `/uploads/${data.file.filename}`,
@@ -108,8 +107,8 @@ export class BugSubmissionUseCase {
     }
 
     let status = "pending";
-    let gitIssueNumber: number | undefined = undefined;
-    let githubHtmlUrl: string | undefined = undefined;
+    let gitIssueNumber: number | undefined;
+    let githubHtmlUrl: string | undefined;
 
     if (data.githubRepo && data.createdById) {
       const gitHubToken = await this.tokenResolver.resolveGitHubToken(

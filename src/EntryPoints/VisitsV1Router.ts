@@ -1,9 +1,9 @@
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
 import { Visit } from "@src/Domain/Visit/Entity/Visit.js";
 import type { VisitUseCase } from "@src/Domain/Visit/UseCase/VisitUseCase.js";
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import { isAuthenticated } from "@variamosple/variamos-security";
 import { Router } from "express";
 import logger from "jet-logger";
@@ -22,7 +22,7 @@ export function createVisitsRouter(visitUseCase: VisitUseCase): Router {
       (req.headers["x-forwarded-for"] as string) || req.ip;
 
     try {
-      if (!pageId || !user || !user.id) {
+      if (!pageId || !user?.id) {
         return res
           .status(HttpStatusCodes.BAD_REQUEST)
           .json(

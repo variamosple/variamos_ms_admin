@@ -8,7 +8,9 @@ import { GitHubTokenResolver } from "./GitHubTokenResolver.js";
 vi.mock("axios");
 vi.mock("jet-logger");
 vi.mock("crypto", async () => {
-  const actual = await vi.importActual<typeof import("crypto")>("crypto");
+  const actual = await vi.importActual<
+    typeof import("crypto") & { default: typeof import("crypto") }
+  >("crypto");
   const mockCreateSign = vi.fn();
   return {
     ...actual,

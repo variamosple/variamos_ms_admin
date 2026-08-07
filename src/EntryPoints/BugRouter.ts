@@ -1,3 +1,4 @@
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import { BugFilter } from "@src/Domain/Bug/Entity/BugFilter.js";
 import type { BugAttachmentUseCase } from "@src/Domain/Bug/UseCase/BugAttachmentUseCase.js";
 import type { BugLifecycleUseCase } from "@src/Domain/Bug/UseCase/BugLifecycleUseCase.js";
@@ -5,7 +6,6 @@ import type { BugQueryUseCase } from "@src/Domain/Bug/UseCase/BugQueryUseCase.js
 import type { BugSubmissionUseCase } from "@src/Domain/Bug/UseCase/BugSubmissionUseCase.js";
 import type { BugSyncUseCase } from "@src/Domain/Bug/UseCase/BugSyncUseCase.js";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import {
   type SessionUser,
   validateSession,
@@ -144,7 +144,7 @@ export function createBugRouter(
         githubRepo?: string;
         reporterEmail?: string;
       };
-      let adminId: string | undefined = undefined;
+      let adminId: string | undefined;
       if ((req as RequestWithUser).user) {
         adminId = (req as RequestWithUser).user.id;
       } else {

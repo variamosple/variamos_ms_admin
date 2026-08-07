@@ -1,13 +1,12 @@
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
 import { Permission } from "@src/Domain/Permission/Entity/Permission.js";
 import { PermissionUseCase } from "@src/Domain/Permission/UseCase/PermissionUseCase.js";
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
 import express from "express";
 import supertest from "supertest";
-import { createPermissionsRouter } from "./PermissionsV1Router.js";
-
 import { mock } from "vitest-mock-extended";
+import { createPermissionsRouter } from "./PermissionsV1Router.js";
 
 // Mock dependencies
 vi.mock("@src/Domain/Permission/UseCase/PermissionUseCase");
