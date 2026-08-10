@@ -28,7 +28,7 @@ jobs:
           password: ${{secrets.ACRUSERPASSWORD_DOKCERHUB}}
 
       - name: Build and push container image to registry
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true
@@ -61,7 +61,7 @@ jobs:
             echo "SMTP_FROM=\"${{ vars.SMTP_FROM }}\"" >> .env.aws.develop
             echo "DB_SCHEMA=\"${{ vars.DB_SCHEMA }}\"" >> .env.aws.develop
             echo "ADMIN_HOME_URI=\"${{ vars.ADMIN_HOME_URI }}\"" >> .env.aws.develop
-            
+
             echo "Executing command on remote server..."
             docker compose --env-file .env.aws.develop -f docker-compose-aws-develop-nginx.yml pull variamos_ms_admin
             docker compose --env-file .env.aws.develop -f docker-compose-aws-develop-nginx.yml up -d variamos_ms_admin
