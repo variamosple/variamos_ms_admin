@@ -149,6 +149,29 @@ export function createConfigurationRouter(): Router {
     const referer = req.headers.referer || "";
     const hasAdminSubpath = referer.includes("/variamos_admin/");
 
+    // Rewrite prod URLs to local dev server in development environment
+    if (process.env.NODE_ENV === "development") {
+      if (menuCopy.items) {
+        for (const item of menuCopy.items) {
+          if (item.location?.startsWith("https://app.variamos.com")) {
+            const urlPath = item.location.substring(
+              "https://app.variamos.com".length,
+            );
+            item.location = "http://localhost:3000" + urlPath;
+          }
+        }
+      }
+    } else {
+      if (hasAdminSubpath) {
+        const adminItem = menuCopy.items?.find(
+          (item) => item.title === "Admin",
+        );
+        if (adminItem) {
+          adminItem.location = "/variamos_admin/#/";
+        }
+      }
+    }
+
     const myAccountOption = menuCopy.options?.find(
       (opt) => opt.title === "My account",
     );
