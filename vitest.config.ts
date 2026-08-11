@@ -1,10 +1,6 @@
 import { defineConfig, configDefaults } from "vitest/config";
 import tsconfigPaths from "vite-tsconfig-paths";
-import * as dotenv from "dotenv";
-import * as path from "path";
 
-// Load test env variables
-dotenv.config({ path: path.join(process.cwd(), "env/test.env") });
 
 export default defineConfig({
   plugins: [tsconfigPaths()],

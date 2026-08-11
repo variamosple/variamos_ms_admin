@@ -157,7 +157,7 @@ export function createConfigurationRouter(): Router {
             const urlPath = item.location.substring(
               "https://app.variamos.com".length,
             );
-            item.location = "http://localhost:3000" + urlPath;
+            item.location = `http://localhost:3000${urlPath}`;
           }
         }
       }

@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
@@ -6,7 +7,6 @@ import type { Credentials } from "@src/Domain/User/Entity/Credentials.js";
 import { User } from "@src/Domain/User/Entity/User.js";
 import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration.js";
 import type { IUserRepository } from "@src/Domain/User/IUserRepository.js";
-import { v4 as uuidv4 } from "uuid";
 
 export class UserAuthUseCase {
   public constructor(
@@ -57,7 +57,7 @@ export class UserAuthUseCase {
   public async getGuestData(
     request: RequestModel<string>,
   ): Promise<ResponseModel<User>> {
-    let guestId = request.data || uuidv4();
+    let guestId = request.data || crypto.randomUUID();
     let userExists: boolean;
     const response = new ResponseModel<User>(request.transactionId);
 
@@ -71,7 +71,7 @@ export class UserAuthUseCase {
       }
 
       if (existsResponse.data) {
-        guestId = uuidv4();
+        guestId = crypto.randomUUID();
       }
 
       userExists = existsResponse.data === true;

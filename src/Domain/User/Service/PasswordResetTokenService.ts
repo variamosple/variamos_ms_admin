@@ -1,6 +1,5 @@
 import crypto from "node:crypto";
 import logger from "jet-logger";
-import { v4 as uuidv4 } from "uuid";
 import type { User } from "../Entity/User.js";
 import type { IUserRepository } from "../IUserRepository.js";
 
@@ -29,7 +28,7 @@ export class PasswordResetTokenService {
       throw new Error("User account is deleted.");
     }
 
-    const token = uuidv4();
+    const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + expiryInMs);
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
