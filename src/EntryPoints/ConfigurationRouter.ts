@@ -96,9 +96,9 @@ const MENU: Menu = {
     },
     {
       title: "Report a problem",
-      location: "https://github.com/variamosple/VariaMosLanguages/issues/new",
+      location: "#report-bug",
       accessibleFrom: "/variamos_languages/",
-      target: "newWindow",
+      target: "sameWindow",
       allowedPermissions: [],
     },
     {
@@ -110,9 +110,9 @@ const MENU: Menu = {
     },
     {
       title: "Report a problem",
-      location: "https://github.com/variamosple/VariaMosPLE/issues/new",
+      location: "#report-bug",
       accessibleFrom: "/",
-      target: "newWindow",
+      target: "sameWindow",
       allowedPermissions: [],
     },
     {
@@ -124,9 +124,9 @@ const MENU: Menu = {
     },
     {
       title: "Report a problem",
-      location: "https://github.com/variamosple/VariaMosAdmin/issues/new",
+      location: "#report-bug",
       accessibleFrom: "/variamos_admin/",
-      target: "newWindow",
+      target: "sameWindow",
       allowedPermissions: ["languages::create", "product-lines::create"],
     },
     {
