@@ -81,12 +81,16 @@ export class BugSubmissionUseCase {
     }
 
     let reporterEmail = data.reporterEmail;
+    let resolvedCreatedById: string | undefined = data.createdById;
+
     if (data.createdById) {
       const userResponse = await this.userRepository.findSessionUser(
         new RequestModel(request.transactionId, data.createdById),
       );
       if (userResponse.data?.email) {
         reporterEmail = userResponse.data.email;
+      } else {
+        resolvedCreatedById = undefined;
       }
     }
 
@@ -165,11 +169,11 @@ export class BugSubmissionUseCase {
         priority: data.priority,
         category: data.category,
         githubRepo: data.githubRepo,
-        createdById: data.createdById || "",
+        createdById: resolvedCreatedById || "",
         resolvedFile,
         reporterEmail,
         status,
-        logComment: data.createdById
+        logComment: resolvedCreatedById
           ? status === "open"
             ? "Bug submitted directly to GitHub by admin."
             : "Bug submitted locally by user."
