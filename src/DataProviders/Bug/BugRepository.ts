@@ -639,7 +639,7 @@ export class BugRepositoryImpl implements IBugRepository {
             action: "create",
             comment: logComment,
             bugId: dbBug.id ?? "",
-            operatorId: createdById || "",
+            operatorId: createdById || undefined,
           },
           { transaction: t },
         );
