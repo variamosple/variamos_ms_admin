@@ -7,6 +7,7 @@ import type { BugSubmissionUseCase } from "@src/Domain/Bug/UseCase/BugSubmission
 import type { BugSyncUseCase } from "@src/Domain/Bug/UseCase/BugSyncUseCase.js";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
 import {
+  hasPermissions,
   type SessionUser,
   validateSession,
 } from "@variamosple/variamos-security";
@@ -66,45 +67,55 @@ export function createBugRouter(
   });
 
   // Get local bugs (Inbox)
-  router.get("/local", authMiddleware, async (req: Request, res: Response) => {
-    const transactionId = "queryLocalBugs";
-    const { repo, status, priority, search } = req.query;
-    try {
-      const filter = new BugFilter(
-        repo as string,
-        status as string,
-        priority as string,
-        search as string,
-      );
-      const request = new RequestModel<BugFilter>(transactionId, filter);
-      const response = await bugQueryUseCase.queryLocalBugs(request);
+  router.get(
+    "/local",
+    authMiddleware,
+    hasPermissions(["bugs::query"]),
+    async (req: Request, res: Response) => {
+      const transactionId = "queryLocalBugs";
+      const { repo, status, priority, search } = req.query;
+      try {
+        const filter = new BugFilter(
+          repo as string,
+          status as string,
+          priority as string,
+          search as string,
+        );
+        const request = new RequestModel<BugFilter>(transactionId, filter);
+        const response = await bugQueryUseCase.queryLocalBugs(request);
 
-      const code = mapDomainErrorToHttpStatus(response.errorCode);
-      res.status(code).json(response);
-    } catch (error) {
-      logger.err(error);
-      res
-        .status(HttpStatusCodes.BAD_REQUEST)
-        .json({ error: (error as Error).message });
-    }
-  });
+        const code = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(code).json(response);
+      } catch (error) {
+        logger.err(error);
+        res
+          .status(HttpStatusCodes.BAD_REQUEST)
+          .json({ error: (error as Error).message });
+      }
+    },
+  );
 
   // Get managed repositories
-  router.get("/repos", authMiddleware, async (_req: Request, res: Response) => {
-    const transactionId = "queryBugRepos";
-    try {
-      const request = new RequestModel<void>(transactionId);
-      const response = await bugQueryUseCase.queryBugRepos(request);
+  router.get(
+    "/repos",
+    authMiddleware,
+    hasPermissions(["bugs::query"]),
+    async (_req: Request, res: Response) => {
+      const transactionId = "queryBugRepos";
+      try {
+        const request = new RequestModel<void>(transactionId);
+        const response = await bugQueryUseCase.queryBugRepos(request);
 
-      const code = mapDomainErrorToHttpStatus(response.errorCode);
-      res.status(code).json(response);
-    } catch (error) {
-      logger.err(error);
-      res
-        .status(HttpStatusCodes.BAD_REQUEST)
-        .json({ error: (error as Error).message });
-    }
-  });
+        const code = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(code).json(response);
+      } catch (error) {
+        logger.err(error);
+        res
+          .status(HttpStatusCodes.BAD_REQUEST)
+          .json({ error: (error as Error).message });
+      }
+    },
+  );
 
   // Get allowed categories
   router.get("/categories", async (_req: Request, res: Response) => {
@@ -219,6 +230,7 @@ export function createBugRouter(
   router.get(
     "/:id/history",
     authMiddleware,
+    hasPermissions(["bugs::query"]),
     async (req: Request<{ id: string }>, res: Response) => {
       const transactionId = "queryHistory";
       const { id } = req.params;
@@ -242,6 +254,7 @@ export function createBugRouter(
   router.post(
     "/:id/status",
     authMiddleware,
+    hasPermissions(["bugs::query"]),
     async (req: Request<{ id: string }>, res: Response) => {
       const transactionId = "updateStatus";
       const { id } = req.params;
@@ -304,6 +317,7 @@ export function createBugRouter(
   router.post(
     "/:id/restore",
     authMiddleware,
+    hasPermissions(["bugs::query"]),
     async (req: Request<{ id: string }>, res: Response) => {
       const transactionId = "restoreBug";
       const { id } = req.params;
@@ -332,6 +346,7 @@ export function createBugRouter(
   router.post(
     "/:id/reject",
     authMiddleware,
+    hasPermissions(["bugs::query"]),
     async (req: Request<{ id: string }>, res: Response) => {
       const transactionId = "rejectBug";
       const { id } = req.params;
@@ -357,32 +372,38 @@ export function createBugRouter(
   );
 
   // Synchronize with GitHub
-  router.post("/sync", authMiddleware, async (_req: Request, res: Response) => {
-    const transactionId = "syncBugs";
-    try {
-      const request = new RequestModel<void>(transactionId);
-      const response = await bugSyncUseCase.syncBugs(request);
+  router.post(
+    "/sync",
+    authMiddleware,
+    hasPermissions(["bugs::query"]),
+    async (_req: Request, res: Response) => {
+      const transactionId = "syncBugs";
+      try {
+        const request = new RequestModel<void>(transactionId);
+        const response = await bugSyncUseCase.syncBugs(request);
 
-      const code = mapDomainErrorToHttpStatus(response.errorCode);
-      if (response.errorCode) {
-        res.status(code).json({ error: response.message });
-      } else {
-        res.status(code).json({
-          message: "GitHub bugs synchronization completed successfully.",
-        });
+        const code = mapDomainErrorToHttpStatus(response.errorCode);
+        if (response.errorCode) {
+          res.status(code).json({ error: response.message });
+        } else {
+          res.status(code).json({
+            message: "GitHub bugs synchronization completed successfully.",
+          });
+        }
+      } catch (error) {
+        logger.err(error);
+        res
+          .status(HttpStatusCodes.BAD_REQUEST)
+          .json({ error: (error as Error).message });
       }
-    } catch (error) {
-      logger.err(error);
-      res
-        .status(HttpStatusCodes.BAD_REQUEST)
-        .json({ error: (error as Error).message });
-    }
-  });
+    },
+  );
 
   // Add attachment to bug
   router.post(
     "/:id/attachments",
     authMiddleware,
+    hasPermissions(["bugs::query"]),
     upload.single("file"),
     async (req: Request<{ id: string }>, res: Response) => {
       const transactionId = "addAttachment";
@@ -424,6 +445,7 @@ export function createBugRouter(
   router.delete(
     "/attachments/:id",
     authMiddleware,
+    hasPermissions(["bugs::query"]),
     async (req: Request<{ id: string }>, res: Response) => {
       const transactionId = "deleteAttachment";
       const { id } = req.params;
@@ -445,6 +467,7 @@ export function createBugRouter(
   router.post(
     "/:id/notes",
     authMiddleware,
+    hasPermissions(["bugs::query"]),
     async (req: Request<{ id: string }>, res: Response) => {
       const transactionId = "createBugNote";
       const { id } = req.params;
@@ -470,6 +493,7 @@ export function createBugRouter(
   router.get(
     "/:id/notes",
     authMiddleware,
+    hasPermissions(["bugs::query"]),
     async (req: Request<{ id: string }>, res: Response) => {
       const transactionId = "queryBugNotes";
       const { id } = req.params;
