@@ -5,8 +5,6 @@
     "!src/EntryPoints/**/*.{test,spec}.ts"
   ],
   "testRunner": "vitest",
-  "checkers": ["typescript"],
-  "tsconfigFile": "tsconfig.json",
   "vitest": {
     "configFile": "vitest.config.ts"
   },
