@@ -8,6 +8,7 @@
   "testRunner": "vitest",
   "checkers": ["typescript"],
   "tsconfigFile": "tsconfig.json",
+  "testRunnerNodeArgs": ["--env-file=env/test.env"],
   "vitest": {
     "configFile": "vitest.config.ts"
   },
