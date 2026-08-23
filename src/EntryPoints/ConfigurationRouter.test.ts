@@ -1,12 +1,28 @@
 import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
+import type { IConfigurationRepository } from "@src/Domain/Configuration/Repository/IConfigurationRepository.js";
+import { ConfigurationUseCase } from "@src/Domain/Configuration/UseCase/ConfigurationUseCase.js";
 import type { Menu } from "@src/Domain/Menu/Entity/Menu.js";
 import express from "express";
 import supertest from "supertest";
+import { mock } from "vitest-mock-extended";
 import { createConfigurationRouter } from "./ConfigurationRouter.js";
 
 interface MenuApiResponse {
   data: Menu;
 }
+
+// Mock dependencies
+vi.mock("@variamosple/variamos-security", () => ({
+  hasPermissions:
+    () =>
+    (
+      _req: express.Request,
+      _res: express.Response,
+      next: express.NextFunction,
+    ) => {
+      next();
+    },
+}));
 
 describe("ConfigurationRouter Integration Tests", () => {
   let app: express.Application;
@@ -14,7 +30,12 @@ describe("ConfigurationRouter Integration Tests", () => {
   beforeAll(() => {
     app = express();
     app.use(express.json());
-    app.use("/v1/configurations", createConfigurationRouter());
+    const mockRepo = mock<IConfigurationRepository>();
+    const configurationUseCase = new ConfigurationUseCase(mockRepo);
+    app.use(
+      "/v1/configurations",
+      createConfigurationRouter(configurationUseCase),
+    );
   });
 
   describe("GET /v1/configurations/menu", () => {

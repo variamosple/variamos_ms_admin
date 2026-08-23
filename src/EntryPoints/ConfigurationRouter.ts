@@ -1,8 +1,39 @@
+import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
+import type { ConfigurationUseCase } from "@src/Domain/Configuration/UseCase/ConfigurationUseCase.js";
+import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
 import type { Menu } from "@src/Domain/Menu/Entity/Menu.js";
+import { hasPermissions } from "@variamosple/variamos-security";
 import { type Request, Router } from "express";
+import logger from "jet-logger";
+import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
 export const CONFIGURATION_V1_ROUTE = "/v1/configurations";
+
+export type ConfigurationValueDto =
+  | string
+  | number
+  | boolean
+  | string[]
+  | Record<string, unknown>;
+
+export interface ConfigurationResponseDto {
+  id?: number;
+  key: string;
+  value: ConfigurationValueDto;
+  type: "boolean" | "string" | "number" | "array" | "object";
+  category: "general" | "security" | "notification" | "env";
+  requiresMfa: boolean;
+  isSecret: boolean;
+  environmentScope: string;
+  isReadOnly: boolean;
+  targetServices: string[];
+  description?: string;
+  updatedBy?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
 const MENU: Menu = {
   items: [
@@ -139,7 +170,9 @@ const MENU: Menu = {
   ],
 };
 
-export function createConfigurationRouter(): Router {
+export function createConfigurationRouter(
+  configurationUseCase: ConfigurationUseCase,
+): Router {
   const configurationV1Router = Router();
 
   configurationV1Router.get("/menu", (req: Request, res) => {
@@ -183,6 +216,131 @@ export function createConfigurationRouter(): Router {
 
     res.status(200).json(response.withResponse(menuCopy));
   });
+
+  // Query configurations
+  configurationV1Router.get(
+    "/",
+    hasPermissions(["configurations::query"]),
+    async (req: Request, res) => {
+      const transactionId = "queryConfigurations";
+      const { category, environmentScope } = req.query;
+
+      try {
+        const filter = {
+          category: category as string,
+          environmentScope: environmentScope as string,
+        };
+        const request = new RequestModel(transactionId, filter);
+        const useCaseResponse =
+          await configurationUseCase.queryConfigurations(request);
+
+        const response = new ResponseModel<ConfigurationResponseDto[]>(
+          useCaseResponse.transactionId,
+          useCaseResponse.errorCode,
+          useCaseResponse.message,
+          useCaseResponse.totalCount,
+        );
+
+        if (useCaseResponse.data) {
+          response.data = useCaseResponse.data.map((config) => {
+            return {
+              id: config.id,
+              key: config.key.getValue(),
+              value: config.getDisplayValue(),
+              type: config.type,
+              category: config.category,
+              requiresMfa: config.requiresMfa,
+              isSecret: config.isSecret,
+              environmentScope: config.environmentScope,
+              isReadOnly: config.isReadOnly,
+              targetServices: config.targetServices,
+              description: config.description,
+              updatedBy: config.updatedBy,
+              createdAt: config.createdAt,
+              updatedAt: config.updatedAt,
+            };
+          });
+        }
+
+        const status = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(status).json(response);
+      } catch (error) {
+        logger.err(error);
+        const response = new ResponseModel(
+          transactionId,
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal Server Error",
+        );
+        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+      }
+    },
+  );
+
+  // Update a configuration option
+  configurationV1Router.put(
+    "/:key",
+    hasPermissions(["configurations::update"]),
+    async (req: Request<{ key: string }>, res) => {
+      const transactionId = "updateConfiguration";
+      const key = req.params.key;
+      const { value, isMfaVerified } = req.body as {
+        value: ConfigurationValueDto;
+        isMfaVerified?: boolean;
+      };
+
+      try {
+        const operatorId = (req.user as { id?: string })?.id || "system";
+
+        const request = new RequestModel(transactionId, {
+          key,
+          value,
+          operatorId,
+          isMfaVerified,
+        });
+
+        const useCaseResponse =
+          await configurationUseCase.updateConfiguration(request);
+
+        const response = new ResponseModel<ConfigurationResponseDto>(
+          useCaseResponse.transactionId,
+          useCaseResponse.errorCode,
+          useCaseResponse.message,
+          useCaseResponse.totalCount,
+        );
+
+        if (useCaseResponse.data) {
+          const config = useCaseResponse.data;
+          response.data = {
+            id: config.id,
+            key: config.key.getValue(),
+            value: config.getDisplayValue(),
+            type: config.type,
+            category: config.category,
+            requiresMfa: config.requiresMfa,
+            isSecret: config.isSecret,
+            environmentScope: config.environmentScope,
+            isReadOnly: config.isReadOnly,
+            targetServices: config.targetServices,
+            description: config.description,
+            updatedBy: config.updatedBy,
+            createdAt: config.createdAt,
+            updatedAt: config.updatedAt,
+          };
+        }
+
+        const status = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(status).json(response);
+      } catch (error) {
+        logger.err(error);
+        const response = new ResponseModel(
+          transactionId,
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal Server Error",
+        );
+        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+      }
+    },
+  );
 
   return configurationV1Router;
 }

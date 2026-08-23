@@ -17,6 +17,8 @@ export function mapDomainErrorToHttpStatus(
       return HttpStatusCodes.INTERNAL_SERVER_ERROR;
     case DomainErrorCodes.DUPLICATE_ENTITY:
       return HttpStatusCodes.CONFLICT;
+    case DomainErrorCodes.MFA_REQUIRED:
+      return HttpStatusCodes.FORBIDDEN;
     default: {
       if (typeof errorCode === "number") return errorCode;
       const parsed = Number(errorCode);
