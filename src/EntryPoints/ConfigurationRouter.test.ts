@@ -34,16 +34,20 @@ vi.mock("@variamosple/variamos-security", () => ({
     },
 }));
 
+import type { IConfigEventPublisher } from "@src/Domain/Configuration/Event/IConfigEventPublisher.js";
+
 describe("ConfigurationRouter Integration Tests", () => {
   let app: express.Application;
   let mockUseCase: ConfigurationUseCase;
   let mockRepo: IConfigurationRepository;
+  let mockPublisher: IConfigEventPublisher;
 
   beforeAll(() => {
     app = express();
     app.use(express.json());
     mockRepo = mock<IConfigurationRepository>();
-    mockUseCase = new ConfigurationUseCase(mockRepo);
+    mockPublisher = mock<IConfigEventPublisher>();
+    mockUseCase = new ConfigurationUseCase(mockRepo, mockPublisher);
     app.use("/v1/configurations", createConfigurationRouter(mockUseCase));
   });
 

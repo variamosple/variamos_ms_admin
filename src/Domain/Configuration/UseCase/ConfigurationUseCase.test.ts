@@ -3,6 +3,7 @@ import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
 import { mock } from "vitest-mock-extended";
 import { Configuration, ConfigurationKey } from "../Entity/Configuration.js";
+import type { IConfigEventPublisher } from "../Event/IConfigEventPublisher.js";
 import type { IConfigurationRepository } from "../Repository/IConfigurationRepository.js";
 import {
   ConfigurationUseCase,
@@ -12,7 +13,8 @@ import {
 describe("ConfigurationUseCase Unit Tests", () => {
   it("should query configurations successfully", async () => {
     const mockRepo = mock<IConfigurationRepository>();
-    const useCase = new ConfigurationUseCase(mockRepo);
+    const mockPublisher = mock<IConfigEventPublisher>();
+    const useCase = new ConfigurationUseCase(mockRepo, mockPublisher);
 
     const expectedConfigs = [
       Configuration.builder()
@@ -40,7 +42,8 @@ describe("ConfigurationUseCase Unit Tests", () => {
 
   it("should query by key successfully", async () => {
     const mockRepo = mock<IConfigurationRepository>();
-    const useCase = new ConfigurationUseCase(mockRepo);
+    const mockPublisher = mock<IConfigEventPublisher>();
+    const useCase = new ConfigurationUseCase(mockRepo, mockPublisher);
 
     const expectedConfig = Configuration.builder()
       .setKey(new ConfigurationKey("general.site_name"))
@@ -66,7 +69,8 @@ describe("ConfigurationUseCase Unit Tests", () => {
 
   it("should block update if MFA is required and not validated", async () => {
     const mockRepo = mock<IConfigurationRepository>();
-    const useCase = new ConfigurationUseCase(mockRepo);
+    const mockPublisher = mock<IConfigEventPublisher>();
+    const useCase = new ConfigurationUseCase(mockRepo, mockPublisher);
 
     const sensitiveConfig = Configuration.builder()
       .setKey(new ConfigurationKey("security.password.min_length"))
@@ -97,11 +101,13 @@ describe("ConfigurationUseCase Unit Tests", () => {
       "Updating configuration 'security.password.min_length' requires MFA validation.",
     );
     expect(mockRepo.updateConfiguration).not.toHaveBeenCalled();
+    expect(mockPublisher.publishConfigUpdated).not.toHaveBeenCalled();
   });
 
   it("should allow update if MFA is required and validated", async () => {
     const mockRepo = mock<IConfigurationRepository>();
-    const useCase = new ConfigurationUseCase(mockRepo);
+    const mockPublisher = mock<IConfigEventPublisher>();
+    const useCase = new ConfigurationUseCase(mockRepo, mockPublisher);
 
     const sensitiveConfig = Configuration.builder()
       .setKey(new ConfigurationKey("security.password.min_length"))
@@ -146,11 +152,15 @@ describe("ConfigurationUseCase Unit Tests", () => {
     expect(response.errorCode).toBeUndefined();
     expect(response.data?.value).toBe(14);
     expect(mockRepo.updateConfiguration).toHaveBeenCalled();
+    expect(mockPublisher.publishConfigUpdated).toHaveBeenCalledWith(
+      updatedConfig,
+    );
   });
 
   it("should fail update if key does not exist", async () => {
     const mockRepo = mock<IConfigurationRepository>();
-    const useCase = new ConfigurationUseCase(mockRepo);
+    const mockPublisher = mock<IConfigEventPublisher>();
+    const useCase = new ConfigurationUseCase(mockRepo, mockPublisher);
 
     mockRepo.queryByKey.mockResolvedValue(
       new ResponseModel<Configuration>("queryByKey").withResponse(null),
@@ -169,11 +179,13 @@ describe("ConfigurationUseCase Unit Tests", () => {
       "Configuration with key 'non.existent.key' not found.",
     );
     expect(mockRepo.updateConfiguration).not.toHaveBeenCalled();
+    expect(mockPublisher.publishConfigUpdated).not.toHaveBeenCalled();
   });
 
   it("should fail update if request has no data", async () => {
     const mockRepo = mock<IConfigurationRepository>();
-    const useCase = new ConfigurationUseCase(mockRepo);
+    const mockPublisher = mock<IConfigEventPublisher>();
+    const useCase = new ConfigurationUseCase(mockRepo, mockPublisher);
 
     const request = new RequestModel<UpdateConfigurationRequest>(
       "updateConfiguration",
@@ -183,11 +195,13 @@ describe("ConfigurationUseCase Unit Tests", () => {
     const response = await useCase.updateConfiguration(request);
 
     expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+    expect(mockPublisher.publishConfigUpdated).not.toHaveBeenCalled();
   });
 
   it("should fail update if new value type is mismatched", async () => {
     const mockRepo = mock<IConfigurationRepository>();
-    const useCase = new ConfigurationUseCase(mockRepo);
+    const mockPublisher = mock<IConfigEventPublisher>();
+    const useCase = new ConfigurationUseCase(mockRepo, mockPublisher);
 
     const config = Configuration.builder()
       .setKey(new ConfigurationKey("general.site_name"))
@@ -211,11 +225,13 @@ describe("ConfigurationUseCase Unit Tests", () => {
 
     expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
     expect(response.message).toContain("must be a string");
+    expect(mockPublisher.publishConfigUpdated).not.toHaveBeenCalled();
   });
 
   it("should fail update if queryByKey returns an error code", async () => {
     const mockRepo = mock<IConfigurationRepository>();
-    const useCase = new ConfigurationUseCase(mockRepo);
+    const mockPublisher = mock<IConfigEventPublisher>();
+    const useCase = new ConfigurationUseCase(mockRepo, mockPublisher);
 
     mockRepo.queryByKey.mockResolvedValue(
       new ResponseModel<Configuration>("queryByKey").withError(
@@ -235,5 +251,6 @@ describe("ConfigurationUseCase Unit Tests", () => {
     expect(response.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
     expect(response.message).toBe("Database error");
     expect(mockRepo.updateConfiguration).not.toHaveBeenCalled();
+    expect(mockPublisher.publishConfigUpdated).not.toHaveBeenCalled();
   });
 });

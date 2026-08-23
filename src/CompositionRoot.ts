@@ -38,6 +38,7 @@ import { VisitUseCase } from "./Domain/Visit/UseCase/VisitUseCase.js";
 
 import { GitHubIssuesServiceInstance } from "./Infrastructure/GitHub/GitHubIssuesService.js";
 import { MailServiceInstance } from "./Infrastructure/Mail/MailService.js";
+import { ConfigEventPublisherImpl } from "./Infrastructure/Messaging/ConfigEventPublisher.js";
 import { DiskStorageServiceInstance } from "./Infrastructure/Storage/DiskStorageService.js";
 
 // Repositories
@@ -60,10 +61,12 @@ export const MetricsRepositoryInstance = new MetricsRepositoryImpl();
 export const BugRepositoryInstance = new BugRepositoryImpl();
 export const ConfigurationRepositoryInstance =
   new ConfigurationRepositoryImpl();
+export const ConfigEventPublisherInstance = new ConfigEventPublisherImpl();
 
 // Configuration Use Case Instantiations
 export const productionConfigurationUseCase = new ConfigurationUseCase(
   ConfigurationRepositoryInstance,
+  ConfigEventPublisherInstance,
 );
 
 // User Use Case Instantiations

@@ -5,6 +5,7 @@ import type {
   Configuration,
   ConfigurationValue,
 } from "../Entity/Configuration.js";
+import type { IConfigEventPublisher } from "../Event/IConfigEventPublisher.js";
 import type {
   ConfigurationFilter,
   IConfigurationRepository,
@@ -20,6 +21,7 @@ export interface UpdateConfigurationRequest {
 export class ConfigurationUseCase {
   public constructor(
     private readonly configurationRepository: IConfigurationRepository,
+    private readonly configEventPublisher: IConfigEventPublisher,
   ) {}
 
   public async queryConfigurations(
@@ -88,6 +90,14 @@ export class ConfigurationUseCase {
       value,
       operatorId,
     });
-    return this.configurationRepository.updateConfiguration(updateRequest);
+    const updateResponse =
+      await this.configurationRepository.updateConfiguration(updateRequest);
+
+    // 5. Publish config updated event on success
+    if (!updateResponse.errorCode && updateResponse.data) {
+      await this.configEventPublisher.publishConfigUpdated(updateResponse.data);
+    }
+
+    return updateResponse;
   }
 }
