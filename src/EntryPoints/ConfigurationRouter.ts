@@ -53,6 +53,7 @@ const MENU: Menu = {
         "metrics::query",
         "micro-services::query",
         "bugs::query",
+        "configurations::query",
       ],
     },
     {
@@ -115,6 +116,11 @@ const MENU: Menu = {
           title: "Bugs",
           location: "/bugs",
           allowedPermissions: ["bugs::query"],
+        },
+        {
+          title: "Configurations",
+          location: "/configurations",
+          allowedPermissions: ["configurations::query"],
         },
       ],
     },
