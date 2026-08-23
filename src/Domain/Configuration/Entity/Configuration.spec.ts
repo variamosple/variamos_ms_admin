@@ -41,6 +41,120 @@ describe("Configuration Entity Invariants", () => {
     expect(config.targetServices).toEqual(["all"]);
   });
 
+  it("should test all builder getters", () => {
+    const builder = Configuration.builder()
+      .setId(1)
+      .setKey(validKey)
+      .setValue("VariaMos")
+      .setType("string")
+      .setCategory("general")
+      .setRequiresMfa(true)
+      .setIsSecret(true)
+      .setEnvironmentScope("production")
+      .setIsReadOnly(true)
+      .setTargetServices(["all"])
+      .setDescription("Desc")
+      .setUpdatedBy("user")
+      .setCreatedAt(new Date())
+      .setUpdatedAt(new Date());
+
+    expect(builder.getId()).toBe(1);
+    expect(builder.getKey()).toBe(validKey);
+    expect(builder.getValue()).toBe("VariaMos");
+    expect(builder.getType()).toBe("string");
+    expect(builder.getCategory()).toBe("general");
+    expect(builder.getRequiresMfa()).toBe(true);
+    expect(builder.getIsSecret()).toBe(true);
+    expect(builder.getEnvironmentScope()).toBe("production");
+    expect(builder.getIsReadOnly()).toBe(true);
+    expect(builder.getTargetServices()).toEqual(["all"]);
+    expect(builder.getDescription()).toBe("Desc");
+    expect(builder.getUpdatedBy()).toBe("user");
+    expect(builder.getCreatedAt()).toBeDefined();
+    expect(builder.getUpdatedAt()).toBeDefined();
+  });
+
+  it("should throw error when building without key", () => {
+    expect(() => {
+      Configuration.builder()
+        .setValue("val")
+        .setType("string")
+        .setCategory("general")
+        .build();
+    }).toThrow("Configuration key is required.");
+  });
+
+  it("should throw error for null/undefined value", () => {
+    expect(() => {
+      new Configuration(
+        1,
+        validKey,
+        // @ts-expect-error - Testing null value validation
+        null,
+        "string",
+        "general",
+        false,
+        false,
+        "all",
+        false,
+        ["all"],
+      );
+    }).toThrow("Configuration value cannot be null or undefined.");
+  });
+
+  it("should throw error for missing type", () => {
+    expect(() => {
+      new Configuration(
+        1,
+        validKey,
+        "val",
+        // @ts-expect-error - Testing null type validation
+        null,
+        "general",
+        false,
+        false,
+        "all",
+        false,
+        ["all"],
+      );
+    }).toThrow("Configuration type is required.");
+  });
+
+  it("should throw error for missing category", () => {
+    expect(() => {
+      new Configuration(
+        1,
+        validKey,
+        "val",
+        "string",
+        // @ts-expect-error - Testing null category validation
+        null,
+        false,
+        false,
+        "all",
+        false,
+        ["all"],
+      );
+    }).toThrow("Configuration category is required.");
+  });
+
+  it("should throw error for empty target services", () => {
+    expect(() => {
+      new Configuration(
+        1,
+        validKey,
+        "val",
+        "string",
+        "general",
+        false,
+        false,
+        "all",
+        false,
+        [],
+      );
+    }).toThrow("At least one target service is required.");
+  });
+
   it("should enforce type validation matching type property", () => {
     // Expected boolean, got string
     expect(() => {
@@ -74,6 +188,17 @@ describe("Configuration Entity Invariants", () => {
         .setTargetServices(["all"])
         .build();
     }).toThrow("must be an array");
+
+    // Expected object, got string
+    expect(() => {
+      Configuration.builder()
+        .setKey(validKey)
+        .setValue("val")
+        .setType("object")
+        .setCategory("general")
+        .setTargetServices(["all"])
+        .build();
+    }).toThrow("must be an object");
   });
 
   it("should prevent updating value if configuration is read-only", () => {

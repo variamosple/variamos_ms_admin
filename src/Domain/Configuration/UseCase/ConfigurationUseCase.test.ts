@@ -4,7 +4,10 @@ import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
 import { mock } from "vitest-mock-extended";
 import { Configuration, ConfigurationKey } from "../Entity/Configuration.js";
 import type { IConfigurationRepository } from "../Repository/IConfigurationRepository.js";
-import { ConfigurationUseCase } from "./ConfigurationUseCase.js";
+import {
+  ConfigurationUseCase,
+  type UpdateConfigurationRequest,
+} from "./ConfigurationUseCase.js";
 
 describe("ConfigurationUseCase Unit Tests", () => {
   it("should query configurations successfully", async () => {
@@ -33,6 +36,32 @@ describe("ConfigurationUseCase Unit Tests", () => {
     expect(response.errorCode).toBeUndefined();
     expect(response.data).toEqual(expectedConfigs);
     expect(mockRepo.queryConfigurations).toHaveBeenCalledWith(request);
+  });
+
+  it("should query by key successfully", async () => {
+    const mockRepo = mock<IConfigurationRepository>();
+    const useCase = new ConfigurationUseCase(mockRepo);
+
+    const expectedConfig = Configuration.builder()
+      .setKey(new ConfigurationKey("general.site_name"))
+      .setValue("VariaMos")
+      .setType("string")
+      .setCategory("general")
+      .setTargetServices(["all"])
+      .build();
+
+    mockRepo.queryByKey.mockResolvedValue(
+      new ResponseModel<Configuration>("queryByKey").withResponse(
+        expectedConfig,
+      ),
+    );
+
+    const request = new RequestModel("queryByKey", "general.site_name");
+    const response = await useCase.queryByKey(request);
+
+    expect(response.errorCode).toBeUndefined();
+    expect(response.data).toEqual(expectedConfig);
+    expect(mockRepo.queryByKey).toHaveBeenCalledWith(request);
   });
 
   it("should block update if MFA is required and not validated", async () => {
@@ -64,6 +93,9 @@ describe("ConfigurationUseCase Unit Tests", () => {
     const response = await useCase.updateConfiguration(request);
 
     expect(response.errorCode).toBe(DomainErrorCodes.MFA_REQUIRED);
+    expect(response.message).toBe(
+      "Updating configuration 'security.password.min_length' requires MFA validation.",
+    );
     expect(mockRepo.updateConfiguration).not.toHaveBeenCalled();
   });
 
@@ -121,10 +153,7 @@ describe("ConfigurationUseCase Unit Tests", () => {
     const useCase = new ConfigurationUseCase(mockRepo);
 
     mockRepo.queryByKey.mockResolvedValue(
-      new ResponseModel<Configuration>("queryByKey").withError(
-        DomainErrorCodes.ENTITY_NOT_FOUND,
-        "Not found",
-      ),
+      new ResponseModel<Configuration>("queryByKey").withResponse(null),
     );
 
     const request = new RequestModel("updateConfiguration", {
@@ -136,6 +165,75 @@ describe("ConfigurationUseCase Unit Tests", () => {
     const response = await useCase.updateConfiguration(request);
 
     expect(response.errorCode).toBe(DomainErrorCodes.ENTITY_NOT_FOUND);
+    expect(response.message).toBe(
+      "Configuration with key 'non.existent.key' not found.",
+    );
+    expect(mockRepo.updateConfiguration).not.toHaveBeenCalled();
+  });
+
+  it("should fail update if request has no data", async () => {
+    const mockRepo = mock<IConfigurationRepository>();
+    const useCase = new ConfigurationUseCase(mockRepo);
+
+    const request = new RequestModel<UpdateConfigurationRequest>(
+      "updateConfiguration",
+      undefined,
+    );
+
+    const response = await useCase.updateConfiguration(request);
+
+    expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+  });
+
+  it("should fail update if new value type is mismatched", async () => {
+    const mockRepo = mock<IConfigurationRepository>();
+    const useCase = new ConfigurationUseCase(mockRepo);
+
+    const config = Configuration.builder()
+      .setKey(new ConfigurationKey("general.site_name"))
+      .setValue("VariaMos")
+      .setType("string")
+      .setCategory("general")
+      .setTargetServices(["all"])
+      .build();
+
+    mockRepo.queryByKey.mockResolvedValue(
+      new ResponseModel<Configuration>("queryByKey").withResponse(config),
+    );
+
+    const request = new RequestModel("updateConfiguration", {
+      key: "general.site_name",
+      value: 123,
+      operatorId: "admin_user",
+    });
+
+    const response = await useCase.updateConfiguration(request);
+
+    expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+    expect(response.message).toContain("must be a string");
+  });
+
+  it("should fail update if queryByKey returns an error code", async () => {
+    const mockRepo = mock<IConfigurationRepository>();
+    const useCase = new ConfigurationUseCase(mockRepo);
+
+    mockRepo.queryByKey.mockResolvedValue(
+      new ResponseModel<Configuration>("queryByKey").withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Database error",
+      ),
+    );
+
+    const request = new RequestModel("updateConfiguration", {
+      key: "general.site_name",
+      value: "New Name",
+      operatorId: "admin_user",
+    });
+
+    const response = await useCase.updateConfiguration(request);
+
+    expect(response.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
+    expect(response.message).toBe("Database error");
     expect(mockRepo.updateConfiguration).not.toHaveBeenCalled();
   });
 });

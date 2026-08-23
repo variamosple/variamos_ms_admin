@@ -9,6 +9,7 @@ import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
 import type { Menu } from "@src/Domain/Menu/Entity/Menu.js";
 import express from "express";
+import logger from "jet-logger";
 import supertest from "supertest";
 import { mock } from "vitest-mock-extended";
 import {
@@ -51,6 +52,7 @@ describe("ConfigurationRouter Integration Tests", () => {
 
     afterEach(() => {
       process.env.NODE_ENV = originalEnv;
+      vi.restoreAllMocks();
     });
 
     it("should return 200 and the configurations menu (default / production)", async () => {
@@ -82,6 +84,49 @@ describe("ConfigurationRouter Integration Tests", () => {
 
       const adminItem = body.data.items.find((item) => item.title === "Admin");
       expect(adminItem?.location).toBe("http://localhost:3000/variamos_admin/");
+    });
+
+    it("should rewrite Admin location and options location when referer has /variamos_admin/ in non-development env", async () => {
+      process.env.NODE_ENV = "test";
+
+      const response = await supertest(app)
+        .get("/v1/configurations/menu")
+        .set("Referer", "https://app.variamos.com/variamos_admin/some-subpage");
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+      const body = response.body as MenuApiResponse;
+
+      const adminItem = body.data.items.find((item) => item.title === "Admin");
+      expect(adminItem?.location).toBe("/variamos_admin/#/");
+
+      const myAccountOption = body.data.options.find(
+        (opt) => opt.title === "My account",
+      );
+      expect(myAccountOption?.location).toBe("/variamos_admin/#/my-account");
+    });
+
+    it("should handle missing items, Admin item, or My Account option (branch coverage)", async () => {
+      vi.spyOn(JSON, "parse").mockReturnValueOnce({
+        options: [],
+      });
+
+      const response = await supertest(app)
+        .get("/v1/configurations/menu")
+        .set("Referer", "https://app.variamos.com/variamos_admin/some-subpage");
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(response.body.data.items).toBeUndefined();
+
+      vi.spyOn(JSON, "parse").mockReturnValueOnce({
+        items: [{ title: "Home", location: "url" }],
+        options: [{ title: "My account", location: "url" }],
+      });
+
+      const response2 = await supertest(app)
+        .get("/v1/configurations/menu")
+        .set("Referer", "https://app.variamos.com/variamos_admin/some-subpage");
+
+      expect(response2.status).toBe(HttpStatusCodes.OK);
     });
   });
 
@@ -124,11 +169,40 @@ describe("ConfigurationRouter Integration Tests", () => {
       );
       expect(secretItem?.value).toBe("********");
 
-      // Verify public config
+      // Verify public config and all its mapped properties (kills ObjectLiteral mutant)
       const publicItem = data.find(
         (c: ConfigurationResponseDto) => c.key === "general.site_name",
       );
-      expect(publicItem?.value).toBe("VariaMos");
+      expect(publicItem).toEqual({
+        id: undefined,
+        key: "general.site_name",
+        value: "VariaMos",
+        type: "string",
+        category: "general",
+        requiresMfa: false,
+        isSecret: false,
+        environmentScope: "all",
+        isReadOnly: false,
+        targetServices: ["all"],
+        description: undefined,
+        updatedBy: undefined,
+        createdAt: undefined,
+        updatedAt: undefined,
+      });
+    });
+
+    it("should cover false branch when queryConfigurations returns no data", async () => {
+      vi.spyOn(mockUseCase, "queryConfigurations").mockResolvedValue(
+        new ResponseModel<Configuration[]>("queryConfigurations").withError(
+          DomainErrorCodes.UNAUTHORIZED_ACCESS,
+          "Unauthorized",
+        ),
+      );
+
+      const response = await supertest(app).get("/v1/configurations");
+
+      expect(response.status).toBe(HttpStatusCodes.UNAUTHORIZED);
+      expect(response.body.data).toBeUndefined();
     });
   });
 
@@ -170,6 +244,36 @@ describe("ConfigurationRouter Integration Tests", () => {
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(response.body.data.value).toBe("New VariaMos Site");
+    });
+
+    it("should return 500 INTERNAL_SERVER_ERROR when UseCase throws exception on update", async () => {
+      const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
+      vi.spyOn(mockUseCase, "updateConfiguration").mockRejectedValue(
+        new Error("Unexpected error"),
+      );
+
+      const response = await supertest(app)
+        .put("/v1/configurations/general.site_name")
+        .send({ value: "New VariaMos Site" });
+
+      expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
+      expect(loggerSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("GET /v1/configurations error handling", () => {
+    it("should return 500 INTERNAL_SERVER_ERROR when UseCase throws exception on query", async () => {
+      const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
+      vi.spyOn(mockUseCase, "queryConfigurations").mockRejectedValue(
+        new Error("Unexpected error"),
+      );
+
+      const response = await supertest(app).get("/v1/configurations");
+
+      expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
+      expect(loggerSpy).toHaveBeenCalled();
     });
   });
 });
