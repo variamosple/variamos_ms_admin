@@ -5,6 +5,7 @@ import type { BugQueryUseCase } from "@src/Domain/Bug/UseCase/BugQueryUseCase.js
 // Bug Flow Use Cases
 import type { BugSubmissionUseCase } from "@src/Domain/Bug/UseCase/BugSubmissionUseCase.js";
 import type { BugSyncUseCase } from "@src/Domain/Bug/UseCase/BugSyncUseCase.js";
+import type { ConfigurationUseCase } from "@src/Domain/Configuration/UseCase/ConfigurationUseCase.js";
 import type { CountriesQueryUseCase } from "@src/Domain/Countries/UseCase/CountriesQueryUseCase.js";
 // Other Use Cases
 import type { MetricsQueryUseCase } from "@src/Domain/Metrics/UseCase/MetricsQueryUseCase.js";
@@ -90,6 +91,7 @@ export function createBaseRouter(
   permissionsUseCase: PermissionUseCase,
   visitsUseCase: VisitUseCase,
   countriesUseCase: CountriesQueryUseCase,
+  configurationUseCase: ConfigurationUseCase,
   upload: MulterUpload,
 ): Router {
   const baseRouter = Router();
@@ -100,7 +102,7 @@ export function createBaseRouter(
     usersUseCases.management,
     usersUseCases.query,
   );
-  const configurationV1Router = createConfigurationRouter();
+  const configurationV1Router = createConfigurationRouter(configurationUseCase);
   const userRolesRouter = createUserRolesRouter(usersUseCases.role);
   const usersV1Router = createUsersRouter(
     usersUseCases.query,

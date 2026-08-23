@@ -1,5 +1,6 @@
 import EnvVars from "@src/common/EnvVars.js";
 import { BugRepositoryImpl } from "./DataProviders/Bug/BugRepository.js";
+import { ConfigurationRepositoryImpl } from "./DataProviders/Configuration/ConfigurationRepository.js";
 import { CountriesRepositoryImpl } from "./DataProviders/Countries/CountriesRepository.js";
 import { MetricsRepositoryImpl } from "./DataProviders/Metrics/MetricsRepository.js";
 import { MicroServiceRepositoryImpl } from "./DataProviders/MicroService/MicroServiceRepository.js";
@@ -16,6 +17,7 @@ import { BugLifecycleUseCase } from "./Domain/Bug/UseCase/BugLifecycleUseCase.js
 import { BugQueryUseCase } from "./Domain/Bug/UseCase/BugQueryUseCase.js";
 import { BugSubmissionUseCase } from "./Domain/Bug/UseCase/BugSubmissionUseCase.js";
 import { BugSyncUseCase } from "./Domain/Bug/UseCase/BugSyncUseCase.js";
+import { ConfigurationUseCase } from "./Domain/Configuration/UseCase/ConfigurationUseCase.js";
 import { CountriesQueryUseCase } from "./Domain/Countries/UseCase/CountriesQueryUseCase.js";
 // Other Use Cases
 import { MetricsQueryUseCase } from "./Domain/Metrics/UseCase/MetricsQueryUseCase.js";
@@ -36,6 +38,7 @@ import { VisitUseCase } from "./Domain/Visit/UseCase/VisitUseCase.js";
 
 import { GitHubIssuesServiceInstance } from "./Infrastructure/GitHub/GitHubIssuesService.js";
 import { MailServiceInstance } from "./Infrastructure/Mail/MailService.js";
+import { ConfigEventPublisherImpl } from "./Infrastructure/Messaging/ConfigEventPublisher.js";
 import { DiskStorageServiceInstance } from "./Infrastructure/Storage/DiskStorageService.js";
 
 // Repositories
@@ -56,6 +59,15 @@ export const VisitRepositoryInstance = new VisitRepositoryImpl();
 export const CountriesRepositoryInstance = new CountriesRepositoryImpl();
 export const MetricsRepositoryInstance = new MetricsRepositoryImpl();
 export const BugRepositoryInstance = new BugRepositoryImpl();
+export const ConfigurationRepositoryInstance =
+  new ConfigurationRepositoryImpl();
+export const ConfigEventPublisherInstance = new ConfigEventPublisherImpl();
+
+// Configuration Use Case Instantiations
+export const productionConfigurationUseCase = new ConfigurationUseCase(
+  ConfigurationRepositoryInstance,
+  ConfigEventPublisherInstance,
+);
 
 // User Use Case Instantiations
 export const productionUserAuthUseCase = new UserAuthUseCase(

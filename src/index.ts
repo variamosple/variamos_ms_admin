@@ -13,6 +13,7 @@ import {
   productionBugQueryUseCase,
   productionBugSubmissionUseCase,
   productionBugSyncUseCase,
+  productionConfigurationUseCase,
   productionCountriesQueryUseCase,
   productionMetricsQueryUseCase,
   productionMicroServiceManagementUseCase,
@@ -31,6 +32,7 @@ import {
 import { BugModel } from "./DataProviders/Bug/Bug.js";
 import { BugAttachmentModel } from "./DataProviders/Bug/BugAttachment.js";
 import { BugLogModel } from "./DataProviders/Bug/BugLog.js";
+import { ConfigurationModel } from "./DataProviders/Configuration/Configuration.js";
 import { RequestModel } from "./Domain/Core/Entity/RequestModel.js";
 import { createBaseRouter } from "./EntryPoints/index.js";
 import { createServer } from "./server.js";
@@ -90,6 +92,7 @@ const baseRouter = createBaseRouter(
   productionPermissionUseCase,
   productionVisitUseCase,
   productionCountriesQueryUseCase,
+  productionConfigurationUseCase,
   productionUpload,
 );
 
@@ -101,19 +104,20 @@ const server = app.listen(EnvVars.Port, async () => {
   initKeyStore().then();
   logger.info(SERVER_START_MSG);
 
-  // Sync Bug tracker models to guarantee tables exist
+  // Sync Bug tracker & Configuration models to guarantee tables exist
   try {
-    logger.info("Synchronizing Bug Tracker Database models...");
+    logger.info("Synchronizing Database models...");
     await BugModel.sync();
     await BugAttachmentModel.sync();
     await BugLogModel.sync();
-    logger.info("Bug Tracker Database models synchronized successfully.");
+    await ConfigurationModel.sync();
+    logger.info("Database models synchronized successfully.");
 
     // Purge expired rejected bugs (older than 7 days) on startup
     await productionBugLifecycleUseCase.purgeExpiredRejectedBugs();
   } catch (e) {
     const err = e as Error;
-    logger.err(`Failed to synchronize Bug tracker models: ${err.message}`);
+    logger.err(`Failed to synchronize Database models: ${err.message}`);
   }
 
   // Run periodic bugs sync every 15 minutes
