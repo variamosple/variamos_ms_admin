@@ -70,7 +70,7 @@
     "@types/nodemailer": "^8.0.1",
     "@types/supertest": "^7.2.1",
     "@types/ws": "^8.18.1",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.11",
     "cspell": "^10.0.1",
     "dependency-cruiser": "^18.2.0",
     "fs-extra": "^11.4.0",
