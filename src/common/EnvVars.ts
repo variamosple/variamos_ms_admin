@@ -68,4 +68,10 @@ export default {
     PRIVATE_KEY: process.env.GITHUB_PRIVATE_KEY ?? "",
   },
   ApiBaseUrl: process.env.API_BASE_URL ?? "http://localhost:4000",
+  NOTIFICATION: {
+    SERVICE_URL:
+      process.env.NOTIFICATION_SERVICE_URL ?? "http://localhost:3000",
+    INTERNAL_TOKEN:
+      process.env.NOTIFICATION_INTERNAL_TOKEN ?? "dev-secret-token-12345678",
+  },
 } as const;
