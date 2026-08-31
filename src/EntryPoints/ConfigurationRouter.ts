@@ -122,6 +122,11 @@ const MENU: Menu = {
           location: "/configurations",
           allowedPermissions: ["configurations::query"],
         },
+        {
+          title: "Notifications",
+          location: "/admin/notifications",
+          allowedPermissions: ["admin::notifications::dispatch"],
+        },
       ],
     },
   ],
