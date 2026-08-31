@@ -48,7 +48,12 @@ describe("AdminNotificationsRouter Integration Tests", () => {
     app.use(express.json());
     // Simulate req.user for express
     app.use((req, _res, next) => {
-      req.user = { id: "admin-user-id" };
+      req.user = {
+        id: "admin-user-id",
+        name: "Admin",
+        user: "admin",
+        email: "admin@example.com",
+      };
       next();
     });
     app.use("/v1/admin/notifications", createAdminNotificationsRouter());
