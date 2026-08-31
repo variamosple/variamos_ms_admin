@@ -70,5 +70,6 @@ src/public/uploads/
 # Build and temporary files
 *.tsbuildinfo
 .stryker-tmp/
+reports/
 
 

@@ -26,6 +26,10 @@ import type { UserRoleUseCase } from "@src/Domain/User/UseCase/UserRoleUseCase.j
 import type { VisitUseCase } from "@src/Domain/Visit/UseCase/VisitUseCase.js";
 import { isAuthenticated } from "@variamosple/variamos-security";
 import { Router } from "express";
+import {
+  ADMIN_NOTIFICATIONS_V1_ROUTE,
+  createAdminNotificationsRouter,
+} from "./AdminNotificationsRouter.js";
 import { AUTH_ROUTE, createAuthRouter } from "./AuthRouter.js";
 import {
   BUG_V1_ROUTE,
@@ -135,6 +139,7 @@ export function createBaseRouter(
     upload,
     isAuthenticated,
   );
+  const adminNotificationsV1Router = createAdminNotificationsRouter();
 
   baseRouter.use(AUTH_ROUTE, authRouter);
   baseRouter.use(CONFIGURATION_V1_ROUTE, configurationV1Router);
@@ -146,6 +151,7 @@ export function createBaseRouter(
   baseRouter.use(METRICS_V1_ROUTE, metricsV1Router);
   baseRouter.use(COUNTRIES_V1_ROUTE, countriesV1Router);
   baseRouter.use(BUG_V1_ROUTE, bugV1Router);
+  baseRouter.use(ADMIN_NOTIFICATIONS_V1_ROUTE, adminNotificationsV1Router);
 
   baseRouter.get("/version", (_, res) => {
     try {
