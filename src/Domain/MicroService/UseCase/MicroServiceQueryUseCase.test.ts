@@ -2,7 +2,7 @@ import { Readable } from "node:stream";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import { MicroService } from "@src/Domain/MicroService/Entity/MicroService.js";
+import { MicroServiceDetailed } from "@src/Domain/MicroService/Entity/MicroServiceDetailed.js";
 import { MicroServiceFilter } from "@src/Domain/MicroService/Entity/MicroServiceFilter.js";
 import type { IMicroServiceRepository } from "@src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 import { type MockProxy, mock } from "vitest-mock-extended";
@@ -17,23 +17,27 @@ describe("MicroServiceQueryUseCase - Unit Tests", () => {
     useCase = new MicroServiceQueryUseCase(mockMicroServiceRepository);
   });
 
-  const createMockService = (id: string, state: string) => {
-    return MicroService.builder()
-      .setId(id)
-      .setNames(["service-name"])
-      .setCreated(new Date())
-      .setLabels({ key: "val" })
-      .setState(state)
-      .setStatus(`Status: ${state}`)
-      .build();
+  const createMockDetailed = (name: string) => {
+    return new MicroServiceDetailed(
+      name,
+      "Test Service",
+      {
+        status: "UP",
+        serviceName: name,
+        responseTimeMs: 25,
+        checkedAt: new Date(),
+      },
+      1,
+      [],
+    );
   };
 
   test("should query microservices", async () => {
     const filter = new MicroServiceFilter();
-    const mockServices = [createMockService("ms-1", "running")];
-    const mockResponse = new ResponseModel<MicroService[]>("tx-1").withResponse(
-      mockServices,
-    );
+    const mockServices = [createMockDetailed("ms-1")];
+    const mockResponse = new ResponseModel<MicroServiceDetailed[]>(
+      "tx-1",
+    ).withResponse(mockServices);
     mockMicroServiceRepository.queryMicroServices.mockResolvedValue(
       mockResponse,
     );

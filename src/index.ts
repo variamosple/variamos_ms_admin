@@ -8,6 +8,7 @@ import { initKeyStore, validateSession } from "@variamosple/variamos-security";
 import { parseCookie } from "cookie";
 import { WebSocket, WebSocketServer } from "ws";
 import {
+  MicroServiceRepositoryInstance,
   productionBugAttachmentUseCase,
   productionBugLifecycleUseCase,
   productionBugQueryUseCase,
@@ -33,8 +34,12 @@ import { BugModel } from "./DataProviders/Bug/Bug.js";
 import { BugAttachmentModel } from "./DataProviders/Bug/BugAttachment.js";
 import { BugLogModel } from "./DataProviders/Bug/BugLog.js";
 import { ConfigurationModel } from "./DataProviders/Configuration/Configuration.js";
+import { MicroServiceAuditLogModel } from "./DataProviders/MicroService/MicroServiceAuditLogModel.js";
+import { MicroServiceConfigurationModel } from "./DataProviders/MicroService/MicroServiceConfigurationModel.js";
+import { MicroServiceHealthLogModel } from "./DataProviders/MicroService/MicroServiceHealthLogModel.js";
 import { RequestModel } from "./Domain/Core/Entity/RequestModel.js";
 import { createBaseRouter } from "./EntryPoints/index.js";
+import { HealthCheckCollector } from "./Infrastructure/Health/HealthCheckCollector.js";
 import { createServer } from "./server.js";
 import "./DataProviders/Bug/BugAssociations.js";
 
@@ -98,6 +103,11 @@ const baseRouter = createBaseRouter(
 
 const app = createServer(baseRouter);
 
+const healthCheckCollectorInstance = new HealthCheckCollector(
+  MicroServiceRepositoryInstance,
+  30000,
+);
+
 const SERVER_START_MSG = `Express server started on port: ${EnvVars.Port.toString()}`;
 
 const server = app.listen(EnvVars.Port, async () => {
@@ -111,7 +121,13 @@ const server = app.listen(EnvVars.Port, async () => {
     await BugAttachmentModel.sync();
     await BugLogModel.sync();
     await ConfigurationModel.sync();
+    await MicroServiceHealthLogModel.sync();
+    await MicroServiceConfigurationModel.sync();
+    await MicroServiceAuditLogModel.sync();
     logger.info("Database models synchronized successfully.");
+
+    // Start periodic HealthCheckCollector
+    healthCheckCollectorInstance.start();
 
     // Purge expired rejected bugs (older than 7 days) on startup
     await productionBugLifecycleUseCase.purgeExpiredRejectedBugs();

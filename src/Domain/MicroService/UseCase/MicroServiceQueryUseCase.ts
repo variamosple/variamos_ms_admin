@@ -1,9 +1,12 @@
 import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import type { MicroService } from "@src/Domain/MicroService/Entity/MicroService.js";
-import type { MicroServiceFilter } from "@src/Domain/MicroService/Entity/MicroServiceFilter.js";
-import type { IMicroServiceRepository } from "@src/Domain/MicroService/Repository/IMicroServiceRepository.js";
+import type { MicroServiceAuditEntry } from "../Entity/MicroServiceAuditEntry.js";
+import type { MicroServiceConfigItem } from "../Entity/MicroServiceConfigItem.js";
+import type { MicroServiceDetailed } from "../Entity/MicroServiceDetailed.js";
+import type { MicroServiceFilter } from "../Entity/MicroServiceFilter.js";
+import type { MicroServiceUptimeSummary } from "../Entity/MicroServiceHealth.js";
+import type { IMicroServiceRepository } from "../Repository/IMicroServiceRepository.js";
 
 export class MicroServiceQueryUseCase {
   public constructor(
@@ -12,8 +15,55 @@ export class MicroServiceQueryUseCase {
 
   public queryMicroServices(
     request: RequestModel<MicroServiceFilter>,
-  ): Promise<ResponseModel<MicroService[]>> {
+  ): Promise<ResponseModel<MicroServiceDetailed[]>> {
     return this.microServiceRepository.queryMicroServices(request);
+  }
+
+  public async queryByName(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<MicroServiceDetailed>> {
+    if (!request.data || request.data.trim() === "") {
+      return new ResponseModel<MicroServiceDetailed>(
+        request.transactionId,
+      ).withError(
+        DomainErrorCodes.INVALID_INPUT,
+        "Microservice name is required.",
+      );
+    }
+    return this.microServiceRepository.queryByName(request);
+  }
+
+  public async getHealthHistory(
+    request: RequestModel<{ serviceName: string; days?: number }>,
+  ): Promise<ResponseModel<MicroServiceUptimeSummary>> {
+    if (!request.data?.serviceName) {
+      return new ResponseModel<MicroServiceUptimeSummary>(
+        request.transactionId,
+      ).withError(DomainErrorCodes.INVALID_INPUT, "Service name is required.");
+    }
+    return this.microServiceRepository.getHealthHistory(request);
+  }
+
+  public async queryConfigurations(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<MicroServiceConfigItem[]>> {
+    if (!request.data || request.data.trim() === "") {
+      return new ResponseModel<MicroServiceConfigItem[]>(
+        request.transactionId,
+      ).withError(DomainErrorCodes.INVALID_INPUT, "Service name is required.");
+    }
+    return this.microServiceRepository.queryConfigurations(request);
+  }
+
+  public async queryAuditLogs(
+    request: RequestModel<{ serviceName: string; limit?: number }>,
+  ): Promise<ResponseModel<MicroServiceAuditEntry[]>> {
+    if (!request.data?.serviceName) {
+      return new ResponseModel<MicroServiceAuditEntry[]>(
+        request.transactionId,
+      ).withError(DomainErrorCodes.INVALID_INPUT, "Service name is required.");
+    }
+    return this.microServiceRepository.queryAuditLogs(request);
   }
 
   public async watchMicroServiceLogs(
