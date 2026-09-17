@@ -9,8 +9,9 @@ const VARIAMOS_ORM = new Sequelize(
     host: EnvVars.DB.HOST,
     dialect: "postgres",
     pool: {
-      max: 5,
-      min: 0,
+      max: 20,
+      min: 2,
+      acquire: 10000,
       idle: 10000,
     },
     dialectOptions: {

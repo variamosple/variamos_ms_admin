@@ -119,74 +119,73 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
 
       const matchedContainerIds = new Set<string>();
 
-      for (const def of KNOWN_SERVICES) {
-        if (
-          filter?.name &&
-          !def.displayName.toLowerCase().includes(filter.name.toLowerCase()) &&
-          !def.name.toLowerCase().includes(filter.name.toLowerCase())
-        ) {
-          continue;
-        }
+      const knownServicesResults = await Promise.all(
+        KNOWN_SERVICES.map(async (def) => {
+          if (
+            filter?.name &&
+            !def.displayName
+              .toLowerCase()
+              .includes(filter.name.toLowerCase()) &&
+            !def.name.toLowerCase().includes(filter.name.toLowerCase())
+          ) {
+            return null;
+          }
 
-        // Match containers belonging to this service
-        const matchedContainers = containers.filter((c) =>
-          c.Names.some((n) =>
-            n.toLowerCase().includes(def.containerNamePattern.toLowerCase()),
-          ),
-        );
-
-        for (const c of matchedContainers) {
-          matchedContainerIds.add(c.Id);
-        }
-
-        const containerInfos: ContainerInstanceInfo[] = matchedContainers.map(
-          (c) => ({
-            id: c.Id,
-            name: c.Names[0]?.replace(/^\//, "") ?? c.Id,
-            state: c.State,
-            status: c.Status,
-            created: new Date(c.Created * 1000),
-            labels: c.Labels,
-          }),
-        );
-
-        // Get latest health log from DB with safe fallback
-        let latestHealthLog: MicroServiceHealthLogModel | null = null;
-        try {
-          latestHealthLog = await MicroServiceHealthLogModel.findOne({
-            where: { serviceName: def.name },
-            order: [["checked_at", "DESC"]],
-          });
-        } catch (err) {
-          logger.warn(
-            `Could not query latest health log: ${(err as Error).message}`,
+          // Match containers belonging to this service
+          const matchedContainers = containers.filter((c) =>
+            c.Names.some((n) =>
+              n.toLowerCase().includes(def.containerNamePattern.toLowerCase()),
+            ),
           );
-        }
 
-        const status: HealthStatus = latestHealthLog
-          ? latestHealthLog.status
-          : containerInfos.some((c) => c.state === "running")
-            ? "UP"
-            : "DOWN";
+          for (const c of matchedContainers) {
+            matchedContainerIds.add(c.Id);
+          }
 
-        const healthInfo: MicroServiceHealthInfo = {
-          status,
-          serviceName: def.name,
-          responseTimeMs: latestHealthLog?.responseTimeMs ?? 0,
-          checkedAt: latestHealthLog?.checkedAt ?? new Date(),
-        };
-
-        let uptimeSummary: MicroServiceUptimeSummary | undefined;
-        try {
-          uptimeSummary = await this.calculateUptimeSummary(def.name);
-        } catch (err) {
-          logger.warn(
-            `Could not calculate uptime summary: ${(err as Error).message}`,
+          const containerInfos: ContainerInstanceInfo[] = matchedContainers.map(
+            (c) => ({
+              id: c.Id,
+              name: c.Names[0]?.replace(/^\//, "") ?? c.Id,
+              state: c.State,
+              status: c.Status,
+              created: new Date(c.Created * 1000),
+              labels: c.Labels,
+            }),
           );
-        }
 
-        services.push(
-          new MicroServiceDetailed(
+          // Concurrently fetch latest health log and calculate uptime summary
+          const [latestHealthLog, uptimeSummary] = await Promise.all([
+            MicroServiceHealthLogModel.findOne({
+              where: { serviceName: def.name },
+              order: [["checked_at", "DESC"]],
+            }).catch((err) => {
+              logger.warn(
+                `Could not query latest health log: ${(err as Error).message}`,
+              );
+              return null;
+            }),
+            this.calculateUptimeSummary(def.name).catch((err) => {
+              logger.warn(
+                `Could not calculate uptime summary: ${(err as Error).message}`,
+              );
+              return undefined;
+            }),
+          ]);
+
+          const status: HealthStatus = latestHealthLog
+            ? latestHealthLog.status
+            : containerInfos.some((c) => c.state === "running")
+              ? "UP"
+              : "DOWN";
+
+          const healthInfo: MicroServiceHealthInfo = {
+            status,
+            serviceName: def.name,
+            responseTimeMs: latestHealthLog?.responseTimeMs ?? 0,
+            checkedAt: latestHealthLog?.checkedAt ?? new Date(),
+          };
+
+          return new MicroServiceDetailed(
             def.name,
             def.displayName,
             healthInfo,
@@ -194,8 +193,14 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
             containerInfos,
             uptimeSummary,
             def.targetUrl,
-          ),
-        );
+          );
+        }),
+      );
+
+      for (const res of knownServicesResults) {
+        if (res) {
+          services.push(res);
+        }
       }
 
       // Add any other running Docker container discovered on the host (dynamic docker ps)

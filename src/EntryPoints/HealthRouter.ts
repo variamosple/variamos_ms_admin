@@ -14,7 +14,12 @@ export function createHealthRouter(): Router {
 
     try {
       const dbStart = Date.now();
-      await VARIAMOS_ORM.authenticate();
+      await Promise.race([
+        VARIAMOS_ORM.authenticate(),
+        new Promise<void>((_, reject) =>
+          setTimeout(() => reject(new Error("DB check timeout")), 1500),
+        ),
+      ]);
       dbLatencyMs = Date.now() - dbStart;
     } catch {
       dbStatus = "DOWN";

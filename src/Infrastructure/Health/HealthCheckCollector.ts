@@ -58,47 +58,59 @@ export class HealthCheckCollector {
     let status: "UP" | "DEGRADED" | "DOWN" = "DOWN";
     let responseTimeMs = 0;
 
-    // 1. Ports to test (configured defaultPort and container internal port 4000/3005/etc)
-    const ports = Array.from(
-      new Set([service.defaultPort, 4000, 3000, 3005, 5000, 8080, 10000]),
-    );
+    // Determine the candidate URLs to check (targeted based on service container aliases and host)
+    const candidateUrls: string[] = [];
 
-    const urlsToTry: string[] = [`${service.targetUrl}/health`];
-
-    for (const port of ports) {
-      urlsToTry.push(`http://host.docker.internal:${port}/health`);
-      urlsToTry.push(`http://127.0.0.1:${port}/health`);
-      urlsToTry.push(`http://localhost:${port}/health`);
-      urlsToTry.push(`http://${service.name}:${port}/health`);
-      urlsToTry.push(
-        `http://${service.name.replace(/_/g, "-")}:${port}/health`,
+    if (service.name === "variamos_ms_admin") {
+      candidateUrls.push("http://127.0.0.1:4000/health");
+      candidateUrls.push("http://localhost:4000/health");
+    } else if (service.name === "variamos_ms_languages") {
+      candidateUrls.push("http://variamos-ms-languages-test:4000/health");
+      candidateUrls.push("http://variamos-ms-languages:4000/health");
+      candidateUrls.push("http://127.0.0.1:5000/health");
+      candidateUrls.push("http://localhost:5000/health");
+    } else if (service.name === "vms_projects") {
+      candidateUrls.push("http://variamos-ms-projects-test:10000/health");
+      candidateUrls.push("http://variamos-ms-projects:10000/health");
+      candidateUrls.push("http://127.0.0.1:10000/health");
+      candidateUrls.push("http://localhost:10000/health");
+    } else if (service.name === "variamos_ms_notifications") {
+      candidateUrls.push("http://variamos-ms-notifications-test:3005/health");
+      candidateUrls.push("http://variamos-ms-notifications:3005/health");
+      candidateUrls.push("http://127.0.0.1:3005/health");
+      candidateUrls.push("http://localhost:3005/health");
+    } else {
+      const cleanServiceName = service.name.replace(/_/g, "-");
+      candidateUrls.push(
+        `http://variamos-ms-${service.containerNamePattern}:${service.defaultPort}/health`,
       );
-      urlsToTry.push(
-        `http://${service.name.replace(/_/g, "-")}-test:${port}/health`,
+      candidateUrls.push(
+        `http://${cleanServiceName}:${service.defaultPort}/health`,
       );
-      urlsToTry.push(`http://${service.name}_aws_main:${port}/health`);
-    }
-
-    for (const url of urlsToTry) {
-      try {
-        const response = await axios.get(url, {
-          timeout: 2500,
-          validateStatus: () => true,
-        });
-
-        responseTimeMs = Date.now() - startTime;
-
-        if (response.status >= 200 && response.status < 300) {
-          status = response.data?.status === "DEGRADED" ? "DEGRADED" : "UP";
-          break;
-        }
-      } catch {
-        // Try next network alias
+      if (service.targetUrl) {
+        candidateUrls.push(`${service.targetUrl}/health`);
       }
     }
 
-    if (status === "DOWN" && responseTimeMs === 0) {
+    const checkPromises = candidateUrls.map(async (url) => {
+      const response = await axios.get(url, {
+        timeout: 1500,
+        validateStatus: () => true,
+      });
+
+      if (response.status >= 200 && response.status < 300) {
+        return response;
+      }
+      throw new Error(`HTTP status ${response.status}`);
+    });
+
+    try {
+      const response = await promiseAny(checkPromises);
       responseTimeMs = Date.now() - startTime;
+      status = response.data?.status === "DEGRADED" ? "DEGRADED" : "UP";
+    } catch {
+      responseTimeMs = Date.now() - startTime;
+      status = "DOWN";
     }
 
     const healthInfo: MicroServiceHealthInfo = {
@@ -110,4 +122,24 @@ export class HealthCheckCollector {
 
     await this.microServiceRepository.recordHealthCheck(healthInfo);
   }
+}
+
+async function promiseAny<T>(promises: Promise<T>[]): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let pending = promises.length;
+    if (pending === 0) {
+      reject(new Error("No promises provided"));
+      return;
+    }
+    const errors: Error[] = [];
+    promises.forEach((p, idx) => {
+      p.then(resolve).catch((err: Error) => {
+        errors[idx] = err;
+        pending--;
+        if (pending === 0) {
+          reject(errors);
+        }
+      });
+    });
+  });
 }
