@@ -56,6 +56,11 @@ MicroServiceHealthLogModel.init(
       allowNull: true,
       field: "error_message",
     },
+    checkedAt: {
+      type: "TIMESTAMP",
+      allowNull: true,
+      field: "checked_at",
+    },
   },
   {
     tableName: "microservice_health_logs",

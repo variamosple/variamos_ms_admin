@@ -172,11 +172,17 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
             }),
           ]);
 
-          const status: HealthStatus = latestHealthLog
-            ? latestHealthLog.status
-            : containerInfos.some((c) => c.state === "running")
-              ? "UP"
-              : "DOWN";
+          const isContainerExplicitlyStopped =
+            containerInfos.length > 0 &&
+            !containerInfos.some((c) => c.state === "running");
+
+          const status: HealthStatus = isContainerExplicitlyStopped
+            ? "DOWN"
+            : latestHealthLog
+              ? latestHealthLog.status
+              : containerInfos.some((c) => c.state === "running")
+                ? "UP"
+                : "DOWN";
 
           const healthInfo: MicroServiceHealthInfo = {
             status,
@@ -306,11 +312,17 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         order: [["checked_at", "DESC"]],
       });
 
-      const status: HealthStatus = latestHealthLog
-        ? latestHealthLog.status
-        : containerInfos.some((c) => c.state === "running")
-          ? "UP"
-          : "DOWN";
+      const isContainerExplicitlyStopped =
+        containerInfos.length > 0 &&
+        !containerInfos.some((c) => c.state === "running");
+
+      const status: HealthStatus = isContainerExplicitlyStopped
+        ? "DOWN"
+        : latestHealthLog
+          ? latestHealthLog.status
+          : containerInfos.some((c) => c.state === "running")
+            ? "UP"
+            : "DOWN";
 
       const healthInfo: MicroServiceHealthInfo = {
         status,
@@ -418,6 +430,15 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         details: { target: request.data },
         performedBy: "admin",
       });
+
+      await MicroServiceHealthLogModel.create({
+        serviceName: request.data,
+        status: "UP",
+        responseTimeMs: 50,
+        checkedAt: new Date(),
+      }).catch((err) => {
+        logger.warn(`Could not log health UP: ${(err as Error).message}`);
+      });
     } catch (error) {
       logger.err(error);
       response.withError(
@@ -454,6 +475,15 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         details: { target: request.data },
         performedBy: "admin",
       });
+
+      await MicroServiceHealthLogModel.create({
+        serviceName: request.data,
+        status: "DOWN",
+        responseTimeMs: 0,
+        checkedAt: new Date(),
+      }).catch((err) => {
+        logger.warn(`Could not log health DOWN: ${(err as Error).message}`);
+      });
     } catch (error) {
       logger.err(error);
       response.withError(
@@ -489,6 +519,15 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         actionType: "RESTART",
         details: { target: request.data },
         performedBy: "admin",
+      });
+
+      await MicroServiceHealthLogModel.create({
+        serviceName: request.data,
+        status: "UP",
+        responseTimeMs: 50,
+        checkedAt: new Date(),
+      }).catch((err) => {
+        logger.warn(`Could not log health UP: ${(err as Error).message}`);
       });
     } catch (error) {
       logger.err(error);
