@@ -54,6 +54,66 @@ export function createMicroServicesRouter(
     },
   );
 
+  // POST /v1/micro-services/check (Trigger on-demand manual health check)
+  microServicesV1Router.post(
+    "/check",
+    hasPermissions(["micro-services::query"]),
+    async (req, res) => {
+      const transactionId = "triggerMicroServicesHealthCheck";
+      const { serviceName } = (req.body || {}) as { serviceName?: string };
+
+      try {
+        const request = new RequestModel<{ serviceName?: string }>(
+          transactionId,
+          { serviceName },
+        );
+        const response =
+          await microServiceManagementUseCase.triggerHealthChecks(request);
+
+        const status = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(status).json(response);
+      } catch (error) {
+        logger.err(error);
+        const response = new ResponseModel(
+          transactionId,
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal Server Error",
+        );
+        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+      }
+    },
+  );
+
+  // POST /v1/micro-services/:name/check
+  microServicesV1Router.post(
+    "/:name/check",
+    hasPermissions(["micro-services::query"]),
+    async (req: Request<{ name: string }>, res) => {
+      const transactionId = "triggerMicroServiceHealthCheck";
+      const { name } = req.params;
+
+      try {
+        const request = new RequestModel<{ serviceName?: string }>(
+          transactionId,
+          { serviceName: name },
+        );
+        const response =
+          await microServiceManagementUseCase.triggerHealthChecks(request);
+
+        const status = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(status).json(response);
+      } catch (error) {
+        logger.err(error);
+        const response = new ResponseModel(
+          transactionId,
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal Server Error",
+        );
+        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+      }
+    },
+  );
+
   // GET /v1/micro-services/:name/history (Uptime bars 30d/24h)
   microServicesV1Router.get(
     "/:name/history",

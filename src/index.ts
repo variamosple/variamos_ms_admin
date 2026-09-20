@@ -8,6 +8,7 @@ import { initKeyStore, validateSession } from "@variamosple/variamos-security";
 import { parseCookie } from "cookie";
 import { WebSocket, WebSocketServer } from "ws";
 import {
+  ConfigEventPublisherInstance,
   MicroServiceRepositoryInstance,
   productionBugAttachmentUseCase,
   productionBugLifecycleUseCase,
@@ -35,7 +36,6 @@ import { BugAttachmentModel } from "./DataProviders/Bug/BugAttachment.js";
 import { BugLogModel } from "./DataProviders/Bug/BugLog.js";
 import { ConfigurationModel } from "./DataProviders/Configuration/Configuration.js";
 import { MicroServiceAuditLogModel } from "./DataProviders/MicroService/MicroServiceAuditLogModel.js";
-import { MicroServiceConfigurationModel } from "./DataProviders/MicroService/MicroServiceConfigurationModel.js";
 import { MicroServiceHealthLogModel } from "./DataProviders/MicroService/MicroServiceHealthLogModel.js";
 import { RequestModel } from "./Domain/Core/Entity/RequestModel.js";
 import { createBaseRouter } from "./EntryPoints/index.js";
@@ -105,8 +105,19 @@ const app = createServer(baseRouter);
 
 const healthCheckCollectorInstance = new HealthCheckCollector(
   MicroServiceRepositoryInstance,
-  30000,
+  EnvVars.MONITORING.HEALTH_CHECK_INTERVAL_MS,
 );
+MicroServiceRepositoryInstance.setHealthCollector(healthCheckCollectorInstance);
+
+// Listen to dynamic configuration updates to reconfigure collector live
+ConfigEventPublisherInstance.addListener((config) => {
+  if (config.key.getValue() === "monitoring.health_check_interval_seconds") {
+    const seconds = Number(config.value);
+    if (!Number.isNaN(seconds) && seconds > 0) {
+      healthCheckCollectorInstance.setIntervalMs(seconds * 1000);
+    }
+  }
+});
 
 const SERVER_START_MSG = `Express server started on port: ${EnvVars.Port.toString()}`;
 
@@ -122,9 +133,23 @@ const server = app.listen(EnvVars.Port, async () => {
     await BugLogModel.sync();
     await ConfigurationModel.sync();
     await MicroServiceHealthLogModel.sync();
-    await MicroServiceConfigurationModel.sync();
     await MicroServiceAuditLogModel.sync();
     logger.info("Database models synchronized successfully.");
+
+    // Check if monitoring.health_check_interval_seconds exists in DB config
+    try {
+      const configRes = await productionConfigurationUseCase.queryByKey(
+        new RequestModel(undefined, "monitoring.health_check_interval_seconds"),
+      );
+      if (configRes.data?.value) {
+        const val = Number(configRes.data.value);
+        if (!Number.isNaN(val) && val > 0) {
+          healthCheckCollectorInstance.setIntervalMs(val * 1000);
+        }
+      }
+    } catch {
+      // Configuration key might not exist initially, fallback remains EnvVars
+    }
 
     // Start periodic HealthCheckCollector
     healthCheckCollectorInstance.start();

@@ -18,84 +18,126 @@ import type { IMicroServiceRepository } from "@src/Domain/MicroService/Repositor
 import Docker from "dockerode";
 import logger from "jet-logger";
 import { Op } from "sequelize";
+import { ConfigurationModel } from "../Configuration/Configuration.js";
 import { MicroServiceAuditLogModel } from "./MicroServiceAuditLogModel.js";
-import { MicroServiceConfigurationModel } from "./MicroServiceConfigurationModel.js";
 import { MicroServiceHealthLogModel } from "./MicroServiceHealthLogModel.js";
 
 export interface ServiceDefinition {
   name: string;
   displayName: string;
   targetUrl: string;
-  containerNamePattern: string;
+  containerNamePattern?: string;
   defaultPort: number;
+  healthPath?: string;
 }
-
-export const KNOWN_SERVICES: ServiceDefinition[] = [
-  {
-    name: "variamos_ms_admin",
-    displayName: "Admin Service",
-    targetUrl: "http://localhost:4000",
-    containerNamePattern: "admin",
-    defaultPort: 4000,
-  },
-  {
-    name: "variamos_ms_languages",
-    displayName: "Languages Service",
-    targetUrl: "http://localhost:5000",
-    containerNamePattern: "language",
-    defaultPort: 5000,
-  },
-  {
-    name: "vms_projects",
-    displayName: "Projects Service",
-    targetUrl: "http://localhost:10000",
-    containerNamePattern: "project",
-    defaultPort: 10000,
-  },
-  {
-    name: "variamos_ms_notifications",
-    displayName: "Notifications Service",
-    targetUrl: "http://localhost:3005",
-    containerNamePattern: "notification",
-    defaultPort: 3005,
-  },
-  {
-    name: "semantic_translator",
-    displayName: "Semantic Translator",
-    targetUrl: "http://localhost:5001",
-    containerNamePattern: "semantic",
-    defaultPort: 5001,
-  },
-  {
-    name: "vms_domain_application",
-    displayName: "Domain Application",
-    targetUrl: "http://localhost:8081",
-    containerNamePattern: "domain",
-    defaultPort: 8081,
-  },
-  {
-    name: "vms_requirements_autocomplete",
-    displayName: "Requirements Autocomplete",
-    targetUrl: "http://localhost:8080",
-    containerNamePattern: "autocomplete",
-    defaultPort: 8080,
-  },
-  {
-    name: "vms_language_reviews",
-    displayName: "Language Reviews",
-    targetUrl: "http://localhost:3001",
-    containerNamePattern: "review",
-    defaultPort: 3001,
-  },
-];
 
 export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
   private dockerConnection: Docker;
+  private healthCollector?: {
+    triggerHealthChecks: (
+      serviceName?: string,
+    ) => Promise<MicroServiceHealthInfo[]>;
+  };
 
   public constructor(config: { socketPath: string }) {
     this.dockerConnection = new Docker({
       socketPath: config.socketPath,
     });
+  }
+
+  public setHealthCollector(collector: {
+    triggerHealthChecks: (
+      serviceName?: string,
+    ) => Promise<MicroServiceHealthInfo[]>;
+  }): void {
+    this.healthCollector = collector;
+  }
+
+  public async triggerHealthChecks(
+    serviceName?: string,
+  ): Promise<MicroServiceHealthInfo[]> {
+    if (this.healthCollector) {
+      return this.healthCollector.triggerHealthChecks(serviceName);
+    }
+    return [];
+  }
+
+  /**
+   * Discover service definitions dynamically from Docker containers using labels
+   * or compose metadata.
+   */
+  public async discoverServiceDefinitions(): Promise<ServiceDefinition[]> {
+    try {
+      const containers = await this.dockerConnection.listContainers({
+        all: true,
+      });
+      const discoveredMap = new Map<string, ServiceDefinition>();
+
+      for (const c of containers) {
+        const labels = c.Labels || {};
+        const isMonitored = labels["variamos.service.monitored"] === "true";
+        const composeService = labels["com.docker.compose.service"];
+
+        // We recognize containers that are explicitly labeled as monitored,
+        // or part of docker compose with a variamos / vms service name.
+        if (
+          !isMonitored &&
+          (!composeService ||
+            (!composeService.includes("variamos") &&
+              !composeService.includes("vms")))
+        ) {
+          continue;
+        }
+
+        const rawServiceName =
+          labels["variamos.service.name"] ||
+          composeService?.replace(/-/g, "_") ||
+          c.Names[0]
+            ?.replace(/^\//, "")
+            .replace(/-test$/, "")
+            .replace(/-/g, "_");
+
+        if (!rawServiceName || discoveredMap.has(rawServiceName)) {
+          continue;
+        }
+
+        const rawDisplayName =
+          labels["variamos.service.display-name"] ||
+          rawServiceName
+            .split("_")
+            .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+            .join(" ");
+
+        const internalPort = labels["variamos.service.internal-port"]
+          ? parseInt(labels["variamos.service.internal-port"], 10)
+          : c.Ports?.[0]?.PrivatePort || 4000;
+
+        const healthPath = labels["variamos.service.health-path"] || "/health";
+
+        // Determine targetUrl: if host port is published use localhost, else use internal container alias
+        const hostPort = c.Ports?.find((p) => p.PublicPort)?.PublicPort;
+        const targetUrl = hostPort
+          ? `http://localhost:${hostPort}`
+          : `http://${composeService || rawServiceName}:${internalPort}`;
+
+        discoveredMap.set(rawServiceName, {
+          name: rawServiceName,
+          displayName: rawDisplayName,
+          targetUrl,
+          containerNamePattern:
+            composeService || rawServiceName.replace(/_/g, "-"),
+          defaultPort: internalPort,
+          healthPath,
+        });
+      }
+
+      return Array.from(discoveredMap.values());
+    } catch (err) {
+      logger.warn(
+        `Failed to dynamically discover service definitions: ${(err as Error).message}`,
+      );
+      return [];
+    }
   }
 
   public async queryMicroServices(
@@ -115,12 +157,12 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         logger.warn(`Docker listContainers warning: ${(err as Error).message}`);
       }
 
+      const discoveredDefs = await this.discoverServiceDefinitions();
       const services: MicroServiceDetailed[] = [];
-
       const matchedContainerIds = new Set<string>();
 
-      const knownServicesResults = await Promise.all(
-        KNOWN_SERVICES.map(async (def) => {
+      const serviceResults = await Promise.all(
+        discoveredDefs.map(async (def) => {
           if (
             filter?.name &&
             !def.displayName
@@ -131,12 +173,24 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
             return null;
           }
 
-          // Match containers belonging to this service
-          const matchedContainers = containers.filter((c) =>
-            c.Names.some((n) =>
-              n.toLowerCase().includes(def.containerNamePattern.toLowerCase()),
-            ),
-          );
+          // Match containers belonging to this service by label, compose name or pattern
+          const matchedContainers = containers.filter((c) => {
+            const labels = c.Labels || {};
+            if (labels["variamos.service.name"] === def.name) return true;
+            if (
+              labels["com.docker.compose.service"] === def.containerNamePattern
+            )
+              return true;
+            return c.Names.some((n) => {
+              const cleanN = n.replace(/^\//, "").toLowerCase();
+              return (
+                cleanN === def.name.toLowerCase() ||
+                cleanN.includes(def.name.toLowerCase().replace(/_/g, "-")) ||
+                (def.containerNamePattern &&
+                  cleanN.includes(def.containerNamePattern.toLowerCase()))
+              );
+            });
+          });
 
           for (const c of matchedContainers) {
             matchedContainerIds.add(c.Id);
@@ -203,48 +257,10 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         }),
       );
 
-      for (const res of knownServicesResults) {
+      for (const res of serviceResults) {
         if (res) {
           services.push(res);
         }
-      }
-
-      // Add any other running Docker container discovered on the host (dynamic docker ps)
-      const otherContainers = containers.filter(
-        (c) => !matchedContainerIds.has(c.Id),
-      );
-      for (const c of otherContainers) {
-        const rawName = c.Names[0]?.replace(/^\//, "") ?? c.Id.substring(0, 12);
-        if (
-          filter?.name &&
-          !rawName.toLowerCase().includes(filter.name.toLowerCase())
-        ) {
-          continue;
-        }
-
-        const containerInfo: ContainerInstanceInfo = {
-          id: c.Id,
-          name: rawName,
-          state: c.State,
-          status: c.Status,
-          created: new Date(c.Created * 1000),
-          labels: c.Labels,
-        };
-
-        services.push(
-          new MicroServiceDetailed(
-            rawName,
-            rawName,
-            {
-              status: c.State === "running" ? "UP" : "DOWN",
-              serviceName: rawName,
-              responseTimeMs: 0,
-              checkedAt: new Date(),
-            },
-            1,
-            [containerInfo],
-          ),
-        );
       }
 
       response.data = services;
@@ -270,9 +286,10 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
     const serviceName = request.data;
 
     try {
-      const def = KNOWN_SERVICES.find(
+      const discoveredDefs = await this.discoverServiceDefinitions();
+      const def = discoveredDefs.find(
         (s) =>
-          s.name === serviceName ||
+          s.name.toLowerCase() === serviceName?.toLowerCase() ||
           s.displayName.toLowerCase() === serviceName?.toLowerCase(),
       );
 
@@ -290,11 +307,21 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         logger.warn(`Docker connection warning: ${(err as Error).message}`);
       }
 
-      const matchedContainers = containers.filter((c) =>
-        c.Names.some((n) =>
-          n.toLowerCase().includes(def.containerNamePattern.toLowerCase()),
-        ),
-      );
+      const matchedContainers = containers.filter((c) => {
+        const labels = c.Labels || {};
+        if (labels["variamos.service.name"] === def.name) return true;
+        if (labels["com.docker.compose.service"] === def.containerNamePattern)
+          return true;
+        return c.Names.some((n) => {
+          const cleanN = n.replace(/^\//, "").toLowerCase();
+          return (
+            cleanN === def.name.toLowerCase() ||
+            cleanN.includes(def.name.toLowerCase().replace(/_/g, "-")) ||
+            (def.containerNamePattern &&
+              cleanN.includes(def.containerNamePattern.toLowerCase()))
+          );
+        });
+      });
 
       const containerInfos: ContainerInstanceInfo[] = matchedContainers.map(
         (c) => ({
@@ -370,8 +397,23 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         return this.dockerConnection.getContainer(directMatch.Id);
       }
 
-      // 2. Direct Name match (e.g. /variamos-ms-admin-test)
+      // 2. Match by variamos.service.name label or compose service name
       const cleanTarget = idOrServiceName.replace(/^\//, "").toLowerCase();
+      const labelMatch = containers.find((c) => {
+        const labels = c.Labels || {};
+        return (
+          labels["variamos.service.name"]?.toLowerCase() === cleanTarget ||
+          labels["com.docker.compose.service"]?.toLowerCase() === cleanTarget ||
+          labels["com.docker.compose.service"]
+            ?.replace(/-/g, "_")
+            .toLowerCase() === cleanTarget
+        );
+      });
+      if (labelMatch) {
+        return this.dockerConnection.getContainer(labelMatch.Id);
+      }
+
+      // 3. Direct Name match (e.g. /variamos-ms-admin-test)
       const nameMatch = containers.find((c) =>
         c.Names.some((n) => n.replace(/^\//, "").toLowerCase() === cleanTarget),
       );
@@ -379,18 +421,21 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         return this.dockerConnection.getContainer(nameMatch.Id);
       }
 
-      // 3. Search in KNOWN_SERVICES by definition pattern
-      const def = KNOWN_SERVICES.find(
-        (s) =>
-          s.name.toLowerCase() === cleanTarget ||
-          s.displayName.toLowerCase() === cleanTarget,
-      );
-      const pattern =
-        def?.containerNamePattern ||
-        cleanTarget.replace(/^variamos[-_](ms[-_])?/, "");
-
+      // 4. Pattern / partial match on container names
+      const normalizedTarget = cleanTarget
+        .replace(/^variamos[-_](ms[-_])?/, "")
+        .replace(/-/g, "_");
       const patternMatch = containers.find((c) =>
-        c.Names.some((n) => n.toLowerCase().includes(pattern.toLowerCase())),
+        c.Names.some((n) => {
+          const cleanName = n
+            .replace(/^\//, "")
+            .toLowerCase()
+            .replace(/-/g, "_");
+          return (
+            cleanName.includes(normalizedTarget) ||
+            cleanName.includes(cleanTarget)
+          );
+        }),
       );
 
       if (patternMatch) {
@@ -668,20 +713,25 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
     }
 
     try {
-      const configs = await MicroServiceConfigurationModel.findAll({
-        where: { serviceName },
-        order: [["config_key", "ASC"]],
+      // Find configurations targeted to this specific service OR targeted to "all"
+      const configs = await ConfigurationModel.findAll({
+        where: {
+          [Op.or]: [
+            { targetServices: { [Op.contains]: [serviceName] } },
+            { targetServices: { [Op.contains]: ["all"] } },
+          ],
+        },
+        order: [["key", "ASC"]],
       });
 
       response.data = configs.map(
         (c) =>
           new MicroServiceConfigItem(
             c.id,
-            c.serviceName,
-            c.configKey,
-            c.configValue,
-            (c.valueType as "string" | "number" | "boolean" | "json") ||
-              "string",
+            serviceName,
+            c.key,
+            typeof c.value === "string" ? c.value : JSON.stringify(c.value),
+            (c.type as "string" | "number" | "boolean" | "json") || "string",
             c.isSecret,
             c.isReadOnly,
             c.description,
@@ -722,15 +772,48 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
     const { serviceName, key, value, operatorId } = request.data;
 
     try {
-      const [config] = await MicroServiceConfigurationModel.upsert({
-        serviceName,
-        configKey: key,
-        configValue: value,
-        valueType: "string",
-        isSecret: false,
-        isReadOnly: false,
-        updatedBy: operatorId,
-      });
+      const existing = await ConfigurationModel.findOne({ where: { key } });
+
+      let parsedValue: ConfigurationValue = value;
+      let detectedType: "string" | "number" | "boolean" | "json" = "string";
+
+      try {
+        parsedValue = JSON.parse(value);
+        if (typeof parsedValue === "number") detectedType = "number";
+        else if (typeof parsedValue === "boolean") detectedType = "boolean";
+        else if (typeof parsedValue === "object" && parsedValue !== null)
+          detectedType = "json";
+        else parsedValue = value;
+      } catch {
+        parsedValue = value;
+      }
+
+      let config: ConfigurationModel;
+
+      if (existing) {
+        const targetServices = Array.from(
+          new Set([...existing.targetServices, serviceName]),
+        );
+        await existing.update({
+          value: parsedValue,
+          targetServices,
+          updatedBy: operatorId,
+        });
+        config = existing;
+      } else {
+        config = await ConfigurationModel.create({
+          key,
+          value: parsedValue,
+          type: detectedType,
+          category: "env",
+          requiresMfa: false,
+          isSecret: false,
+          environmentScope: "all",
+          isReadOnly: false,
+          targetServices: [serviceName],
+          updatedBy: operatorId,
+        });
+      }
 
       await MicroServiceAuditLogModel.create({
         serviceName,
@@ -741,11 +824,12 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
 
       response.data = new MicroServiceConfigItem(
         config.id,
-        config.serviceName,
-        config.configKey,
-        config.configValue,
-        (config.valueType as "string" | "number" | "boolean" | "json") ||
-          "string",
+        serviceName,
+        config.key,
+        typeof config.value === "string"
+          ? config.value
+          : JSON.stringify(config.value),
+        (config.type as "string" | "number" | "boolean" | "json") || "string",
         config.isSecret,
         config.isReadOnly,
         config.description,

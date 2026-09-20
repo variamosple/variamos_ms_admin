@@ -1,20 +1,48 @@
-import {
-  KNOWN_SERVICES,
-  type ServiceDefinition,
+import type {
+  MicroServiceRepositoryImpl,
+  ServiceDefinition,
 } from "@src/DataProviders/MicroService/MicroServiceRepository.js";
 import type { MicroServiceHealthInfo } from "@src/Domain/MicroService/Entity/MicroServiceHealth.js";
 import type { IMicroServiceRepository } from "@src/Domain/MicroService/Repository/IMicroServiceRepository.js";
-import axios from "axios";
+import axios, { type AxiosResponse } from "axios";
 import logger from "jet-logger";
 
 export class HealthCheckCollector {
   private intervalTimer: NodeJS.Timeout | null = null;
   private isCollecting = false;
 
+  private pollIntervalMs: number;
+
   public constructor(
     private readonly microServiceRepository: IMicroServiceRepository,
-    private readonly pollIntervalMs: number = 30000,
-  ) {}
+    initialPollIntervalMs: number = 30000,
+  ) {
+    this.pollIntervalMs = initialPollIntervalMs;
+  }
+
+  public getIntervalMs(): number {
+    return this.pollIntervalMs;
+  }
+
+  public setIntervalMs(newIntervalMs: number): void {
+    if (newIntervalMs < 5000) {
+      logger.warn(
+        `HealthCheckCollector interval ${newIntervalMs}ms too small, fallback to 5000ms`,
+      );
+      newIntervalMs = 5000;
+    }
+    this.pollIntervalMs = newIntervalMs;
+    logger.info(
+      `HealthCheckCollector interval updated to ${this.pollIntervalMs}ms`,
+    );
+    if (this.intervalTimer) {
+      clearInterval(this.intervalTimer);
+      this.intervalTimer = setInterval(
+        () => this.collectAll(),
+        this.pollIntervalMs,
+      );
+    }
+  }
 
   public start(): void {
     if (this.intervalTimer) return;
@@ -37,13 +65,38 @@ export class HealthCheckCollector {
   }
 
   public async collectAll(): Promise<void> {
-    if (this.isCollecting) return;
+    await this.triggerHealthChecks();
+  }
+
+  public async triggerHealthChecks(
+    serviceName?: string,
+  ): Promise<MicroServiceHealthInfo[]> {
+    if (this.isCollecting) return [];
     this.isCollecting = true;
 
+    const results: MicroServiceHealthInfo[] = [];
+
     try {
-      await Promise.all(
-        KNOWN_SERVICES.map((service) => this.checkService(service)),
-      );
+      // Dynamic service discovery from repository
+      let services: ServiceDefinition[] = [];
+      if ("discoverServiceDefinitions" in this.microServiceRepository) {
+        services = await (
+          this.microServiceRepository as MicroServiceRepositoryImpl
+        ).discoverServiceDefinitions();
+      }
+
+      const targetServices = serviceName
+        ? services.filter(
+            (s) =>
+              s.name.toLowerCase() === serviceName.toLowerCase() ||
+              s.displayName.toLowerCase() === serviceName.toLowerCase(),
+          )
+        : services;
+
+      for (const service of targetServices) {
+        const info = await this.checkService(service);
+        results.push(info);
+      }
     } catch (err) {
       logger.err(
         `Error during health check collection: ${(err as Error).message}`,
@@ -51,65 +104,83 @@ export class HealthCheckCollector {
     } finally {
       this.isCollecting = false;
     }
+
+    return results;
   }
 
-  private async checkService(service: ServiceDefinition): Promise<void> {
+  public async checkService(
+    service: ServiceDefinition,
+  ): Promise<MicroServiceHealthInfo> {
     const startTime = Date.now();
     let status: "UP" | "DEGRADED" | "DOWN" = "DOWN";
     let responseTimeMs = 0;
 
-    // Determine the candidate URLs to check (targeted based on service container aliases and host)
+    const path = service.healthPath || "/health";
+    const cleanServiceName = service.name.replace(/_/g, "-");
+    const containerPattern = service.containerNamePattern || cleanServiceName;
+
+    // Dynamically build candidate URLs for both Docker internal network and local host environments
     const candidateUrls: string[] = [];
 
+    // 1. If running as variamos_ms_admin itself
     if (service.name === "variamos_ms_admin") {
-      candidateUrls.push("http://127.0.0.1:4000/health");
-      candidateUrls.push("http://localhost:4000/health");
-    } else if (service.name === "variamos_ms_languages") {
-      candidateUrls.push("http://variamos-ms-languages-test:4000/health");
-      candidateUrls.push("http://variamos-ms-languages:4000/health");
-      candidateUrls.push("http://127.0.0.1:5000/health");
-      candidateUrls.push("http://localhost:5000/health");
-    } else if (service.name === "vms_projects") {
-      candidateUrls.push("http://variamos-ms-projects-test:10000/health");
-      candidateUrls.push("http://variamos-ms-projects:10000/health");
-      candidateUrls.push("http://127.0.0.1:10000/health");
-      candidateUrls.push("http://localhost:10000/health");
-    } else if (service.name === "variamos_ms_notifications") {
-      candidateUrls.push("http://variamos-ms-notifications-test:3005/health");
-      candidateUrls.push("http://variamos-ms-notifications:3005/health");
-      candidateUrls.push("http://127.0.0.1:3005/health");
-      candidateUrls.push("http://localhost:3005/health");
+      candidateUrls.push(`http://127.0.0.1:${service.defaultPort}${path}`);
+      candidateUrls.push(`http://localhost:${service.defaultPort}${path}`);
     } else {
-      const cleanServiceName = service.name.replace(/_/g, "-");
-      candidateUrls.push(
-        `http://variamos-ms-${service.containerNamePattern}:${service.defaultPort}/health`,
-      );
-      candidateUrls.push(
-        `http://${cleanServiceName}:${service.defaultPort}/health`,
-      );
-      if (service.targetUrl) {
-        candidateUrls.push(`${service.targetUrl}/health`);
+      // 2. Container DNS hostnames on Docker network
+      if (containerPattern) {
+        candidateUrls.push(
+          `http://${containerPattern}:${service.defaultPort}${path}`,
+        );
+        candidateUrls.push(
+          `http://${containerPattern}-test:${service.defaultPort}${path}`,
+        );
+      }
+      if (cleanServiceName && cleanServiceName !== containerPattern) {
+        candidateUrls.push(
+          `http://${cleanServiceName}:${service.defaultPort}${path}`,
+        );
+        candidateUrls.push(
+          `http://${cleanServiceName}-test:${service.defaultPort}${path}`,
+        );
+      }
+      // 3. Host mapped URL if available
+      if (
+        service.targetUrl &&
+        !service.targetUrl.includes("localhost") &&
+        !service.targetUrl.includes("127.0.0.1")
+      ) {
+        candidateUrls.push(`${service.targetUrl.replace(/\/+$/, "")}${path}`);
       }
     }
 
-    const checkPromises = candidateUrls.map(async (url) => {
-      const response = await axios.get(url, {
-        timeout: 1500,
-        validateStatus: () => true,
-      });
+    // Deduplicate candidate URLs
+    const uniqueUrls = Array.from(new Set(candidateUrls));
 
-      if (response.status >= 200 && response.status < 300) {
-        return response;
-      }
-      throw new Error(`HTTP status ${response.status}`);
-    });
+    const checkResults = await Promise.allSettled(
+      uniqueUrls.map(async (url) => {
+        const response = await axios.get(url, {
+          timeout: 5000,
+          validateStatus: () => true,
+        });
 
-    try {
-      const response = await promiseAny(checkPromises);
-      responseTimeMs = Date.now() - startTime;
-      status = response.data?.status === "DEGRADED" ? "DEGRADED" : "UP";
-    } catch {
-      responseTimeMs = Date.now() - startTime;
+        if (response.status >= 200 && response.status < 300) {
+          return response;
+        }
+        throw new Error(`HTTP status ${response.status}`);
+      }),
+    );
+
+    const successfulResult = checkResults.find(
+      (r): r is PromiseFulfilledResult<AxiosResponse> =>
+        r.status === "fulfilled",
+    );
+
+    responseTimeMs = Date.now() - startTime;
+    if (successfulResult) {
+      status =
+        successfulResult.value.data?.status === "DEGRADED" ? "DEGRADED" : "UP";
+    } else {
       status = "DOWN";
     }
 
@@ -121,25 +192,6 @@ export class HealthCheckCollector {
     };
 
     await this.microServiceRepository.recordHealthCheck(healthInfo);
+    return healthInfo;
   }
-}
-
-async function promiseAny<T>(promises: Promise<T>[]): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    let pending = promises.length;
-    if (pending === 0) {
-      reject(new Error("No promises provided"));
-      return;
-    }
-    const errors: Error[] = [];
-    promises.forEach((p, idx) => {
-      p.then(resolve).catch((err: Error) => {
-        errors[idx] = err;
-        pending--;
-        if (pending === 0) {
-          reject(errors);
-        }
-      });
-    });
-  });
 }

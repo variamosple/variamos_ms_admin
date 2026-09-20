@@ -144,4 +144,23 @@ export class MicroServiceManagementUseCase {
     }
     return this.microServiceRepository.updateConfiguration(request);
   }
+
+  public async triggerHealthChecks(
+    request: RequestModel<{ serviceName?: string }>,
+  ): Promise<ResponseModel<void>> {
+    const defaultResponse = new ResponseModel<void>(request.transactionId);
+    try {
+      if (this.microServiceRepository.triggerHealthChecks) {
+        await this.microServiceRepository.triggerHealthChecks(
+          request.data?.serviceName,
+        );
+      }
+      return defaultResponse;
+    } catch (error) {
+      return defaultResponse.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        `Failed to trigger health checks: ${(error as Error).message}`,
+      );
+    }
+  }
 }

@@ -58,4 +58,6 @@ export interface IMicroServiceRepository {
   queryAuditLogs(
     request: RequestModel<{ serviceName: string; limit?: number }>,
   ): Promise<ResponseModel<MicroServiceAuditEntry[]>>;
+
+  triggerHealthChecks?(serviceName?: string): Promise<unknown>;
 }
