@@ -36,6 +36,7 @@ import { BugAttachmentModel } from "./DataProviders/Bug/BugAttachment.js";
 import { BugLogModel } from "./DataProviders/Bug/BugLog.js";
 import { ConfigurationModel } from "./DataProviders/Configuration/Configuration.js";
 import { MicroServiceAuditLogModel } from "./DataProviders/MicroService/MicroServiceAuditLogModel.js";
+import { MicroServiceDailyStatsModel } from "./DataProviders/MicroService/MicroServiceDailyStatsModel.js";
 import { MicroServiceHealthLogModel } from "./DataProviders/MicroService/MicroServiceHealthLogModel.js";
 import { RequestModel } from "./Domain/Core/Entity/RequestModel.js";
 import { createBaseRouter } from "./EntryPoints/index.js";
@@ -133,6 +134,7 @@ const server = app.listen(EnvVars.Port, async () => {
     await BugLogModel.sync();
     await ConfigurationModel.sync();
     await MicroServiceHealthLogModel.sync();
+    await MicroServiceDailyStatsModel.sync();
     await MicroServiceAuditLogModel.sync();
     logger.info("Database models synchronized successfully.");
 

@@ -29,7 +29,8 @@
     "ILIKE",
     "testuser",
     "uuidv4",
-    "uuidv"
+    "uuidv",
+    "DATEONLY"
   ],
   "ignorePaths": [
     "node_modules/**",

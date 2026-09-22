@@ -18,7 +18,10 @@ import type { IMicroServiceRepository } from "@src/Domain/MicroService/Repositor
 import Docker from "dockerode";
 import logger from "jet-logger";
 import { Op } from "sequelize";
-import { ConfigurationModel } from "../Configuration/Configuration.js";
+import {
+  ConfigurationModel,
+  type ConfigurationValue,
+} from "../Configuration/Configuration.js";
 import { MicroServiceAuditLogModel } from "./MicroServiceAuditLogModel.js";
 import { MicroServiceHealthLogModel } from "./MicroServiceHealthLogModel.js";
 
@@ -775,14 +778,16 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
       const existing = await ConfigurationModel.findOne({ where: { key } });
 
       let parsedValue: ConfigurationValue = value;
-      let detectedType: "string" | "number" | "boolean" | "json" = "string";
+      let detectedType: "string" | "number" | "boolean" | "object" | "array" =
+        "string";
 
       try {
         parsedValue = JSON.parse(value);
         if (typeof parsedValue === "number") detectedType = "number";
         else if (typeof parsedValue === "boolean") detectedType = "boolean";
+        else if (Array.isArray(parsedValue)) detectedType = "array";
         else if (typeof parsedValue === "object" && parsedValue !== null)
-          detectedType = "json";
+          detectedType = "object";
         else parsedValue = value;
       } catch {
         parsedValue = value;
