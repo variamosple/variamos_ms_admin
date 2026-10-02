@@ -311,31 +311,31 @@ export class HealthCheckCollector {
     // Deduplicate candidate URLs
     const uniqueUrls = Array.from(new Set(candidateUrls));
 
-    const checkResults = await Promise.allSettled(
-      uniqueUrls.map(async (url) => {
-        const response = await axios.get(url, {
-          timeout: 5000,
-          validateStatus: () => true,
-        });
+    try {
+      const successfulResult = await Promise.any(
+        uniqueUrls.map(async (url) => {
+          const reqStart = Date.now();
+          const response = await axios.get(url, {
+            timeout: 5000,
+            validateStatus: () => true,
+          });
 
-        if (response.status >= 200 && response.status < 300) {
-          return response;
-        }
-        throw new Error(`HTTP status ${response.status}`);
-      }),
-    );
+          if (response.status >= 200 && response.status < 300) {
+            return { response, latency: Date.now() - reqStart };
+          }
+          throw new Error(`HTTP status ${response.status}`);
+        }),
+      );
 
-    const successfulResult = checkResults.find(
-      (r): r is PromiseFulfilledResult<AxiosResponse> =>
-        r.status === "fulfilled",
-    );
-
-    responseTimeMs = Date.now() - startTime;
-    if (successfulResult) {
       status =
-        successfulResult.value.data?.status === "DEGRADED" ? "DEGRADED" : "UP";
-    } else {
+        successfulResult.response.data?.status === "DEGRADED"
+          ? "DEGRADED"
+          : "UP";
+      responseTimeMs = successfulResult.latency;
+    } catch (aggregateError) {
+      // All candidate URLs failed
       status = "DOWN";
+      responseTimeMs = Date.now() - startTime;
     }
 
     const healthInfo: MicroServiceHealthInfo = {
