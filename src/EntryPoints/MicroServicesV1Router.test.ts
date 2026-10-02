@@ -100,6 +100,38 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
     });
   });
 
+  describe("POST /v1/micro-services/check", () => {
+    it("should return 200 when manual health check is triggered", async () => {
+      const expectedResponse = new ResponseModel(
+        "triggerMicroServicesHealthCheck",
+      ).withResponse(null);
+      (
+        MicroServiceManagementUseCase.prototype.triggerHealthChecks as vi.Mock
+      ).mockResolvedValue(expectedResponse);
+
+      const response = await supertest(app)
+        .post("/v1/micro-services/check")
+        .send({ serviceName: "vms_projects" });
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(
+        MicroServiceManagementUseCase.prototype.triggerHealthChecks,
+      ).toHaveBeenCalledTimes(1);
+    });
+
+    it("should return 500 when triggerHealthChecks throws an exception", async () => {
+      (
+        MicroServiceManagementUseCase.prototype.triggerHealthChecks as vi.Mock
+      ).mockRejectedValue(new Error("Unexpected failure"));
+
+      const response = await supertest(app)
+        .post("/v1/micro-services/check")
+        .send({});
+
+      expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+    });
+  });
+
   describe("PUT /v1/micro-services/:microserviceId/start", () => {
     it("should return 200 on success", async () => {
       const expectedResponse = new ResponseModel(

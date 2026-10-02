@@ -44,6 +44,7 @@ import {
   COUNTRIES_V1_ROUTE,
   createCountriesRouter,
 } from "./CountriesV1Router.js";
+import { createHealthRouter } from "./HealthRouter.js";
 import { createMetricsRouter, METRICS_V1_ROUTE } from "./MetricsV1Router.js";
 import {
   createMicroServicesRouter,
@@ -152,6 +153,7 @@ export function createBaseRouter(
   baseRouter.use(COUNTRIES_V1_ROUTE, countriesV1Router);
   baseRouter.use(BUG_V1_ROUTE, bugV1Router);
   baseRouter.use(ADMIN_NOTIFICATIONS_V1_ROUTE, adminNotificationsV1Router);
+  baseRouter.use("/health", createHealthRouter());
 
   baseRouter.get("/version", (_, res) => {
     try {

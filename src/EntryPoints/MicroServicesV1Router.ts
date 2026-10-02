@@ -18,6 +18,7 @@ export function createMicroServicesRouter(
 ): Router {
   const microServicesV1Router = Router();
 
+  // GET /v1/micro-services (Enriched list)
   microServicesV1Router.get(
     "/",
     hasPermissions(["micro-services::query"]),
@@ -27,9 +28,9 @@ export function createMicroServicesRouter(
 
       try {
         const filter: MicroServiceFilter = MicroServiceFilter.builder()
-          .setName(name as string)
-          .setPageNumber(Number(pageNumber))
-          .setPageSize(Number(pageSize))
+          .setName((name as string) || "")
+          .setPageNumber(pageNumber ? Number(pageNumber) : 1)
+          .setPageSize(pageSize ? Number(pageSize) : 50)
           .build();
 
         const request = new RequestModel<MicroServiceFilter>(
@@ -53,6 +54,227 @@ export function createMicroServicesRouter(
     },
   );
 
+  // POST /v1/micro-services/check (Trigger on-demand manual health check)
+  microServicesV1Router.post(
+    "/check",
+    hasPermissions(["micro-services::query"]),
+    async (req, res) => {
+      const transactionId = "triggerMicroServicesHealthCheck";
+      const { serviceName } = (req.body || {}) as { serviceName?: string };
+
+      try {
+        const request = new RequestModel<{ serviceName?: string }>(
+          transactionId,
+          { serviceName },
+        );
+        const response =
+          await microServiceManagementUseCase.triggerHealthChecks(request);
+
+        const status = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(status).json(response);
+      } catch (error) {
+        logger.err(error);
+        const response = new ResponseModel(
+          transactionId,
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal Server Error",
+        );
+        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+      }
+    },
+  );
+
+  // POST /v1/micro-services/:name/check
+  microServicesV1Router.post(
+    "/:name/check",
+    hasPermissions(["micro-services::query"]),
+    async (req: Request<{ name: string }>, res) => {
+      const transactionId = "triggerMicroServiceHealthCheck";
+      const { name } = req.params;
+
+      try {
+        const request = new RequestModel<{ serviceName?: string }>(
+          transactionId,
+          { serviceName: name },
+        );
+        const response =
+          await microServiceManagementUseCase.triggerHealthChecks(request);
+
+        const status = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(status).json(response);
+      } catch (error) {
+        logger.err(error);
+        const response = new ResponseModel(
+          transactionId,
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal Server Error",
+        );
+        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+      }
+    },
+  );
+
+  // GET /v1/micro-services/:name/history (Uptime bars 30d/24h)
+  microServicesV1Router.get(
+    "/:name/history",
+    hasPermissions(["micro-services::query"]),
+    async (req: Request<{ name: string }>, res) => {
+      const transactionId = "getMicroServiceHealthHistory";
+      const { name } = req.params;
+      const days = req.query.days ? Number(req.query.days) : 30;
+
+      try {
+        const request = new RequestModel<{
+          serviceName: string;
+          days?: number;
+        }>(transactionId, { serviceName: name, days });
+        const response =
+          await microServiceQueryUseCase.getHealthHistory(request);
+
+        const status = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(status).json(response);
+      } catch (error) {
+        logger.err(error);
+        const response = new ResponseModel(
+          transactionId,
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal Server Error",
+        );
+        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+      }
+    },
+  );
+
+  // GET /v1/micro-services/:name/configurations
+  microServicesV1Router.get(
+    "/:name/configurations",
+    hasPermissions(["micro-services::query"]),
+    async (req: Request<{ name: string }>, res) => {
+      const transactionId = "queryMicroServiceConfigurations";
+      const { name } = req.params;
+
+      try {
+        const request = new RequestModel<string>(transactionId, name);
+        const response =
+          await microServiceQueryUseCase.queryConfigurations(request);
+
+        const status = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(status).json(response);
+      } catch (error) {
+        logger.err(error);
+        const response = new ResponseModel(
+          transactionId,
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal Server Error",
+        );
+        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+      }
+    },
+  );
+
+  // PUT /v1/micro-services/:name/configurations/:key
+  microServicesV1Router.put(
+    "/:name/configurations/:key",
+    hasPermissions(["micro-services::update"]),
+    async (req: Request<{ name: string; key: string }>, res) => {
+      const transactionId = "updateMicroServiceConfiguration";
+      const { name, key } = req.params;
+      const { value } = req.body as { value: string };
+      const operatorId =
+        (req.user as { email?: string; id?: string })?.email || "admin";
+
+      try {
+        const request = new RequestModel<{
+          serviceName: string;
+          key: string;
+          value: string;
+          operatorId: string;
+        }>(transactionId, {
+          serviceName: name,
+          key,
+          value,
+          operatorId,
+        });
+
+        const response =
+          await microServiceManagementUseCase.updateConfiguration(request);
+
+        const status = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(status).json(response);
+      } catch (error) {
+        logger.err(error);
+        const response = new ResponseModel(
+          transactionId,
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal Server Error",
+        );
+        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+      }
+    },
+  );
+
+  // GET /v1/micro-services/:name/audit-logs
+  microServicesV1Router.get(
+    "/:name/audit-logs",
+    hasPermissions(["micro-services::query"]),
+    async (req: Request<{ name: string }>, res) => {
+      const transactionId = "queryMicroServiceAuditLogs";
+      const { name } = req.params;
+      const limit = req.query.limit ? Number(req.query.limit) : 50;
+
+      try {
+        const request = new RequestModel<{
+          serviceName: string;
+          limit?: number;
+        }>(transactionId, { serviceName: name, limit });
+        const response = await microServiceQueryUseCase.queryAuditLogs(request);
+
+        const status = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(status).json(response);
+      } catch (error) {
+        logger.err(error);
+        const response = new ResponseModel(
+          transactionId,
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal Server Error",
+        );
+        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+      }
+    },
+  );
+
+  // PUT /v1/micro-services/:name/scale
+  microServicesV1Router.put(
+    "/:name/scale",
+    hasPermissions(["micro-services::update"]),
+    async (req: Request<{ name: string }>, res) => {
+      const transactionId = "scaleMicroService";
+      const { name } = req.params;
+      const { replicas } = req.body as { replicas: number };
+
+      try {
+        const request = new RequestModel<{
+          serviceName: string;
+          replicas: number;
+        }>(transactionId, { serviceName: name, replicas });
+        const response =
+          await microServiceManagementUseCase.scaleMicroService(request);
+
+        const status = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(status).json(response);
+      } catch (error) {
+        logger.err(error);
+        const response = new ResponseModel(
+          transactionId,
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal Server Error",
+        );
+        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+      }
+    },
+  );
+
+  // PUT /v1/micro-services/:microserviceId/start
   microServicesV1Router.put(
     "/:microserviceId/start",
     hasPermissions(["micro-services::update"]),
@@ -79,6 +301,7 @@ export function createMicroServicesRouter(
     },
   );
 
+  // PUT /v1/micro-services/:microserviceId/restart
   microServicesV1Router.put(
     "/:microserviceId/restart",
     hasPermissions(["micro-services::update"]),
@@ -105,6 +328,7 @@ export function createMicroServicesRouter(
     },
   );
 
+  // PUT /v1/micro-services/:microserviceId/stop
   microServicesV1Router.put(
     "/:microserviceId/stop",
     hasPermissions(["micro-services::update"]),
@@ -131,6 +355,7 @@ export function createMicroServicesRouter(
     },
   );
 
+  // GET /v1/micro-services/:microserviceId/logs/watch
   microServicesV1Router.get(
     "/:microserviceId/logs/watch",
     hasPermissions(["micro-services::query"]),

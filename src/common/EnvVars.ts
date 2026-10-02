@@ -51,6 +51,11 @@ export default {
   DOCKER: {
     SOCKET_PATH: process.env.DOCKER_SOCKET_PATH ?? "",
   },
+  MONITORING: {
+    HEALTH_CHECK_INTERVAL_MS: Number(
+      process.env.HEALTH_CHECK_INTERVAL_MS ?? 30000,
+    ),
+  },
   SMTP: {
     HOST: process.env.SMTP_HOST ?? "smtp-relay.brevo.com",
     PORT: Number(process.env.SMTP_PORT ?? 587),
