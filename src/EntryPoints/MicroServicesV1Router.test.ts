@@ -132,6 +132,75 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
     });
   });
 
+  describe("POST /v1/micro-services/:name/check", () => {
+    it("should return 200 when single service check is triggered", async () => {
+      const expectedResponse = new ResponseModel(
+        "triggerMicroServiceHealthCheck",
+      ).withResponse(null);
+      (
+        MicroServiceManagementUseCase.prototype.triggerHealthChecks as vi.Mock
+      ).mockResolvedValue(expectedResponse);
+
+      const response = await supertest(app).post(
+        "/v1/micro-services/ms-auth/check",
+      );
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+    });
+
+    it("should return 500 when single service check throws an error", async () => {
+      (
+        MicroServiceManagementUseCase.prototype.triggerHealthChecks as vi.Mock
+      ).mockRejectedValue(new Error("Collector failed"));
+
+      const response = await supertest(app).post(
+        "/v1/micro-services/ms-auth/check",
+      );
+
+      expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
+    });
+  });
+
+  describe("GET /v1/micro-services/:name/history", () => {
+    it("should return 200 with service health history summary", async () => {
+      const mockSummary = {
+        serviceName: "ms-auth",
+        currentStatus: "UP",
+        uptime24hPercentage: 100,
+        uptime30dPercentage: 99.5,
+        averageResponseTimeMs: 15,
+        history: [],
+      };
+      const expectedResponse = new ResponseModel(
+        "getMicroServiceHealthHistory",
+      ).withResponse(mockSummary);
+      (
+        MicroServiceQueryUseCase.prototype.getHealthHistory as vi.Mock
+      ).mockResolvedValue(expectedResponse);
+
+      const response = await supertest(app).get(
+        "/v1/micro-services/ms-auth/history?days=30",
+      );
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(response.body.data).toEqual(mockSummary);
+    });
+
+    it("should return 500 when getHealthHistory throws an error", async () => {
+      (
+        MicroServiceQueryUseCase.prototype.getHealthHistory as vi.Mock
+      ).mockRejectedValue(new Error("Telemetry DB unavailable"));
+
+      const response = await supertest(app).get(
+        "/v1/micro-services/ms-auth/history",
+      );
+
+      expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
+    });
+  });
+
   describe("PUT /v1/micro-services/:microserviceId/start", () => {
     it("should return 200 on success", async () => {
       const expectedResponse = new ResponseModel(
@@ -476,6 +545,121 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app)
         .put("/v1/micro-services/ms-auth/scale")
         .send({ replicas: 2 });
+
+      expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
+    });
+  });
+
+  describe("GET /v1/micro-services/:name/configurations", () => {
+    it("should return 200 with configurations list", async () => {
+      const mockConfigs = [
+        {
+          id: 1,
+          serviceName: "ms-auth",
+          key: "PORT",
+          value: "3001",
+          type: "number",
+        },
+      ];
+      const expectedResponse = new ResponseModel(
+        "queryMicroServiceConfigurations",
+      ).withResponse(mockConfigs);
+      (
+        MicroServiceQueryUseCase.prototype.queryConfigurations as vi.Mock
+      ).mockResolvedValue(expectedResponse);
+
+      const response = await supertest(app).get(
+        "/v1/micro-services/ms-auth/configurations",
+      );
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(response.body.data).toEqual(mockConfigs);
+    });
+
+    it("should return 400 when serviceName query fails validation", async () => {
+      const expectedResponse = new ResponseModel(
+        "queryMicroServiceConfigurations",
+      ).withError(DomainErrorCodes.INVALID_INPUT, "Service name is required.");
+      (
+        MicroServiceQueryUseCase.prototype.queryConfigurations as vi.Mock
+      ).mockResolvedValue(expectedResponse);
+
+      const response = await supertest(app).get(
+        "/v1/micro-services/unknown/configurations",
+      );
+
+      expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
+      expect(response.body.message).toBe("Service name is required.");
+    });
+
+    it("should return 500 when queryConfigurations throws unexpected error", async () => {
+      (
+        MicroServiceQueryUseCase.prototype.queryConfigurations as vi.Mock
+      ).mockRejectedValue(new Error("Database connection lost"));
+
+      const response = await supertest(app).get(
+        "/v1/micro-services/ms-auth/configurations",
+      );
+
+      expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
+    });
+  });
+
+  describe("PUT /v1/micro-services/:name/configurations/:key", () => {
+    it("should return 200 when updating configuration succeeds", async () => {
+      const updatedConfig = {
+        id: 1,
+        serviceName: "ms-auth",
+        key: "LOG_LEVEL",
+        value: "debug",
+        type: "string",
+      };
+      const expectedResponse = new ResponseModel(
+        "updateMicroServiceConfiguration",
+      ).withResponse(updatedConfig);
+      (
+        MicroServiceManagementUseCase.prototype.updateConfiguration as vi.Mock
+      ).mockResolvedValue(expectedResponse);
+
+      const response = await supertest(app)
+        .put("/v1/micro-services/ms-auth/configurations/LOG_LEVEL")
+        .send({ value: "debug" });
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(response.body.data).toEqual(updatedConfig);
+    });
+
+    it("should return 400 when update configuration has invalid input", async () => {
+      const expectedResponse = new ResponseModel(
+        "updateMicroServiceConfiguration",
+      ).withError(
+        DomainErrorCodes.INVALID_INPUT,
+        "Service name, key and value are required.",
+      );
+      (
+        MicroServiceManagementUseCase.prototype.updateConfiguration as vi.Mock
+      ).mockResolvedValue(expectedResponse);
+
+      const response = await supertest(app)
+        .put("/v1/micro-services/ms-auth/configurations/LOG_LEVEL")
+        .send({ value: "" });
+
+      expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
+      expect(response.body.message).toBe(
+        "Service name, key and value are required.",
+      );
+    });
+
+    it("should return 500 when updateConfiguration throws unexpected error", async () => {
+      (
+        MicroServiceManagementUseCase.prototype.updateConfiguration as vi.Mock
+      ).mockRejectedValue(new Error("Write failed"));
+
+      const response = await supertest(app)
+        .put("/v1/micro-services/ms-auth/configurations/LOG_LEVEL")
+        .send({ value: "debug" });
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
       expect(response.body.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
