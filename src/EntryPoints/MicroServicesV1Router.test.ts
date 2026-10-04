@@ -394,4 +394,91 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
       );
     });
   });
+
+  describe("GET /v1/micro-services/:name/audit-logs", () => {
+    it("should return 200 with audit logs", async () => {
+      const mockLogs = [
+        {
+          serviceName: "ms-auth",
+          action: "RESTART",
+          performedBy: "admin",
+          timestamp: new Date().toISOString(),
+        },
+      ];
+      const expectedResponse = new ResponseModel(
+        "queryMicroServiceAuditLogs",
+      ).withResponse(mockLogs);
+
+      (
+        MicroServiceQueryUseCase.prototype.queryAuditLogs as vi.Mock
+      ).mockResolvedValue(expectedResponse);
+
+      const response = await supertest(app).get(
+        "/v1/micro-services/ms-auth/audit-logs?limit=20",
+      );
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(response.body.data).toEqual(mockLogs);
+    });
+
+    it("should return 500 when queryAuditLogs throws an unexpected error", async () => {
+      (
+        MicroServiceQueryUseCase.prototype.queryAuditLogs as vi.Mock
+      ).mockRejectedValue(new Error("Database crash"));
+
+      const response = await supertest(app).get(
+        "/v1/micro-services/ms-auth/audit-logs",
+      );
+
+      expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
+    });
+  });
+
+  describe("PUT /v1/micro-services/:name/scale", () => {
+    it("should return 200 when scaling succeeds", async () => {
+      const expectedResponse = new ResponseModel("scaleMicroService");
+      (
+        MicroServiceManagementUseCase.prototype.scaleMicroService as vi.Mock
+      ).mockResolvedValue(expectedResponse);
+
+      const response = await supertest(app)
+        .put("/v1/micro-services/ms-auth/scale")
+        .send({ replicas: 3 });
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+    });
+
+    it("should return 400 when domain rejects invalid replicas count", async () => {
+      const expectedResponse = new ResponseModel("scaleMicroService").withError(
+        DomainErrorCodes.INVALID_INPUT,
+        "Replicas count must be between 0 and 10.",
+      );
+      (
+        MicroServiceManagementUseCase.prototype.scaleMicroService as vi.Mock
+      ).mockResolvedValue(expectedResponse);
+
+      const response = await supertest(app)
+        .put("/v1/micro-services/ms-auth/scale")
+        .send({ replicas: 50 });
+
+      expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
+      expect(response.body.message).toBe(
+        "Replicas count must be between 0 and 10.",
+      );
+    });
+
+    it("should return 500 when scaling throws an unexpected error", async () => {
+      (
+        MicroServiceManagementUseCase.prototype.scaleMicroService as vi.Mock
+      ).mockRejectedValue(new Error("Docker daemon down"));
+
+      const response = await supertest(app)
+        .put("/v1/micro-services/ms-auth/scale")
+        .send({ replicas: 2 });
+
+      expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
+    });
+  });
 });
