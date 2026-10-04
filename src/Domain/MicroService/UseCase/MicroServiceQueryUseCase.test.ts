@@ -2,8 +2,11 @@ import { Readable } from "node:stream";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import { MicroServiceAuditEntry } from "@src/Domain/MicroService/Entity/MicroServiceAuditEntry.js";
+import { MicroServiceConfigItem } from "@src/Domain/MicroService/Entity/MicroServiceConfigItem.js";
 import { MicroServiceDetailed } from "@src/Domain/MicroService/Entity/MicroServiceDetailed.js";
 import { MicroServiceFilter } from "@src/Domain/MicroService/Entity/MicroServiceFilter.js";
+import type { MicroServiceUptimeSummary } from "@src/Domain/MicroService/Entity/MicroServiceHealth.js";
 import type { IMicroServiceRepository } from "@src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 import { type MockProxy, mock } from "vitest-mock-extended";
 import { MicroServiceQueryUseCase } from "./MicroServiceQueryUseCase.js";
@@ -97,7 +100,9 @@ describe("MicroServiceQueryUseCase - Unit Tests", () => {
         history: [],
       };
       mockMicroServiceRepository.getHealthHistory.mockResolvedValue(
-        new ResponseModel("tx-hh").withResponse(mockSummary),
+        new ResponseModel<MicroServiceUptimeSummary>("tx-hh").withResponse(
+          mockSummary,
+        ),
       );
 
       const req = new RequestModel("tx-hh", {
@@ -122,15 +127,20 @@ describe("MicroServiceQueryUseCase - Unit Tests", () => {
 
     test("should return configuration list on success", async () => {
       const mockConfigs = [
-        {
-          serviceName: "ms-auth",
-          key: "PORT",
-          value: "3001",
-          type: "number" as const,
-        },
+        new MicroServiceConfigItem(
+          1,
+          "ms-auth",
+          "PORT",
+          "3001",
+          "number",
+          false,
+          false,
+        ),
       ];
       mockMicroServiceRepository.queryConfigurations.mockResolvedValue(
-        new ResponseModel("tx-cfg").withResponse(mockConfigs),
+        new ResponseModel<MicroServiceConfigItem[]>("tx-cfg").withResponse(
+          mockConfigs,
+        ),
       );
 
       const req = new RequestModel<string>("tx-cfg", "ms-auth");
@@ -153,16 +163,14 @@ describe("MicroServiceQueryUseCase - Unit Tests", () => {
     });
 
     test("should return audit logs on success", async () => {
+      const now = new Date();
       const mockLogs = [
-        {
-          serviceName: "ms-auth",
-          action: "RESTART",
-          performedBy: "admin",
-          timestamp: new Date(),
-        },
+        new MicroServiceAuditEntry(1, "ms-auth", "RESTART", {}, "admin", now),
       ];
       mockMicroServiceRepository.queryAuditLogs.mockResolvedValue(
-        new ResponseModel("tx-al").withResponse(mockLogs),
+        new ResponseModel<MicroServiceAuditEntry[]>("tx-al").withResponse(
+          mockLogs,
+        ),
       );
 
       const req = new RequestModel("tx-al", {

@@ -3,7 +3,9 @@ import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
 import { MicroServiceDetailed } from "@src/Domain/MicroService/Entity/MicroServiceDetailed.js";
 import type { IMicroServiceRepository } from "@src/Domain/MicroService/Repository/IMicroServiceRepository.js";
+import { describe, expect, test, vi } from "vitest";
 import { type MockProxy, mock } from "vitest-mock-extended";
+import { MicroServiceConfigItem } from "../Entity/MicroServiceConfigItem.js";
 import { MicroServiceManagementUseCase } from "./MicroServiceManagementUseCase.js";
 
 describe("MicroServiceManagementUseCase - Unit Tests", () => {
@@ -252,14 +254,19 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
     });
 
     test("should delegate configuration update to repository", async () => {
-      const configItem = {
-        serviceName: "ms-1",
-        key: "LOG_LEVEL",
-        value: "debug",
-        type: "string" as const,
-      };
+      const configItem = new MicroServiceConfigItem(
+        1,
+        "ms-1",
+        "LOG_LEVEL",
+        "debug",
+        "string",
+        false,
+        false,
+      );
       mockMicroServiceRepository.updateConfiguration.mockResolvedValue(
-        new ResponseModel("tx-cfg").withResponse(configItem),
+        new ResponseModel<MicroServiceConfigItem>("tx-cfg").withResponse(
+          configItem,
+        ),
       );
 
       const req = new RequestModel("tx-cfg", {
@@ -277,6 +284,10 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
 
   describe("triggerHealthChecks", () => {
     test("should successfully trigger health checks without service name", async () => {
+      mockMicroServiceRepository.triggerHealthChecks = vi
+        .fn()
+        .mockResolvedValue(undefined);
+
       const req = new RequestModel<{ serviceName?: string }>("tx-hc", {});
       const res = await useCase.triggerHealthChecks(req);
 
@@ -287,9 +298,9 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
     });
 
     test("should handle repository exceptions and return SYSTEM_ERROR", async () => {
-      mockMicroServiceRepository.triggerHealthChecks.mockRejectedValue(
-        new Error("Ping failure"),
-      );
+      mockMicroServiceRepository.triggerHealthChecks = vi
+        .fn()
+        .mockRejectedValue(new Error("Ping failure"));
 
       const req = new RequestModel<{ serviceName?: string }>("tx-hc", {
         serviceName: "ms-1",
