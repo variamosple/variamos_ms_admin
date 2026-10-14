@@ -70,7 +70,7 @@
     "@types/nodemailer": "^8.0.2",
     "@types/supertest": "^7.2.1",
     "@types/ws": "^8.18.2",
-    "@vitest/coverage-v8": "^5.0.4",
+    "@vitest/coverage-v8": "^4.1.11",
     "cspell": "^10.3.6",
     "dependency-cruiser": "^18.6.0",
     "fs-extra": "^11.4.1",
@@ -86,7 +86,7 @@
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "vite-tsconfig-paths": "^6.1.1",
-    "vitest": "^5.0.4",
+    "vitest": "^4.1.11",
     "vitest-mock-extended": "^5.1.1"
   },
   "overrides": {
