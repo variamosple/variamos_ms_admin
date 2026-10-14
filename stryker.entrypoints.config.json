@@ -13,7 +13,7 @@
   },
   "reporters": ["progress", "clear-text", "html"],
   "concurrency": 2,
-  "incremental": true,
+  "incremental": false,
   "ignoreStatic": true,
   "coverageAnalysis": "perTest",
   "incrementalFile": "reports/stryker-incremental-entrypoints.json",
