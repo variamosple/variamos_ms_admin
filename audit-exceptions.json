@@ -1,0 +1,26 @@
+[
+  {
+    "id": "GHSA-VFJ7-8CJW-P6XM",
+    "package": "braces",
+    "reason": "corrigé dans la pile, à partir de chore/node-subpath-imports-2026-10 (suppression de tsc-alias)",
+    "expires": "2026-11-30"
+  },
+  {
+    "id": "GHSA-86W9-CPQP-85RV",
+    "package": "node-forge",
+    "reason": "corrigé dans la pile, à partir de chore/adopt-variamos-security-0-0-16-2026-10",
+    "expires": "2026-11-30"
+  },
+  {
+    "id": "GHSA-JQCG-44MW-7W3H",
+    "package": "proxy-addr",
+    "reason": "corrigé dans la pile, à partir de chore/update-dev-tooling-2026-10",
+    "expires": "2026-11-30"
+  },
+  {
+    "id": "GHSA-68FV-2MGG-JV7Q",
+    "package": "source-map-js",
+    "reason": "corrigé dans la pile, à partir de chore/update-dev-tooling-2026-10",
+    "expires": "2026-11-30"
+  }
+]
