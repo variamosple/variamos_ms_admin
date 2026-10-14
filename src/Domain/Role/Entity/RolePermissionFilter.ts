@@ -1,4 +1,4 @@
-import { PagedModel } from "@src/Domain/Core/Entity/PagedModel.js";
+import { PagedModel } from "#src/Domain/Core/Entity/PagedModel.js";
 
 export class RolePermissionFilter extends PagedModel {
   public constructor(

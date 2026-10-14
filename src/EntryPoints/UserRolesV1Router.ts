@@ -1,13 +1,13 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import { UserRole } from "@src/Domain/User/Entity/UserRole.js";
-import { UserRoleFilter } from "@src/Domain/User/Entity/UserRoleFilter.js";
-import type { UserRoleUseCase } from "@src/Domain/User/UseCase/UserRoleUseCase.js";
 import { hasPermissions } from "@variamosple/variamos-security";
 import { type Request, Router } from "express";
 import logger from "jet-logger";
+import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { UserRole } from "#src/Domain/User/Entity/UserRole.js";
+import { UserRoleFilter } from "#src/Domain/User/Entity/UserRoleFilter.js";
+import type { UserRoleUseCase } from "#src/Domain/User/UseCase/UserRoleUseCase.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
 export const USER_ROLES_V1_ROUTE = "/:userId/roles";

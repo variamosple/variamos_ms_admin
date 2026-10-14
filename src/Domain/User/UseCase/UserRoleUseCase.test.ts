@@ -1,7 +1,7 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import type { Role } from "@src/Domain/Role/Entity/Role.js";
 import { type MockProxy, mock } from "vitest-mock-extended";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import type { Role } from "#src/Domain/Role/Entity/Role.js";
 import { UserRole } from "../Entity/UserRole.js";
 import { UserRoleFilter } from "../Entity/UserRoleFilter.js";
 import type { IUserRoleRepository } from "../Repository/IUserRoleRepository.js";

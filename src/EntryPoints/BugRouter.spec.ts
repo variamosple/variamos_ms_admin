@@ -41,22 +41,22 @@ vi.mock("@variamosple/variamos-security", () => ({
   validateSession: (token: string) => mockValidateSession(token),
 }));
 
-import { Bug } from "@src/Domain/Bug/Entity/Bug.js";
-import { BugAttachment } from "@src/Domain/Bug/Entity/BugAttachment.js";
-import { BugNote } from "@src/Domain/Bug/Entity/BugNote.js";
-import type { BugStatusLog } from "@src/Domain/Bug/Entity/BugStatusLog.js";
-import type { BugAttachmentUseCase } from "@src/Domain/Bug/UseCase/BugAttachmentUseCase.js";
-import type { BugLifecycleUseCase } from "@src/Domain/Bug/UseCase/BugLifecycleUseCase.js";
-import type { BugQueryUseCase } from "@src/Domain/Bug/UseCase/BugQueryUseCase.js";
-import type { BugSubmissionUseCase } from "@src/Domain/Bug/UseCase/BugSubmissionUseCase.js";
-import type { BugSyncUseCase } from "@src/Domain/Bug/UseCase/BugSyncUseCase.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
 import cookieParser from "cookie-parser";
 import express, { type RequestHandler } from "express";
 import logger from "jet-logger";
 import multer from "multer";
 import request from "supertest";
+import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
+import { BugAttachment } from "#src/Domain/Bug/Entity/BugAttachment.js";
+import { BugNote } from "#src/Domain/Bug/Entity/BugNote.js";
+import type { BugStatusLog } from "#src/Domain/Bug/Entity/BugStatusLog.js";
+import type { BugAttachmentUseCase } from "#src/Domain/Bug/UseCase/BugAttachmentUseCase.js";
+import type { BugLifecycleUseCase } from "#src/Domain/Bug/UseCase/BugLifecycleUseCase.js";
+import type { BugQueryUseCase } from "#src/Domain/Bug/UseCase/BugQueryUseCase.js";
+import type { BugSubmissionUseCase } from "#src/Domain/Bug/UseCase/BugSubmissionUseCase.js";
+import type { BugSyncUseCase } from "#src/Domain/Bug/UseCase/BugSyncUseCase.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { createBugRouter } from "./BugRouter.js";
 
 const mockLoggerInfo = vi.spyOn(logger, "info").mockImplementation(() => {});

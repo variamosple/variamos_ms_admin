@@ -1,14 +1,14 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import { Permission } from "@src/Domain/Permission/Entity/Permission.js";
-import { Role } from "@src/Domain/Role/Entity/Role.js";
-import type { IGuestRoleRepository } from "@src/Domain/Role/Repository/IGuestRoleRepository.js";
-import { Credentials } from "@src/Domain/User/Entity/Credentials.js";
-import { User } from "@src/Domain/User/Entity/User.js";
-import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration.js";
-import type { IUserRepository } from "@src/Domain/User/IUserRepository.js";
 import { type MockProxy, mock } from "vitest-mock-extended";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { Permission } from "#src/Domain/Permission/Entity/Permission.js";
+import { Role } from "#src/Domain/Role/Entity/Role.js";
+import type { IGuestRoleRepository } from "#src/Domain/Role/Repository/IGuestRoleRepository.js";
+import { Credentials } from "#src/Domain/User/Entity/Credentials.js";
+import { User } from "#src/Domain/User/Entity/User.js";
+import { UserRegistration } from "#src/Domain/User/Entity/UserRegistration.js";
+import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 import { UserAuthUseCase } from "./UserAuthUseCase.js";
 
 describe("UserAuthUseCase", () => {

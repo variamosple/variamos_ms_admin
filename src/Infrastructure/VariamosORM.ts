@@ -1,5 +1,5 @@
-import EnvVars from "@src/common/EnvVars.js";
 import { Sequelize } from "sequelize";
+import EnvVars from "#src/common/EnvVars.js";
 
 const VARIAMOS_ORM = new Sequelize(
   EnvVars.DB.DATABASE,

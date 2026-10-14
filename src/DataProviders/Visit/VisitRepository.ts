@@ -1,9 +1,9 @@
-import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import { Visit } from "@src/Domain/Visit/Entity/Visit.js";
-import type { IVisitRepository } from "@src/Domain/Visit/Repository/IVisitRepository.js"; // wait, check if IVsitRepository has typo in original import
 import logger from "jet-logger";
+import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { Visit } from "#src/Domain/Visit/Entity/Visit.js";
+import type { IVisitRepository } from "#src/Domain/Visit/Repository/IVisitRepository.js"; // wait, check if IVsitRepository has typo in original import
 import { BaseRepository } from "../BaseRepository.js";
 import { VisitModel } from "./Visit.js";
 

@@ -1,13 +1,13 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import { MicroServiceFilter } from "@src/Domain/MicroService/Entity/MicroServiceFilter.js";
-import type { MicroServiceManagementUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
-import type { MicroServiceQueryUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
 import { hasPermissions } from "@variamosple/variamos-security";
 import { type Request, Router } from "express";
 import logger from "jet-logger";
+import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { MicroServiceFilter } from "#src/Domain/MicroService/Entity/MicroServiceFilter.js";
+import type { MicroServiceManagementUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
+import type { MicroServiceQueryUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
 export const MICRO_SERVICES_V1_ROUTE = "/v1/micro-services";

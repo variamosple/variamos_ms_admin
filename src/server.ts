@@ -8,10 +8,6 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-import { RouteError } from "@src/common/classes.js";
-import EnvVars from "@src/common/EnvVars.js";
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
-import { NodeEnvs } from "@src/common/misc.js";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express, {
@@ -23,6 +19,10 @@ import express, {
 import helmet from "helmet";
 import logger from "jet-logger";
 import morgan from "morgan";
+import { RouteError } from "#src/common/classes.js";
+import EnvVars from "#src/common/EnvVars.js";
+import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import { NodeEnvs } from "#src/common/misc.js";
 
 export function createServer(baseRouter: Router) {
   const app = express();

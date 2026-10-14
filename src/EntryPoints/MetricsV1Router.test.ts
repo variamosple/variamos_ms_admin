@@ -1,14 +1,14 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { Metric } from "@src/Domain/Metrics/Entity/Metric.js";
-import { MetricsQueryUseCase } from "@src/Domain/Metrics/UseCase/MetricsQueryUseCase.js";
 import express from "express";
 import supertest from "supertest";
 import { mock } from "vitest-mock-extended";
+import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { Metric } from "#src/Domain/Metrics/Entity/Metric.js";
+import { MetricsQueryUseCase } from "#src/Domain/Metrics/UseCase/MetricsQueryUseCase.js";
 import { createMetricsRouter } from "./MetricsV1Router.js";
 
 // Mock dependencies
-vi.mock("@src/Domain/Metrics/UseCase/MetricsQueryUseCase");
+vi.mock("#src/Domain/Metrics/UseCase/MetricsQueryUseCase");
 vi.mock("@variamosple/variamos-security", () => ({
   hasPermissions:
     () =>
@@ -36,7 +36,7 @@ interface SingleMetricApiResponse {
   data: SerializedMetric;
 }
 
-import type { IMetricsRepository } from "@src/Domain/Metrics/Repository/IMetricsRepository.js";
+import type { IMetricsRepository } from "#src/Domain/Metrics/Repository/IMetricsRepository.js";
 
 describe("MetricsV1Router Integration Tests", () => {
   let app: express.Application;

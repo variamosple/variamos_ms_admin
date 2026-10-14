@@ -1,9 +1,9 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { User } from "@src/Domain/User/Entity/User.js";
-import { UserFilter } from "@src/Domain/User/Entity/UserFilter.js";
-import type { IUserRepository } from "@src/Domain/User/IUserRepository.js";
 import { type MockProxy, mock } from "vitest-mock-extended";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { User } from "#src/Domain/User/Entity/User.js";
+import { UserFilter } from "#src/Domain/User/Entity/UserFilter.js";
+import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 import { UserQueryUseCase } from "./UserQueryUseCase.js";
 
 describe("UserQueryUseCase", () => {

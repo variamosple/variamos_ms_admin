@@ -1,12 +1,12 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
-import type { ConfigurationUseCase } from "@src/Domain/Configuration/UseCase/ConfigurationUseCase.js";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import type { Menu } from "@src/Domain/Menu/Entity/Menu.js";
 import { hasPermissions } from "@variamosple/variamos-security";
 import { type Request, Router } from "express";
 import logger from "jet-logger";
+import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import type { ConfigurationUseCase } from "#src/Domain/Configuration/UseCase/ConfigurationUseCase.js";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { Menu } from "#src/Domain/Menu/Entity/Menu.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
 export const CONFIGURATION_V1_ROUTE = "/v1/configurations";

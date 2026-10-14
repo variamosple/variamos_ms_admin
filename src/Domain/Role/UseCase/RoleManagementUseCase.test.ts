@@ -1,8 +1,8 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { Role } from "@src/Domain/Role/Entity/Role.js";
-import type { IRoleRepository } from "@src/Domain/Role/Repository/IRoleRepository.js";
 import { type MockProxy, mock } from "vitest-mock-extended";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { Role } from "#src/Domain/Role/Entity/Role.js";
+import type { IRoleRepository } from "#src/Domain/Role/Repository/IRoleRepository.js";
 import { RoleManagementUseCase } from "./RoleManagementUseCase.js";
 
 describe("RoleManagementUseCase - Unit Tests", () => {

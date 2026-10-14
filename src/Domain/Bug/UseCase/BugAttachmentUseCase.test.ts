@@ -1,11 +1,11 @@
-import type { BugAttachment } from "@src/Domain/Bug/Entity/BugAttachment.js";
-import { BugNote } from "@src/Domain/Bug/Entity/BugNote.js";
-import type { IBugRepository } from "@src/Domain/Bug/Repository/IBugRepository.js";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import type { IStorageService } from "@src/Domain/Core/Service/IStorageService.js";
 import logger from "jet-logger";
 import { type MockProxy, mock } from "vitest-mock-extended";
+import type { BugAttachment } from "#src/Domain/Bug/Entity/BugAttachment.js";
+import { BugNote } from "#src/Domain/Bug/Entity/BugNote.js";
+import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import type { IStorageService } from "#src/Domain/Core/Service/IStorageService.js";
 import { BugAttachmentUseCase } from "./BugAttachmentUseCase.js";
 
 describe("BugAttachmentUseCase", () => {

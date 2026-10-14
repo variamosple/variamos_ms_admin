@@ -1,10 +1,10 @@
-import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import { Password } from "@src/Domain/User/Entity/Password.js";
-import type { PasswordUpdate } from "@src/Domain/User/Entity/PasswordUpdate.js";
-import type { PersonalInformationUpdate } from "@src/Domain/User/Entity/PersonalInformationUpdate.js";
-import type { IUserRepository } from "@src/Domain/User/IUserRepository.js";
+import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { Password } from "#src/Domain/User/Entity/Password.js";
+import type { PasswordUpdate } from "#src/Domain/User/Entity/PasswordUpdate.js";
+import type { PersonalInformationUpdate } from "#src/Domain/User/Entity/PersonalInformationUpdate.js";
+import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 
 export class UserManagementUseCase {
   public constructor(private readonly userRepository: IUserRepository) {}

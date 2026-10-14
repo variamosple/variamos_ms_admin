@@ -1,5 +1,5 @@
-import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import type { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import type { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import type { Permission } from "../Entity/Permission.js";
 import type { PermissionFilter } from "../Entity/PermissionFilter.js";
 

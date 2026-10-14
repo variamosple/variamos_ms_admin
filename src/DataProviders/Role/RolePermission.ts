@@ -1,5 +1,5 @@
-import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM.js";
 import { Model, NUMBER } from "sequelize";
+import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 import { PermissionModel } from "../Permission/Permission.js";
 import { RoleModel } from "./Role.js";
 

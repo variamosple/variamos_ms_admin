@@ -1,13 +1,13 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import { UserFilter } from "@src/Domain/User/Entity/UserFilter.js";
-import type { UserManagementUseCase } from "@src/Domain/User/UseCase/UserManagementUseCase.js";
-import type { UserPasswordUseCase } from "@src/Domain/User/UseCase/UserPasswordUseCase.js";
-import type { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase.js";
 import { hasPermissions } from "@variamosple/variamos-security";
 import { type Request, Router } from "express";
 import logger from "jet-logger";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { UserFilter } from "#src/Domain/User/Entity/UserFilter.js";
+import type { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
+import type { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
+import type { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { USER_ROLES_V1_ROUTE } from "./UserRolesV1Router.js";
 

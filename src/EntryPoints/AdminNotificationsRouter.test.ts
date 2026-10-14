@@ -1,10 +1,10 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
-import { RoleModel } from "@src/DataProviders/Role/Role.js";
-import { UserModel } from "@src/DataProviders/User/User.js";
-import { NotificationClientInstance } from "@src/Infrastructure/Notification/NotificationClient.js";
 import express from "express";
 import supertest from "supertest";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import { RoleModel } from "#src/DataProviders/Role/Role.js";
+import { UserModel } from "#src/DataProviders/User/User.js";
+import { NotificationClientInstance } from "#src/Infrastructure/Notification/NotificationClient.js";
 import { createAdminNotificationsRouter } from "./AdminNotificationsRouter.js";
 
 // Mock security permission helper
@@ -21,20 +21,20 @@ vi.mock("@variamosple/variamos-security", () => ({
 }));
 
 // Mock Sequelize Models
-vi.mock("@src/DataProviders/User/User.js", () => ({
+vi.mock("#src/DataProviders/User/User.js", () => ({
   UserModel: {
     findAll: vi.fn(),
   },
 }));
 
-vi.mock("@src/DataProviders/Role/Role.js", () => ({
+vi.mock("#src/DataProviders/Role/Role.js", () => ({
   RoleModel: {
     findAll: vi.fn(),
   },
 }));
 
 // Mock Notification Client
-vi.mock("@src/Infrastructure/Notification/NotificationClient.js", () => ({
+vi.mock("#src/Infrastructure/Notification/NotificationClient.js", () => ({
   NotificationClientInstance: {
     dispatchNotification: vi.fn(),
   },

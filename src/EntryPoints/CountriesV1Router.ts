@@ -1,12 +1,11 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import type { CountriesQueryUseCase } from "@src/Domain/Countries/UseCase/CountriesQueryUseCase.js";
 import { isAuthenticated } from "@variamosple/variamos-security";
 import { Router } from "express";
 import logger from "jet-logger";
+import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { CountriesQueryUseCase } from "#src/Domain/Countries/UseCase/CountriesQueryUseCase.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
 export const COUNTRIES_V1_ROUTE = "/v1/countries";

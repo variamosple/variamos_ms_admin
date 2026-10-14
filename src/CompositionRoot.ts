@@ -1,4 +1,4 @@
-import EnvVars from "@src/common/EnvVars.js";
+import EnvVars from "#src/common/EnvVars.js";
 import { BugRepositoryImpl } from "./DataProviders/Bug/BugRepository.js";
 import { ConfigurationRepositoryImpl } from "./DataProviders/Configuration/ConfigurationRepository.js";
 import { CountriesRepositoryImpl } from "./DataProviders/Countries/CountriesRepository.js";

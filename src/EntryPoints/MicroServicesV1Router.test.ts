@@ -1,17 +1,17 @@
 import { Readable } from "node:stream";
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import { MicroServiceManagementUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
-import { MicroServiceQueryUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
 import express from "express";
 import supertest from "supertest";
 import { mock } from "vitest-mock-extended";
+import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { MicroServiceManagementUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
+import { MicroServiceQueryUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
 import { createMicroServicesRouter } from "./MicroServicesV1Router.js";
 
 // Mock dependencies
-vi.mock("@src/Domain/MicroService/UseCase/MicroServiceQueryUseCase");
-vi.mock("@src/Domain/MicroService/UseCase/MicroServiceManagementUseCase");
+vi.mock("#src/Domain/MicroService/UseCase/MicroServiceQueryUseCase");
+vi.mock("#src/Domain/MicroService/UseCase/MicroServiceManagementUseCase");
 vi.mock("@variamosple/variamos-security", () => ({
   hasPermissions:
     () =>
@@ -24,7 +24,7 @@ vi.mock("@variamosple/variamos-security", () => ({
     },
 }));
 
-import type { IMicroServiceRepository } from "@src/Domain/MicroService/Repository/IMicroServiceRepository.js";
+import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 
 describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
   let app: express.Application;

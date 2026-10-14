@@ -1,15 +1,15 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import { Permission } from "@src/Domain/Permission/Entity/Permission.js";
-import { PermissionUseCase } from "@src/Domain/Permission/UseCase/PermissionUseCase.js";
 import express from "express";
 import supertest from "supertest";
 import { mock } from "vitest-mock-extended";
+import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { Permission } from "#src/Domain/Permission/Entity/Permission.js";
+import { PermissionUseCase } from "#src/Domain/Permission/UseCase/PermissionUseCase.js";
 import { createPermissionsRouter } from "./PermissionsV1Router.js";
 
 // Mock dependencies
-vi.mock("@src/Domain/Permission/UseCase/PermissionUseCase");
+vi.mock("#src/Domain/Permission/UseCase/PermissionUseCase");
 vi.mock("@variamosple/variamos-security", () => ({
   hasPermissions:
     () =>
@@ -22,7 +22,7 @@ vi.mock("@variamosple/variamos-security", () => ({
     },
 }));
 
-import type { IPermissionRepository } from "@src/Domain/Permission/Repository/IPermissionRepository.js";
+import type { IPermissionRepository } from "#src/Domain/Permission/Repository/IPermissionRepository.js";
 
 describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
   let app: express.Application;

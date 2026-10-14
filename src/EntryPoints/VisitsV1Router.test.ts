@@ -1,11 +1,11 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import { Visit } from "@src/Domain/Visit/Entity/Visit.js";
-import { VisitUseCase } from "@src/Domain/Visit/UseCase/VisitUseCase.js";
 import express from "express";
 import supertest from "supertest";
 import { mock } from "vitest-mock-extended";
+import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { Visit } from "#src/Domain/Visit/Entity/Visit.js";
+import { VisitUseCase } from "#src/Domain/Visit/UseCase/VisitUseCase.js";
 import { createVisitsRouter } from "./VisitsV1Router.js";
 
 interface CustomRequest {
@@ -13,7 +13,7 @@ interface CustomRequest {
 }
 
 // Mock dependencies
-vi.mock("@src/Domain/Visit/UseCase/VisitUseCase");
+vi.mock("#src/Domain/Visit/UseCase/VisitUseCase");
 vi.mock("@variamosple/variamos-security", () => ({
   isAuthenticated: (
     req: express.Request,
@@ -25,8 +25,8 @@ vi.mock("@variamosple/variamos-security", () => ({
   },
 }));
 
-import type { ICountriesRepository } from "@src/Domain/Countries/Repository/ICountriesRepository.js";
-import type { IVisitRepository } from "@src/Domain/Visit/Repository/IVisitRepository.js";
+import type { ICountriesRepository } from "#src/Domain/Countries/Repository/ICountriesRepository.js";
+import type { IVisitRepository } from "#src/Domain/Visit/Repository/IVisitRepository.js";
 
 describe("VisitsV1Router Integration Tests - Extended Coverage", () => {
   let app: express.Application;

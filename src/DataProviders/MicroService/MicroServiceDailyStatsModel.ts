@@ -1,4 +1,3 @@
-import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM.js";
 import {
   BIGINT,
   DATEONLY,
@@ -8,6 +7,7 @@ import {
   Model,
   STRING,
 } from "sequelize";
+import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 
 export interface MicroServiceDailyStatsAttributes {
   id?: number;

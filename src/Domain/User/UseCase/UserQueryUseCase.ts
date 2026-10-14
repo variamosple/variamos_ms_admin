@@ -1,8 +1,8 @@
-import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import type { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { User } from "@src/Domain/User/Entity/User.js";
-import type { UserFilter } from "@src/Domain/User/Entity/UserFilter.js";
-import type { IUserRepository } from "@src/Domain/User/IUserRepository.js";
+import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import type { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { User } from "#src/Domain/User/Entity/User.js";
+import type { UserFilter } from "#src/Domain/User/Entity/UserFilter.js";
+import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 
 export class UserQueryUseCase {
   public constructor(private readonly userRepository: IUserRepository) {}

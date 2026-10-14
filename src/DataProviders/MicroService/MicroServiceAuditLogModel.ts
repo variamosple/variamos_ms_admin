@@ -1,5 +1,5 @@
-import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM.js";
 import { BIGINT, JSONB, Model, STRING } from "sequelize";
+import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 
 export interface MicroServiceAuditLogAttributes {
   id?: number;

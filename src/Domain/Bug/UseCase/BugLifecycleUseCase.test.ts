@@ -1,14 +1,14 @@
-import type { IBugTrackerConfig } from "@src/Domain/Bug/Config/IBugTrackerConfig.js";
-import { Bug } from "@src/Domain/Bug/Entity/Bug.js";
-import type { IBugRepository } from "@src/Domain/Bug/Repository/IBugRepository.js";
-import type { GitHubTokenResolver } from "@src/Domain/Bug/Service/GitHubTokenResolver.js";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import type { IIssueTrackerService } from "@src/Domain/Core/Service/IIssueTrackerService.js";
-import type { IStorageService } from "@src/Domain/Core/Service/IStorageService.js";
 import logger from "jet-logger";
 import { type MockProxy, mock } from "vitest-mock-extended";
+import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
+import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
+import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
+import type { GitHubTokenResolver } from "#src/Domain/Bug/Service/GitHubTokenResolver.js";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { IIssueTrackerService } from "#src/Domain/Core/Service/IIssueTrackerService.js";
+import type { IStorageService } from "#src/Domain/Core/Service/IStorageService.js";
 import { BugLifecycleUseCase } from "./BugLifecycleUseCase.js";
 
 describe("BugLifecycleUseCase", () => {

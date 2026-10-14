@@ -1,15 +1,14 @@
-import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import { Permission } from "@src/Domain/Permission/Entity/Permission.js";
-import { Role } from "@src/Domain/Role/Entity/Role.js";
-
-import { UserRole } from "@src/Domain/User/Entity/UserRole.js";
-import type { UserRoleFilter } from "@src/Domain/User/Entity/UserRoleFilter.js";
-import type { IUserRoleRepository } from "@src/Domain/User/Repository/IUserRoleRepository.js";
-import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM.js";
 import logger from "jet-logger";
 import { QueryTypes } from "sequelize";
+import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { Permission } from "#src/Domain/Permission/Entity/Permission.js";
+import { Role } from "#src/Domain/Role/Entity/Role.js";
+import { UserRole } from "#src/Domain/User/Entity/UserRole.js";
+import type { UserRoleFilter } from "#src/Domain/User/Entity/UserRoleFilter.js";
+import type { IUserRoleRepository } from "#src/Domain/User/Repository/IUserRoleRepository.js";
+import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 import { BaseRepository } from "../BaseRepository.js";
 import { PermissionModel } from "../Permission/Permission.js";
 import { RoleModel } from "../Role/Role.js";

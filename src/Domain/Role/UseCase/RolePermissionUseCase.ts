@@ -1,9 +1,9 @@
-import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import type { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import type { Permission } from "@src/Domain/Permission/Entity/Permission.js";
-import type { RolePermission } from "@src/Domain/Role/Entity/RolePermission.js";
-import type { RolePermissionFilter } from "@src/Domain/Role/Entity/RolePermissionFilter.js";
-import type { IRolePermissionRepository } from "@src/Domain/Role/Repository/IRolePermissionRepository.js";
+import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import type { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import type { Permission } from "#src/Domain/Permission/Entity/Permission.js";
+import type { RolePermission } from "#src/Domain/Role/Entity/RolePermission.js";
+import type { RolePermissionFilter } from "#src/Domain/Role/Entity/RolePermissionFilter.js";
+import type { IRolePermissionRepository } from "#src/Domain/Role/Repository/IRolePermissionRepository.js";
 
 export class RolePermissionUseCase {
   public constructor(

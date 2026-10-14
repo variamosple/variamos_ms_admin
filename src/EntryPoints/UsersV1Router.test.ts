@@ -1,10 +1,3 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import { User } from "@src/Domain/User/Entity/User.js";
-import { UserManagementUseCase } from "@src/Domain/User/UseCase/UserManagementUseCase.js";
-import { UserPasswordUseCase } from "@src/Domain/User/UseCase/UserPasswordUseCase.js";
-import { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase.js";
 import express, {
   type NextFunction,
   type Request,
@@ -12,11 +5,18 @@ import express, {
 } from "express";
 import supertest from "supertest";
 import { mock } from "vitest-mock-extended";
+import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { User } from "#src/Domain/User/Entity/User.js";
+import { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
+import { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
+import { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
 import { createUsersRouter } from "./UsersV1Router.js";
 
-vi.mock("@src/Domain/User/UseCase/UserQueryUseCase");
-vi.mock("@src/Domain/User/UseCase/UserPasswordUseCase");
-vi.mock("@src/Domain/User/UseCase/UserManagementUseCase");
+vi.mock("#src/Domain/User/UseCase/UserQueryUseCase");
+vi.mock("#src/Domain/User/UseCase/UserPasswordUseCase");
+vi.mock("#src/Domain/User/UseCase/UserManagementUseCase");
 
 interface CustomRequest {
   user?: { id: string };
@@ -51,9 +51,9 @@ interface TestApiResponse<T> {
   recoveryUrl?: string;
 }
 
-import type { IMailService } from "@src/Domain/Mail/IMailService.js";
-import type { IUserRepository } from "@src/Domain/User/IUserRepository.js";
-import type { UserPasswordUseCaseConfig } from "@src/Domain/User/UseCase/UserPasswordUseCase.js";
+import type { IMailService } from "#src/Domain/Mail/IMailService.js";
+import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
+import type { UserPasswordUseCaseConfig } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
 
 describe("UsersV1Router Integration Tests - Extended Coverage", () => {
   let app: express.Application;

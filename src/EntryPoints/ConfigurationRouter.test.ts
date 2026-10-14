@@ -1,17 +1,17 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
-import {
-  Configuration,
-  ConfigurationKey,
-} from "@src/Domain/Configuration/Entity/Configuration.js";
-import type { IConfigurationRepository } from "@src/Domain/Configuration/Repository/IConfigurationRepository.js";
-import { ConfigurationUseCase } from "@src/Domain/Configuration/UseCase/ConfigurationUseCase.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import type { Menu } from "@src/Domain/Menu/Entity/Menu.js";
 import express from "express";
 import logger from "jet-logger";
 import supertest from "supertest";
 import { mock } from "vitest-mock-extended";
+import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import {
+  Configuration,
+  ConfigurationKey,
+} from "#src/Domain/Configuration/Entity/Configuration.js";
+import type { IConfigurationRepository } from "#src/Domain/Configuration/Repository/IConfigurationRepository.js";
+import { ConfigurationUseCase } from "#src/Domain/Configuration/UseCase/ConfigurationUseCase.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { Menu } from "#src/Domain/Menu/Entity/Menu.js";
 import {
   type ConfigurationResponseDto,
   createConfigurationRouter,
@@ -34,7 +34,7 @@ vi.mock("@variamosple/variamos-security", () => ({
     },
 }));
 
-import type { IConfigEventPublisher } from "@src/Domain/Configuration/Event/IConfigEventPublisher.js";
+import type { IConfigEventPublisher } from "#src/Domain/Configuration/Event/IConfigEventPublisher.js";
 
 describe("ConfigurationRouter Integration Tests", () => {
   let app: express.Application;

@@ -1,10 +1,10 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import { PasswordUpdate } from "@src/Domain/User/Entity/PasswordUpdate.js";
-import { PersonalInformationUpdate } from "@src/Domain/User/Entity/PersonalInformationUpdate.js";
-import type { IUserRepository } from "@src/Domain/User/IUserRepository.js";
 import { type MockProxy, mock } from "vitest-mock-extended";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { PasswordUpdate } from "#src/Domain/User/Entity/PasswordUpdate.js";
+import { PersonalInformationUpdate } from "#src/Domain/User/Entity/PersonalInformationUpdate.js";
+import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 import { UserManagementUseCase } from "./UserManagementUseCase.js";
 
 describe("UserManagementUseCase", () => {

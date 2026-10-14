@@ -33,21 +33,6 @@ vi.mock("./errorMapper", async () => {
   };
 });
 
-import EnvVars from "@src/common/EnvVars.js";
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import type { IMailService } from "@src/Domain/Mail/IMailService.js";
-import type { IGuestRoleRepository } from "@src/Domain/Role/Repository/IGuestRoleRepository.js";
-import { User } from "@src/Domain/User/Entity/User.js";
-import type { IUserRepository } from "@src/Domain/User/IUserRepository.js";
-import { UserAuthUseCase } from "@src/Domain/User/UseCase/UserAuthUseCase.js";
-import { UserManagementUseCase } from "@src/Domain/User/UseCase/UserManagementUseCase.js";
-import {
-  UserPasswordUseCase,
-  type UserPasswordUseCaseConfig,
-} from "@src/Domain/User/UseCase/UserPasswordUseCase.js";
-import { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase.js";
 import {
   createJwt,
   getToken,
@@ -63,14 +48,29 @@ import express from "express";
 import logger from "jet-logger";
 import supertest from "supertest";
 import { mock } from "vitest-mock-extended";
+import EnvVars from "#src/common/EnvVars.js";
+import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { IMailService } from "#src/Domain/Mail/IMailService.js";
+import type { IGuestRoleRepository } from "#src/Domain/Role/Repository/IGuestRoleRepository.js";
+import { User } from "#src/Domain/User/Entity/User.js";
+import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
+import { UserAuthUseCase } from "#src/Domain/User/UseCase/UserAuthUseCase.js";
+import { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
+import {
+  UserPasswordUseCase,
+  type UserPasswordUseCaseConfig,
+} from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
+import { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
 import { AUTH_ROUTE, createAuthRouter } from "./AuthRouter.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
 // Mock other dependencies
-vi.mock("@src/Domain/User/UseCase/UserAuthUseCase");
-vi.mock("@src/Domain/User/UseCase/UserPasswordUseCase");
-vi.mock("@src/Domain/User/UseCase/UserManagementUseCase");
-vi.mock("@src/Domain/User/UseCase/UserQueryUseCase");
+vi.mock("#src/Domain/User/UseCase/UserAuthUseCase");
+vi.mock("#src/Domain/User/UseCase/UserPasswordUseCase");
+vi.mock("#src/Domain/User/UseCase/UserManagementUseCase");
+vi.mock("#src/Domain/User/UseCase/UserQueryUseCase");
 vi.mock("@variamosple/variamos-security", async () => {
   const actual = await vi.importActual<
     typeof import("@variamosple/variamos-security")

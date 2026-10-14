@@ -1,5 +1,5 @@
-import type { Nullable } from "@src/Domain/Core/Entity/Nullable.js";
-import type { Permission } from "@src/Domain/Permission/Entity/Permission.js";
+import type { Nullable } from "#src/Domain/Core/Entity/Nullable.js";
+import type { Permission } from "#src/Domain/Permission/Entity/Permission.js";
 
 export class Role {
   public readonly id: Nullable<number>;
