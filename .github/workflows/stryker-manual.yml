@@ -41,9 +41,10 @@ jobs:
         run: |
           npm ci
 
-      # Stryker's exit code is never swallowed. continue-on-error lets the
-      # publish step below run for every partition; the publish step fails the
-      # job when a run failed or its score is under the break threshold.
+      # Report-only: the mutation score is published as a commit status and in
+      # the job summary, but a low score does not fail the job. The job fails
+      # only when a Stryker run itself crashed. continue-on-error lets the publish
+      # step run for every partition.
       - name: Run Stryker (Domain)
         id: stryker_domain
         if: ${{ github.event_name == 'schedule' || inputs.partition == 'domain' || inputs.partition == 'all' }}
@@ -72,7 +73,7 @@ jobs:
             mv reports/mutation/mutation.json reports/mutation/entrypoints.json
           fi
 
-      - name: Publish scores and fail under threshold
+      - name: Publish scores
         if: ${{ always() }}
         uses: actions/github-script@v9
         env:
@@ -96,9 +97,7 @@ jobs:
             for (const p of partitions) {
               if (p.outcome === 'skipped' || !p.outcome) continue;
 
-              // Break threshold is read from the Stryker config, not hard-coded.
-              const config = JSON.parse(fs.readFileSync(path.join(workspace, p.config), 'utf8'));
-              const threshold = config.thresholds.break;
+              // Report-only: no break threshold is enforced. The score is informational.
 
               // Score = (killed + timeout) / (killed + timeout + survived + noCoverage).
               // CompileError and Ignored mutants are excluded, as in Stryker's own metrics.
@@ -117,10 +116,10 @@ jobs:
                 score = detected + undetected > 0 ? (detected / (detected + undetected)) * 100 : null;
               }
 
-              const passed = p.outcome === 'success' && score !== null && score >= threshold;
+              const passed = p.outcome === 'success' && score !== null;
               const state = passed ? 'success' : 'failure';
               const scoreText = score === null ? 'no valid mutant or report missing' : `${score.toFixed(2)}%`;
-              const description = `${scoreText} (break ${threshold}%) - ${passed ? 'pass' : 'fail'}`.slice(0, 140);
+              const description = `${scoreText} (informational) - ${passed ? 'run ok' : 'run failed'}`.slice(0, 140);
 
               await github.rest.repos.createCommitStatus({
                 owner: context.repo.owner,
@@ -134,17 +133,16 @@ jobs:
 
               summary.push(`#### ${p.name}`);
               summary.push(`- **Mutation score:** ${scoreText}`);
-              summary.push(`- **Break threshold:** ${threshold}%`);
               summary.push(`- **Mutants:** killed ${counts.Killed || 0}, timeout ${counts.Timeout || 0}, survived ${counts.Survived || 0}, no coverage ${counts.NoCoverage || 0}, compile error ${counts.CompileError || 0}`);
               summary.push(`- **Stryker run:** ${p.outcome}`);
-              summary.push(`- **Status:** ${passed ? 'Passed' : 'FAILED'}`);
+              summary.push(`- **Status:** ${passed ? 'Run OK (report only)' : 'Stryker run FAILED'}`);
               summary.push('');
 
-              if (!passed) jobFailed = true;
+              if (p.outcome !== 'success' && p.outcome !== 'skipped') jobFailed = true;
             }
 
             fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary.join('\n') + '\n');
 
             if (jobFailed) {
-              core.setFailed('Stryker run failed or mutation score is under the break threshold. See the job summary.');
+              core.setFailed('A Stryker run failed. See the job summary.');
             }

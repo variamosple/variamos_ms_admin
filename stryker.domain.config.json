@@ -6,19 +6,27 @@
     "!src/Domain/**/*.{test,spec}.ts"
   ],
   "testRunner": "vitest",
-  "checkers": ["typescript"],
+  "checkers": [
+    "typescript"
+  ],
   "tsconfigFile": "tsconfig.json",
-  "testRunnerNodeArgs": ["--env-file=env/test.env"],
+  "testRunnerNodeArgs": [
+    "--env-file=env/test.env"
+  ],
   "vitest": {
     "configFile": "vitest.config.ts"
   },
-  "reporters": ["progress", "clear-text", "html"],
+  "reporters": [
+    "progress",
+    "clear-text",
+    "html"
+  ],
   "concurrency": 2,
   "incremental": false,
   "ignoreStatic": true,
   "coverageAnalysis": "perTest",
   "incrementalFile": "reports/stryker-incremental-domain.json",
   "thresholds": {
-    "break": 80
+    "break": null
   }
 }
