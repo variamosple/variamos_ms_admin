@@ -13,6 +13,7 @@ on:
           - entrypoints
           - all
   schedule:
+    # Every day at 04:00 UTC (GitHub Actions cron expressions are always UTC).
     - cron: '0 4 * * *'
 
 permissions:
@@ -29,127 +30,119 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check for commits in the last 24 hours
-        id: check_commits
-        run: |
-          if [ "${{ github.event_name }}" = "schedule" ]; then
-            # Count commits in the last 24 hours
-            COMMITS=$(git log --oneline --since="24 hours ago" | wc -l)
-            echo "Found $COMMITS commit(s) in the last 24 hours."
-            if [ "$COMMITS" -eq 0 ]; then
-              echo "should_run=false" >> $GITHUB_OUTPUT
-            else
-              echo "should_run=true" >> $GITHUB_OUTPUT
-            fi
-          else
-            echo "Manual trigger, running unconditionally."
-            echo "should_run=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Set Commit Status (Pending)
-        if: steps.check_commits.outputs.should_run == 'true'
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const sha = context.sha;
-            await github.rest.repos.createCommitStatus({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              sha: sha,
-              state: 'pending',
-              context: 'Stryker / Mutation Score',
-              description: 'Running Stryker mutation tests...',
-            });
-
       - name: Set up Node.js
-        if: steps.check_commits.outputs.should_run == 'true'
         uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: 'npm'
           cache-dependency-path: '**/package-lock.json'
 
-      - name: Cache Stryker Incremental Data
-        if: steps.check_commits.outputs.should_run == 'true'
-        uses: actions/cache@v6
-        with:
-          path: |
-            reports/stryker-incremental-domain.json
-            reports/stryker-incremental-entrypoints.json
-          key: stryker-incremental-${{ github.sha }}
-          restore-keys: |
-            stryker-incremental-
-
       - name: Install dependencies
-        if: steps.check_commits.outputs.should_run == 'true'
         run: |
           npm ci
 
+      # Report-only: the mutation score is published as a commit status and in
+      # the job summary, but a low score does not fail the job. The job fails
+      # only when a Stryker run itself crashed. continue-on-error lets the publish
+      # step run for every partition.
       - name: Run Stryker (Domain)
-        if: ${{ steps.check_commits.outputs.should_run == 'true' && (inputs.partition ==
-          'domain' || github.event_name == 'schedule' || inputs.partition ==
-          'all') }}
+        id: stryker_domain
+        if: ${{ github.event_name == 'schedule' || inputs.partition == 'domain' || inputs.partition == 'all' }}
+        continue-on-error: true
         run: |
-          npx stryker run stryker.domain.config.json --reporters progress,clear-text,html,json || true
+          npx stryker run stryker.domain.config.json --reporters progress,clear-text,html,json
+
+      - name: Keep Domain mutation report
+        if: ${{ always() && steps.stryker_domain.outcome != 'skipped' }}
+        run: |
+          if [ -f reports/mutation/mutation.json ]; then
+            mv reports/mutation/mutation.json reports/mutation/domain.json
+          fi
 
       - name: Run Stryker (EntryPoints)
-        if: ${{ steps.check_commits.outputs.should_run == 'true' && (inputs.partition ==
-          'entrypoints' || inputs.partition == 'all') }}
+        id: stryker_entrypoints
+        if: ${{ inputs.partition == 'entrypoints' || inputs.partition == 'all' }}
+        continue-on-error: true
         run: |
-          npx stryker run stryker.entrypoints.config.json --reporters progress,clear-text,html,json || true
+          npx stryker run stryker.entrypoints.config.json --reporters progress,clear-text,html,json
 
-      - name: Publish Mutation Score Status
-        if: ${{ always() && steps.check_commits.outputs.should_run == 'true' }}
+      - name: Keep EntryPoints mutation report
+        if: ${{ always() && steps.stryker_entrypoints.outcome != 'skipped' }}
+        run: |
+          if [ -f reports/mutation/mutation.json ]; then
+            mv reports/mutation/mutation.json reports/mutation/entrypoints.json
+          fi
+
+      - name: Publish scores
+        if: ${{ always() }}
         uses: actions/github-script@v9
+        env:
+          DOMAIN_OUTCOME: ${{ steps.stryker_domain.outcome }}
+          ENTRYPOINTS_OUTCOME: ${{ steps.stryker_entrypoints.outcome }}
         with:
           script: |
             const fs = require('fs');
             const path = require('path');
 
-            let score = null;
-            try {
-              const reportPath = path.join(process.env.GITHUB_WORKSPACE, 'reports/mutation/mutation.json');
+            const workspace = process.env.GITHUB_WORKSPACE;
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const partitions = [
+              { name: 'domain', config: 'stryker.domain.config.json', outcome: process.env.DOMAIN_OUTCOME },
+              { name: 'entrypoints', config: 'stryker.entrypoints.config.json', outcome: process.env.ENTRYPOINTS_OUTCOME },
+            ];
+
+            const summary = ['### Stryker Mutation Testing Summary', ''];
+            let jobFailed = false;
+
+            for (const p of partitions) {
+              if (p.outcome === 'skipped' || !p.outcome) continue;
+
+              // Report-only: no break threshold is enforced. The score is informational.
+
+              // Score = (killed + timeout) / (killed + timeout + survived + noCoverage).
+              // CompileError and Ignored mutants are excluded, as in Stryker's own metrics.
+              const reportPath = path.join(workspace, 'reports/mutation', `${p.name}.json`);
+              let score = null;
+              const counts = {};
               if (fs.existsSync(reportPath)) {
-                const data = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
-                score = data.metrics.mutationScore;
+                const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+                for (const file of Object.values(report.files)) {
+                  for (const mutant of file.mutants) {
+                    counts[mutant.status] = (counts[mutant.status] || 0) + 1;
+                  }
+                }
+                const detected = (counts.Killed || 0) + (counts.Timeout || 0);
+                const undetected = (counts.Survived || 0) + (counts.NoCoverage || 0);
+                score = detected + undetected > 0 ? (detected / (detected + undetected)) * 100 : null;
               }
-            } catch (e) {
-              console.log('Failed to parse mutation report:', e);
+
+              const passed = p.outcome === 'success' && score !== null;
+              const state = passed ? 'success' : 'failure';
+              const scoreText = score === null ? 'no valid mutant or report missing' : `${score.toFixed(2)}%`;
+              const description = `${scoreText} (informational) - ${passed ? 'run ok' : 'run failed'}`.slice(0, 140);
+
+              await github.rest.repos.createCommitStatus({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                sha: context.sha,
+                state: state,
+                context: `Stryker / Mutation Score (${p.name})`,
+                description: description,
+                target_url: runUrl,
+              });
+
+              summary.push(`#### ${p.name}`);
+              summary.push(`- **Mutation score:** ${scoreText}`);
+              summary.push(`- **Mutants:** killed ${counts.Killed || 0}, timeout ${counts.Timeout || 0}, survived ${counts.Survived || 0}, no coverage ${counts.NoCoverage || 0}, compile error ${counts.CompileError || 0}`);
+              summary.push(`- **Stryker run:** ${p.outcome}`);
+              summary.push(`- **Status:** ${passed ? 'Run OK (report only)' : 'Stryker run FAILED'}`);
+              summary.push('');
+
+              if (p.outcome !== 'success' && p.outcome !== 'skipped') jobFailed = true;
             }
 
-            const sha = context.sha;
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary.join('\n') + '\n');
 
-            if (score !== null) {
-              const roundedScore = score.toFixed(1);
-              const target = 60.0;
-              const met = score >= target;
-              const description = met 
-                ? `Score: ${roundedScore}% (Target: ${target}%) - Pass`
-                : `Score: ${roundedScore}% (Target: ${target}%) - Under target`;
-
-              await github.rest.repos.createCommitStatus({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                sha: sha,
-                state: 'success', // Keep status check successful (green) so it remains non-blocking
-                context: 'Stryker / Mutation Score',
-                description: description,
-                target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
-              });
-
-              // Also output to Job Summary
-              let summaryMarkdown = `### Stryker Mutation Testing Summary\n`;
-              summaryMarkdown += `- **Mutation Score:** ${roundedScore}%\n`;
-              summaryMarkdown += `- **Target Gate:** ${target}%\n`;
-              summaryMarkdown += `- **Status:** ${met ? '✅ Passed' : '⚠️ Warning: Under Target'}\n`;
-              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summaryMarkdown);
-            } else {
-              await github.rest.repos.createCommitStatus({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                sha: sha,
-                state: 'failure',
-                context: 'Stryker / Mutation Score',
-                description: 'Failed to retrieve mutation report.',
-              });
+            if (jobFailed) {
+              core.setFailed('A Stryker run failed. See the job summary.');
             }

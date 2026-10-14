@@ -5,19 +5,27 @@
     "!src/EntryPoints/**/*.{test,spec}.ts"
   ],
   "testRunner": "vitest",
-  "checkers": ["typescript"],
+  "checkers": [
+    "typescript"
+  ],
   "tsconfigFile": "tsconfig.json",
-  "testRunnerNodeArgs": ["--env-file=env/test.env"],
+  "testRunnerNodeArgs": [
+    "--env-file=env/test.env"
+  ],
   "vitest": {
     "configFile": "vitest.config.ts"
   },
-  "reporters": ["progress", "clear-text", "html"],
+  "reporters": [
+    "progress",
+    "clear-text",
+    "html"
+  ],
   "concurrency": 2,
-  "incremental": true,
+  "incremental": false,
   "ignoreStatic": true,
   "coverageAnalysis": "perTest",
   "incrementalFile": "reports/stryker-incremental-entrypoints.json",
   "thresholds": {
-    "break": 60
+    "break": null
   }
 }
