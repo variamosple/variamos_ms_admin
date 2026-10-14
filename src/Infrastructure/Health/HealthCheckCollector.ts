@@ -6,7 +6,7 @@ import type {
 } from "@src/DataProviders/MicroService/MicroServiceRepository.js";
 import type { MicroServiceHealthInfo } from "@src/Domain/MicroService/Entity/MicroServiceHealth.js";
 import type { IMicroServiceRepository } from "@src/Domain/MicroService/Repository/IMicroServiceRepository.js";
-import axios, { type AxiosResponse } from "axios";
+import axios from "axios";
 import logger from "jet-logger";
 import { Op } from "sequelize";
 
@@ -332,7 +332,7 @@ export class HealthCheckCollector {
           ? "DEGRADED"
           : "UP";
       responseTimeMs = successfulResult.latency;
-    } catch (aggregateError) {
+    } catch (_aggregateError) {
       // All candidate URLs failed
       status = "DOWN";
       responseTimeMs = Date.now() - startTime;

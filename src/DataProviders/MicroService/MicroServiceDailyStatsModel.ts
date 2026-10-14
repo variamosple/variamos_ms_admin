@@ -1,5 +1,13 @@
 import VARIAMOS_ORM, { DB_SCHEMA } from "@src/Infrastructure/VariamosORM.js";
-import { BIGINT, DATEONLY, DECIMAL, INTEGER, Model, STRING } from "sequelize";
+import {
+  BIGINT,
+  DATEONLY,
+  DataTypes,
+  DECIMAL,
+  INTEGER,
+  Model,
+  STRING,
+} from "sequelize";
 
 export interface MicroServiceDailyStatsAttributes {
   id?: number;
@@ -81,7 +89,7 @@ MicroServiceDailyStatsModel.init(
     createdAt: {
       type: "TIMESTAMP",
       field: "created_at",
-      defaultValue: "CURRENT_TIMESTAMP",
+      defaultValue: DataTypes.NOW,
     },
   },
   {

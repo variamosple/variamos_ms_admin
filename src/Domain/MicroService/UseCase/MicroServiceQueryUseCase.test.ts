@@ -2,8 +2,11 @@ import { Readable } from "node:stream";
 import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
+import { MicroServiceAuditEntry } from "@src/Domain/MicroService/Entity/MicroServiceAuditEntry.js";
+import { MicroServiceConfigItem } from "@src/Domain/MicroService/Entity/MicroServiceConfigItem.js";
 import { MicroServiceDetailed } from "@src/Domain/MicroService/Entity/MicroServiceDetailed.js";
 import { MicroServiceFilter } from "@src/Domain/MicroService/Entity/MicroServiceFilter.js";
+import type { MicroServiceUptimeSummary } from "@src/Domain/MicroService/Entity/MicroServiceHealth.js";
 import type { IMicroServiceRepository } from "@src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 import { type MockProxy, mock } from "vitest-mock-extended";
 import { MicroServiceQueryUseCase } from "./MicroServiceQueryUseCase.js";
@@ -49,6 +52,136 @@ describe("MicroServiceQueryUseCase - Unit Tests", () => {
     expect(mockMicroServiceRepository.queryMicroServices).toHaveBeenCalledWith(
       req,
     );
+  });
+
+  describe("queryByName", () => {
+    test("should reject when name is missing or blank", async () => {
+      const req = new RequestModel<string>("tx-name", "   ");
+      const res = await useCase.queryByName(req);
+
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(res.message).toBe("Microservice name is required.");
+    });
+
+    test("should return service details on success", async () => {
+      const mockService = createMockDetailed("ms-auth");
+      mockMicroServiceRepository.queryByName.mockResolvedValue(
+        new ResponseModel<MicroServiceDetailed>("tx-name").withResponse(
+          mockService,
+        ),
+      );
+
+      const req = new RequestModel<string>("tx-name", "ms-auth");
+      const res = await useCase.queryByName(req);
+
+      expect(res.errorCode).toBeUndefined();
+      expect(res.data).toBe(mockService);
+    });
+  });
+
+  describe("getHealthHistory", () => {
+    test("should reject when serviceName is missing", async () => {
+      const req = new RequestModel<{ serviceName: string }>("tx-hh", {
+        serviceName: "",
+      });
+      const res = await useCase.getHealthHistory(req);
+
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(res.message).toBe("Service name is required.");
+    });
+
+    test("should return health history summary on success", async () => {
+      const mockSummary = {
+        serviceName: "ms-auth",
+        currentStatus: "UP" as const,
+        uptime24hPercentage: 100,
+        uptime30dPercentage: 99.8,
+        averageResponseTimeMs: 12,
+        history: [],
+      };
+      mockMicroServiceRepository.getHealthHistory.mockResolvedValue(
+        new ResponseModel<MicroServiceUptimeSummary>("tx-hh").withResponse(
+          mockSummary,
+        ),
+      );
+
+      const req = new RequestModel("tx-hh", {
+        serviceName: "ms-auth",
+        days: 30,
+      });
+      const res = await useCase.getHealthHistory(req);
+
+      expect(res.errorCode).toBeUndefined();
+      expect(res.data).toEqual(mockSummary);
+    });
+  });
+
+  describe("queryConfigurations", () => {
+    test("should reject when serviceName is blank", async () => {
+      const req = new RequestModel<string>("tx-cfg", "");
+      const res = await useCase.queryConfigurations(req);
+
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(res.message).toBe("Service name is required.");
+    });
+
+    test("should return configuration list on success", async () => {
+      const mockConfigs = [
+        new MicroServiceConfigItem(
+          1,
+          "ms-auth",
+          "PORT",
+          "3001",
+          "number",
+          false,
+          false,
+        ),
+      ];
+      mockMicroServiceRepository.queryConfigurations.mockResolvedValue(
+        new ResponseModel<MicroServiceConfigItem[]>("tx-cfg").withResponse(
+          mockConfigs,
+        ),
+      );
+
+      const req = new RequestModel<string>("tx-cfg", "ms-auth");
+      const res = await useCase.queryConfigurations(req);
+
+      expect(res.errorCode).toBeUndefined();
+      expect(res.data).toEqual(mockConfigs);
+    });
+  });
+
+  describe("queryAuditLogs", () => {
+    test("should reject when serviceName is missing", async () => {
+      const req = new RequestModel<{ serviceName: string }>("tx-al", {
+        serviceName: "",
+      });
+      const res = await useCase.queryAuditLogs(req);
+
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(res.message).toBe("Service name is required.");
+    });
+
+    test("should return audit logs on success", async () => {
+      const now = new Date();
+      const mockLogs = [
+        new MicroServiceAuditEntry(1, "ms-auth", "RESTART", {}, "admin", now),
+      ];
+      mockMicroServiceRepository.queryAuditLogs.mockResolvedValue(
+        new ResponseModel<MicroServiceAuditEntry[]>("tx-al").withResponse(
+          mockLogs,
+        ),
+      );
+
+      const req = new RequestModel("tx-al", {
+        serviceName: "ms-auth",
+        limit: 10,
+      });
+      const res = await useCase.queryAuditLogs(req);
+
+      expect(res.errorCode).toBeUndefined();
+      expect(res.data).toEqual(mockLogs);
+    });
   });
 
   describe("watchMicroServiceLogs", () => {
