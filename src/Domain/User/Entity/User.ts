@@ -1,4 +1,4 @@
-import type { Nullable } from "@src/Domain/Core/Entity/Nullable.js";
+import type { Nullable } from "#src/Domain/Core/Entity/Nullable.js";
 import { Email } from "./Email.js";
 
 export class User {

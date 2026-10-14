@@ -1,10 +1,10 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { Permission } from "@src/Domain/Permission/Entity/Permission.js";
-import { RolePermission } from "@src/Domain/Role/Entity/RolePermission.js";
-import { RolePermissionFilter } from "@src/Domain/Role/Entity/RolePermissionFilter.js";
-import type { IRolePermissionRepository } from "@src/Domain/Role/Repository/IRolePermissionRepository.js";
 import { type MockProxy, mock } from "vitest-mock-extended";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { Permission } from "#src/Domain/Permission/Entity/Permission.js";
+import { RolePermission } from "#src/Domain/Role/Entity/RolePermission.js";
+import { RolePermissionFilter } from "#src/Domain/Role/Entity/RolePermissionFilter.js";
+import type { IRolePermissionRepository } from "#src/Domain/Role/Repository/IRolePermissionRepository.js";
 import { RolePermissionUseCase } from "./RolePermissionUseCase.js";
 
 describe("RolePermissionUseCase - Unit Tests", () => {

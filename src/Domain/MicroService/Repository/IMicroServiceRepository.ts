@@ -1,5 +1,5 @@
-import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import type { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import type { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import type { MicroServiceAuditEntry } from "../Entity/MicroServiceAuditEntry.js";
 import type { MicroServiceConfigItem } from "../Entity/MicroServiceConfigItem.js";
 import type { MicroServiceDetailed } from "../Entity/MicroServiceDetailed.js";

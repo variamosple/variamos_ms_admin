@@ -31,6 +31,11 @@ module.exports = {
     tsPreCompilationDeps: true,
     tsConfig: {
       fileName: 'tsconfig.json'
+    },
+    // "#src/*" (package.json "imports") must resolve to src/ for the rules above to apply;
+    // without this condition it resolves to dist/, which no rule matches.
+    enhancedResolveOptions: {
+      conditionNames: ['variamos-dev', 'import', 'node', 'default']
     }
   }
 };

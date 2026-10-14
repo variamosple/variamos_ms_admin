@@ -1,4 +1,4 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
+import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 
 /**
  * Error with status code and message.

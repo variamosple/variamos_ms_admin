@@ -1,12 +1,12 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import type { IMailService } from "@src/Domain/Mail/IMailService.js";
-import type { User } from "@src/Domain/User/Entity/User.js";
-import type { IUserRepository } from "@src/Domain/User/IUserRepository.js";
-import { PasswordResetTokenService } from "@src/Domain/User/Service/PasswordResetTokenService.js";
 import logger from "jet-logger";
 import { type MockProxy, mock } from "vitest-mock-extended";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { IMailService } from "#src/Domain/Mail/IMailService.js";
+import type { User } from "#src/Domain/User/Entity/User.js";
+import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
+import { PasswordResetTokenService } from "#src/Domain/User/Service/PasswordResetTokenService.js";
 import {
   UserPasswordUseCase,
   type UserPasswordUseCaseConfig,

@@ -1,13 +1,13 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import { Permission } from "@src/Domain/Permission/Entity/Permission.js";
-import { PermissionFilter } from "@src/Domain/Permission/Entity/PermissionFilter.js";
-import type { PermissionUseCase } from "@src/Domain/Permission/UseCase/PermissionUseCase.js";
 import { hasPermissions } from "@variamosple/variamos-security";
 import { type Request, Router } from "express";
 import logger from "jet-logger";
+import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { Permission } from "#src/Domain/Permission/Entity/Permission.js";
+import { PermissionFilter } from "#src/Domain/Permission/Entity/PermissionFilter.js";
+import type { PermissionUseCase } from "#src/Domain/Permission/UseCase/PermissionUseCase.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
 export const PERMISSIONS_V1_ROUTE = "/v1/permissions";

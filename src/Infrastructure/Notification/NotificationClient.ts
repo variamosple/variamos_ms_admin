@@ -1,6 +1,6 @@
-import EnvVars from "@src/common/EnvVars.js";
 import axios from "axios";
 import logger from "jet-logger";
+import EnvVars from "#src/common/EnvVars.js";
 
 export interface DispatchNotificationPayload {
   recipients: {

@@ -1,12 +1,12 @@
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
 import logger from "jet-logger";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import "./pre-start.js"; // Must be the first import
 
 import type { Readable } from "node:stream";
-import EnvVars from "@src/common/EnvVars.js";
 import { initKeyStore, validateSession } from "@variamosple/variamos-security";
 import { parseCookie } from "cookie";
 import { WebSocket, WebSocketServer } from "ws";
+import EnvVars from "#src/common/EnvVars.js";
 import {
   ConfigEventPublisherInstance,
   MicroServiceRepositoryInstance,

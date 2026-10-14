@@ -1,10 +1,10 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import { Metric } from "@src/Domain/Metrics/Entity/Metric.js";
-import { MetricsFilter } from "@src/Domain/Metrics/Entity/MetricsFilter.js";
-import type { IMetricsRepository } from "@src/Domain/Metrics/Repository/IMetricsRepository.js";
 import { type MockProxy, mock } from "vitest-mock-extended";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { Metric } from "#src/Domain/Metrics/Entity/Metric.js";
+import { MetricsFilter } from "#src/Domain/Metrics/Entity/MetricsFilter.js";
+import type { IMetricsRepository } from "#src/Domain/Metrics/Repository/IMetricsRepository.js";
 import { MetricsQueryUseCase } from "./MetricsQueryUseCase.js";
 
 describe("MetricsQueryUseCase - Unit Tests", () => {

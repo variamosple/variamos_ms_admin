@@ -1,12 +1,12 @@
-import type { IBugTrackerConfig } from "@src/Domain/Bug/Config/IBugTrackerConfig.js";
-import { Bug } from "@src/Domain/Bug/Entity/Bug.js";
-import type { IBugRepository } from "@src/Domain/Bug/Repository/IBugRepository.js";
-import type { GitHubTokenResolver } from "@src/Domain/Bug/Service/GitHubTokenResolver.js";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import type { IIssueTrackerService } from "@src/Domain/Core/Service/IIssueTrackerService.js";
 import logger from "jet-logger";
+import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
+import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
+import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
+import type { GitHubTokenResolver } from "#src/Domain/Bug/Service/GitHubTokenResolver.js";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { IIssueTrackerService } from "#src/Domain/Core/Service/IIssueTrackerService.js";
 import { ALLOWED_CATEGORIES } from "./BugQueryUseCase.js";
 
 export class BugSyncUseCase {

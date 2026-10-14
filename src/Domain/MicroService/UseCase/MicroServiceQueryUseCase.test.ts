@@ -1,14 +1,14 @@
 import { Readable } from "node:stream";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import { MicroServiceAuditEntry } from "@src/Domain/MicroService/Entity/MicroServiceAuditEntry.js";
-import { MicroServiceConfigItem } from "@src/Domain/MicroService/Entity/MicroServiceConfigItem.js";
-import { MicroServiceDetailed } from "@src/Domain/MicroService/Entity/MicroServiceDetailed.js";
-import { MicroServiceFilter } from "@src/Domain/MicroService/Entity/MicroServiceFilter.js";
-import type { MicroServiceUptimeSummary } from "@src/Domain/MicroService/Entity/MicroServiceHealth.js";
-import type { IMicroServiceRepository } from "@src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 import { type MockProxy, mock } from "vitest-mock-extended";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { MicroServiceAuditEntry } from "#src/Domain/MicroService/Entity/MicroServiceAuditEntry.js";
+import { MicroServiceConfigItem } from "#src/Domain/MicroService/Entity/MicroServiceConfigItem.js";
+import { MicroServiceDetailed } from "#src/Domain/MicroService/Entity/MicroServiceDetailed.js";
+import { MicroServiceFilter } from "#src/Domain/MicroService/Entity/MicroServiceFilter.js";
+import type { MicroServiceUptimeSummary } from "#src/Domain/MicroService/Entity/MicroServiceHealth.js";
+import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 import { MicroServiceQueryUseCase } from "./MicroServiceQueryUseCase.js";
 
 describe("MicroServiceQueryUseCase - Unit Tests", () => {

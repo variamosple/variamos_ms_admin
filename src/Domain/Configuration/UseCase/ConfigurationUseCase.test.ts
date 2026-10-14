@@ -1,7 +1,7 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
 import { mock } from "vitest-mock-extended";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { Configuration, ConfigurationKey } from "../Entity/Configuration.js";
 import type { IConfigEventPublisher } from "../Event/IConfigEventPublisher.js";
 import type { IConfigurationRepository } from "../Repository/IConfigurationRepository.js";

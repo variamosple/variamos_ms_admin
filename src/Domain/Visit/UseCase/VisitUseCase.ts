@@ -1,9 +1,9 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import type { ICountriesRepository } from "@src/Domain/Countries/Repository/ICountriesRepository.js";
-import type { Visit } from "@src/Domain/Visit/Entity/Visit.js";
-import type { IVisitRepository } from "@src/Domain/Visit/Repository/IVisitRepository.js";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ICountriesRepository } from "#src/Domain/Countries/Repository/ICountriesRepository.js";
+import type { Visit } from "#src/Domain/Visit/Entity/Visit.js";
+import type { IVisitRepository } from "#src/Domain/Visit/Repository/IVisitRepository.js";
 
 export class VisitUseCase {
   public constructor(

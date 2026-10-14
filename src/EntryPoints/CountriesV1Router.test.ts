@@ -1,13 +1,13 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { CountriesQueryUseCase } from "@src/Domain/Countries/UseCase/CountriesQueryUseCase.js";
 import express from "express";
 import supertest from "supertest";
 import { mock } from "vitest-mock-extended";
+import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { CountriesQueryUseCase } from "#src/Domain/Countries/UseCase/CountriesQueryUseCase.js";
 import { createCountriesRouter } from "./CountriesV1Router.js";
 
 // Mock dependencies
-vi.mock("@src/Domain/Countries/UseCase/CountriesQueryUseCase");
+vi.mock("#src/Domain/Countries/UseCase/CountriesQueryUseCase");
 vi.mock("@variamosple/variamos-security", () => ({
   isAuthenticated: (
     _req: express.Request,
@@ -22,7 +22,7 @@ interface CountriesApiResponse {
   data: string[];
 }
 
-import type { ICountriesRepository } from "@src/Domain/Countries/Repository/ICountriesRepository.js";
+import type { ICountriesRepository } from "#src/Domain/Countries/Repository/ICountriesRepository.js";
 
 describe("CountriesV1Router Integration Tests", () => {
   let app: express.Application;

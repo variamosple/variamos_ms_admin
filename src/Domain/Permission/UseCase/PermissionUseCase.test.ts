@@ -1,9 +1,9 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { Permission } from "@src/Domain/Permission/Entity/Permission.js";
-import { PermissionFilter } from "@src/Domain/Permission/Entity/PermissionFilter.js";
-import type { IPermissionRepository } from "@src/Domain/Permission/Repository/IPermissionRepository.js";
 import { type MockProxy, mock } from "vitest-mock-extended";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { Permission } from "#src/Domain/Permission/Entity/Permission.js";
+import { PermissionFilter } from "#src/Domain/Permission/Entity/PermissionFilter.js";
+import type { IPermissionRepository } from "#src/Domain/Permission/Repository/IPermissionRepository.js";
 import { PermissionUseCase } from "./PermissionUseCase.js";
 
 describe("PermissionUseCase - Unit Tests", () => {

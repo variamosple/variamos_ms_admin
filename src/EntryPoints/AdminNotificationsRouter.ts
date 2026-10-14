@@ -1,10 +1,10 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
-import { RoleModel } from "@src/DataProviders/Role/Role.js";
-import { UserModel } from "@src/DataProviders/User/User.js";
-import { NotificationClientInstance } from "@src/Infrastructure/Notification/NotificationClient.js";
 import { hasPermissions } from "@variamosple/variamos-security";
 import { type Request, Router } from "express";
 import logger from "jet-logger";
+import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import { RoleModel } from "#src/DataProviders/Role/Role.js";
+import { UserModel } from "#src/DataProviders/User/User.js";
+import { NotificationClientInstance } from "#src/Infrastructure/Notification/NotificationClient.js";
 
 export const ADMIN_NOTIFICATIONS_V1_ROUTE = "/v1/admin/notifications";
 

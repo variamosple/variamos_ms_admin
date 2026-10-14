@@ -1,9 +1,9 @@
+import axios from "axios";
+import logger from "jet-logger";
 import type {
   GitHubIssue,
   IIssueTrackerService,
-} from "@src/Domain/Core/Service/IIssueTrackerService.js";
-import axios from "axios";
-import logger from "jet-logger";
+} from "#src/Domain/Core/Service/IIssueTrackerService.js";
 
 interface GitHubError {
   response?: {

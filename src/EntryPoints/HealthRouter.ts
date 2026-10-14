@@ -1,6 +1,6 @@
 import os from "node:os";
-import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM.js";
 import { Router } from "express";
+import VARIAMOS_ORM from "#src/Infrastructure/VariamosORM.js";
 
 export const HEALTH_ROUTE = "/health";
 

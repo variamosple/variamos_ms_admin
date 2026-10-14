@@ -4,14 +4,14 @@ import { describe, expect, it, vi } from "vitest";
 import { createHealthRouter, HEALTH_ROUTE } from "./HealthRouter.js";
 
 // Mock VARIAMOS_ORM to test behavior without requiring a live PostgreSQL instance
-vi.mock("@src/Infrastructure/VariamosORM.js", () => ({
+vi.mock("#src/Infrastructure/VariamosORM.js", () => ({
   default: {
     authenticate: vi.fn(),
   },
   DB_SCHEMA: "public",
 }));
 
-import VARIAMOS_ORM from "@src/Infrastructure/VariamosORM.js";
+import VARIAMOS_ORM from "#src/Infrastructure/VariamosORM.js";
 
 describe("HealthRouter - Black-Box Contract & Resilience Tests", () => {
   const buildApp = () => {

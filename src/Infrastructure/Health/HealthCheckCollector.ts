@@ -1,14 +1,14 @@
-import { MicroServiceDailyStatsModel } from "@src/DataProviders/MicroService/MicroServiceDailyStatsModel.js";
-import { MicroServiceHealthLogModel } from "@src/DataProviders/MicroService/MicroServiceHealthLogModel.js";
-import type {
-  MicroServiceRepositoryImpl,
-  ServiceDefinition,
-} from "@src/DataProviders/MicroService/MicroServiceRepository.js";
-import type { MicroServiceHealthInfo } from "@src/Domain/MicroService/Entity/MicroServiceHealth.js";
-import type { IMicroServiceRepository } from "@src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 import axios from "axios";
 import logger from "jet-logger";
 import { Op } from "sequelize";
+import { MicroServiceDailyStatsModel } from "#src/DataProviders/MicroService/MicroServiceDailyStatsModel.js";
+import { MicroServiceHealthLogModel } from "#src/DataProviders/MicroService/MicroServiceHealthLogModel.js";
+import type {
+  MicroServiceRepositoryImpl,
+  ServiceDefinition,
+} from "#src/DataProviders/MicroService/MicroServiceRepository.js";
+import type { MicroServiceHealthInfo } from "#src/Domain/MicroService/Entity/MicroServiceHealth.js";
+import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 
 export class HealthCheckCollector {
   private intervalTimer: NodeJS.Timeout | null = null;

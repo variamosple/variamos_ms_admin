@@ -1,20 +1,3 @@
-import EnvVars from "@src/common/EnvVars.js";
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
-import type { Nullable } from "@src/Domain/Core/Entity/Nullable.js";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import { Credentials } from "@src/Domain/User/Entity/Credentials.js";
-import { PasswordUpdate } from "@src/Domain/User/Entity/PasswordUpdate.js";
-import { PersonalInformationUpdate } from "@src/Domain/User/Entity/PersonalInformationUpdate.js";
-import type { SessionInfoResponse } from "@src/Domain/User/Entity/SessionInfoResponse.js";
-import type { SingInResponse } from "@src/Domain/User/Entity/SingInResponse.js";
-import { User } from "@src/Domain/User/Entity/User.js";
-import { UserRegistration } from "@src/Domain/User/Entity/UserRegistration.js";
-import type { UserAuthUseCase } from "@src/Domain/User/UseCase/UserAuthUseCase.js";
-import type { UserManagementUseCase } from "@src/Domain/User/UseCase/UserManagementUseCase.js";
-import type { UserPasswordUseCase } from "@src/Domain/User/UseCase/UserPasswordUseCase.js";
-import type { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase.js";
 import {
   createJwt,
   getToken,
@@ -32,6 +15,23 @@ import {
 } from "express";
 import { OAuth2Client } from "google-auth-library";
 import logger from "jet-logger";
+import EnvVars from "#src/common/EnvVars.js";
+import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import type { Nullable } from "#src/Domain/Core/Entity/Nullable.js";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { Credentials } from "#src/Domain/User/Entity/Credentials.js";
+import { PasswordUpdate } from "#src/Domain/User/Entity/PasswordUpdate.js";
+import { PersonalInformationUpdate } from "#src/Domain/User/Entity/PersonalInformationUpdate.js";
+import type { SessionInfoResponse } from "#src/Domain/User/Entity/SessionInfoResponse.js";
+import type { SingInResponse } from "#src/Domain/User/Entity/SingInResponse.js";
+import { User } from "#src/Domain/User/Entity/User.js";
+import { UserRegistration } from "#src/Domain/User/Entity/UserRegistration.js";
+import type { UserAuthUseCase } from "#src/Domain/User/UseCase/UserAuthUseCase.js";
+import type { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
+import type { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
+import type { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
 export const AUTH_ROUTE = "/auth";

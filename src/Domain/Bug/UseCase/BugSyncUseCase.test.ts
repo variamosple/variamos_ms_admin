@@ -1,14 +1,14 @@
-import type { IBugTrackerConfig } from "@src/Domain/Bug/Config/IBugTrackerConfig.js";
-import type { IBugRepository } from "@src/Domain/Bug/Repository/IBugRepository.js";
-import type { GitHubTokenResolver } from "@src/Domain/Bug/Service/GitHubTokenResolver.js";
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import logger from "jet-logger";
+import { type MockProxy, mock } from "vitest-mock-extended";
+import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
+import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
+import type { GitHubTokenResolver } from "#src/Domain/Bug/Service/GitHubTokenResolver.js";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import type {
   GitHubIssueLabel,
   IIssueTrackerService,
-} from "@src/Domain/Core/Service/IIssueTrackerService.js";
-import logger from "jet-logger";
-import { type MockProxy, mock } from "vitest-mock-extended";
+} from "#src/Domain/Core/Service/IIssueTrackerService.js";
 import { BugSyncUseCase } from "./BugSyncUseCase.js";
 
 describe("BugSyncUseCase", () => {

@@ -1,7 +1,7 @@
-import type { Configuration } from "@src/Domain/Configuration/Entity/Configuration.js";
-import type { IConfigEventPublisher } from "@src/Domain/Configuration/Event/IConfigEventPublisher.js";
 import amqp from "amqplib";
 import logger from "jet-logger";
+import type { Configuration } from "#src/Domain/Configuration/Entity/Configuration.js";
+import type { IConfigEventPublisher } from "#src/Domain/Configuration/Event/IConfigEventPublisher.js";
 
 export class RabbitMQConfigEventPublisher implements IConfigEventPublisher {
   private readonly brokerUrl: string;

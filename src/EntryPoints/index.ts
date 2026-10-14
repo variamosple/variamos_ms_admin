@@ -1,31 +1,30 @@
-import EnvVars from "@src/common/EnvVars.js";
-import type { BugAttachmentUseCase } from "@src/Domain/Bug/UseCase/BugAttachmentUseCase.js";
-import type { BugLifecycleUseCase } from "@src/Domain/Bug/UseCase/BugLifecycleUseCase.js";
-import type { BugQueryUseCase } from "@src/Domain/Bug/UseCase/BugQueryUseCase.js";
-// Bug Flow Use Cases
-import type { BugSubmissionUseCase } from "@src/Domain/Bug/UseCase/BugSubmissionUseCase.js";
-import type { BugSyncUseCase } from "@src/Domain/Bug/UseCase/BugSyncUseCase.js";
-import type { ConfigurationUseCase } from "@src/Domain/Configuration/UseCase/ConfigurationUseCase.js";
-import type { CountriesQueryUseCase } from "@src/Domain/Countries/UseCase/CountriesQueryUseCase.js";
-// Other Use Cases
-import type { MetricsQueryUseCase } from "@src/Domain/Metrics/UseCase/MetricsQueryUseCase.js";
-import type { MicroServiceManagementUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
-import type { MicroServiceQueryUseCase } from "@src/Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
-import type { PermissionUseCase } from "@src/Domain/Permission/UseCase/PermissionUseCase.js";
-// Role & Permission Use Cases
-import type { RoleManagementUseCase } from "@src/Domain/Role/UseCase/RoleManagementUseCase.js";
-import type { RolePermissionUseCase } from "@src/Domain/Role/UseCase/RolePermissionUseCase.js";
-import type { RoleQueryUseCase } from "@src/Domain/Role/UseCase/RoleQueryUseCase.js";
-
 // User Flow Use Cases
-import type { UserAuthUseCase } from "@src/Domain/User/UseCase/UserAuthUseCase.js";
-import type { UserManagementUseCase } from "@src/Domain/User/UseCase/UserManagementUseCase.js";
-import type { UserPasswordUseCase } from "@src/Domain/User/UseCase/UserPasswordUseCase.js";
-import type { UserQueryUseCase } from "@src/Domain/User/UseCase/UserQueryUseCase.js";
-import type { UserRoleUseCase } from "@src/Domain/User/UseCase/UserRoleUseCase.js";
-import type { VisitUseCase } from "@src/Domain/Visit/UseCase/VisitUseCase.js";
 import { isAuthenticated } from "@variamosple/variamos-security";
 import { Router } from "express";
+import EnvVars from "#src/common/EnvVars.js";
+import type { BugAttachmentUseCase } from "#src/Domain/Bug/UseCase/BugAttachmentUseCase.js";
+import type { BugLifecycleUseCase } from "#src/Domain/Bug/UseCase/BugLifecycleUseCase.js";
+import type { BugQueryUseCase } from "#src/Domain/Bug/UseCase/BugQueryUseCase.js";
+// Bug Flow Use Cases
+import type { BugSubmissionUseCase } from "#src/Domain/Bug/UseCase/BugSubmissionUseCase.js";
+import type { BugSyncUseCase } from "#src/Domain/Bug/UseCase/BugSyncUseCase.js";
+import type { ConfigurationUseCase } from "#src/Domain/Configuration/UseCase/ConfigurationUseCase.js";
+import type { CountriesQueryUseCase } from "#src/Domain/Countries/UseCase/CountriesQueryUseCase.js";
+// Other Use Cases
+import type { MetricsQueryUseCase } from "#src/Domain/Metrics/UseCase/MetricsQueryUseCase.js";
+import type { MicroServiceManagementUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
+import type { MicroServiceQueryUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
+import type { PermissionUseCase } from "#src/Domain/Permission/UseCase/PermissionUseCase.js";
+// Role & Permission Use Cases
+import type { RoleManagementUseCase } from "#src/Domain/Role/UseCase/RoleManagementUseCase.js";
+import type { RolePermissionUseCase } from "#src/Domain/Role/UseCase/RolePermissionUseCase.js";
+import type { RoleQueryUseCase } from "#src/Domain/Role/UseCase/RoleQueryUseCase.js";
+import type { UserAuthUseCase } from "#src/Domain/User/UseCase/UserAuthUseCase.js";
+import type { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
+import type { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
+import type { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
+import type { UserRoleUseCase } from "#src/Domain/User/UseCase/UserRoleUseCase.js";
+import type { VisitUseCase } from "#src/Domain/Visit/UseCase/VisitUseCase.js";
 import {
   ADMIN_NOTIFICATIONS_V1_ROUTE,
   createAdminNotificationsRouter,

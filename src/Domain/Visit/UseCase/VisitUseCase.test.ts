@@ -1,10 +1,10 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import type { ICountriesRepository } from "@src/Domain/Countries/Repository/ICountriesRepository.js";
-import { Visit } from "@src/Domain/Visit/Entity/Visit.js";
-import type { IVisitRepository } from "@src/Domain/Visit/Repository/IVisitRepository.js";
 import { type MockProxy, mock } from "vitest-mock-extended";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ICountriesRepository } from "#src/Domain/Countries/Repository/ICountriesRepository.js";
+import { Visit } from "#src/Domain/Visit/Entity/Visit.js";
+import type { IVisitRepository } from "#src/Domain/Visit/Repository/IVisitRepository.js";
 import { VisitUseCase } from "./VisitUseCase.js";
 
 describe("VisitUseCase - Unit Tests", () => {

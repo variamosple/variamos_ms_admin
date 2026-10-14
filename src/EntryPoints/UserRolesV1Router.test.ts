@@ -1,22 +1,22 @@
-import HttpStatusCodes from "@src/common/HttpStatusCodes.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "@src/Domain/Core/Error/DomainErrorCodes.js";
-import { UserRole } from "@src/Domain/User/Entity/UserRole.js";
-import { UserRoleUseCase } from "@src/Domain/User/UseCase/UserRoleUseCase.js";
 import express from "express";
 import supertest from "supertest";
 import { mock } from "vitest-mock-extended";
+import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { UserRole } from "#src/Domain/User/Entity/UserRole.js";
+import { UserRoleUseCase } from "#src/Domain/User/UseCase/UserRoleUseCase.js";
 import { createUserRolesRouter } from "./UserRolesV1Router.js";
 
 // Mock dependencies
-vi.mock("@src/Domain/User/UseCase/UserRoleUseCase");
+vi.mock("#src/Domain/User/UseCase/UserRoleUseCase");
 vi.mock("@variamosple/variamos-security", () => ({
   hasPermissions: () => (_req: unknown, _res: unknown, next: () => void) => {
     next();
   },
 }));
 
-import type { IUserRoleRepository } from "@src/Domain/User/Repository/IUserRoleRepository.js";
+import type { IUserRoleRepository } from "#src/Domain/User/Repository/IUserRoleRepository.js";
 
 describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
   let app: express.Application;

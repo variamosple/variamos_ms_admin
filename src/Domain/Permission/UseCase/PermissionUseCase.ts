@@ -1,8 +1,8 @@
-import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import type { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import type { Permission } from "@src/Domain/Permission/Entity/Permission.js";
-import type { PermissionFilter } from "@src/Domain/Permission/Entity/PermissionFilter.js";
-import type { IPermissionRepository } from "@src/Domain/Permission/Repository/IPermissionRepository.js";
+import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import type { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import type { Permission } from "#src/Domain/Permission/Entity/Permission.js";
+import type { PermissionFilter } from "#src/Domain/Permission/Entity/PermissionFilter.js";
+import type { IPermissionRepository } from "#src/Domain/Permission/Repository/IPermissionRepository.js";
 
 export class PermissionUseCase {
   public constructor(

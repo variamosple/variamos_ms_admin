@@ -1,9 +1,9 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { Role } from "@src/Domain/Role/Entity/Role.js";
-import { RoleFilter } from "@src/Domain/Role/Entity/RoleFilter.js";
-import type { IRoleRepository } from "@src/Domain/Role/Repository/IRoleRepository.js";
 import { type MockProxy, mock } from "vitest-mock-extended";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { Role } from "#src/Domain/Role/Entity/Role.js";
+import { RoleFilter } from "#src/Domain/Role/Entity/RoleFilter.js";
+import type { IRoleRepository } from "#src/Domain/Role/Repository/IRoleRepository.js";
 import { RoleQueryUseCase } from "./RoleQueryUseCase.js";
 
 describe("RoleQueryUseCase - Unit Tests", () => {

@@ -1,7 +1,7 @@
-import { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
-import { Country } from "@src/Domain/Countries/Entity/Country.js";
-import type { ICountriesRepository } from "@src/Domain/Countries/Repository/ICountriesRepository.js";
+import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { Country } from "#src/Domain/Countries/Entity/Country.js";
+import type { ICountriesRepository } from "#src/Domain/Countries/Repository/ICountriesRepository.js";
 import { CountriesQueryUseCase } from "./CountriesQueryUseCase.js";
 
 describe("CountriesQueryUseCase Unit Tests", () => {

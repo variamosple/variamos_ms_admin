@@ -1,5 +1,5 @@
-import type { RequestModel } from "@src/Domain/Core/Entity/RequestModel.js";
-import type { ResponseModel } from "@src/Domain/Core/Entity/ResponseModel.js";
+import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import type { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import type { Bug } from "../Entity/Bug.js";
 import type { BugAttachment } from "../Entity/BugAttachment.js";
 import type { BugFilter } from "../Entity/BugFilter.js";
