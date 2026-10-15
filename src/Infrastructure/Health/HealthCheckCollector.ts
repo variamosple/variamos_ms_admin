@@ -281,24 +281,18 @@ export class HealthCheckCollector {
       candidateUrls.push(`http://127.0.0.1:${service.defaultPort}${path}`);
       candidateUrls.push(`http://localhost:${service.defaultPort}${path}`);
     } else {
-      // 2. Container DNS hostnames on Docker network
+      // 2. Container IPs from the Docker API: no DNS lookup involved
+      for (const ip of service.containerIps ?? []) {
+        candidateUrls.push(`http://${ip}:${service.defaultPort}${path}`);
+      }
+      // 3. Compose service alias on the Docker network
       if (containerPattern) {
         candidateUrls.push(
           `http://${containerPattern}:${service.defaultPort}${path}`,
         );
-        candidateUrls.push(
-          `http://${containerPattern}-test:${service.defaultPort}${path}`,
-        );
       }
-      if (cleanServiceName && cleanServiceName !== containerPattern) {
-        candidateUrls.push(
-          `http://${cleanServiceName}:${service.defaultPort}${path}`,
-        );
-        candidateUrls.push(
-          `http://${cleanServiceName}-test:${service.defaultPort}${path}`,
-        );
-      }
-      // 3. Host mapped URL if available
+
+      // 4. Host mapped URL if available
       if (
         service.targetUrl &&
         !service.targetUrl.includes("localhost") &&

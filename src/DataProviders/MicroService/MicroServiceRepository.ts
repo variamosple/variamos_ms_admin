@@ -30,8 +30,21 @@ export interface ServiceDefinition {
   displayName: string;
   targetUrl: string;
   containerNamePattern?: string;
+  containerIps?: string[];
   defaultPort: number;
   healthPath?: string;
+}
+
+/**
+ * IP addresses of a container on every Docker network it is attached to.
+ * Probing these avoids DNS lookups, which stall for seconds on unknown names.
+ */
+export function containerIpsOf(container: {
+  NetworkSettings?: { Networks?: Record<string, { IPAddress?: string }> };
+}): string[] {
+  return Object.values(container.NetworkSettings?.Networks ?? {})
+    .map((network) => network.IPAddress)
+    .filter((ip): ip is string => Boolean(ip));
 }
 
 /**
@@ -131,6 +144,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
           targetUrl,
           containerNamePattern:
             composeService || rawServiceName.replace(/_/g, "-"),
+          containerIps: containerIpsOf(c),
           defaultPort: internalPort,
           healthPath,
         });
