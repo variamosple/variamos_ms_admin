@@ -241,11 +241,13 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
                 ? "UP"
                 : "DOWN";
 
+          // Without a persisted health log there is no measurement: leave the
+          // fields undefined instead of showing a fabricated 0 ms.
           const healthInfo: MicroServiceHealthInfo = {
             status,
             serviceName: def.name,
-            responseTimeMs: latestHealthLog?.responseTimeMs ?? 0,
-            checkedAt: latestHealthLog?.checkedAt ?? new Date(),
+            responseTimeMs: latestHealthLog?.responseTimeMs,
+            checkedAt: latestHealthLog?.checkedAt,
           };
 
           return new MicroServiceDetailed(
@@ -687,7 +689,8 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
       await MicroServiceHealthLogModel.create({
         serviceName: healthInfo.serviceName,
         status: healthInfo.status,
-        responseTimeMs: healthInfo.responseTimeMs,
+        // The collector always measures a probe before recording it.
+        responseTimeMs: healthInfo.responseTimeMs ?? 0,
         httpStatusCode: healthInfo.status === "UP" ? 200 : 500,
         errorMessage:
           healthInfo.status === "DOWN"
