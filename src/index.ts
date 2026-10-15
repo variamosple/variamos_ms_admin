@@ -126,18 +126,39 @@ const server = app.listen(EnvVars.Port, async () => {
   initKeyStore().then();
   logger.info(SERVER_START_MSG);
 
-  // Sync Bug tracker & Configuration models to guarantee tables exist
-  try {
-    logger.info("Synchronizing Database models...");
-    await BugModel.sync();
-    await BugAttachmentModel.sync();
-    await BugLogModel.sync();
-    await ConfigurationModel.sync();
-    await MicroServiceHealthLogModel.sync();
-    await MicroServiceDailyStatsModel.sync();
-    await MicroServiceAuditLogModel.sync();
-    logger.info("Database models synchronized successfully.");
+  // Each table is synced on its own: one failing sync must not prevent the
+  // health log table from being created, nor the health collector from starting.
+  const modelsToSync: Array<{ name: string; sync: () => Promise<unknown> }> = [
+    { name: "BugModel", sync: () => BugModel.sync() },
+    { name: "BugAttachmentModel", sync: () => BugAttachmentModel.sync() },
+    { name: "BugLogModel", sync: () => BugLogModel.sync() },
+    { name: "ConfigurationModel", sync: () => ConfigurationModel.sync() },
+    {
+      name: "MicroServiceHealthLogModel",
+      sync: () => MicroServiceHealthLogModel.sync(),
+    },
+    {
+      name: "MicroServiceDailyStatsModel",
+      sync: () => MicroServiceDailyStatsModel.sync(),
+    },
+    {
+      name: "MicroServiceAuditLogModel",
+      sync: () => MicroServiceAuditLogModel.sync(),
+    },
+  ];
+  logger.info("Synchronizing Database models...");
+  for (const model of modelsToSync) {
+    try {
+      await model.sync();
+    } catch (e) {
+      logger.err(
+        `Failed to synchronize table for ${model.name}: ${(e as Error).message}`,
+      );
+    }
+  }
+  logger.info("Database models synchronization finished.");
 
+  try {
     // Check if monitoring.health_check_interval_seconds exists in DB config
     try {
       const configRes = await productionConfigurationUseCase.queryByKey(
@@ -153,14 +174,14 @@ const server = app.listen(EnvVars.Port, async () => {
       // Configuration key might not exist initially, fallback remains EnvVars
     }
 
-    // Start periodic HealthCheckCollector
+    // Start periodic HealthCheckCollector, even if some table sync failed above
     healthCheckCollectorInstance.start();
 
     // Purge expired rejected bugs (older than 7 days) on startup
     await productionBugLifecycleUseCase.purgeExpiredRejectedBugs();
   } catch (e) {
     const err = e as Error;
-    logger.err(`Failed to synchronize Database models: ${err.message}`);
+    logger.err(`Failed to start background tasks: ${err.message}`);
   }
 
   // Run periodic bugs sync every 15 minutes

@@ -12,8 +12,8 @@ export interface MicroServiceHealthInfo {
   serviceName: string;
   version?: string;
   uptimeSeconds?: number;
-  responseTimeMs: number;
-  checkedAt: Date;
+  responseTimeMs?: number;
+  checkedAt?: Date;
   checks?: Record<string, HealthCheckDetail>;
 }
 
