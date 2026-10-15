@@ -34,6 +34,14 @@ export interface ServiceDefinition {
   healthPath?: string;
 }
 
+/**
+ * A container is a monitored microservice only when it carries the explicit
+ * `variamos.service.monitored=true` label.
+ */
+export function isMonitoredContainer(labels: Record<string, string>): boolean {
+  return labels["variamos.service.monitored"] === "true";
+}
+
 export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
   private dockerConnection: Docker;
   private healthCollector?: {
@@ -78,17 +86,11 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
 
       for (const c of containers) {
         const labels = c.Labels || {};
-        const isMonitored = labels["variamos.service.monitored"] === "true";
         const composeService = labels["com.docker.compose.service"];
 
-        // We recognize containers that are explicitly labeled as monitored,
-        // or part of docker compose with a variamos / vms service name.
-        if (
-          !isMonitored &&
-          (!composeService ||
-            (!composeService.includes("variamos") &&
-              !composeService.includes("vms")))
-        ) {
+        // Only containers that explicitly opt in are monitored. Matching on
+        // compose service names also picked up front-end containers and duplicate deployments.
+        if (!isMonitoredContainer(labels)) {
           continue;
         }
 
