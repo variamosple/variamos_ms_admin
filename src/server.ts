@@ -23,6 +23,7 @@ import { RouteError } from "#src/common/classes.js";
 import EnvVars from "#src/common/EnvVars.js";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { NodeEnvs } from "#src/common/misc.js";
+import { createUploadsRouter } from "#src/EntryPoints/UploadsRouter.js";
 
 export function createServer(baseRouter: Router) {
   const app = express();
@@ -67,6 +68,10 @@ export function createServer(baseRouter: Router) {
     app.use(helmet());
   }
 
+  // Uploaded files are served by a dedicated route, never as static content
+  const uploadsDir = path.join(__dirname, "public/uploads");
+  app.use("/uploads", createUploadsRouter(uploadsDir));
+
   // Add APIs, must be after middleware
   app.use("/", baseRouter);
 
@@ -87,10 +92,6 @@ export function createServer(baseRouter: Router) {
   // Set views directory (html)
   const viewsDir = path.join(__dirname, "views");
   app.set("views", viewsDir);
-
-  // Set static directory (js and css).
-  const staticDir = path.join(__dirname, "public");
-  app.use(express.static(staticDir));
 
   return app;
 }
