@@ -8,6 +8,16 @@ import {
 
 const INTERNAL_TOKEN = "shared-internal-token";
 
+describe("deriveNotificationTokenKey", () => {
+  // Same vector in variamos_ms_notifications: both services must derive the
+  // same key, or no token can be verified.
+  it("matches the key derivation shared with the notification service", () => {
+    expect(
+      Buffer.from(deriveNotificationTokenKey(INTERNAL_TOKEN)).toString("hex"),
+    ).toBe("a141d7e250e89f6f00473e7948c2b8eb3780a0820e9f32c9513b70ca8e2d5058");
+  });
+});
+
 describe("NotificationAccessTokenIssuer", () => {
   it("issues an HS256 token for the user, checked with the derived key", async () => {
     const issuer = new NotificationAccessTokenIssuer(INTERNAL_TOKEN);
