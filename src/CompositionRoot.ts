@@ -39,6 +39,7 @@ import { VisitUseCase } from "./Domain/Visit/UseCase/VisitUseCase.js";
 import { GitHubIssuesServiceInstance } from "./Infrastructure/GitHub/GitHubIssuesService.js";
 import { MailServiceInstance } from "./Infrastructure/Mail/MailService.js";
 import { ConfigEventPublisherImpl } from "./Infrastructure/Messaging/ConfigEventPublisher.js";
+import { NotificationAccessTokenIssuer } from "./Infrastructure/Notification/NotificationAccessTokenIssuer.js";
 import { DiskStorageServiceInstance } from "./Infrastructure/Storage/DiskStorageService.js";
 
 // Repositories
@@ -181,3 +182,7 @@ export const productionMicroServiceQueryUseCase = new MicroServiceQueryUseCase(
 
 export const productionMicroServiceManagementUseCase =
   new MicroServiceManagementUseCase(MicroServiceRepositoryInstance);
+
+// Short-lived tokens for the notification service (ADR-0001)
+export const productionNotificationAccessTokenIssuer =
+  new NotificationAccessTokenIssuer(EnvVars.NOTIFICATION.INTERNAL_TOKEN);

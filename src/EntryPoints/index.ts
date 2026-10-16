@@ -14,6 +14,7 @@ import type { CountriesQueryUseCase } from "#src/Domain/Countries/UseCase/Countr
 import type { MetricsQueryUseCase } from "#src/Domain/Metrics/UseCase/MetricsQueryUseCase.js";
 import type { MicroServiceManagementUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
 import type { MicroServiceQueryUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
+import type { INotificationAccessTokenIssuer } from "#src/Domain/Notification/INotificationAccessTokenIssuer.js";
 import type { PermissionUseCase } from "#src/Domain/Permission/UseCase/PermissionUseCase.js";
 // Role & Permission Use Cases
 import type { RoleManagementUseCase } from "#src/Domain/Role/UseCase/RoleManagementUseCase.js";
@@ -49,6 +50,10 @@ import {
   createMicroServicesRouter,
   MICRO_SERVICES_V1_ROUTE,
 } from "./MicroServicesV1Router.js";
+import {
+  createNotificationAccessRouter,
+  NOTIFICATION_ACCESS_V1_ROUTE,
+} from "./NotificationAccessRouter.js";
 import {
   createPermissionsRouter,
   PERMISSIONS_V1_ROUTE,
@@ -97,6 +102,7 @@ export function createBaseRouter(
   countriesUseCase: CountriesQueryUseCase,
   configurationUseCase: ConfigurationUseCase,
   upload: MulterUpload,
+  notificationAccessTokenIssuer: INotificationAccessTokenIssuer,
 ): Router {
   const baseRouter = Router();
 
@@ -140,6 +146,10 @@ export function createBaseRouter(
     isAuthenticated,
   );
   const adminNotificationsV1Router = createAdminNotificationsRouter();
+  const notificationAccessV1Router = createNotificationAccessRouter(
+    notificationAccessTokenIssuer,
+    isAuthenticated,
+  );
 
   baseRouter.use(AUTH_ROUTE, authRouter);
   baseRouter.use(CONFIGURATION_V1_ROUTE, configurationV1Router);
@@ -152,6 +162,7 @@ export function createBaseRouter(
   baseRouter.use(COUNTRIES_V1_ROUTE, countriesV1Router);
   baseRouter.use(BUG_V1_ROUTE, bugV1Router);
   baseRouter.use(ADMIN_NOTIFICATIONS_V1_ROUTE, adminNotificationsV1Router);
+  baseRouter.use(NOTIFICATION_ACCESS_V1_ROUTE, notificationAccessV1Router);
   baseRouter.use("/health", createHealthRouter());
 
   baseRouter.get("/version", (_, res) => {
