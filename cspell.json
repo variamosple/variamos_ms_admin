@@ -30,7 +30,8 @@
     "testuser",
     "uuidv4",
     "uuidv",
-    "DATEONLY"
+    "DATEONLY",
+    "nosniff"
   ],
   "ignorePaths": [
     "node_modules/**",
