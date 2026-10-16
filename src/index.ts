@@ -1,5 +1,6 @@
 import logger from "jet-logger";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { MAX_ATTACHMENT_SIZE_BYTES } from "#src/Domain/Core/File/AllowedFileType.js";
 import "./pre-start.js"; // Must be the first import
 
 import type { Readable } from "node:stream";
@@ -58,17 +59,13 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Multer storage configuration
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (_req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  },
+// Uploads are kept in memory, within the size limit, until the use case has
+// checked the request and the file type; only then is the file written, under
+// a server-generated name (DiskStorageService).
+const productionUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_ATTACHMENT_SIZE_BYTES, files: 1 },
 });
-const productionUpload = multer({ storage });
 
 const baseRouter = createBaseRouter(
   {

@@ -6,8 +6,30 @@ import type { GitHubTokenResolver } from "#src/Domain/Bug/Service/GitHubTokenRes
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import {
+  ALLOWED_FILE_TYPES_LABEL,
+  detectAllowedFileType,
+} from "#src/Domain/Core/File/AllowedFileType.js";
+import type { UploadedFile } from "#src/Domain/Core/File/UploadedFile.js";
 import type { IIssueTrackerService } from "#src/Domain/Core/Service/IIssueTrackerService.js";
+import type { IStorageService } from "#src/Domain/Core/Service/IStorageService.js";
 import { ALLOWED_CATEGORIES } from "./BugQueryUseCase.js";
+
+interface BugSubmissionData {
+  title: string;
+  description: string;
+  priority: "low" | "medium" | "high";
+  category: string;
+  githubRepo?: string;
+  createdById?: string;
+  reporterEmail?: string;
+  file?: UploadedFile | null;
+}
+
+interface StoredFile {
+  filePath: string;
+  fileType: string;
+}
 
 export class BugSubmissionUseCase {
   public constructor(
@@ -16,22 +38,11 @@ export class BugSubmissionUseCase {
     private readonly issueTrackerService: IIssueTrackerService,
     private readonly githubConfig: IBugTrackerConfig,
     private readonly tokenResolver: GitHubTokenResolver,
+    private readonly storageService: IStorageService,
   ) {}
 
   public async createBug(
-    request: RequestModel<{
-      title: string;
-      description: string;
-      priority: "low" | "medium" | "high";
-      category: string;
-      githubRepo?: string;
-      createdById?: string;
-      reporterEmail?: string;
-      file?: {
-        filename: string;
-        mimetype: string;
-      } | null;
-    }>,
+    request: RequestModel<BugSubmissionData>,
   ): Promise<ResponseModel<Bug>> {
     const data = request.data;
     if (!data) {
@@ -72,6 +83,17 @@ export class BugSubmissionUseCase {
       );
     }
 
+    const fileType = data.file
+      ? detectAllowedFileType(data.file.content, data.file.originalName)
+      : null;
+    if (data.file && !fileType) {
+      const response = new ResponseModel<Bug>(request.transactionId);
+      return response.withErrorPromise(
+        DomainErrorCodes.INVALID_INPUT,
+        `Unsupported file type. Allowed: ${ALLOWED_FILE_TYPES_LABEL}.`,
+      );
+    }
+
     if (!data.createdById && !data.reporterEmail) {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
@@ -102,14 +124,44 @@ export class BugSubmissionUseCase {
       );
     }
 
-    let resolvedFile: { filePath: string; fileType: string } | undefined;
-    if (data.file) {
-      resolvedFile = {
-        filePath: `/uploads/${data.file.filename}`,
-        fileType: data.file.mimetype,
-      };
+    // The file is written only once the request is valid, and removed again
+    // if the bug cannot be recorded.
+    let resolvedFile: StoredFile | undefined;
+    if (data.file && fileType) {
+      const filePath = await this.storageService.saveFile(
+        data.file.content,
+        fileType.extension,
+      );
+      resolvedFile = { filePath, fileType: fileType.mimeType };
     }
 
+    try {
+      const response = await this.submitBug(
+        request.transactionId,
+        data,
+        reporterEmail,
+        resolvedCreatedById,
+        resolvedFile,
+      );
+      if (response.errorCode && resolvedFile) {
+        await this.storageService.deleteFile(resolvedFile.filePath);
+      }
+      return response;
+    } catch (error) {
+      if (resolvedFile) {
+        await this.storageService.deleteFile(resolvedFile.filePath);
+      }
+      throw error;
+    }
+  }
+
+  private async submitBug(
+    transactionId: string | undefined,
+    data: BugSubmissionData,
+    reporterEmail: string,
+    resolvedCreatedById: string | undefined,
+    resolvedFile: StoredFile | undefined,
+  ): Promise<ResponseModel<Bug>> {
     let status = "pending";
     let gitIssueNumber: number | undefined;
     let githubHtmlUrl: string | undefined;
@@ -147,14 +199,14 @@ export class BugSubmissionUseCase {
           gitIssueNumber = issueNum;
           githubHtmlUrl = `https://github.com/${data.githubRepo}/issues/${issueNum}`;
         } else {
-          const response = new ResponseModel<Bug>(request.transactionId);
+          const response = new ResponseModel<Bug>(transactionId);
           return response.withErrorPromise(
             DomainErrorCodes.INVALID_INPUT,
             "Failed to push bug to GitHub repository. Please verify repository existence and permissions.",
           );
         }
       } else {
-        const response = new ResponseModel<Bug>(request.transactionId);
+        const response = new ResponseModel<Bug>(transactionId);
         return response.withErrorPromise(
           DomainErrorCodes.INVALID_INPUT,
           "GitHub integration token is not configured.",
@@ -163,7 +215,7 @@ export class BugSubmissionUseCase {
     }
 
     return this.bugRepository.createBug(
-      new RequestModel(request.transactionId, {
+      new RequestModel(transactionId, {
         title: data.title,
         description: data.description,
         priority: data.priority,
