@@ -474,6 +474,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
 
   public async startMicroService(
     request: RequestModel<string>,
+    actorId: string,
   ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
     if (!request.data) {
@@ -496,7 +497,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         serviceName: request.data,
         actionType: "START",
         details: { target: request.data },
-        performedBy: "admin",
+        performedBy: actorId,
       });
 
       await MicroServiceHealthLogModel.create({
@@ -519,6 +520,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
 
   public async stopMicroService(
     request: RequestModel<string>,
+    actorId: string,
   ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
     if (!request.data) {
@@ -541,7 +543,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         serviceName: request.data,
         actionType: "STOP",
         details: { target: request.data },
-        performedBy: "admin",
+        performedBy: actorId,
       });
 
       await MicroServiceHealthLogModel.create({
@@ -564,6 +566,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
 
   public async restartMicroService(
     request: RequestModel<string>,
+    actorId: string,
   ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
     if (!request.data) {
@@ -586,7 +589,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         serviceName: request.data,
         actionType: "RESTART",
         details: { target: request.data },
-        performedBy: "admin",
+        performedBy: actorId,
       });
 
       await MicroServiceHealthLogModel.create({

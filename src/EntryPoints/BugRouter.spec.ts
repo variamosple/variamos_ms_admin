@@ -57,10 +57,22 @@ import type { BugSubmissionUseCase } from "#src/Domain/Bug/UseCase/BugSubmission
 import type { BugSyncUseCase } from "#src/Domain/Bug/UseCase/BugSyncUseCase.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { MAX_ATTACHMENT_SIZE_BYTES } from "#src/Domain/Core/File/AllowedFileType.js";
 import { createBugRouter } from "./BugRouter.js";
 
 const mockLoggerInfo = vi.spyOn(logger, "info").mockImplementation(() => {});
 const mockLoggerErr = vi.spyOn(logger, "err").mockImplementation(() => {});
+
+// Everything written to the logs during a test, to check that no token or
+// session content is logged.
+const loggedText = () =>
+  [...mockLoggerInfo.mock.calls, ...mockLoggerErr.mock.calls]
+    .map((call) => call.map(String).join(" "))
+    .join("\n");
+
+const PNG_BYTES = Buffer.from([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00,
+]);
 
 const mockBugSubmissionUseCase = mock<BugSubmissionUseCase>();
 const mockBugLifecycleUseCase = mock<BugLifecycleUseCase>();
@@ -329,7 +341,7 @@ describe("BugRouter HTTP Integration Tests", () => {
       );
     });
 
-    it("should trigger multer upload destination and filename logic when file is attached", async () => {
+    it("should pass the file content and declared name to the use case", async () => {
       const newBug = Bug.builder().setId("local-file").build();
       mockBugSubmissionUseCase.createBug.mockResolvedValue(
         new ResponseModel<Bug>("tx-id").withResponse(newBug),
@@ -337,22 +349,16 @@ describe("BugRouter HTTP Integration Tests", () => {
 
       const res = await request(app)
         .post("/bugs")
-        .attach("file", Buffer.from("dummy image content"), "screenshot.png")
+        .attach("file", PNG_BYTES, "screenshot.png")
         .field("title", "Bug with image")
         .field("description", "Desc")
         .field("category", "Editor");
 
       expect(res.status).toBe(201);
-      expect(mockBugSubmissionUseCase.createBug).toHaveBeenCalledWith(
-        expect.objectContaining({
-          transactionId: "createBug",
-          data: expect.objectContaining({
-            file: expect.objectContaining({
-              mimetype: "image/png",
-            }),
-          }),
-        }),
-      );
+      const passedFile =
+        mockBugSubmissionUseCase.createBug.mock.calls[0]?.[0].data?.file;
+      expect(passedFile?.originalName).toBe("screenshot.png");
+      expect(Buffer.from(passedFile?.content ?? [])).toEqual(PNG_BYTES);
     });
 
     it("should return 400 when creation throws an error", async () => {
@@ -638,9 +644,7 @@ describe("BugRouter HTTP Integration Tests", () => {
 
       expect(res.status).toBe(201);
       expect(mockValidateSession).not.toHaveBeenCalled();
-      expect(mockLoggerInfo).toHaveBeenCalledWith(
-        "POST /bugs: Extracted token: none",
-      );
+      expect(loggedText()).not.toContain("Extracted token");
       expect(mockBugSubmissionUseCase.createBug).toHaveBeenCalledWith(
         expect.objectContaining({
           transactionId: "createBug",
@@ -671,9 +675,8 @@ describe("BugRouter HTTP Integration Tests", () => {
 
       expect(res.status).toBe(201);
       expect(mockValidateSession).toHaveBeenCalledWith("my-cool-cookie-token");
-      expect(mockLoggerInfo).toHaveBeenCalledWith(
-        "POST /bugs: Extracted token: my-cool-cookie-...",
-      );
+      expect(loggedText()).not.toContain("my-cool-cookie");
+      expect(loggedText()).not.toContain("Session validation result");
       expect(mockLoggerErr).not.toHaveBeenCalled();
       expect(mockBugSubmissionUseCase.createBug).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -705,9 +708,8 @@ describe("BugRouter HTTP Integration Tests", () => {
 
       expect(res.status).toBe(201);
       expect(mockValidateSession).toHaveBeenCalledWith("my-cool-header-token");
-      expect(mockLoggerInfo).toHaveBeenCalledWith(
-        "POST /bugs: Extracted token: my-cool-header-...",
-      );
+      expect(loggedText()).not.toContain("my-cool-header");
+      expect(loggedText()).not.toContain("user-via-header");
       expect(mockLoggerErr).not.toHaveBeenCalled();
       expect(mockBugSubmissionUseCase.createBug).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -868,7 +870,7 @@ describe("BugRouter HTTP Integration Tests", () => {
             data: expect.objectContaining({
               bugId: "local-1",
               file: expect.objectContaining({
-                mimetype: "image/png",
+                originalName: "test-image.png",
               }),
             }),
           }),
@@ -1003,5 +1005,187 @@ describe("BugRouter HTTP Integration Tests", () => {
         expect(res.body.error).toBe("Notes query failed");
       });
     });
+  });
+});
+
+describe("BugRouter upload limits and anonymous files", () => {
+  // Same limits as the production upload configured in src/index.ts
+  const limitedUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: MAX_ATTACHMENT_SIZE_BYTES, files: 1 },
+  });
+  let limitedApp: express.Application;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockValidateSession.mockReset();
+    limitedApp = express();
+    limitedApp.use(cookieParser());
+    limitedApp.use(
+      "/bugs",
+      createBugRouter(
+        mockBugSubmissionUseCase,
+        mockBugLifecycleUseCase,
+        mockBugSyncUseCase,
+        mockBugQueryUseCase,
+        mockBugAttachmentUseCase,
+        limitedUpload,
+        mockAuth,
+      ),
+    );
+    mockBugSubmissionUseCase.createBug.mockResolvedValue(
+      new ResponseModel<Bug>("tx-id").withResponse(
+        Bug.builder().setId("local-1").build(),
+      ),
+    );
+  });
+
+  const bugFields = (req: request.Test) =>
+    req
+      .field("title", "Bug")
+      .field("description", "Desc")
+      .field("category", "Editor");
+
+  it("should answer 413 for a file over the size limit, without calling the use case", async () => {
+    mockValidateSession.mockResolvedValue({ data: { id: "user-1" } });
+    const tooLarge = Buffer.alloc(MAX_ATTACHMENT_SIZE_BYTES + 1, 0x41);
+
+    const res = await bugFields(
+      request(limitedApp)
+        .post("/bugs")
+        .set("Authorization", "Bearer token")
+        .attach("file", tooLarge, "big.log"),
+    );
+
+    expect(res.status).toBe(413);
+    expect(res.body.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+    expect(res.body.message).toBe("The file exceeds the 5 MB limit.");
+    expect(mockBugSubmissionUseCase.createBug).not.toHaveBeenCalled();
+  });
+
+  it("should accept a file at exactly the size limit", async () => {
+    mockValidateSession.mockResolvedValue({ data: { id: "user-1" } });
+    const atLimit = Buffer.alloc(MAX_ATTACHMENT_SIZE_BYTES, 0x41);
+
+    const res = await bugFields(
+      request(limitedApp)
+        .post("/bugs")
+        .set("Authorization", "Bearer token")
+        .attach("file", atLimit, "big.log"),
+    );
+
+    expect(res.status).toBe(201);
+    expect(mockBugSubmissionUseCase.createBug).toHaveBeenCalled();
+  });
+
+  it("should answer 400 when more than one file is sent", async () => {
+    mockValidateSession.mockResolvedValue({ data: { id: "user-1" } });
+
+    const res = await bugFields(
+      request(limitedApp)
+        .post("/bugs")
+        .set("Authorization", "Bearer token")
+        .attach("file", PNG_BYTES, "a.png")
+        .attach("file", PNG_BYTES, "b.png"),
+    );
+
+    expect(res.status).toBe(400);
+    expect(res.body.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+    expect(mockBugSubmissionUseCase.createBug).not.toHaveBeenCalled();
+  });
+
+  it("should answer 400 for a file sent under another field name", async () => {
+    mockValidateSession.mockResolvedValue({ data: { id: "user-1" } });
+
+    const res = await bugFields(
+      request(limitedApp)
+        .post("/bugs")
+        .set("Authorization", "Bearer token")
+        .attach("other", PNG_BYTES, "a.png"),
+    );
+
+    expect(res.status).toBe(400);
+    expect(mockBugSubmissionUseCase.createBug).not.toHaveBeenCalled();
+  });
+
+  it("should refuse a file from a visitor without any session", async () => {
+    const res = await bugFields(
+      request(limitedApp).post("/bugs").attach("file", PNG_BYTES, "a.png"),
+    ).field("reporterEmail", "visitor@example.com");
+
+    expect(res.status).toBe(401);
+    expect(res.body.errorCode).toBe(DomainErrorCodes.UNAUTHORIZED_ACCESS);
+    expect(mockBugSubmissionUseCase.createBug).not.toHaveBeenCalled();
+  });
+
+  it("should refuse a file when the session token is invalid", async () => {
+    mockValidateSession.mockResolvedValue(null);
+
+    const res = await bugFields(
+      request(limitedApp)
+        .post("/bugs")
+        .set("Authorization", "Bearer expired")
+        .attach("file", PNG_BYTES, "a.png"),
+    ).field("reporterEmail", "visitor@example.com");
+
+    expect(res.status).toBe(401);
+    expect(mockBugSubmissionUseCase.createBug).not.toHaveBeenCalled();
+  });
+
+  it("should still accept a report without file from a visitor without session", async () => {
+    const res = await bugFields(request(limitedApp).post("/bugs")).field(
+      "reporterEmail",
+      "visitor@example.com",
+    );
+
+    expect(res.status).toBe(201);
+    expect(mockBugSubmissionUseCase.createBug).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ createdById: undefined, file: null }),
+      }),
+    );
+  });
+
+  it("should accept a file from a guest or user session", async () => {
+    mockValidateSession.mockResolvedValue({ data: { id: "guest-42" } });
+
+    const res = await bugFields(
+      request(limitedApp)
+        .post("/bugs")
+        .set("Cookie", ["authToken=guest-token"])
+        .attach("file", PNG_BYTES, "a.png"),
+    );
+
+    expect(res.status).toBe(201);
+    expect(mockBugSubmissionUseCase.createBug).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ createdById: "guest-42" }),
+      }),
+    );
+    expect(loggedText()).not.toContain("guest-token");
+  });
+
+  it("should answer 413 on the attachments route for a file over the limit", async () => {
+    const res = await request(limitedApp)
+      .post("/bugs/local-1/attachments")
+      .attach("file", Buffer.alloc(MAX_ATTACHMENT_SIZE_BYTES + 1), "big.log");
+
+    expect(res.status).toBe(413);
+    expect(mockBugAttachmentUseCase.addAttachment).not.toHaveBeenCalled();
+  });
+
+  it("should map an unsupported file type from the use case to 400", async () => {
+    mockBugAttachmentUseCase.addAttachment.mockResolvedValue(
+      new ResponseModel<BugAttachment>("tx-id").withError(
+        DomainErrorCodes.INVALID_INPUT,
+        "Unsupported file type.",
+      ),
+    );
+
+    const res = await request(limitedApp)
+      .post("/bugs/local-1/attachments")
+      .attach("file", Buffer.from("<html></html>"), "page.png");
+
+    expect(res.status).toBe(400);
   });
 });

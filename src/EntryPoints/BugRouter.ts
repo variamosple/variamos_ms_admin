@@ -18,6 +18,10 @@ import type { BugQueryUseCase } from "#src/Domain/Bug/UseCase/BugQueryUseCase.js
 import type { BugSubmissionUseCase } from "#src/Domain/Bug/UseCase/BugSubmissionUseCase.js";
 import type { BugSyncUseCase } from "#src/Domain/Bug/UseCase/BugSyncUseCase.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { MAX_ATTACHMENT_SIZE_BYTES } from "#src/Domain/Core/File/AllowedFileType.js";
+import type { UploadedFile } from "#src/Domain/Core/File/UploadedFile.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
 /**
@@ -29,6 +33,60 @@ export interface MulterUpload {
 
 interface RequestWithUser extends Request {
   user: SessionUser;
+}
+
+const FILE_FIELD = "file";
+const MAX_ATTACHMENT_SIZE_MB = MAX_ATTACHMENT_SIZE_BYTES / (1024 * 1024);
+
+function isMulterError(error: unknown): error is { code?: string } {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { name?: unknown }).name === "MulterError"
+  );
+}
+
+/**
+ * Runs the upload middleware and answers its limit errors itself: 413 for a
+ * file over the size limit, 400 for any other upload error.
+ */
+function acceptSingleFile(
+  upload: MulterUpload,
+  transactionId: string,
+): RequestHandler {
+  const single = upload.single(FILE_FIELD);
+  return (req, res, next) => {
+    single(req, res, (error?: unknown) => {
+      if (!error) {
+        next();
+        return;
+      }
+      if (!isMulterError(error)) {
+        next(error);
+        return;
+      }
+      const tooLarge = error.code === "LIMIT_FILE_SIZE";
+      res
+        .status(
+          tooLarge
+            ? HttpStatusCodes.PAYLOAD_TOO_LARGE
+            : HttpStatusCodes.BAD_REQUEST,
+        )
+        .json(
+          new ResponseModel(transactionId).withError(
+            DomainErrorCodes.INVALID_INPUT,
+            tooLarge
+              ? `The file exceeds the ${MAX_ATTACHMENT_SIZE_MB} MB limit.`
+              : `Only one file can be attached, in the "${FILE_FIELD}" field.`,
+          ),
+        );
+    });
+  };
+}
+
+function toUploadedFile(file?: Express.Multer.File): UploadedFile | null {
+  if (!file?.buffer) return null;
+  return { content: file.buffer, originalName: file.originalname };
 }
 
 export function createBugRouter(
@@ -137,7 +195,7 @@ export function createBugRouter(
   // Create a new bug
   router.post(
     "/",
-    upload.single("file"),
+    acceptSingleFile(upload, "createBug"),
     async (req: Request, res: Response) => {
       const transactionId = "createBug";
       const {
@@ -162,15 +220,9 @@ export function createBugRouter(
         const token =
           (req.cookies?.authToken as string | undefined) ||
           req.headers.authorization?.split(" ")[1];
-        logger.info(
-          `POST /bugs: Extracted token: ${token ? `${token.substring(0, 15)}...` : "none"}`,
-        );
         if (token) {
           try {
             const session = await validateSession(token);
-            logger.info(
-              `POST /bugs: Session validation result: ${JSON.stringify(session)}`,
-            );
             if (session?.data) {
               const sessionData = session.data as { id?: string; sub?: string };
               const resolvedId = sessionData.id || sessionData.sub;
@@ -183,6 +235,20 @@ export function createBugRouter(
             logger.err(e as Error);
           }
         }
+      }
+
+      // Without any session (user or guest), a bug can be reported but no
+      // file can be attached.
+      if (req.file && !adminId) {
+        res
+          .status(HttpStatusCodes.UNAUTHORIZED)
+          .json(
+            new ResponseModel(transactionId).withError(
+              DomainErrorCodes.UNAUTHORIZED_ACCESS,
+              "Sign in, or continue as a guest, to attach a file.",
+            ),
+          );
+        return;
       }
 
       try {
@@ -199,12 +265,7 @@ export function createBugRouter(
           githubRepo: githubRepo || undefined,
           createdById: adminId,
           reporterEmail: reporterEmail || undefined,
-          file: req.file
-            ? {
-                filename: req.file.filename,
-                mimetype: req.file.mimetype,
-              }
-            : null,
+          file: toUploadedFile(req.file),
         };
         const request = new RequestModel<typeof payload>(
           transactionId,
@@ -404,24 +465,19 @@ export function createBugRouter(
     "/:id/attachments",
     authMiddleware,
     hasPermissions(["bugs::query"]),
-    upload.single("file"),
+    acceptSingleFile(upload, "addAttachment"),
     async (req: Request<{ id: string }>, res: Response) => {
       const transactionId = "addAttachment";
       const { id } = req.params;
-      if (!req.file) {
+      const file = toUploadedFile(req.file);
+      if (!file) {
         res
           .status(HttpStatusCodes.BAD_REQUEST)
           .json({ error: "File attachment is required." });
         return;
       }
       try {
-        const payload = {
-          bugId: id,
-          file: {
-            filename: req.file.filename,
-            mimetype: req.file.mimetype,
-          },
-        };
+        const payload = { bugId: id, file };
         const request = new RequestModel<typeof payload>(
           transactionId,
           payload,

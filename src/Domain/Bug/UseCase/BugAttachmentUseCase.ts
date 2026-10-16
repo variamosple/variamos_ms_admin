@@ -5,6 +5,11 @@ import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.j
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import {
+  ALLOWED_FILE_TYPES_LABEL,
+  detectAllowedFileType,
+} from "#src/Domain/Core/File/AllowedFileType.js";
+import type { UploadedFile } from "#src/Domain/Core/File/UploadedFile.js";
 import type { IStorageService } from "#src/Domain/Core/Service/IStorageService.js";
 
 export class BugAttachmentUseCase {
@@ -16,10 +21,7 @@ export class BugAttachmentUseCase {
   public async addAttachment(
     request: RequestModel<{
       bugId: string;
-      file: {
-        filename: string;
-        mimetype: string;
-      } | null;
+      file: UploadedFile | null;
     }>,
   ): Promise<ResponseModel<BugAttachment>> {
     const data = request.data;
@@ -36,17 +38,37 @@ export class BugAttachmentUseCase {
         "File is required.",
       );
     }
-    const resolvedFile = {
-      filePath: `/uploads/${data.file.filename}`,
-      fileType: data.file.mimetype,
-    };
-    return this.bugRepository.createAttachment(
-      new RequestModel(request.transactionId, {
-        filePath: resolvedFile.filePath,
-        fileType: resolvedFile.fileType,
-        bugId: data.bugId,
-      }),
+    const fileType = detectAllowedFileType(
+      data.file.content,
+      data.file.originalName,
     );
+    if (!fileType) {
+      return response.withErrorPromise(
+        DomainErrorCodes.INVALID_INPUT,
+        `Unsupported file type. Allowed: ${ALLOWED_FILE_TYPES_LABEL}.`,
+      );
+    }
+
+    const filePath = await this.storageService.saveFile(
+      data.file.content,
+      fileType.extension,
+    );
+    try {
+      const created = await this.bugRepository.createAttachment(
+        new RequestModel(request.transactionId, {
+          filePath,
+          fileType: fileType.mimeType,
+          bugId: data.bugId,
+        }),
+      );
+      if (created.errorCode) {
+        await this.storageService.deleteFile(filePath);
+      }
+      return created;
+    } catch (error) {
+      await this.storageService.deleteFile(filePath);
+      throw error;
+    }
   }
 
   public async deleteAttachment(

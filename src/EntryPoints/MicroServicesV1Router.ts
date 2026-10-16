@@ -12,6 +12,15 @@ import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
 export const MICRO_SERVICES_V1_ROUTE = "/v1/micro-services";
 
+/**
+ * Actor recorded in the audit log for an action: the caller's e-mail, as for
+ * configuration updates, otherwise their identifier.
+ */
+function actorOf(req: Request): string {
+  const user = req.user as { email?: string; id?: string } | undefined;
+  return user?.email || user?.id || "unknown";
+}
+
 export function createMicroServicesRouter(
   microServiceQueryUseCase: MicroServiceQueryUseCase,
   microServiceManagementUseCase: MicroServiceManagementUseCase,
@@ -180,8 +189,7 @@ export function createMicroServicesRouter(
       const transactionId = "updateMicroServiceConfiguration";
       const { name, key } = req.params;
       const { value } = req.body as { value: string };
-      const operatorId =
-        (req.user as { email?: string; id?: string })?.email || "admin";
+      const operatorId = actorOf(req);
 
       try {
         const request = new RequestModel<{
@@ -284,8 +292,10 @@ export function createMicroServicesRouter(
 
       try {
         const request = new RequestModel<string>(transactionId, microserviceId);
-        const response =
-          await microServiceManagementUseCase.startMicroService(request);
+        const response = await microServiceManagementUseCase.startMicroService(
+          request,
+          actorOf(req),
+        );
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
@@ -312,7 +322,10 @@ export function createMicroServicesRouter(
       try {
         const request = new RequestModel<string>(transactionId, microserviceId);
         const response =
-          await microServiceManagementUseCase.restartMicroService(request);
+          await microServiceManagementUseCase.restartMicroService(
+            request,
+            actorOf(req),
+          );
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
@@ -338,8 +351,10 @@ export function createMicroServicesRouter(
 
       try {
         const request = new RequestModel<string>(transactionId, microserviceId);
-        const response =
-          await microServiceManagementUseCase.stopMicroService(request);
+        const response = await microServiceManagementUseCase.stopMicroService(
+          request,
+          actorOf(req),
+        );
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
