@@ -62,7 +62,6 @@ export class RolePermissionRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in queryRolePermissions:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -121,7 +120,6 @@ export class RolePermissionRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in createRolePermission:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -163,7 +161,6 @@ export class RolePermissionRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in deleteRolePermission:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,

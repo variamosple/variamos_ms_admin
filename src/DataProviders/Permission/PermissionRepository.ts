@@ -57,7 +57,6 @@ export class PermissionRepositoryImpl
       );
     } catch (error) {
       logger.err("Error in queryPermissions:");
-      logger.err(request);
       logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -91,7 +90,6 @@ export class PermissionRepositoryImpl
       response.data = new Permission(newPermission.id, newPermission.name);
     } catch (error) {
       logger.err("Error in createPermission:");
-      logger.err(request);
       logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -114,7 +112,6 @@ export class PermissionRepositoryImpl
       await PermissionModel.destroy({ where: { id } });
     } catch (error) {
       logger.err("Error in deletePermission:");
-      logger.err(request);
       logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -140,7 +137,6 @@ export class PermissionRepositoryImpl
       );
     } catch (error) {
       logger.err("Error in queryById:");
-      logger.err(request);
       logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -177,7 +173,6 @@ export class PermissionRepositoryImpl
       response.data = data;
     } catch (error) {
       logger.err("Error in updatePermission:");
-      logger.err(request);
       logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
