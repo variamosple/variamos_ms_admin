@@ -81,8 +81,10 @@ describe("NotificationAccessTokenIssuer", () => {
     ).rejects.toThrow();
   });
 
-  it("refuses to start without an internal token", () => {
-    expect(() => new NotificationAccessTokenIssuer("")).toThrow(
+  it("starts without an internal token but refuses to issue a token", async () => {
+    const issuer = new NotificationAccessTokenIssuer("");
+
+    await expect(issuer.issue("user-42")).rejects.toThrow(
       "The notification internal token is not configured.",
     );
   });

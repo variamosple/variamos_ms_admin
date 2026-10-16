@@ -30,15 +30,15 @@ export function deriveNotificationTokenKey(internalToken: string): Uint8Array {
 export class NotificationAccessTokenIssuer
   implements INotificationAccessTokenIssuer
 {
-  private readonly key: Uint8Array;
+  private key: Uint8Array | null = null;
 
+  // The key is derived on first use, not at start-up: a missing internal
+  // token must only disable this route, never stop the whole service.
   public constructor(
-    internalToken: string,
+    private readonly internalToken: string,
     private readonly ttlSeconds: number = NOTIFICATION_TOKEN_TTL_SECONDS,
     private readonly now: () => Date = () => new Date(),
-  ) {
-    this.key = deriveNotificationTokenKey(internalToken);
-  }
+  ) {}
 
   public async issue(userId: string): Promise<NotificationAccessToken> {
     if (!userId) {
@@ -53,7 +53,12 @@ export class NotificationAccessTokenIssuer
       .setAudience(NOTIFICATION_TOKEN_AUDIENCE)
       .setIssuedAt(issuedAt)
       .setExpirationTime(expiresAtSeconds)
-      .sign(this.key);
+      .sign(this.signingKey());
     return { token, expiresAt: new Date(expiresAtSeconds * 1000) };
+  }
+
+  private signingKey(): Uint8Array {
+    this.key ??= deriveNotificationTokenKey(this.internalToken);
+    return this.key;
   }
 }
