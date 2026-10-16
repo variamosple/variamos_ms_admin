@@ -10,6 +10,40 @@ import type {
 import type { MicroServiceHealthInfo } from "#src/Domain/MicroService/Entity/MicroServiceHealth.js";
 import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 
+// Services checked at the same time: one mute service then costs one timeout
+// for the whole cycle, not one per service, without flooding the network.
+export const HEALTH_CHECK_CONCURRENCY = 4;
+
+/**
+ * Runs `task` on every item with at most `limit` tasks at the same time and
+ * returns the outcomes in the order of the items. A failure does not stop
+ * the other tasks.
+ */
+export async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  task: (item: T) => Promise<R>,
+): Promise<PromiseSettledResult<R>[]> {
+  const outcomes: PromiseSettledResult<R>[] = new Array(items.length);
+  let nextIndex = 0;
+  const worker = async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex++;
+      try {
+        outcomes[index] = {
+          status: "fulfilled",
+          value: await task(items[index] as T),
+        };
+      } catch (reason) {
+        outcomes[index] = { status: "rejected", reason };
+      }
+    }
+  };
+  const workers = Math.max(1, Math.min(limit, items.length));
+  await Promise.all(Array.from({ length: workers }, worker));
+  return outcomes;
+}
+
 export class HealthCheckCollector {
   private intervalTimer: NodeJS.Timeout | null = null;
   private retentionTimer: NodeJS.Timeout | null = null;
@@ -20,6 +54,7 @@ export class HealthCheckCollector {
   public constructor(
     private readonly microServiceRepository: IMicroServiceRepository,
     initialPollIntervalMs: number = 30000,
+    private readonly concurrency: number = HEALTH_CHECK_CONCURRENCY,
   ) {
     this.pollIntervalMs = initialPollIntervalMs;
   }
@@ -247,9 +282,19 @@ export class HealthCheckCollector {
           )
         : services;
 
-      for (const service of targetServices) {
-        const info = await this.checkService(service);
-        results.push(info);
+      const outcomes = await mapWithConcurrency(
+        targetServices,
+        this.concurrency,
+        (service) => this.checkService(service),
+      );
+      for (const [index, outcome] of outcomes.entries()) {
+        if (outcome.status === "fulfilled") {
+          results.push(outcome.value);
+        } else {
+          logger.err(
+            `Health check failed for ${targetServices[index]?.name}: ${(outcome.reason as Error)?.message}`,
+          );
+        }
       }
     } catch (err) {
       logger.err(
@@ -305,6 +350,8 @@ export class HealthCheckCollector {
     // Deduplicate candidate URLs
     const uniqueUrls = Array.from(new Set(candidateUrls));
 
+    // Aborts the requests still running once one candidate URL has answered
+    const pendingRequests = new AbortController();
     try {
       const successfulResult = await Promise.any(
         uniqueUrls.map(async (url) => {
@@ -312,6 +359,7 @@ export class HealthCheckCollector {
           const response = await axios.get(url, {
             timeout: 5000,
             validateStatus: () => true,
+            signal: pendingRequests.signal,
           });
 
           if (response.status >= 200 && response.status < 300) {
@@ -330,6 +378,8 @@ export class HealthCheckCollector {
       // All candidate URLs failed
       status = "DOWN";
       responseTimeMs = Date.now() - startTime;
+    } finally {
+      pendingRequests.abort();
     }
 
     const healthInfo: MicroServiceHealthInfo = {
