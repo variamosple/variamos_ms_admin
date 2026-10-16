@@ -228,6 +228,36 @@ describe("ConfigurationUseCase Unit Tests", () => {
     expect(mockPublisher.publishConfigUpdated).not.toHaveBeenCalled();
   });
 
+  it("should refuse the mask as the new value of a secret", async () => {
+    const mockRepo = mock<IConfigurationRepository>();
+    const mockPublisher = mock<IConfigEventPublisher>();
+    const useCase = new ConfigurationUseCase(mockRepo, mockPublisher);
+
+    const config = Configuration.builder()
+      .setKey(new ConfigurationKey("notification.smtp.password"))
+      .setValue("secret-password")
+      .setType("string")
+      .setCategory("notification")
+      .setTargetServices(["variamos_ms_notifications"])
+      .setIsSecret(true)
+      .build();
+    mockRepo.queryByKey.mockResolvedValue(
+      new ResponseModel<Configuration>("queryByKey").withResponse(config),
+    );
+
+    const response = await useCase.updateConfiguration(
+      new RequestModel("updateConfiguration", {
+        key: "notification.smtp.password",
+        value: "********",
+        operatorId: "admin_user",
+      }),
+    );
+
+    expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+    expect(mockRepo.updateConfiguration).not.toHaveBeenCalled();
+    expect(mockPublisher.publishConfigUpdated).not.toHaveBeenCalled();
+  });
+
   it("should fail update if queryByKey returns an error code", async () => {
     const mockRepo = mock<IConfigurationRepository>();
     const mockPublisher = mock<IConfigEventPublisher>();

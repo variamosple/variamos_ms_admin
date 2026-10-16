@@ -1,3 +1,5 @@
+import { SECRET_MASK } from "#src/Domain/Core/Secret/SecretMask.js";
+
 export type MicroServiceConfigValueType =
   | "string"
   | "number"
@@ -28,8 +30,28 @@ export class MicroServiceConfigItem {
 
   public getDisplayValue(): string {
     if (this.isSecret) {
-      return "••••••••";
+      return SECRET_MASK;
     }
     return this.value;
+  }
+
+  /**
+   * Serialized form, used by every HTTP response: a secret value is always
+   * replaced by the mask, so it cannot leave the API by mistake.
+   */
+  public toJSON() {
+    return {
+      id: this.id,
+      serviceName: this.serviceName,
+      key: this.key,
+      value: this.getDisplayValue(),
+      type: this.type,
+      isSecret: this.isSecret,
+      isReadOnly: this.isReadOnly,
+      description: this.description,
+      updatedBy: this.updatedBy,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+    };
   }
 }

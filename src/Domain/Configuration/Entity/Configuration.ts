@@ -1,3 +1,8 @@
+import {
+  isSecretMask,
+  SECRET_MASK,
+} from "#src/Domain/Core/Secret/SecretMask.js";
+
 export type ConfigurationValue =
   | string
   | number
@@ -102,6 +107,12 @@ export class Configuration {
         `Configuration '${this.key.getValue()}' is read-only and cannot be updated.`,
       );
     }
+    // A client that shows the mask may send it back unchanged: keep the secret
+    if (this.isSecret && isSecretMask(newValue)) {
+      throw new Error(
+        `Enter a new value for the secret configuration '${this.key.getValue()}'.`,
+      );
+    }
 
     Configuration.validateValueType(this.key.getValue(), newValue, this.type);
 
@@ -115,7 +126,7 @@ export class Configuration {
    */
   public getDisplayValue(): ConfigurationValue {
     if (this.isSecret) {
-      return "********";
+      return SECRET_MASK;
     }
     return this.value;
   }
