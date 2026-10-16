@@ -8,6 +8,8 @@ import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repositor
 import { MicroServiceConfigItem } from "../Entity/MicroServiceConfigItem.js";
 import { MicroServiceManagementUseCase } from "./MicroServiceManagementUseCase.js";
 
+const ACTOR = "operator@example.com";
+
 describe("MicroServiceManagementUseCase - Unit Tests", () => {
   let useCase: MicroServiceManagementUseCase;
   let mockMicroServiceRepository: MockProxy<IMicroServiceRepository>;
@@ -38,7 +40,7 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
   describe("startMicroService", () => {
     test("should return BAD_REQUEST if microservice id is missing", async () => {
       const req = new RequestModel<string>("tx-1", undefined);
-      const res = await useCase.startMicroService(req);
+      const res = await useCase.startMicroService(req, ACTOR);
 
       expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("MicroService Id is required.");
@@ -56,7 +58,7 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
       );
 
       const req = new RequestModel<string>("tx-1", "ms-1");
-      const res = await useCase.startMicroService(req);
+      const res = await useCase.startMicroService(req, ACTOR);
 
       expect(res.errorCode).toBe(DomainErrorCodes.ENTITY_NOT_FOUND);
       expect(res.message).toBe("Service not found");
@@ -74,11 +76,12 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
       );
 
       const req = new RequestModel<string>("tx-1", "ms-1");
-      const res = await useCase.startMicroService(req);
+      const res = await useCase.startMicroService(req, ACTOR);
 
       expect(res.errorCode).toBeUndefined();
       expect(mockMicroServiceRepository.startMicroService).toHaveBeenCalledWith(
         req,
+        ACTOR,
       );
     });
 
@@ -91,7 +94,7 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
       );
 
       const req = new RequestModel<string>("tx-1", "ms-1");
-      const res = await useCase.startMicroService(req);
+      const res = await useCase.startMicroService(req, ACTOR);
 
       expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("MicroService is not in exited state.");
@@ -101,7 +104,7 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
   describe("stopMicroService", () => {
     test("should reject when microservice id is missing", async () => {
       const req = new RequestModel<string>("tx-stop", undefined);
-      const res = await useCase.stopMicroService(req);
+      const res = await useCase.stopMicroService(req, ACTOR);
 
       expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("MicroService Id is required.");
@@ -116,7 +119,7 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
       );
 
       const req = new RequestModel<string>("tx-stop", "ms-1");
-      const res = await useCase.stopMicroService(req);
+      const res = await useCase.stopMicroService(req, ACTOR);
 
       expect(res.errorCode).toBe(DomainErrorCodes.ENTITY_NOT_FOUND);
     });
@@ -130,7 +133,7 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
       );
 
       const req = new RequestModel<string>("tx-stop", "ms-1");
-      const res = await useCase.stopMicroService(req);
+      const res = await useCase.stopMicroService(req, ACTOR);
 
       expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("MicroService is not in running state.");
@@ -148,11 +151,12 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
       );
 
       const req = new RequestModel<string>("tx-stop", "ms-1");
-      const res = await useCase.stopMicroService(req);
+      const res = await useCase.stopMicroService(req, ACTOR);
 
       expect(res.errorCode).toBeUndefined();
       expect(mockMicroServiceRepository.stopMicroService).toHaveBeenCalledWith(
         req,
+        ACTOR,
       );
     });
   });
@@ -160,7 +164,7 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
   describe("restartMicroService", () => {
     test("should reject when microservice id is missing", async () => {
       const req = new RequestModel<string>("tx-restart", undefined);
-      const res = await useCase.restartMicroService(req);
+      const res = await useCase.restartMicroService(req, ACTOR);
 
       expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("MicroService Id is required.");
@@ -178,12 +182,12 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
       );
 
       const req = new RequestModel<string>("tx-restart", "ms-1");
-      const res = await useCase.restartMicroService(req);
+      const res = await useCase.restartMicroService(req, ACTOR);
 
       expect(res.errorCode).toBeUndefined();
       expect(
         mockMicroServiceRepository.restartMicroService,
-      ).toHaveBeenCalledWith(req);
+      ).toHaveBeenCalledWith(req, ACTOR);
     });
   });
 
