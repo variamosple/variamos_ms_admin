@@ -117,6 +117,7 @@ export const productionBugSubmissionUseCase = new BugSubmissionUseCase(
   GitHubIssuesServiceInstance,
   bugTrackerConfig,
   productionGitHubTokenResolver,
+  DiskStorageServiceInstance,
 );
 
 export const productionBugLifecycleUseCase = new BugLifecycleUseCase(

@@ -18,14 +18,20 @@ export interface IMicroServiceRepository {
     request: RequestModel<string>,
   ): Promise<ResponseModel<MicroServiceDetailed>>;
 
+  /** `actorId` identifies who asked for the action, for the audit log. */
   startMicroService(
     request: RequestModel<string>,
+    actorId: string,
   ): Promise<ResponseModel<void>>;
 
-  stopMicroService(request: RequestModel<string>): Promise<ResponseModel<void>>;
+  stopMicroService(
+    request: RequestModel<string>,
+    actorId: string,
+  ): Promise<ResponseModel<void>>;
 
   restartMicroService(
     request: RequestModel<string>,
+    actorId: string,
   ): Promise<ResponseModel<void>>;
 
   scaleMicroService(

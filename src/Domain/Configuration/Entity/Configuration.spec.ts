@@ -254,4 +254,51 @@ describe("Configuration Entity Invariants", () => {
 
     expect(nonSecretConfig.getDisplayValue()).toBe("VariaMos");
   });
+
+  describe("secret mask sent back by a client", () => {
+    const secretConfig = () =>
+      Configuration.builder()
+        .setKey(new ConfigurationKey("notification.smtp.password"))
+        .setValue("secret-password")
+        .setType("string")
+        .setCategory("notification")
+        .setTargetServices(["variamos_ms_notifications"])
+        .setIsSecret(true)
+        .build();
+
+    it.each(["********", "••••••••"])(
+      "refuses %j as the new value of a secret and keeps the secret",
+      (mask) => {
+        const config = secretConfig();
+
+        expect(() => config.updateValue(mask, "admin123")).toThrow(
+          "Enter a new value for the secret configuration 'notification.smtp.password'.",
+        );
+        expect(config.value).toBe("secret-password");
+      },
+    );
+
+    it("accepts a new secret value", () => {
+      const config = secretConfig();
+
+      config.updateValue("new-password", "admin123");
+
+      expect(config.value).toBe("new-password");
+    });
+
+    it("accepts the mask text for a non-secret value", () => {
+      const config = Configuration.builder()
+        .setKey(validKey)
+        .setValue("VariaMos")
+        .setType("string")
+        .setCategory("general")
+        .setTargetServices(["all"])
+        .setIsSecret(false)
+        .build();
+
+      config.updateValue("********", "admin123");
+
+      expect(config.value).toBe("********");
+    });
+  });
 });

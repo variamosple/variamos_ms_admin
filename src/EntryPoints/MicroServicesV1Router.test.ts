@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { MicroServiceConfigItem } from "#src/Domain/MicroService/Entity/MicroServiceConfigItem.js";
 import { MicroServiceManagementUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
 import { MicroServiceQueryUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
 import { createMicroServicesRouter } from "./MicroServicesV1Router.js";
@@ -32,6 +33,18 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
   beforeAll(() => {
     app = express();
     app.use(express.json());
+    // Test-only stand-in for the session: the user comes from two headers
+    app.use((req, _res, next) => {
+      const email = req.header("x-test-user-email");
+      const id = req.header("x-test-user-id");
+      if (email || id) {
+        (req as { user?: { email?: string; id?: string } }).user = {
+          email,
+          id,
+        };
+      }
+      next();
+    });
     const mockQueryUseCase = new MicroServiceQueryUseCase(
       mock<IMicroServiceRepository>(),
     );
@@ -201,6 +214,41 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
     });
   });
 
+  describe("actor recorded for microservice actions", () => {
+    it.each([
+      ["start", "startMicroService"],
+      ["restart", "restartMicroService"],
+      ["stop", "stopMicroService"],
+    ] as const)("passes the caller's e-mail on %s", async (path, method) => {
+      (
+        MicroServiceManagementUseCase.prototype[method] as vi.Mock
+      ).mockResolvedValue(new ResponseModel(method).withResponse(null));
+
+      await supertest(app)
+        .put(`/v1/micro-services/ms-123/${path}`)
+        .set("x-test-user-email", "operator@example.com")
+        .set("x-test-user-id", "user-42");
+
+      expect(
+        MicroServiceManagementUseCase.prototype[method],
+      ).toHaveBeenLastCalledWith(expect.anything(), "operator@example.com");
+    });
+
+    it("passes the caller's identifier when there is no e-mail", async () => {
+      (
+        MicroServiceManagementUseCase.prototype.startMicroService as vi.Mock
+      ).mockResolvedValue(new ResponseModel("start").withResponse(null));
+
+      await supertest(app)
+        .put("/v1/micro-services/ms-123/start")
+        .set("x-test-user-id", "user-42");
+
+      expect(
+        MicroServiceManagementUseCase.prototype.startMicroService,
+      ).toHaveBeenLastCalledWith(expect.anything(), "user-42");
+    });
+  });
+
   describe("PUT /v1/micro-services/:microserviceId/start", () => {
     it("should return 200 on success", async () => {
       const expectedResponse = new ResponseModel(
@@ -222,6 +270,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         MicroServiceManagementUseCase.prototype.startMicroService,
       ).toHaveBeenLastCalledWith(
         expect.objectContaining({ transactionId: "startMicroService" }),
+        "unknown",
       );
     });
 
@@ -278,6 +327,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         MicroServiceManagementUseCase.prototype.restartMicroService,
       ).toHaveBeenLastCalledWith(
         expect.objectContaining({ transactionId: "restartMicroService" }),
+        "unknown",
       );
     });
 
@@ -333,6 +383,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         MicroServiceManagementUseCase.prototype.stopMicroService,
       ).toHaveBeenLastCalledWith(
         expect.objectContaining({ transactionId: "stopMicroService" }),
+        "unknown",
       );
     });
 
@@ -548,6 +599,55 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
       expect(response.body.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
+    });
+  });
+
+  describe("secret configuration values in responses", () => {
+    const secretItem = new MicroServiceConfigItem(
+      3,
+      "ms-auth",
+      "notification.smtp.password",
+      "smtp-password-value",
+      "string",
+      true,
+      false,
+    );
+
+    it("GET configurations never returns a secret value", async () => {
+      (
+        MicroServiceQueryUseCase.prototype.queryConfigurations as vi.Mock
+      ).mockResolvedValue(
+        new ResponseModel("queryMicroServiceConfigurations").withResponse([
+          secretItem,
+        ]),
+      );
+
+      const response = await supertest(app).get(
+        "/v1/micro-services/ms-auth/configurations",
+      );
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(response.text).not.toContain("smtp-password-value");
+      expect(response.body.data[0].value).toBe("********");
+    });
+
+    it("PUT configuration never echoes a secret value", async () => {
+      (
+        MicroServiceManagementUseCase.prototype.updateConfiguration as vi.Mock
+      ).mockResolvedValue(
+        new ResponseModel("updateMicroServiceConfiguration").withResponse(
+          secretItem,
+        ),
+      );
+
+      const response = await supertest(app)
+        .put(
+          "/v1/micro-services/ms-auth/configurations/notification.smtp.password",
+        )
+        .send({ value: "smtp-password-value" });
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(response.text).not.toContain("smtp-password-value");
     });
   });
 

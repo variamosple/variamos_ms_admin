@@ -4,6 +4,7 @@ import { Op } from "sequelize";
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { SECRET_MASK } from "#src/Domain/Core/Secret/SecretMask.js";
 import { MicroServiceAuditEntry } from "#src/Domain/MicroService/Entity/MicroServiceAuditEntry.js";
 import { MicroServiceConfigItem } from "#src/Domain/MicroService/Entity/MicroServiceConfigItem.js";
 import {
@@ -18,6 +19,7 @@ import type {
   UptimeHistorySlot,
 } from "#src/Domain/MicroService/Entity/MicroServiceHealth.js";
 import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repository/IMicroServiceRepository.js";
+import { refuseConfigurationUpdate } from "#src/Domain/MicroService/Service/ConfigurationUpdateRule.js";
 import {
   ConfigurationModel,
   type ConfigurationValue,
@@ -472,6 +474,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
 
   public async startMicroService(
     request: RequestModel<string>,
+    actorId: string,
   ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
     if (!request.data) {
@@ -494,7 +497,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         serviceName: request.data,
         actionType: "START",
         details: { target: request.data },
-        performedBy: "admin",
+        performedBy: actorId,
       });
 
       await MicroServiceHealthLogModel.create({
@@ -517,6 +520,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
 
   public async stopMicroService(
     request: RequestModel<string>,
+    actorId: string,
   ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
     if (!request.data) {
@@ -539,7 +543,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         serviceName: request.data,
         actionType: "STOP",
         details: { target: request.data },
-        performedBy: "admin",
+        performedBy: actorId,
       });
 
       await MicroServiceHealthLogModel.create({
@@ -562,6 +566,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
 
   public async restartMicroService(
     request: RequestModel<string>,
+    actorId: string,
   ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
     if (!request.data) {
@@ -584,7 +589,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         serviceName: request.data,
         actionType: "RESTART",
         details: { target: request.data },
-        performedBy: "admin",
+        performedBy: actorId,
       });
 
       await MicroServiceHealthLogModel.create({
@@ -795,6 +800,10 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
 
     try {
       const existing = await ConfigurationModel.findOne({ where: { key } });
+      const refusal = refuseConfigurationUpdate(key, value, existing);
+      if (refusal) {
+        return response.withError(refusal.errorCode, refusal.message);
+      }
 
       let parsedValue: ConfigurationValue = value;
       let detectedType: "string" | "number" | "boolean" | "object" | "array" =
@@ -842,7 +851,8 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
       await MicroServiceAuditLogModel.create({
         serviceName,
         actionType: "CONFIG_UPDATE",
-        details: { key, newValue: value },
+        // A secret value is never written to the audit log
+        details: { key, newValue: existing?.isSecret ? SECRET_MASK : value },
         performedBy: operatorId,
       });
 
@@ -892,17 +902,22 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         order: [["created_at", "DESC"]],
         limit,
       });
+      // Older entries stored secret values in clear: mask them on the way out
+      const secretConfigs = await ConfigurationModel.findAll({
+        where: { isSecret: true },
+        attributes: ["key"],
+      });
+      const secretKeys = new Set(secretConfigs.map((c) => c.key));
 
-      response.data = logs.map(
-        (l) =>
-          new MicroServiceAuditEntry(
-            l.id,
-            l.serviceName,
-            l.actionType,
-            l.details,
-            l.performedBy,
-            l.createdAt,
-          ),
+      response.data = logs.map((l) =>
+        new MicroServiceAuditEntry(
+          l.id,
+          l.serviceName,
+          l.actionType,
+          l.details,
+          l.performedBy,
+          l.createdAt,
+        ).withSecretsMasked(secretKeys),
       );
       response.totalCount = logs.length;
     } catch (error) {
