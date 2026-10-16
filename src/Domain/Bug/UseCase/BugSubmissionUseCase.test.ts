@@ -6,9 +6,16 @@ import type { IUserRepository } from "#src/Domain/Bug/Repository/IUserRepository
 import type { GitHubTokenResolver } from "#src/Domain/Bug/Service/GitHubTokenResolver.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { IIssueTrackerService } from "#src/Domain/Core/Service/IIssueTrackerService.js";
+import type { IStorageService } from "#src/Domain/Core/Service/IStorageService.js";
 import { User } from "#src/Domain/User/Entity/User.js";
 import { BugSubmissionUseCase } from "./BugSubmissionUseCase.js";
+
+const PNG_BYTES = new Uint8Array([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00,
+]);
+const HTML_BYTES = new TextEncoder().encode("<html><script>alert(1)</script>");
 
 describe("BugSubmissionUseCase", () => {
   let useCase: BugSubmissionUseCase;
@@ -17,6 +24,7 @@ describe("BugSubmissionUseCase", () => {
   let mockIssueTracker: MockProxy<IIssueTrackerService>;
   let mockGithubConfig: MockProxy<IBugTrackerConfig>;
   let mockTokenResolver: MockProxy<GitHubTokenResolver>;
+  let mockStorageService: MockProxy<IStorageService>;
 
   beforeEach(() => {
     mockBugRepository = mock<IBugRepository>();
@@ -24,12 +32,15 @@ describe("BugSubmissionUseCase", () => {
     mockIssueTracker = mock<IIssueTrackerService>();
     mockGithubConfig = mock<IBugTrackerConfig>();
     mockTokenResolver = mock<GitHubTokenResolver>();
+    mockStorageService = mock<IStorageService>();
+    mockStorageService.saveFile.mockResolvedValue("/uploads/generated.png");
     useCase = new BugSubmissionUseCase(
       mockBugRepository,
       mockUserRepository,
       mockIssueTracker,
       mockGithubConfig,
       mockTokenResolver,
+      mockStorageService,
     );
   });
 
@@ -301,7 +312,7 @@ describe("BugSubmissionUseCase", () => {
       category: "Editor",
       createdById: "admin-123",
       githubRepo: "VariaMos/VariaMosAdmin",
-      file: { filename: "test.png", mimetype: "image/png" },
+      file: { content: PNG_BYTES, originalName: "test.png" },
       priority: "medium" as const,
     });
     const res = await useCase.createBug(req);
@@ -310,7 +321,9 @@ describe("BugSubmissionUseCase", () => {
     expect(mockIssueTracker.createIssue).toHaveBeenCalledWith(
       "VariaMos/VariaMosAdmin",
       "Bug Title",
-      expect.stringContaining("http://localhost:4000/uploads/test.png"),
+      expect.stringContaining(
+        "[Attachment](http://localhost:4000/uploads/generated.png) (Type: image/png)",
+      ),
       expect.any(Array),
       "token",
     );
@@ -343,7 +356,7 @@ describe("BugSubmissionUseCase", () => {
       category: "Editor",
       createdById: "admin-123",
       githubRepo: "VariaMos/VariaMosAdmin",
-      file: { filename: "test.png", mimetype: "image/png" },
+      file: { content: PNG_BYTES, originalName: "test.png" },
       priority: "medium" as const,
     });
     const res = await useCase.createBug(req);
@@ -352,7 +365,9 @@ describe("BugSubmissionUseCase", () => {
     expect(mockIssueTracker.createIssue).toHaveBeenCalledWith(
       "VariaMos/VariaMosAdmin",
       "Bug Title",
-      expect.stringContaining("http://localhost:4000/uploads/test.png"),
+      expect.stringContaining(
+        "[Attachment](http://localhost:4000/uploads/generated.png) (Type: image/png)",
+      ),
       expect.any(Array),
       "token",
     );
@@ -454,5 +469,140 @@ describe("BugSubmissionUseCase", () => {
       ["bug", "editor"],
       "token",
     );
+  });
+
+  describe("file attachments", () => {
+    const adminUser = User.builder()
+      .setId("admin-123")
+      .setEmail("admin@test.com")
+      .setUser("admin")
+      .setName("Admin User")
+      .build();
+
+    const requestWithFile = (
+      file: { content: Uint8Array; originalName: string },
+      githubRepo?: string,
+    ) =>
+      new RequestModel("tx-1", {
+        title: "Bug Title",
+        description: "Desc",
+        category: "Editor",
+        createdById: "admin-123",
+        githubRepo,
+        file,
+        priority: "medium" as const,
+      });
+
+    beforeEach(() => {
+      mockUserRepository.findSessionUser.mockResolvedValue(
+        new ResponseModel<User>("tx-1").withResponse(adminUser),
+      );
+    });
+
+    it("should store the file with the detected type and record its path", async () => {
+      mockBugRepository.createBug.mockResolvedValue(
+        new ResponseModel<Bug>("tx-1").withResponse(
+          Bug.builder().setId("bug-file").build(),
+        ),
+      );
+
+      await useCase.createBug(
+        requestWithFile({ content: PNG_BYTES, originalName: "page.html" }),
+      );
+
+      expect(mockStorageService.saveFile).toHaveBeenCalledWith(
+        PNG_BYTES,
+        "png",
+      );
+      expect(mockBugRepository.createBug).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            resolvedFile: {
+              filePath: "/uploads/generated.png",
+              fileType: "image/png",
+            },
+          }),
+        }),
+      );
+      expect(mockStorageService.deleteFile).not.toHaveBeenCalled();
+    });
+
+    it("should refuse an unsupported file type before storing anything", async () => {
+      const res = await useCase.createBug(
+        requestWithFile({ content: HTML_BYTES, originalName: "image.png" }),
+      );
+
+      expect(res.errorCode).toBe("INVALID_INPUT");
+      expect(res.message).toBe(
+        "Unsupported file type. Allowed: PNG, JPEG, GIF, WebP, PDF, TXT, LOG.",
+      );
+      expect(mockStorageService.saveFile).not.toHaveBeenCalled();
+      expect(mockBugRepository.createBug).not.toHaveBeenCalled();
+    });
+
+    it("should not store the file when the request is otherwise invalid", async () => {
+      const res = await useCase.createBug(
+        new RequestModel("tx-1", {
+          title: "Title",
+          description: "Desc",
+          category: "Editor",
+          priority: "medium" as const,
+          file: { content: PNG_BYTES, originalName: "test.png" },
+        }),
+      );
+
+      expect(res.errorCode).toBe("INVALID_INPUT");
+      expect(mockStorageService.saveFile).not.toHaveBeenCalled();
+    });
+
+    it("should delete the stored file when the GitHub push fails", async () => {
+      mockTokenResolver.resolveGitHubToken.mockResolvedValue("token");
+      mockIssueTracker.createIssue.mockResolvedValue(null);
+
+      const res = await useCase.createBug(
+        requestWithFile(
+          { content: PNG_BYTES, originalName: "test.png" },
+          "VariaMos/VariaMosAdmin",
+        ),
+      );
+
+      expect(res.errorCode).toBe("INVALID_INPUT");
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
+        "/uploads/generated.png",
+      );
+    });
+
+    it("should delete the stored file when the bug cannot be recorded", async () => {
+      mockBugRepository.createBug.mockResolvedValue(
+        new ResponseModel<Bug>("tx-1").withError(
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Database down",
+        ),
+      );
+
+      const res = await useCase.createBug(
+        requestWithFile({ content: PNG_BYTES, originalName: "test.png" }),
+      );
+
+      expect(res.errorCode).toBe("SYSTEM_ERROR");
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
+        "/uploads/generated.png",
+      );
+    });
+
+    it("should delete the stored file and rethrow when recording throws", async () => {
+      mockBugRepository.createBug.mockRejectedValue(
+        new Error("Connection lost"),
+      );
+
+      await expect(
+        useCase.createBug(
+          requestWithFile({ content: PNG_BYTES, originalName: "test.png" }),
+        ),
+      ).rejects.toThrow("Connection lost");
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
+        "/uploads/generated.png",
+      );
+    });
   });
 });
