@@ -21,6 +21,7 @@ import {
   productionMetricsQueryUseCase,
   productionMicroServiceManagementUseCase,
   productionMicroServiceQueryUseCase,
+  productionNotificationAccessTokenIssuer,
   productionPermissionUseCase,
   productionRoleManagementUseCase,
   productionRolePermissionUseCase,
@@ -97,6 +98,7 @@ const baseRouter = createBaseRouter(
   productionCountriesQueryUseCase,
   productionConfigurationUseCase,
   productionUpload,
+  productionNotificationAccessTokenIssuer,
 );
 
 const app = createServer(baseRouter);
