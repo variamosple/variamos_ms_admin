@@ -11,6 +11,7 @@ export class MicroServiceManagementUseCase {
 
   public async startMicroService(
     request: RequestModel<string>,
+    actorId: string,
   ): Promise<ResponseModel<void>> {
     const defaultResponse = new ResponseModel<void>(request.transactionId);
     if (!request.data) {
@@ -37,11 +38,12 @@ export class MicroServiceManagementUseCase {
       }
     }
 
-    return this.microServiceRepository.startMicroService(request);
+    return this.microServiceRepository.startMicroService(request, actorId);
   }
 
   public async stopMicroService(
     request: RequestModel<string>,
+    actorId: string,
   ): Promise<ResponseModel<void>> {
     const defaultResponse = new ResponseModel<void>(request.transactionId);
     if (!request.data) {
@@ -68,11 +70,12 @@ export class MicroServiceManagementUseCase {
       }
     }
 
-    return this.microServiceRepository.stopMicroService(request);
+    return this.microServiceRepository.stopMicroService(request, actorId);
   }
 
   public async restartMicroService(
     request: RequestModel<string>,
+    actorId: string,
   ): Promise<ResponseModel<void>> {
     const defaultResponse = new ResponseModel<void>(request.transactionId);
     if (!request.data) {
@@ -99,7 +102,7 @@ export class MicroServiceManagementUseCase {
       }
     }
 
-    return this.microServiceRepository.restartMicroService(request);
+    return this.microServiceRepository.restartMicroService(request, actorId);
   }
 
   public async scaleMicroService(
