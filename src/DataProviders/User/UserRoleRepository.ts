@@ -65,7 +65,6 @@ export class UserRoleRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in queryUserRoles:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -120,7 +119,6 @@ export class UserRoleRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in queryUserRolesDetails:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -174,7 +172,6 @@ export class UserRoleRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in createUserRole:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -214,7 +211,6 @@ export class UserRoleRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in deleteUserRole:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,

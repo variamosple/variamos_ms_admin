@@ -66,6 +66,18 @@ import { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
 import { AUTH_ROUTE, createAuthRouter } from "./AuthRouter.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
+// Errors must be logged as text built by describeError, never as full
+// objects (`logger.err(error, true)` dumps the SQL and values of the error).
+function expectSafeErrorLog(spy: { mock: { calls: unknown[][] } }) {
+  const calls = spy.mock.calls;
+  expect(
+    calls.some(
+      ([content]) => typeof content === "string" && /^\w*Error: /.test(content),
+    ),
+  ).toBe(true);
+  expect(calls.some((call) => call[1] === true)).toBe(false);
+}
+
 // Mock other dependencies
 vi.mock("#src/Domain/User/UseCase/UserAuthUseCase");
 vi.mock("#src/Domain/User/UseCase/UserPasswordUseCase");
@@ -1553,8 +1565,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
           "getSessionInfo Invalid URL: http://[invalid-url]",
         ),
       );
-      expect(loggerSpy.mock.calls[1][0]).toHaveProperty("message");
-      expect(loggerSpy.mock.calls[1][1]).toBe(true);
+      expectSafeErrorLog(loggerSpy);
       loggerSpy.mockRestore();
     });
 
@@ -1758,7 +1769,10 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .send({ email: "john@example.com", password: "Password123!" });
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
-      expect(loggerSpy).toHaveBeenCalledWith(expect.any(Error), true);
+      expectSafeErrorLog(loggerSpy);
+      expect(JSON.stringify(loggerSpy.mock.calls)).not.toContain(
+        "Password123!",
+      );
       loggerSpy.mockRestore();
     });
 
@@ -1834,7 +1848,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       });
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
-      expect(loggerSpy).toHaveBeenCalledWith(expect.any(Error), true);
+      expectSafeErrorLog(loggerSpy);
       loggerSpy.mockRestore();
     });
 
@@ -1912,7 +1926,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .send({ credential: "invalid-token" });
 
       expect(response.status).toBe(302);
-      expect(loggerSpy).toHaveBeenCalledWith(expect.any(Error), true);
+      expectSafeErrorLog(loggerSpy);
       loggerSpy.mockRestore();
     });
 
@@ -1937,7 +1951,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       );
 
       await supertest(app).get("/auth/my-account");
-      expect(loggerSpy).toHaveBeenCalledWith(expect.any(Error), true);
+      expectSafeErrorLog(loggerSpy);
       loggerSpy.mockRestore();
     });
 
@@ -1972,7 +1986,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .put("/auth/my-account/information")
         .send({ countryCode: "US" });
 
-      expect(loggerSpy).toHaveBeenCalledWith(expect.any(Error), true);
+      expectSafeErrorLog(loggerSpy);
       loggerSpy.mockRestore();
     });
 
@@ -2009,7 +2023,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         passwordConfirmation: "b",
       });
 
-      expect(loggerSpy).toHaveBeenCalledWith(expect.any(Error), true);
+      expectSafeErrorLog(loggerSpy);
       loggerSpy.mockRestore();
     });
 
@@ -2059,7 +2073,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       await supertest(app).post("/auth/guest/sign-in").send({ guestId: "abc" });
 
-      expect(loggerSpy).toHaveBeenCalledWith(expect.any(Error), true);
+      expectSafeErrorLog(loggerSpy);
       loggerSpy.mockRestore();
     });
 
@@ -2085,8 +2099,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         "POST: /auth/redirects Invalid redirect URL:",
       );
       expect(loggerSpy.mock.calls[1][0]).toHaveProperty("message");
-      expect(loggerSpy.mock.calls[2][0]).toHaveProperty("message");
-      expect(loggerSpy.mock.calls[2][1]).toBe(true);
+      expectSafeErrorLog(loggerSpy);
       loggerSpy.mockRestore();
     });
 
@@ -2158,7 +2171,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .post("/auth/forgot-password")
         .send({ email: "test@example.com" });
 
-      expect(loggerSpy).toHaveBeenCalledWith(expect.any(Error), true);
+      expectSafeErrorLog(loggerSpy);
       loggerSpy.mockRestore();
     });
 
@@ -2204,7 +2217,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       await supertest(app).get("/auth/verify-token").query({ token: "token" });
 
-      expect(loggerSpy).toHaveBeenCalledWith(expect.any(Error), true);
+      expectSafeErrorLog(loggerSpy);
       loggerSpy.mockRestore();
     });
 
@@ -2251,7 +2264,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .post("/auth/reset-password")
         .send({ token: "t", password: "p" });
 
-      expect(loggerSpy).toHaveBeenCalledWith(expect.any(Error), true);
+      expectSafeErrorLog(loggerSpy);
       loggerSpy.mockRestore();
     });
 

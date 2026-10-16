@@ -46,7 +46,6 @@ export class ConfigurationRepositoryImpl
       response.data = models.map((model) => this.mapToDomain(model));
     } catch (error) {
       logger.err("Error in queryConfigurations:");
-      logger.err(request);
       logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -85,7 +84,6 @@ export class ConfigurationRepositoryImpl
       response.data = this.mapToDomain(model);
     } catch (error) {
       logger.err("Error in queryByKey:");
-      logger.err(request);
       logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -141,7 +139,6 @@ export class ConfigurationRepositoryImpl
       }
     } catch (error) {
       logger.err("Error in updateConfiguration:");
-      logger.err(request);
       logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,

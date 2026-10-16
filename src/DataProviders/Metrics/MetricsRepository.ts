@@ -88,7 +88,6 @@ export class MetricsRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in getMetrics:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -169,7 +168,6 @@ export class MetricsRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in queryMetric:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,

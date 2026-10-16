@@ -2,6 +2,7 @@ import logger from "jet-logger";
 /* cspell:disable */
 import nodemailer from "nodemailer";
 import EnvVars from "#src/common/EnvVars.js";
+import { maskEmail } from "#src/common/maskEmail.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
 
 export class MailServiceImpl implements IMailService {
@@ -32,9 +33,10 @@ export class MailServiceImpl implements IMailService {
         EnvVars.NodeEnv !== "production" &&
         (!EnvVars.SMTP.USER || !EnvVars.SMTP.PASSWORD)
       ) {
-        logger.info(`[MAIL DEV ONLY] Simulate sending email to ${to}:                                                                                        
-    Subject: ${subject}                                                                                                                                          
-    Content: ${html}`);
+        // The content is never logged: it may hold a password reset link
+        logger.info(
+          `[MAIL DEV ONLY] Simulated email to ${maskEmail(to)}, subject: ${subject}`,
+        );
         return true;
       }
 
@@ -46,12 +48,14 @@ export class MailServiceImpl implements IMailService {
       });
 
       logger.info(
-        `[MAIL] Email sent successfully to ${to}. MessageId: ${info.messageId}`,
+        `[MAIL] Email sent successfully to ${maskEmail(to)}. MessageId: ${info.messageId}`,
       );
       return true;
     } catch (error) {
       const err = error as Error;
-      logger.err(`[MAIL ERROR] Failed to send email to ${to}: ${err.message}`);
+      logger.err(
+        `[MAIL ERROR] Failed to send email to ${maskEmail(to)}: ${err.message}`,
+      );
       return false;
     }
   }

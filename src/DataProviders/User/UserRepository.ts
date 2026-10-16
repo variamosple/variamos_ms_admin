@@ -102,7 +102,6 @@ export class UserRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in getUsers:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -164,7 +163,6 @@ export class UserRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in findSessionUser:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -250,7 +248,6 @@ export class UserRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in findOrCreateUser:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -320,7 +317,6 @@ export class UserRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in signIn:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -386,7 +382,6 @@ export class UserRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in signUp:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -438,7 +433,6 @@ export class UserRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in queryById:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -474,7 +468,6 @@ export class UserRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in disableUser:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -510,7 +503,6 @@ export class UserRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in enableUser:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -546,7 +538,6 @@ export class UserRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in deleteUser:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -851,7 +842,6 @@ export class UserRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in userExists:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,

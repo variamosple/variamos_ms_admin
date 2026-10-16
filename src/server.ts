@@ -20,6 +20,7 @@ import helmet from "helmet";
 import logger from "jet-logger";
 import morgan from "morgan";
 import { RouteError } from "#src/common/classes.js";
+import { describeError } from "#src/common/describeError.js";
 import EnvVars from "#src/common/EnvVars.js";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { NodeEnvs } from "#src/common/misc.js";
@@ -73,7 +74,7 @@ export function createServer(baseRouter: Router) {
   // Add error handler
   app.use((err: Error, _: Request, res: Response, _next: NextFunction) => {
     if (EnvVars.NodeEnv !== NodeEnvs.Test.valueOf()) {
-      logger.err(err, true);
+      logger.err(describeError(err));
     }
     let status = HttpStatusCodes.BAD_REQUEST;
     if (err instanceof RouteError) {

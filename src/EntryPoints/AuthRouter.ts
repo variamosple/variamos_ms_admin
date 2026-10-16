@@ -15,6 +15,7 @@ import {
 } from "express";
 import { OAuth2Client } from "google-auth-library";
 import logger from "jet-logger";
+import { describeError } from "#src/common/describeError.js";
 import EnvVars from "#src/common/EnvVars.js";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import type { Nullable } from "#src/Domain/Core/Entity/Nullable.js";
@@ -96,8 +97,10 @@ export function createAuthRouter(
 
       return isAllowedOrigin(redirect.origin) ? redirect : undefined;
     } catch (error) {
-      logger.err(`${transactionId} Invalid URL: ${url}`);
-      logger.err(error as Error, true);
+      // The query string or fragment may carry a token: never log them
+      const urlWithoutQuery = url.split(/[?#]/)[0]?.slice(0, 200);
+      logger.err(`${transactionId} Invalid URL: ${urlWithoutQuery}`);
+      logger.err(describeError(error));
     }
 
     return undefined;
@@ -343,7 +346,7 @@ export function createAuthRouter(
 
       res.status(200).json(response);
     } catch (err) {
-      logger.err(err as Error, true);
+      logger.err(describeError(err));
       res
         .status(500)
         .json(
@@ -405,7 +408,7 @@ export function createAuthRouter(
 
       res.status(HttpStatusCodes.OK).json(successfulResponse);
     } catch (err) {
-      logger.err(err as Error, true);
+      logger.err(describeError(err));
       res
         .status(500)
         .json(
@@ -510,7 +513,7 @@ export function createAuthRouter(
 
       res.redirect(302, `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`);
     } catch (err) {
-      logger.err(err as Error, true);
+      logger.err(describeError(err));
       res.redirect(
         302,
         `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?errorMessage=Login error.`,
@@ -534,7 +537,7 @@ export function createAuthRouter(
         );
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error as Error, true);
+        logger.err(describeError(error));
         const response = new ResponseModel(
           transactionId,
           DomainErrorCodes.SYSTEM_ERROR,
@@ -573,7 +576,7 @@ export function createAuthRouter(
         );
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error as Error, true);
+        logger.err(describeError(error));
         const response = new ResponseModel(
           transactionId,
           DomainErrorCodes.SYSTEM_ERROR,
@@ -609,7 +612,7 @@ export function createAuthRouter(
         );
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error as Error, true);
+        logger.err(describeError(error));
         const response = new ResponseModel(
           transactionId,
           DomainErrorCodes.SYSTEM_ERROR,
@@ -670,7 +673,7 @@ export function createAuthRouter(
 
       res.status(200).json(response);
     } catch (err) {
-      logger.err(err as Error, true);
+      logger.err(describeError(err));
       res
         .status(500)
         .json(
@@ -699,7 +702,7 @@ export function createAuthRouter(
     } catch (error) {
       logger.err(`POST: ${AUTH_ROUTE}/redirects Invalid redirect URL:`);
       logger.err(error as Error);
-      logger.err(error as Error, true);
+      logger.err(describeError(error));
     }
 
     if (isAllowed) {
@@ -726,7 +729,7 @@ export function createAuthRouter(
 
       res.status(200).json(forgotPasswordResponse);
     } catch (err) {
-      logger.err(err as Error, true);
+      logger.err(describeError(err));
       res
         .status(500)
         .json(
@@ -755,7 +758,7 @@ export function createAuthRouter(
 
       res.status(200).json(verifyResponse);
     } catch (err) {
-      logger.err(err as Error, true);
+      logger.err(describeError(err));
       res
         .status(500)
         .json(
@@ -790,7 +793,7 @@ export function createAuthRouter(
 
       res.status(200).json(resetResponse);
     } catch (err) {
-      logger.err(err as Error, true);
+      logger.err(describeError(err));
       res
         .status(500)
         .json(

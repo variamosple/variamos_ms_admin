@@ -37,7 +37,6 @@ export class VisitRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in registerVisit:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,

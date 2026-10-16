@@ -1,5 +1,14 @@
+import logger from "jet-logger";
 import { Sequelize } from "sequelize";
 import EnvVars from "#src/common/EnvVars.js";
+import { NodeEnvs } from "#src/common/misc.js";
+
+// Generated SQL holds values written inline (e-mail addresses, identifiers):
+// it is logged only in development, never in test or production.
+const logSql =
+  EnvVars.NodeEnv === NodeEnvs.Dev.valueOf()
+    ? (sql: string) => logger.info(sql)
+    : false;
 
 const VARIAMOS_ORM = new Sequelize(
   EnvVars.DB.DATABASE,
@@ -8,6 +17,7 @@ const VARIAMOS_ORM = new Sequelize(
   {
     host: EnvVars.DB.HOST,
     dialect: "postgres",
+    logging: logSql,
     pool: {
       max: 20,
       min: 2,

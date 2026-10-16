@@ -56,7 +56,6 @@ export class RoleRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in getRoles:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -89,7 +88,6 @@ export class RoleRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in createRole:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -122,7 +120,6 @@ export class RoleRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in deleteRole:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -154,7 +151,6 @@ export class RoleRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in queryById:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -190,7 +186,6 @@ export class RoleRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in updateRole:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -241,7 +236,6 @@ export class RoleRepositoryImpl
     } catch (error) {
       const err = error as Error;
       logger.err("Error in queryGuestRole:");
-      logger.err(request);
       logger.err(err);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
