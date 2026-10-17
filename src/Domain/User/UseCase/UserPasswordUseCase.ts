@@ -47,20 +47,27 @@ export class UserPasswordUseCase {
     request: RequestModel<string>,
   ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
+    const email = request.data || "";
+    if (!email) {
+      return response.withErrorPromise(
+        DomainErrorCodes.INVALID_INPUT,
+        "Email is required.",
+      );
+    }
+
+    // The answer is the same whether the address is known or not, and it
+    // does not wait for the lookup or the e-mail: an SMTP failure is logged,
+    // not returned (no account enumeration by content or response time).
+    void this.sendResetLink(email);
+    return response;
+  }
+
+  private async sendResetLink(email: string): Promise<void> {
     try {
-      const email = request.data || "";
-      if (!email) {
-        return response.withErrorPromise(
-          DomainErrorCodes.INVALID_INPUT,
-          "Email is required.",
-        );
-      }
-
       const user = await this.userRepository.getUserByEmail(email);
-
       if (!user) {
         logger.warn("[PASSWORD RESET ATTEMPT] Failed: Email not found.");
-        return response;
+        return;
       }
 
       let token: string;
@@ -73,7 +80,7 @@ export class UserPasswordUseCase {
       } catch (error) {
         const msg = (error as Error).message;
         if (msg.includes("disabled") || msg.includes("deleted")) {
-          return response;
+          return;
         }
         throw error;
       }
@@ -85,19 +92,13 @@ export class UserPasswordUseCase {
         this.resetExpiryMs,
       );
       if (!emailSent) {
-        return response.withErrorPromise(
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Failed to send recovery email. Please try again later.",
+        logger.err(
+          "[PASSWORD RESET ATTEMPT] Failed: recovery e-mail not sent.",
         );
       }
-      return response;
     } catch (error) {
-      logger.err("Error requesting password reset:");
+      logger.err("Error sending the password reset link:");
       logger.err(error as Error);
-      return response.withErrorPromise(
-        DomainErrorCodes.SYSTEM_ERROR,
-        "Error requesting password reset",
-      );
     }
   }
 

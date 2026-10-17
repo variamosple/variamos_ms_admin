@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import bcrypt from "bcrypt";
 import logger from "jet-logger";
 import { Op, QueryTypes, type WhereOptions } from "sequelize";
@@ -30,6 +31,7 @@ export class UserRepositoryImpl
   implements IUserRepository
 {
   private readonly bcryptSaltRounds: number;
+  private dummyHashPromise?: Promise<string>;
 
   public constructor(config: { bcryptSaltRounds: number }) {
     super();
@@ -261,6 +263,15 @@ export class UserRepositoryImpl
     return response;
   }
 
+  /** A hash of a random value, compared when no account can sign in. */
+  private dummyHash(): Promise<string> {
+    this.dummyHashPromise ??= bcrypt.hash(
+      crypto.randomUUID(),
+      this.bcryptSaltRounds,
+    );
+    return this.dummyHashPromise;
+  }
+
   public async signIn(
     request: RequestModel<Credentials>,
   ): Promise<ResponseModel<User>> {
@@ -289,14 +300,17 @@ export class UserRepositoryImpl
       });
 
       const errorMessage = "Incorrect username or password.";
+      const canSignIn =
+        !!dbUser?.password && dbUser.isEnabled && !dbUser.isDeleted;
 
-      if (!dbUser?.password || !dbUser.isEnabled || dbUser.isDeleted) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, errorMessage);
-      }
+      // Unknown and disabled accounts pay the same bcrypt cost as a wrong
+      // password: the response time does not reveal whether an account exists.
+      const passwordMatch = await bcrypt.compare(
+        password,
+        canSignIn ? (dbUser.password as string) : await this.dummyHash(),
+      );
 
-      const passwordMatch = await bcrypt.compare(password, dbUser.password);
-
-      if (!passwordMatch) {
+      if (!canSignIn || !passwordMatch) {
         return response.withError(DomainErrorCodes.INVALID_INPUT, errorMessage);
       }
 

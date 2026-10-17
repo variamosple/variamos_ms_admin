@@ -58,6 +58,9 @@ describe("UserPasswordUseCase", () => {
       const res = await useCase.requestReset(req);
 
       expect(res.errorCode).toBeUndefined();
+      await vi.waitFor(() =>
+        expect(mockMailService.sendPasswordResetMail).toHaveBeenCalled(),
+      );
       expect(mockUserRepository.getUserByEmail).toHaveBeenCalledWith(
         "user@example.com",
       );
@@ -85,6 +88,9 @@ describe("UserPasswordUseCase", () => {
       const res = await useCase.requestReset(req);
 
       expect(res.errorCode).toBeUndefined();
+      await vi.waitFor(() =>
+        expect(mockUserRepository.getUserByEmail).toHaveBeenCalled(),
+      );
       expect(createTokenSpy).not.toHaveBeenCalled();
       expect(mockMailService.sendPasswordResetMail).not.toHaveBeenCalled();
       createTokenSpy.mockRestore();
@@ -100,11 +106,13 @@ describe("UserPasswordUseCase", () => {
       const res = await useCase.requestReset(req);
 
       expect(res.errorCode).toBeUndefined();
+      await vi.waitFor(() => expect(createTokenSpy).toHaveBeenCalled());
       expect(mockMailService.sendPasswordResetMail).not.toHaveBeenCalled();
       createTokenSpy.mockRestore();
     });
 
-    it("should return SYSTEM_ERROR if mail service fails to send mail", async () => {
+    it("answers success when the e-mail fails, and logs the failure", async () => {
+      const errSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
       mockUserRepository.getUserByEmail.mockResolvedValue(mockUser);
       const createTokenSpy = vi
         .spyOn(PasswordResetTokenService.prototype, "createResetToken")
@@ -114,11 +122,31 @@ describe("UserPasswordUseCase", () => {
       const req = new RequestModel("tx-1", "user@example.com");
       const res = await useCase.requestReset(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
-      expect(res.message).toBe(
-        "Failed to send recovery email. Please try again later.",
+      expect(res.errorCode).toBeUndefined();
+      await vi.waitFor(() =>
+        expect(errSpy).toHaveBeenCalledWith(
+          "[PASSWORD RESET ATTEMPT] Failed: recovery e-mail not sent.",
+        ),
       );
       createTokenSpy.mockRestore();
+      errSpy.mockRestore();
+    });
+
+    it("answers before the account lookup ends", async () => {
+      let finishLookup: (user: User | null) => void = () => {};
+      mockUserRepository.getUserByEmail.mockReturnValue(
+        new Promise((resolve) => {
+          finishLookup = resolve;
+        }),
+      );
+
+      const res = await useCase.requestReset(
+        new RequestModel("tx-1", "user@example.com"),
+      );
+
+      expect(res.errorCode).toBeUndefined();
+      expect(mockMailService.sendPasswordResetMail).not.toHaveBeenCalled();
+      finishLookup(null);
     });
   });
 
@@ -278,6 +306,9 @@ describe("UserPasswordUseCase", () => {
       mockMailService.sendPasswordResetMail.mockResolvedValue(true);
 
       await capped.requestReset(new RequestModel("tx-1", "user@example.com"));
+      await vi.waitFor(() =>
+        expect(mockMailService.sendPasswordResetMail).toHaveBeenCalled(),
+      );
 
       expect(createTokenSpy).toHaveBeenCalledWith(
         mockUser,
@@ -437,7 +468,8 @@ describe("UserPasswordUseCase", () => {
       expect(res.message).toBe("Email is required.");
     });
 
-    it("should propagate errors in requestReset when token service throws general error", async () => {
+    it("logs, without returning it, an error of the token service", async () => {
+      const errSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
       mockUserRepository.getUserByEmail.mockResolvedValue(mockUser);
       const createTokenSpy = vi
         .spyOn(PasswordResetTokenService.prototype, "createResetToken")
@@ -446,9 +478,14 @@ describe("UserPasswordUseCase", () => {
       const req = new RequestModel("tx-1", "user@example.com");
       const res = await useCase.requestReset(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
-      expect(res.message).toBe("Error requesting password reset");
+      expect(res.errorCode).toBeUndefined();
+      await vi.waitFor(() =>
+        expect(errSpy).toHaveBeenCalledWith(
+          "Error sending the password reset link:",
+        ),
+      );
       createTokenSpy.mockRestore();
+      errSpy.mockRestore();
     });
 
     it("should return error in verifyToken when token is empty", async () => {
