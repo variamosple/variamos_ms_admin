@@ -9,11 +9,18 @@ import { UserRole } from "#src/Domain/User/Entity/UserRole.js";
 import { UserRoleFilter } from "#src/Domain/User/Entity/UserRoleFilter.js";
 import type { UserRoleUseCase } from "#src/Domain/User/UseCase/UserRoleUseCase.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
+import {
+  type AccessGuard,
+  requireAccess,
+  toId,
+  toUserId,
+} from "./requireAccess.js";
 
 export const USER_ROLES_V1_ROUTE = "/:userId/roles";
 
 export function createUserRolesRouter(
   userRoleUseCase: UserRoleUseCase,
+  accessGuard: AccessGuard,
 ): Router {
   const router = Router({ mergeParams: true });
 
@@ -105,7 +112,12 @@ export function createUserRolesRouter(
 
   router.post(
     "/",
-    hasPermissions(["users::update"]),
+    hasPermissions(["roles::assign"]),
+    requireAccess(accessGuard, (req) => {
+      const roleId = toId((req.body as { roleId?: unknown })?.roleId);
+      const userId = toUserId(req.params.userId);
+      return userId && roleId ? { kind: "assign-role", userId, roleId } : null;
+    }),
     async (req: Request<{ userId: string }>, res) => {
       const transactionId = "createUserRole";
       const userId =
@@ -150,7 +162,12 @@ export function createUserRolesRouter(
 
   router.delete(
     "/:roleId",
-    hasPermissions(["users::update"]),
+    hasPermissions(["roles::assign"]),
+    requireAccess(accessGuard, (req) => {
+      const roleId = toId(req.params.roleId);
+      const userId = toUserId(req.params.userId);
+      return userId && roleId ? { kind: "remove-role", userId, roleId } : null;
+    }),
     async (req: Request<{ userId: string; roleId: string }>, res) => {
       const transactionId = "deleteUserRole";
       const userId =

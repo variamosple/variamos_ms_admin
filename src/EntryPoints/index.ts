@@ -61,6 +61,7 @@ import {
 import { applyRateLimits } from "./RateLimits.js";
 import { createRolePermissionsRouter } from "./RolePermissionsV1Router.js";
 import { createRolesRouter, ROLES_V1_ROUTE } from "./RolesV1Router.js";
+import type { AccessGuard } from "./requireAccess.js";
 import { createUserRolesRouter } from "./UserRolesV1Router.js";
 import { createUsersRouter, USERS_V1_ROUTE } from "./UsersV1Router.js";
 import { createVisitsRouter, VISITS_V1_ROUTE } from "./VisitsV1Router.js";
@@ -104,6 +105,7 @@ export function createBaseRouter(
   configurationUseCase: ConfigurationUseCase,
   upload: MulterUpload,
   notificationAccessTokenIssuer: INotificationAccessTokenIssuer,
+  accessGuard: AccessGuard,
 ): Router {
   const baseRouter = Router();
 
@@ -114,20 +116,26 @@ export function createBaseRouter(
     usersUseCases.query,
   );
   const configurationV1Router = createConfigurationRouter(configurationUseCase);
-  const userRolesRouter = createUserRolesRouter(usersUseCases.role);
+  const userRolesRouter = createUserRolesRouter(
+    usersUseCases.role,
+    accessGuard,
+  );
   const usersV1Router = createUsersRouter(
     usersUseCases.query,
     usersUseCases.password, // needed for generateRecoveryLink
     usersUseCases.management,
     userRolesRouter,
+    accessGuard,
   );
   const rolePermissionsRouter = createRolePermissionsRouter(
     rolesUseCases.permission,
+    accessGuard,
   );
   const rolesV1Router = createRolesRouter(
     rolesUseCases.management,
     rolesUseCases.query,
     rolePermissionsRouter,
+    accessGuard,
   );
   const permissionsV1Router = createPermissionsRouter(permissionsUseCase);
   const microServicesV1Router = createMicroServicesRouter(

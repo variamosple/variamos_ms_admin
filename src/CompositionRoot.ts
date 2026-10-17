@@ -1,4 +1,5 @@
 import EnvVars from "#src/common/EnvVars.js";
+import { AccessHierarchyRepositoryImpl } from "./DataProviders/AccessControl/AccessHierarchyRepository.js";
 import { BugRepositoryImpl } from "./DataProviders/Bug/BugRepository.js";
 import { ConfigurationRepositoryImpl } from "./DataProviders/Configuration/ConfigurationRepository.js";
 import { CountriesRepositoryImpl } from "./DataProviders/Countries/CountriesRepository.js";
@@ -10,6 +11,7 @@ import { RoleRepositoryImpl } from "./DataProviders/Role/RoleRepository.js";
 import { UserRepositoryImpl } from "./DataProviders/User/UserRepository.js";
 import { UserRoleRepositoryImpl } from "./DataProviders/User/UserRoleRepository.js";
 import { VisitRepositoryImpl } from "./DataProviders/Visit/VisitRepository.js";
+import { AccessHierarchyUseCase } from "./Domain/AccessControl/AccessHierarchyUseCase.js";
 // Bug Use Cases
 import { GitHubTokenResolver } from "./Domain/Bug/Service/GitHubTokenResolver.js";
 import { BugAttachmentUseCase } from "./Domain/Bug/UseCase/BugAttachmentUseCase.js";
@@ -161,6 +163,10 @@ export const productionRoleQueryUseCase = new RoleQueryUseCase(
 
 export const productionRolePermissionUseCase = new RolePermissionUseCase(
   RolePermissionRepositoryInstance,
+);
+
+export const productionAccessHierarchyUseCase = new AccessHierarchyUseCase(
+  new AccessHierarchyRepositoryImpl(),
 );
 
 export const productionMetricsQueryUseCase = new MetricsQueryUseCase(
