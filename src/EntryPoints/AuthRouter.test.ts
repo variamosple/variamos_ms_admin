@@ -1327,6 +1327,41 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
   });
 
+  describe("POST /auth/verify-token", () => {
+    it("reads the token from the body, not from the URL", async () => {
+      (UserPasswordUseCase.prototype.verifyToken as vi.Mock).mockResolvedValue(
+        new ResponseModel("verifyToken"),
+      );
+
+      const response = await supertest(app)
+        .post("/auth/verify-token")
+        .send({ token: "valid-token" });
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(UserPasswordUseCase.prototype.verifyToken).toHaveBeenCalledWith(
+        expect.objectContaining({ data: "valid-token" }),
+      );
+    });
+
+    it("passes an empty token when the body holds no string token", async () => {
+      (UserPasswordUseCase.prototype.verifyToken as vi.Mock).mockResolvedValue(
+        new ResponseModel("verifyToken").withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Token is required.",
+        ),
+      );
+
+      const response = await supertest(app)
+        .post("/auth/verify-token")
+        .send({ token: { $ne: "" } });
+
+      expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
+      expect(UserPasswordUseCase.prototype.verifyToken).toHaveBeenCalledWith(
+        expect.objectContaining({ data: "" }),
+      );
+    });
+  });
+
   describe("POST /auth/reset-password", () => {
     it("should return 200 and resetResponse on success", async () => {
       const expectedResponse = new ResponseModel(

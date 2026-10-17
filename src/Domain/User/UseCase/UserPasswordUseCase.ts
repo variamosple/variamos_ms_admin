@@ -4,13 +4,26 @@ import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
-import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
+import { Password } from "#src/Domain/User/Entity/Password.js";
+import type {
+  IUserRepository,
+  PasswordResetOutcome,
+} from "#src/Domain/User/IUserRepository.js";
 import { PasswordResetTokenService } from "#src/Domain/User/Service/PasswordResetTokenService.js";
 
 export interface UserPasswordUseCaseConfig {
   passwordResetExpiryInMs: number;
   adminHomeUri: string;
 }
+
+/** A reset link is valid for one hour at most, whatever the configuration. */
+export const MAX_PASSWORD_RESET_EXPIRY_MS = 60 * 60 * 1000;
+
+const RESET_REFUSALS: Record<Exclude<PasswordResetOutcome, "reset">, string> = {
+  invalid_token: "Invalid token.",
+  inactive_account: "Invalid token.",
+  same_password: "New password cannot be the same as the old password.",
+};
 
 export class UserPasswordUseCase {
   private readonly tokenService: PasswordResetTokenService;
@@ -21,6 +34,13 @@ export class UserPasswordUseCase {
     private readonly config: UserPasswordUseCaseConfig,
   ) {
     this.tokenService = new PasswordResetTokenService(userRepository);
+  }
+
+  private get resetExpiryMs(): number {
+    const configured = this.config.passwordResetExpiryInMs;
+    return Number.isFinite(configured) && configured > 0
+      ? Math.min(configured, MAX_PASSWORD_RESET_EXPIRY_MS)
+      : MAX_PASSWORD_RESET_EXPIRY_MS;
   }
 
   public async requestReset(
@@ -47,7 +67,7 @@ export class UserPasswordUseCase {
       try {
         token = await this.tokenService.createResetToken(
           user,
-          this.config.passwordResetExpiryInMs,
+          this.resetExpiryMs,
           "PASSWORD RESET ATTEMPT",
         );
       } catch (error) {
@@ -62,6 +82,7 @@ export class UserPasswordUseCase {
       const emailSent = await this.mailService.sendPasswordResetMail(
         email,
         recoveryLink,
+        this.resetExpiryMs,
       );
       if (!emailSent) {
         return response.withErrorPromise(
@@ -118,6 +139,14 @@ export class UserPasswordUseCase {
         );
       }
 
+      // A link sent before the account was disabled or deleted is refused
+      if (!dbToken.isUserActive) {
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Invalid token.",
+        );
+      }
+
       return response;
     } catch (error) {
       logger.err("Error verifying reset token:");
@@ -145,12 +174,20 @@ export class UserPasswordUseCase {
         );
       }
 
-      // Verify token validity
-      const verifyRequest = new RequestModel<string>(
-        request.transactionId,
-        token,
+      try {
+        new Password(password);
+      } catch (error) {
+        return response.withErrorPromise(
+          DomainErrorCodes.INVALID_INPUT,
+          (error as Error).message,
+        );
+      }
+
+      // Precise message for an unknown, used or expired token; the
+      // repository checks again atomically when it consumes the token.
+      const verifyRes = await this.verifyToken(
+        new RequestModel<string>(request.transactionId, token),
       );
-      const verifyRes = await this.verifyToken(verifyRequest);
       if (verifyRes.errorCode) {
         return response.withError(
           verifyRes.errorCode,
@@ -159,41 +196,21 @@ export class UserPasswordUseCase {
       }
 
       const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-      const dbToken =
-        await this.userRepository.getPasswordResetToken(tokenHash);
-      if (!dbToken) {
+      const outcome = await this.userRepository.resetPasswordWithToken(
+        tokenHash,
+        password,
+      );
+      if (outcome !== "reset") {
         return response.withErrorPromise(
           DomainErrorCodes.INVALID_INPUT,
-          "Invalid token.",
+          RESET_REFUSALS[outcome],
         );
       }
-      const userId = dbToken.userId;
-
-      // Reset password in repository
-      await this.userRepository.resetPasswordAndUpdateToken(
-        userId,
-        password,
-        tokenHash,
-      );
 
       return response;
     } catch (error) {
       logger.err("Error resetting password:");
       logger.err(error as Error);
-
-      const errorMessage =
-        error instanceof Error ? error.message : "Error resetting password";
-      if (
-        errorMessage.includes(
-          "New password cannot be the same as the old password",
-        )
-      ) {
-        return response.withErrorPromise(
-          DomainErrorCodes.INVALID_INPUT,
-          errorMessage,
-        );
-      }
-
       return response.withErrorPromise(
         DomainErrorCodes.SYSTEM_ERROR,
         "Error resetting password",
@@ -240,7 +257,7 @@ export class UserPasswordUseCase {
       try {
         token = await this.tokenService.createResetToken(
           targetUser,
-          this.config.passwordResetExpiryInMs,
+          this.resetExpiryMs,
           "ADMIN PASSWORD RESET ATTEMPT",
         );
       } catch (error) {
