@@ -1,6 +1,6 @@
 import logger from "jet-logger";
 import EnvVars from "#src/common/EnvVars.js";
-import { MailServiceImpl } from "./MailService.js";
+import { describeDuration, MailServiceImpl } from "./MailService.js";
 
 describe("MailServiceImpl logging", () => {
   const originalSmtp = { ...EnvVars.SMTP };
@@ -37,5 +37,17 @@ describe("MailServiceImpl logging", () => {
     expect(logged).toContain("Password reset");
     expect(logged).not.toContain("alice@example.com");
     expect(logged).not.toContain("reset-token-value");
+  });
+});
+
+describe("describeDuration", () => {
+  it.each([
+    [60 * 60 * 1000, "1 hour"],
+    [2 * 60 * 60 * 1000, "2 hours"],
+    [30 * 60 * 1000, "30 minutes"],
+    [60 * 1000, "1 minute"],
+    [0, "1 minute"],
+  ])("describes %i ms as %s", (ms, text) => {
+    expect(describeDuration(ms)).toBe(text);
   });
 });

@@ -1,10 +1,14 @@
+import { PASSWORD_REGEXP } from "#src/Domain/Validations/ValidationConstants.js";
+
+/**
+ * The one password rule, applied at sign-up, password change and reset; the
+ * UI uses the same expression. Any special character is accepted.
+ */
 export class Password {
   private readonly value: string;
-  private static readonly PASSWORD_REGEX =
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,24}$/;
 
   public constructor(value: string) {
-    if (!value || !Password.PASSWORD_REGEX.test(value)) {
+    if (!value || !PASSWORD_REGEXP.test(value)) {
       throw new Error(
         "Password must be between 8 and 24 characters long and contain uppercase, lowercase, number, and special character.",
       );

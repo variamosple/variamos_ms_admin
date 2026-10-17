@@ -21,6 +21,15 @@ describe("Password Value Object", () => {
     expect(() => new Password("Sec1!")).toThrow(expectedError);
   });
 
+  it.each([
+    "SecurePass123#",
+    "SecurePass123_",
+    "Secure Pass123",
+    "SecurePass123(",
+  ])("accepts any special character, as the UI does: %s", (value) => {
+    expect(new Password(value).getValue()).toBe(value);
+  });
+
   it("should throw an error for password too long", () => {
     expect(() => new Password("SecurePass123!SecurePass123!")).toThrow(
       expectedError,

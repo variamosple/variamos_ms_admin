@@ -5,6 +5,16 @@ import EnvVars from "#src/common/EnvVars.js";
 import { maskEmail } from "#src/common/maskEmail.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
 
+/** "1 hour", "2 hours" or "30 minutes", for the reset e-mail. */
+export function describeDuration(ms: number): string {
+  const minutes = Math.max(1, Math.round(ms / 60_000));
+  if (minutes % 60 === 0) {
+    const hours = minutes / 60;
+    return hours === 1 ? "1 hour" : `${hours} hours`;
+  }
+  return minutes === 1 ? "1 minute" : `${minutes} minutes`;
+}
+
 export class MailServiceImpl implements IMailService {
   private transporter = nodemailer.createTransport({
     host: EnvVars.SMTP.HOST,
@@ -66,6 +76,7 @@ export class MailServiceImpl implements IMailService {
   public async sendPasswordResetMail(
     to: string,
     recoveryLink: string,
+    validForMs: number,
   ): Promise<boolean> {
     const subject = "VariaMos - Password Recovery Request";
     const logoUrl =
@@ -87,7 +98,7 @@ export class MailServiceImpl implements IMailService {
               You have requested to reset the password for your <strong>VariaMos</strong> account.
             </p>
             <p style="font-size: 15px; line-height: 1.6; color: #495057;">
-              Please click the button below to choose a new password. This secure link is valid for the next <strong>24 hours</strong>:
+              Please click the button below to choose a new password. This secure link is valid for the next <strong>${describeDuration(validForMs)}</strong>:
             </p>
 
             <!-- Main action button -->

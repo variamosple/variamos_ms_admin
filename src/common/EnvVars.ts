@@ -43,7 +43,7 @@ export default {
       LOGIN_REDIRECT_URI: process.env.LOGIN_REDIRECT_URI,
       ADMIN_HOME_URI: process.env.ADMIN_HOME_URI ?? "http://localhost:3000",
       PASSWORD_RESET_EXPIRY_IN_MS: Number(
-        process.env.PASSWORD_RESET_EXPIRY_IN_MS ?? 24 * 60 * 60 * 1000,
+        process.env.PASSWORD_RESET_EXPIRY_IN_MS ?? 60 * 60 * 1000,
       ),
       BCRYPT_SALT_ROUNDS: Number(process.env.BCRYPT_SALT_ROUNDS ?? 10),
     },

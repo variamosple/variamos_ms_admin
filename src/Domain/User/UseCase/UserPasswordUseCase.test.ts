@@ -69,6 +69,7 @@ describe("UserPasswordUseCase", () => {
       expect(mockMailService.sendPasswordResetMail).toHaveBeenCalledWith(
         "user@example.com",
         "http://localhost:3000/#/reset-password?token=generated-token",
+        mockConfig.passwordResetExpiryInMs,
       );
       createTokenSpy.mockRestore();
     });
@@ -128,6 +129,7 @@ describe("UserPasswordUseCase", () => {
         userId: "user-123",
         expiresAt: tomorrow,
         usedAt: null,
+        isUserActive: true,
       });
 
       const req = new RequestModel("tx-1", "token-123");
@@ -152,6 +154,7 @@ describe("UserPasswordUseCase", () => {
         userId: "user-123",
         expiresAt: new Date(Date.now() + 100000),
         usedAt: new Date(),
+        isUserActive: true,
       });
 
       const req = new RequestModel("tx-1", "used-token");
@@ -167,6 +170,7 @@ describe("UserPasswordUseCase", () => {
         userId: "user-123",
         expiresAt: yesterday,
         usedAt: null,
+        isUserActive: true,
       });
 
       const req = new RequestModel("tx-1", "expired-token");
@@ -184,10 +188,9 @@ describe("UserPasswordUseCase", () => {
         userId: "user-123",
         expiresAt: tomorrow,
         usedAt: null,
+        isUserActive: true,
       });
-      mockUserRepository.resetPasswordAndUpdateToken.mockResolvedValue(
-        undefined,
-      );
+      mockUserRepository.resetPasswordWithToken.mockResolvedValue("reset");
 
       const req = new RequestModel("tx-1", {
         token: "token-123",
@@ -196,12 +199,9 @@ describe("UserPasswordUseCase", () => {
       const res = await useCase.resetPassword(req);
 
       expect(res.errorCode).toBeUndefined();
-      expect(
-        mockUserRepository.resetPasswordAndUpdateToken,
-      ).toHaveBeenCalledWith(
-        "user-123",
-        "NewPassword123!",
+      expect(mockUserRepository.resetPasswordWithToken).toHaveBeenCalledWith(
         "034192845dc489deca291f9f5ae0bb8e5472c991020bf64b3ebc6dec5a1d7e47",
+        "NewPassword123!",
       );
     });
 
@@ -215,9 +215,7 @@ describe("UserPasswordUseCase", () => {
       const res = await useCase.resetPassword(req);
 
       expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
-      expect(
-        mockUserRepository.resetPasswordAndUpdateToken,
-      ).not.toHaveBeenCalled();
+      expect(mockUserRepository.resetPasswordWithToken).not.toHaveBeenCalled();
     });
 
     it("should return verification error if token is already used", async () => {
@@ -225,6 +223,7 @@ describe("UserPasswordUseCase", () => {
         userId: "user-123",
         expiresAt: new Date(Date.now() + 100000),
         usedAt: new Date(),
+        isUserActive: true,
       });
 
       const req = new RequestModel("tx-1", {
@@ -235,9 +234,7 @@ describe("UserPasswordUseCase", () => {
 
       expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("Token already used.");
-      expect(
-        mockUserRepository.resetPasswordAndUpdateToken,
-      ).not.toHaveBeenCalled();
+      expect(mockUserRepository.resetPasswordWithToken).not.toHaveBeenCalled();
     });
 
     it("should return SYSTEM_ERROR if resetPasswordAndUpdateToken throws a general error", async () => {
@@ -246,8 +243,9 @@ describe("UserPasswordUseCase", () => {
         userId: "user-123",
         expiresAt: tomorrow,
         usedAt: null,
+        isUserActive: true,
       });
-      mockUserRepository.resetPasswordAndUpdateToken.mockRejectedValue(
+      mockUserRepository.resetPasswordWithToken.mockRejectedValue(
         new Error("Database connection lost"),
       );
 
@@ -259,6 +257,39 @@ describe("UserPasswordUseCase", () => {
 
       expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
       expect(res.message).toBe("Error resetting password");
+    });
+  });
+
+  describe("reset link expiry", () => {
+    it.each([
+      ["a configured 24 hours", 24 * 60 * 60 * 1000, 60 * 60 * 1000],
+      ["a configured 30 minutes", 30 * 60 * 1000, 30 * 60 * 1000],
+      ["an invalid value", Number.NaN, 60 * 60 * 1000],
+    ])("caps %s at one hour", async (_label, configured, expected) => {
+      const capped = new UserPasswordUseCase(
+        mockUserRepository,
+        mockMailService,
+        { ...mockConfig, passwordResetExpiryInMs: configured },
+      );
+      mockUserRepository.getUserByEmail.mockResolvedValue(mockUser);
+      const createTokenSpy = vi
+        .spyOn(PasswordResetTokenService.prototype, "createResetToken")
+        .mockResolvedValue("generated-token");
+      mockMailService.sendPasswordResetMail.mockResolvedValue(true);
+
+      await capped.requestReset(new RequestModel("tx-1", "user@example.com"));
+
+      expect(createTokenSpy).toHaveBeenCalledWith(
+        mockUser,
+        expected,
+        "PASSWORD RESET ATTEMPT",
+      );
+      expect(mockMailService.sendPasswordResetMail).toHaveBeenCalledWith(
+        "user@example.com",
+        expect.any(String),
+        expected,
+      );
+      createTokenSpy.mockRestore();
     });
   });
 
@@ -444,25 +475,79 @@ describe("UserPasswordUseCase", () => {
       expect(res.message).toBe("Token and password are required.");
     });
 
-    it("should return error in resetPassword if verifyToken passes but token hash is missing in DB", async () => {
-      const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
-      // First call for verifyToken succeeds, second call returns null
-      mockUserRepository.getPasswordResetToken
-        .mockResolvedValueOnce({
-          userId: "user-123",
-          expiresAt: tomorrow,
-          usedAt: null,
-        })
-        .mockResolvedValueOnce(null);
-
-      const req = new RequestModel("tx-1", {
-        token: "token-123",
-        password: "NewPassword123!",
+    it("refuses the reset when another request consumed the token first", async () => {
+      mockUserRepository.getPasswordResetToken.mockResolvedValue({
+        userId: "user-123",
+        expiresAt: new Date(Date.now() + 100000),
+        usedAt: null,
+        isUserActive: true,
       });
-      const res = await useCase.resetPassword(req);
+      mockUserRepository.resetPasswordWithToken.mockResolvedValue(
+        "invalid_token",
+      );
+
+      const res = await useCase.resetPassword(
+        new RequestModel("tx-1", {
+          token: "token-123",
+          password: "NewPassword123!",
+        }),
+      );
 
       expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe("Invalid token.");
+    });
+
+    it("refuses the reset when the account was disabled meanwhile", async () => {
+      mockUserRepository.getPasswordResetToken.mockResolvedValue({
+        userId: "user-123",
+        expiresAt: new Date(Date.now() + 100000),
+        usedAt: null,
+        isUserActive: true,
+      });
+      mockUserRepository.resetPasswordWithToken.mockResolvedValue(
+        "inactive_account",
+      );
+
+      const res = await useCase.resetPassword(
+        new RequestModel("tx-1", {
+          token: "token-123",
+          password: "NewPassword123!",
+        }),
+      );
+
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(res.message).toBe("Invalid token.");
+    });
+
+    it("refuses a link of a disabled or deleted account before any change", async () => {
+      mockUserRepository.getPasswordResetToken.mockResolvedValue({
+        userId: "user-123",
+        expiresAt: new Date(Date.now() + 100000),
+        usedAt: null,
+        isUserActive: false,
+      });
+
+      const res = await useCase.resetPassword(
+        new RequestModel("tx-1", {
+          token: "token-123",
+          password: "NewPassword123!",
+        }),
+      );
+
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(res.message).toBe("Invalid token.");
+      expect(mockUserRepository.resetPasswordWithToken).not.toHaveBeenCalled();
+    });
+
+    it("applies the password rule on the server before touching the token", async () => {
+      const res = await useCase.resetPassword(
+        new RequestModel("tx-1", { token: "token-123", password: "short" }),
+      );
+
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(res.message).toContain("Password must be between 8 and 24");
+      expect(mockUserRepository.getPasswordResetToken).not.toHaveBeenCalled();
+      expect(mockUserRepository.resetPasswordWithToken).not.toHaveBeenCalled();
     });
 
     it("should return specific message if password reset fails because new password is same as old", async () => {
@@ -471,9 +556,10 @@ describe("UserPasswordUseCase", () => {
         userId: "user-123",
         expiresAt: tomorrow,
         usedAt: null,
+        isUserActive: true,
       });
-      mockUserRepository.resetPasswordAndUpdateToken.mockRejectedValue(
-        new Error("New password cannot be the same as the old password"),
+      mockUserRepository.resetPasswordWithToken.mockResolvedValue(
+        "same_password",
       );
 
       const req = new RequestModel("tx-1", {
@@ -484,7 +570,7 @@ describe("UserPasswordUseCase", () => {
 
       expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
       expect(res.message).toBe(
-        "New password cannot be the same as the old password",
+        "New password cannot be the same as the old password.",
       );
     });
   });

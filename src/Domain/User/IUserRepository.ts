@@ -7,6 +7,12 @@ import type { User } from "./Entity/User.js";
 import type { UserFilter } from "./Entity/UserFilter.js";
 import type { UserRegistration } from "./Entity/UserRegistration.js";
 
+export type PasswordResetOutcome =
+  | "reset"
+  | "invalid_token"
+  | "inactive_account"
+  | "same_password";
+
 export interface IUserRepository {
   queryUsers(request: RequestModel<UserFilter>): Promise<ResponseModel<User[]>>;
   findSessionUser(request: RequestModel<string>): Promise<ResponseModel<User>>;
@@ -34,10 +40,16 @@ export interface IUserRepository {
     userId: string;
     expiresAt: Date;
     usedAt?: Date | null;
+    /** The account exists, is enabled and is not deleted. */
+    isUserActive: boolean;
   } | null>;
-  resetPasswordAndUpdateToken(
-    userId: string,
-    passwordHash: string,
+  /**
+   * Consumes the token and sets the password in one transaction. The token is
+   * consumed only if it is unused and not expired, so two concurrent requests
+   * with the same token cannot both succeed.
+   */
+  resetPasswordWithToken(
     tokenHash: string,
-  ): Promise<void>;
+    passwordPlain: string,
+  ): Promise<PasswordResetOutcome>;
 }

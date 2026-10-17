@@ -10,7 +10,10 @@ import type { PersonalInformationUpdate } from "#src/Domain/User/Entity/Personal
 import { User } from "#src/Domain/User/Entity/User.js";
 import { UserFilter } from "#src/Domain/User/Entity/UserFilter.js";
 import type { UserRegistration } from "#src/Domain/User/Entity/UserRegistration.js";
-import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
+import type {
+  IUserRepository,
+  PasswordResetOutcome,
+} from "#src/Domain/User/IUserRepository.js";
 import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 import { BaseRepository } from "../BaseRepository.js";
 import { CountryModel } from "../Countries/Country.js";
@@ -704,19 +707,24 @@ export class UserRepositoryImpl
     userId: string;
     expiresAt: Date;
     usedAt?: Date | null;
+    isUserActive: boolean;
   } | null> {
     try {
       interface PasswordResetTokenRow {
         userId: string;
         expiresAt: Date;
         usedAt?: Date | null;
+        isUserActive: boolean;
       }
 
       const results = await VARIAMOS_ORM.query<PasswordResetTokenRow>(
         `
-        SELECT "user_id" AS "userId", "expires_at" AS "expiresAt", "used_at" AS "usedAt"
-        FROM "${DB_SCHEMA}"."password_reset_tokens"
-        WHERE "token_hash" = :tokenHash
+        SELECT t."user_id" AS "userId", t."expires_at" AS "expiresAt",
+          t."used_at" AS "usedAt",
+          COALESCE(u."is_enabled" AND NOT u."is_deleted", false) AS "isUserActive"
+        FROM "${DB_SCHEMA}"."password_reset_tokens" t
+        LEFT JOIN "${DB_SCHEMA}"."user" u ON u."id"::text = t."user_id"
+        WHERE t."token_hash" = :tokenHash
         LIMIT 1
         `,
         {
@@ -731,28 +739,49 @@ export class UserRepositoryImpl
     }
   }
 
-  public async resetPasswordAndUpdateToken(
-    userId: string,
-    passwordPlain: string,
+  public async resetPasswordWithToken(
     tokenHash: string,
-  ): Promise<void> {
+    passwordPlain: string,
+  ): Promise<PasswordResetOutcome> {
     const transaction = await VARIAMOS_ORM.transaction();
     try {
+      // Check and consume in one statement: a concurrent request waits on the
+      // row lock, then finds used_at set and updates nothing.
+      const consumed = await VARIAMOS_ORM.query<{ userId: string }>(
+        `
+        UPDATE "${DB_SCHEMA}"."password_reset_tokens"
+        SET "used_at" = NOW()
+        WHERE "token_hash" = :tokenHash
+          AND "used_at" IS NULL
+          AND "expires_at" > :now
+        RETURNING "user_id" AS "userId"
+        `,
+        {
+          replacements: { tokenHash, now: new Date() },
+          type: QueryTypes.SELECT,
+          transaction,
+        },
+      );
+      const userId = consumed[0]?.userId;
+      if (!userId) {
+        await transaction.rollback();
+        return "invalid_token";
+      }
+
       const dbUser = await UserModel.findOne({
         where: { id: userId },
         transaction,
+        lock: transaction.LOCK.UPDATE,
       });
-
-      if (!dbUser) {
-        throw new Error("User not found.");
+      if (!dbUser?.isEnabled || dbUser.isDeleted) {
+        await transaction.rollback();
+        return "inactive_account";
       }
 
-      const isSamePassword = await bcrypt.compare(
-        passwordPlain,
-        dbUser.password || "",
-      );
-      if (isSamePassword) {
-        throw new Error("New password cannot be the same as the old password.");
+      if (await bcrypt.compare(passwordPlain, dbUser.password || "")) {
+        // Rolled back: the link stays usable for another password
+        await transaction.rollback();
+        return "same_password";
       }
 
       const passwordHash = await bcrypt.hash(
@@ -764,22 +793,11 @@ export class UserRepositoryImpl
         { where: { id: userId }, transaction },
       );
 
-      await VARIAMOS_ORM.query(
-        `
-        UPDATE "${DB_SCHEMA}"."password_reset_tokens"
-        SET "used_at" = NOW()
-        WHERE "token_hash" = :tokenHash
-        `,
-        {
-          replacements: { tokenHash },
-          transaction,
-        },
-      );
-
       await transaction.commit();
+      return "reset";
     } catch (error) {
       await transaction.rollback();
-      logger.err(`Error in resetPasswordAndUpdateToken: ${error}`);
+      logger.err(`Error in resetPasswordWithToken: ${error}`);
       throw error;
     }
   }

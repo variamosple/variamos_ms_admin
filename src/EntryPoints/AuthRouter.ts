@@ -741,13 +741,17 @@ export function createAuthRouter(
     }
   });
 
-  authRouter.get("/verify-token", async (req, res) => {
+  // POST keeps the token out of URLs and access logs; GET stays while
+  // clients that still send the token in the query string are replaced.
+  const verifyToken = async (token: unknown, res: Response) => {
     const transactionId = "verifyToken";
-    const { token = "" } = req.query || {};
 
     try {
       const verifyResponse = await userPasswordUseCase.verifyToken(
-        new RequestModel<string>(transactionId, token as string),
+        new RequestModel<string>(
+          transactionId,
+          typeof token === "string" ? token : "",
+        ),
       );
 
       if (verifyResponse.errorCode) {
@@ -768,7 +772,14 @@ export function createAuthRouter(
           ),
         );
     }
-  });
+  };
+
+  authRouter.post("/verify-token", (req, res) =>
+    verifyToken((req.body as { token?: unknown } | undefined)?.token, res),
+  );
+  authRouter.get("/verify-token", (req, res) =>
+    verifyToken(req.query?.token, res),
+  );
 
   authRouter.post("/reset-password", async (req, res) => {
     const transactionId = "resetPassword";

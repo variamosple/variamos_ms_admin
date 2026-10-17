@@ -1,3 +1,7 @@
 export interface IMailService {
-  sendPasswordResetMail(to: string, recoveryLink: string): Promise<boolean>;
+  sendPasswordResetMail(
+    to: string,
+    recoveryLink: string,
+    validForMs: number,
+  ): Promise<boolean>;
 }
