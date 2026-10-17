@@ -4,11 +4,16 @@ import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
-import { Password } from "#src/Domain/User/Entity/Password.js";
+import type { PasswordPolicy } from "#src/Domain/User/Entity/PasswordPolicy.js";
 import type {
   IUserRepository,
   PasswordResetOutcome,
 } from "#src/Domain/User/IUserRepository.js";
+import {
+  checkNewPassword,
+  DEFAULT_PASSWORD_POLICY_PROVIDER,
+  type IPasswordPolicyProvider,
+} from "#src/Domain/User/Service/PasswordPolicyService.js";
 import { PasswordResetTokenService } from "#src/Domain/User/Service/PasswordResetTokenService.js";
 
 export interface UserPasswordUseCaseConfig {
@@ -32,15 +37,33 @@ export class UserPasswordUseCase {
     private readonly userRepository: IUserRepository,
     private readonly mailService: IMailService,
     private readonly config: UserPasswordUseCaseConfig,
+    private readonly passwordPolicy: IPasswordPolicyProvider = DEFAULT_PASSWORD_POLICY_PROVIDER,
   ) {
     this.tokenService = new PasswordResetTokenService(userRepository);
   }
 
-  private get resetExpiryMs(): number {
-    const configured = this.config.passwordResetExpiryInMs;
+  /**
+   * security.password.reset_expiry when set, else the environment value;
+   * one hour at most either way.
+   */
+  private async resetExpiryMs(): Promise<number> {
+    const configured =
+      (await this.passwordPolicy.getResetExpiryMs()) ??
+      this.config.passwordResetExpiryInMs;
     return Number.isFinite(configured) && configured > 0
       ? Math.min(configured, MAX_PASSWORD_RESET_EXPIRY_MS)
       : MAX_PASSWORD_RESET_EXPIRY_MS;
+  }
+
+  /** The policy for new passwords, read by the UI forms. */
+  public async getPasswordPolicy(): Promise<
+    ResponseModel<ReturnType<PasswordPolicy["toJSON"]>>
+  > {
+    const response = new ResponseModel<ReturnType<PasswordPolicy["toJSON"]>>(
+      "getPasswordPolicy",
+    );
+    response.data = (await this.passwordPolicy.getPolicy()).toJSON();
+    return response;
   }
 
   public async requestReset(
@@ -70,11 +93,12 @@ export class UserPasswordUseCase {
         return;
       }
 
+      const expiryMs = await this.resetExpiryMs();
       let token: string;
       try {
         token = await this.tokenService.createResetToken(
           user,
-          this.resetExpiryMs,
+          expiryMs,
           "PASSWORD RESET ATTEMPT",
         );
       } catch (error) {
@@ -89,7 +113,7 @@ export class UserPasswordUseCase {
       const emailSent = await this.mailService.sendPasswordResetMail(
         email,
         recoveryLink,
-        this.resetExpiryMs,
+        expiryMs,
       );
       if (!emailSent) {
         logger.err(
@@ -175,12 +199,15 @@ export class UserPasswordUseCase {
         );
       }
 
-      try {
-        new Password(password);
-      } catch (error) {
+      const refusal = await checkNewPassword(
+        this.passwordPolicy,
+        password,
+        "Password reset",
+      );
+      if (refusal) {
         return response.withErrorPromise(
           DomainErrorCodes.INVALID_INPUT,
-          (error as Error).message,
+          refusal,
         );
       }
 
@@ -258,7 +285,7 @@ export class UserPasswordUseCase {
       try {
         token = await this.tokenService.createResetToken(
           targetUser,
-          this.resetExpiryMs,
+          await this.resetExpiryMs(),
           "ADMIN PASSWORD RESET ATTEMPT",
         );
       } catch (error) {

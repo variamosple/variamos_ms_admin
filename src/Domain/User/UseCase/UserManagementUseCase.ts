@@ -1,13 +1,20 @@
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
-import { Password } from "#src/Domain/User/Entity/Password.js";
 import type { PasswordUpdate } from "#src/Domain/User/Entity/PasswordUpdate.js";
 import type { PersonalInformationUpdate } from "#src/Domain/User/Entity/PersonalInformationUpdate.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
+import {
+  checkNewPassword,
+  DEFAULT_PASSWORD_POLICY_PROVIDER,
+  type IPasswordPolicyProvider,
+} from "#src/Domain/User/Service/PasswordPolicyService.js";
 
 export class UserManagementUseCase {
-  public constructor(private readonly userRepository: IUserRepository) {}
+  public constructor(
+    private readonly userRepository: IUserRepository,
+    private readonly passwordPolicy: IPasswordPolicyProvider = DEFAULT_PASSWORD_POLICY_PROVIDER,
+  ) {}
 
   public async enable(
     request: RequestModel<string>,
@@ -63,13 +70,13 @@ export class UserManagementUseCase {
       );
     }
 
-    try {
-      new Password(newPassword);
-    } catch (error) {
-      return response.withErrorPromise(
-        DomainErrorCodes.INVALID_INPUT,
-        (error as Error).message,
-      );
+    const refusal = await checkNewPassword(
+      this.passwordPolicy,
+      newPassword,
+      "Password change",
+    );
+    if (refusal) {
+      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, refusal);
     }
 
     return this.userRepository.updateUserPassword(request);

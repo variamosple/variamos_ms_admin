@@ -30,6 +30,7 @@ import { PermissionUseCase } from "./Domain/Permission/UseCase/PermissionUseCase
 import { RoleManagementUseCase } from "./Domain/Role/UseCase/RoleManagementUseCase.js";
 import { RolePermissionUseCase } from "./Domain/Role/UseCase/RolePermissionUseCase.js";
 import { RoleQueryUseCase } from "./Domain/Role/UseCase/RoleQueryUseCase.js";
+import { PasswordPolicyService } from "./Domain/User/Service/PasswordPolicyService.js";
 // User Use Cases
 import { UserAuthUseCase } from "./Domain/User/UseCase/UserAuthUseCase.js";
 import { UserManagementUseCase } from "./Domain/User/UseCase/UserManagementUseCase.js";
@@ -37,7 +38,6 @@ import { UserPasswordUseCase } from "./Domain/User/UseCase/UserPasswordUseCase.j
 import { UserQueryUseCase } from "./Domain/User/UseCase/UserQueryUseCase.js";
 import { UserRoleUseCase } from "./Domain/User/UseCase/UserRoleUseCase.js";
 import { VisitUseCase } from "./Domain/Visit/UseCase/VisitUseCase.js";
-
 import { GitHubIssuesServiceInstance } from "./Infrastructure/GitHub/GitHubIssuesService.js";
 import { MailServiceInstance } from "./Infrastructure/Mail/MailService.js";
 import { ConfigEventPublisherImpl } from "./Infrastructure/Messaging/ConfigEventPublisher.js";
@@ -73,9 +73,15 @@ export const productionConfigurationUseCase = new ConfigurationUseCase(
 );
 
 // User Use Case Instantiations
+// security.password.* keys, read at each sign-up, change and reset
+export const PasswordPolicyServiceInstance = new PasswordPolicyService(
+  ConfigurationRepositoryInstance,
+);
+
 export const productionUserAuthUseCase = new UserAuthUseCase(
   UserRepositoryInstance,
   RoleRepositoryInstance,
+  PasswordPolicyServiceInstance,
 );
 
 export const productionUserPasswordUseCase = new UserPasswordUseCase(
@@ -85,10 +91,12 @@ export const productionUserPasswordUseCase = new UserPasswordUseCase(
     passwordResetExpiryInMs: EnvVars.Auth.APP.PASSWORD_RESET_EXPIRY_IN_MS,
     adminHomeUri: EnvVars.Auth.APP.ADMIN_HOME_URI,
   },
+  PasswordPolicyServiceInstance,
 );
 
 export const productionUserManagementUseCase = new UserManagementUseCase(
   UserRepositoryInstance,
+  PasswordPolicyServiceInstance,
 );
 
 export const productionUserQueryUseCase = new UserQueryUseCase(

@@ -1,17 +1,19 @@
-import { PASSWORD_REGEXP } from "#src/Domain/Validations/ValidationConstants.js";
+import { PasswordPolicy } from "./PasswordPolicy.js";
 
 /**
- * The one password rule, applied at sign-up, password change and reset; the
- * UI uses the same expression. Any special character is accepted.
+ * A password checked against a policy. Built without one, it checks only the
+ * length bounds; the use cases then apply the configured policy
+ * (PasswordPolicyService) before storing it.
  */
 export class Password {
   private readonly value: string;
 
-  public constructor(value: string) {
-    if (!value || !PASSWORD_REGEXP.test(value)) {
-      throw new Error(
-        "Password must be between 8 and 24 characters long and contain uppercase, lowercase, number, and special character.",
-      );
+  public constructor(
+    value: string,
+    policy: PasswordPolicy = PasswordPolicy.BASELINE,
+  ) {
+    if (!value || policy.violations(value).length > 0) {
+      throw new Error(policy.describe());
     }
     this.value = value;
   }
