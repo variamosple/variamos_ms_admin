@@ -404,65 +404,34 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
     return response;
   }
 
+  /**
+   * Container targeted by an action or a log request: an exact container id,
+   * service name or container name, among the containers that opt in to
+   * monitoring only (EV-71). Prefixes and partial names are refused: a short
+   * value could otherwise reach an unrelated container.
+   */
   private async resolveContainer(
     idOrServiceName: string,
   ): Promise<Docker.Container | null> {
     try {
-      const containers = await this.dockerConnection.listContainers({
-        all: true,
-      });
-
-      // 1. Direct ID match
-      const directMatch = containers.find(
-        (c) => c.Id === idOrServiceName || c.Id.startsWith(idOrServiceName),
-      );
-      if (directMatch) {
-        return this.dockerConnection.getContainer(directMatch.Id);
-      }
-
-      // 2. Match by variamos.service.name label or compose service name
-      const cleanTarget = idOrServiceName.replace(/^\//, "").toLowerCase();
-      const labelMatch = containers.find((c) => {
+      const containers = (
+        await this.dockerConnection.listContainers({ all: true })
+      ).filter((c) => isMonitoredContainer(c.Labels || {}));
+      const target = idOrServiceName.replace(/^\//, "").toLowerCase();
+      const match = containers.find((c) => {
         const labels = c.Labels || {};
+        const composeService =
+          labels["com.docker.compose.service"]?.toLowerCase();
         return (
-          labels["variamos.service.name"]?.toLowerCase() === cleanTarget ||
-          labels["com.docker.compose.service"]?.toLowerCase() === cleanTarget ||
-          labels["com.docker.compose.service"]
-            ?.replace(/-/g, "_")
-            .toLowerCase() === cleanTarget
+          c.Id === idOrServiceName ||
+          labels["variamos.service.name"]?.toLowerCase() === target ||
+          composeService === target ||
+          composeService?.replace(/-/g, "_") === target ||
+          c.Names.some((n) => n.replace(/^\//, "").toLowerCase() === target)
         );
       });
-      if (labelMatch) {
-        return this.dockerConnection.getContainer(labelMatch.Id);
-      }
-
-      // 3. Direct Name match (e.g. /variamos-ms-admin-test)
-      const nameMatch = containers.find((c) =>
-        c.Names.some((n) => n.replace(/^\//, "").toLowerCase() === cleanTarget),
-      );
-      if (nameMatch) {
-        return this.dockerConnection.getContainer(nameMatch.Id);
-      }
-
-      // 4. Pattern / partial match on container names
-      const normalizedTarget = cleanTarget
-        .replace(/^variamos[-_](ms[-_])?/, "")
-        .replace(/-/g, "_");
-      const patternMatch = containers.find((c) =>
-        c.Names.some((n) => {
-          const cleanName = n
-            .replace(/^\//, "")
-            .toLowerCase()
-            .replace(/-/g, "_");
-          return (
-            cleanName.includes(normalizedTarget) ||
-            cleanName.includes(cleanTarget)
-          );
-        }),
-      );
-
-      if (patternMatch) {
-        return this.dockerConnection.getContainer(patternMatch.Id);
+      if (match) {
+        return this.dockerConnection.getContainer(match.Id);
       }
     } catch (err) {
       logger.warn(

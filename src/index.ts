@@ -1,12 +1,11 @@
 import logger from "jet-logger";
-import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { MAX_ATTACHMENT_SIZE_BYTES } from "#src/Domain/Core/File/AllowedFileType.js";
 import "./pre-start.js"; // Must be the first import
 
-import type { Readable } from "node:stream";
-import { initKeyStore, validateSession } from "@variamosple/variamos-security";
-import { parseCookie } from "cookie";
-import { WebSocket, WebSocketServer } from "ws";
+import {
+  initKeyStore,
+  validateRolesAndPermissions,
+} from "@variamosple/variamos-security";
 import EnvVars from "#src/common/EnvVars.js";
 import {
   ConfigEventPublisherInstance,
@@ -41,6 +40,10 @@ import { MicroServiceAuditLogModel } from "./DataProviders/MicroService/MicroSer
 import { MicroServiceDailyStatsModel } from "./DataProviders/MicroService/MicroServiceDailyStatsModel.js";
 import { MicroServiceHealthLogModel } from "./DataProviders/MicroService/MicroServiceHealthLogModel.js";
 import { RequestModel } from "./Domain/Core/Entity/RequestModel.js";
+import {
+  attachContainerLogsWebSocket,
+  CONTAINER_LOGS_PERMISSION,
+} from "./EntryPoints/ContainerLogsWebSocket.js";
 import { createBaseRouter } from "./EntryPoints/index.js";
 import { HealthCheckCollector } from "./Infrastructure/Health/HealthCheckCollector.js";
 import { createServer } from "./server.js";
@@ -211,78 +214,10 @@ const server = app.listen(EnvVars.Port, async () => {
   }, PURGE_INTERVAL);
 });
 
-const webSocketServer = new WebSocketServer({ server });
-
-webSocketServer.on("connection", async (ws, req) => {
-  logger.info("WebSocket connection established");
-
-  const cookies = req.headers.cookie ? parseCookie(req.headers.cookie) : {};
-
-  const validationResponse = await validateSession(cookies.authToken);
-
-  if (validationResponse.errorCode) {
-    ws.close(1008, validationResponse.message);
-    return;
-  }
-
-  ws.on("message", async (message) => {
-    const messageStr = Buffer.isBuffer(message)
-      ? message.toString("utf8")
-      : String(message);
-    logger.info(`Message received: ${messageStr}`);
-
-    try {
-      const parsedData = JSON.parse(messageStr) as { microserviceId?: string };
-      const microserviceId = parsedData.microserviceId;
-      const transactionId = "watchMicroServiceLogs";
-
-      const request = new RequestModel<string>(
-        transactionId,
-        microserviceId as string,
-      );
-
-      const response =
-        await productionMicroServiceQueryUseCase.watchMicroServiceLogs(request);
-
-      if (response.errorCode) {
-        return ws.send(JSON.stringify(response));
-      }
-
-      if (!response.data) {
-        return ws.send(
-          JSON.stringify(
-            response.withError(
-              DomainErrorCodes.ENTITY_NOT_FOUND,
-              `No Logs found for microservice with id: ${microserviceId}`,
-            ),
-          ),
-        );
-      }
-
-      const logStream = response.data;
-
-      logStream.on("data", (chunk: Buffer) => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(chunk.toString("utf8"));
-        }
-      });
-
-      logStream.on("end", () => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ message: "Log stream ended" }));
-        }
-      });
-
-      ws.on("close", () => {
-        (logStream as Readable).destroy();
-      });
-    } catch (error) {
-      const err = error as Error;
-      ws.send(JSON.stringify({ error: err.message }));
-    }
-  });
-
-  ws.on("close", () => {
-    logger.info("WebSocket connection closed");
-  });
+attachContainerLogsWebSocket(server, {
+  allowedOrigins: EnvVars.CORS.AllowedOriginsPatterns,
+  checkAccess: (token) =>
+    validateRolesAndPermissions(token, [CONTAINER_LOGS_PERMISSION]),
+  watchLogs: (request) =>
+    productionMicroServiceQueryUseCase.watchMicroServiceLogs(request),
 });
