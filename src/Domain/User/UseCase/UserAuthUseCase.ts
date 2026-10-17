@@ -7,11 +7,17 @@ import type { Credentials } from "#src/Domain/User/Entity/Credentials.js";
 import { User } from "#src/Domain/User/Entity/User.js";
 import { UserRegistration } from "#src/Domain/User/Entity/UserRegistration.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
+import {
+  checkNewPassword,
+  DEFAULT_PASSWORD_POLICY_PROVIDER,
+  type IPasswordPolicyProvider,
+} from "#src/Domain/User/Service/PasswordPolicyService.js";
 
 export class UserAuthUseCase {
   public constructor(
     private readonly userRepository: IUserRepository,
     private readonly roleRepository: IGuestRoleRepository,
+    private readonly passwordPolicy: IPasswordPolicyProvider = DEFAULT_PASSWORD_POLICY_PROVIDER,
   ) {}
 
   public async signUp(
@@ -37,6 +43,15 @@ export class UserAuthUseCase {
         DomainErrorCodes.INVALID_INPUT,
         (error as Error).message,
       );
+    }
+
+    const refusal = await checkNewPassword(
+      this.passwordPolicy,
+      data.password,
+      "Sign-up",
+    );
+    if (refusal) {
+      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, refusal);
     }
 
     return this.userRepository.signUp(request);

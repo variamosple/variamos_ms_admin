@@ -1327,6 +1327,31 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
   });
 
+  describe("GET /auth/password-policy", () => {
+    it("returns the policy without a session", async () => {
+      (
+        UserPasswordUseCase.prototype.getPasswordPolicy as vi.Mock
+      ).mockResolvedValue(
+        new ResponseModel("getPasswordPolicy").withResponse({ minLength: 12 }),
+      );
+
+      const response = await supertest(app).get("/auth/password-policy");
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(response.body.data).toEqual({ minLength: 12 });
+    });
+
+    it("answers 500 when the policy cannot be read", async () => {
+      (
+        UserPasswordUseCase.prototype.getPasswordPolicy as vi.Mock
+      ).mockRejectedValue(new Error("db down"));
+
+      const response = await supertest(app).get("/auth/password-policy");
+
+      expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+    });
+  });
+
   describe("POST /auth/verify-token", () => {
     it("reads the token from the body, not from the URL", async () => {
       (UserPasswordUseCase.prototype.verifyToken as vi.Mock).mockResolvedValue(

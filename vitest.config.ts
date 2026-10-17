@@ -1,5 +1,4 @@
-import { defineConfig, configDefaults } from "vitest/config";
-
+import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   // "variamos-dev" selects the src/ targets of the package.json "imports" field (#src/*).
@@ -21,11 +20,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/Domain/**/*.ts", "src/EntryPoints/**/*.ts"],
-      exclude: [
-        "src/EntryPoints/index.ts",
-        "src/Domain/Validations/ValidationMessages.ts",
-        "src/**/*.d.ts",
-      ],
+      exclude: ["src/EntryPoints/index.ts", "src/**/*.d.ts"],
       thresholds: {
         global: {
           branches: 80,

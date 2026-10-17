@@ -582,7 +582,7 @@ describe("UserPasswordUseCase", () => {
       );
 
       expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
-      expect(res.message).toContain("Password must be between 8 and 24");
+      expect(res.message).toContain("Password must be between 8 and 64");
       expect(mockUserRepository.getPasswordResetToken).not.toHaveBeenCalled();
       expect(mockUserRepository.resetPasswordWithToken).not.toHaveBeenCalled();
     });

@@ -712,6 +712,23 @@ export function createAuthRouter(
     res.status(200).json(response);
   });
 
+  // Public: the sign-up and reset forms check the same rule as the server
+  authRouter.get("/password-policy", async (_req, res) => {
+    try {
+      res.status(200).json(await userPasswordUseCase.getPasswordPolicy());
+    } catch (err) {
+      logger.err(describeError(err));
+      res
+        .status(500)
+        .json(
+          new ResponseModel<void>("getPasswordPolicy").withError(
+            DomainErrorCodes.SYSTEM_ERROR,
+            "Password policy error.",
+          ),
+        );
+    }
+  });
+
   authRouter.post("/forgot-password", async (req, res) => {
     const transactionId = "forgotPassword";
     const { email = "" } = (req.body || {}) as Record<string, string>;
