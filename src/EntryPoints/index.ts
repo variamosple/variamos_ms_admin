@@ -58,6 +58,7 @@ import {
   createPermissionsRouter,
   PERMISSIONS_V1_ROUTE,
 } from "./PermissionsV1Router.js";
+import { applyRateLimits } from "./RateLimits.js";
 import { createRolePermissionsRouter } from "./RolePermissionsV1Router.js";
 import { createRolesRouter, ROLES_V1_ROUTE } from "./RolesV1Router.js";
 import { createUserRolesRouter } from "./UserRolesV1Router.js";
@@ -151,6 +152,7 @@ export function createBaseRouter(
     isAuthenticated,
   );
 
+  applyRateLimits(baseRouter);
   baseRouter.use(AUTH_ROUTE, authRouter);
   baseRouter.use(CONFIGURATION_V1_ROUTE, configurationV1Router);
   baseRouter.use(USERS_V1_ROUTE, usersV1Router);
