@@ -31,7 +31,9 @@
     "uuidv4",
     "uuidv",
     "DATEONLY",
-    "nosniff"
+    "nosniff",
+    "linklocal",
+    "uniquelocal"
   ],
   "ignorePaths": [
     "node_modules/**",

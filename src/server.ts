@@ -29,6 +29,11 @@ import { createUploadsRouter } from "#src/EntryPoints/UploadsRouter.js";
 export function createServer(baseRouter: Router) {
   const app = express();
 
+  // nginx, on the Docker network, appends the client address to
+  // X-Forwarded-For: trust private hops only, so req.ip is the client and an
+  // address forged by the client is ignored (rate limits are per address).
+  app.set("trust proxy", "loopback, linklocal, uniquelocal");
+
   // **** Setup **** //
 
   // Basic middleware
