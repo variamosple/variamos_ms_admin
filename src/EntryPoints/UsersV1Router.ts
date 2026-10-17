@@ -9,6 +9,7 @@ import type { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagem
 import type { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
 import type { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
+import { type AccessGuard, requireAccess, toUserId } from "./requireAccess.js";
 import { USER_ROLES_V1_ROUTE } from "./UserRolesV1Router.js";
 
 export const USERS_V1_ROUTE = "/v1/users";
@@ -18,6 +19,7 @@ export function createUsersRouter(
   userPasswordUseCase: UserPasswordUseCase,
   userManagementUseCase: UserManagementUseCase,
   userRolesRouter: Router,
+  accessGuard: AccessGuard,
 ): Router {
   const router = Router();
 
@@ -80,6 +82,10 @@ export function createUsersRouter(
   router.post(
     "/:userId/recovery-link",
     hasPermissions(["users::update"]),
+    requireAccess(accessGuard, (req) => {
+      const userId = toUserId(req.params.userId);
+      return userId ? { kind: "recovery-link", userId } : null;
+    }),
     async (req: Request<{ userId: string }>, res) => {
       const transactionId = "generateRecoveryLink";
       const userId = req.params.userId;
@@ -114,6 +120,10 @@ export function createUsersRouter(
   router.put(
     "/:userId/disable",
     hasPermissions(["users::update"]),
+    requireAccess(accessGuard, (req) => {
+      const userId = toUserId(req.params.userId);
+      return userId ? { kind: "disable-account", userId } : null;
+    }),
     async (req: Request<{ userId: string }>, res) => {
       const transactionId = "disableUser";
       const userId = req.params.userId;
@@ -141,6 +151,10 @@ export function createUsersRouter(
   router.put(
     "/:userId/enable",
     hasPermissions(["users::update"]),
+    requireAccess(accessGuard, (req) => {
+      const userId = toUserId(req.params.userId);
+      return userId ? { kind: "enable-account", userId } : null;
+    }),
     async (req: Request<{ userId: string }>, res) => {
       const transactionId = "enableUser";
       const userId = req.params.userId;
@@ -168,6 +182,10 @@ export function createUsersRouter(
   router.delete(
     "/:userId",
     hasPermissions(["users::delete"]),
+    requireAccess(accessGuard, (req) => {
+      const userId = toUserId(req.params.userId);
+      return userId ? { kind: "delete-account", userId } : null;
+    }),
     async (req: Request<{ userId: string }>, res) => {
       const transactionId = "deleteUser";
       const userId = req.params.userId;

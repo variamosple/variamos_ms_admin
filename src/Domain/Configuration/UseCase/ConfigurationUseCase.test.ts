@@ -91,7 +91,6 @@ describe("ConfigurationUseCase Unit Tests", () => {
       key: "security.password.min_length",
       value: 14,
       operatorId: "admin_user",
-      isMfaVerified: false, // MFA not verified!
     });
 
     const response = await useCase.updateConfiguration(request);
@@ -104,57 +103,37 @@ describe("ConfigurationUseCase Unit Tests", () => {
     expect(mockPublisher.publishConfigUpdated).not.toHaveBeenCalled();
   });
 
-  it("should allow update if MFA is required and validated", async () => {
+  it("refuses an MFA-protected key even when the client claims MFA", async () => {
     const mockRepo = mock<IConfigurationRepository>();
     const mockPublisher = mock<IConfigEventPublisher>();
     const useCase = new ConfigurationUseCase(mockRepo, mockPublisher);
 
-    const sensitiveConfig = Configuration.builder()
-      .setKey(new ConfigurationKey("security.password.min_length"))
-      .setValue(12)
-      .setType("number")
-      .setCategory("security")
-      .setRequiresMfa(true)
-      .setTargetServices(["variamos_ms_security"])
-      .build();
-
     mockRepo.queryByKey.mockResolvedValue(
       new ResponseModel<Configuration>("queryByKey").withResponse(
-        sensitiveConfig,
+        Configuration.builder()
+          .setKey(new ConfigurationKey("security.password.min_length"))
+          .setValue(12)
+          .setType("number")
+          .setCategory("security")
+          .setRequiresMfa(true)
+          .setTargetServices(["variamos_ms_security"])
+          .build(),
       ),
     );
 
-    const updatedConfig = Configuration.builder()
-      .setKey(new ConfigurationKey("security.password.min_length"))
-      .setValue(14)
-      .setType("number")
-      .setCategory("security")
-      .setRequiresMfa(true)
-      .setTargetServices(["variamos_ms_security"])
-      .setUpdatedBy("admin_user")
-      .build();
-
-    mockRepo.updateConfiguration.mockResolvedValue(
-      new ResponseModel<Configuration>("updateConfiguration").withResponse(
-        updatedConfig,
-      ),
-    );
-
+    // The former client flag is not part of the request any more
     const request = new RequestModel("updateConfiguration", {
       key: "security.password.min_length",
       value: 14,
       operatorId: "admin_user",
-      isMfaVerified: true, // MFA verified!
-    });
+      isMfaVerified: true,
+    } as never);
 
     const response = await useCase.updateConfiguration(request);
 
-    expect(response.errorCode).toBeUndefined();
-    expect(response.data?.value).toBe(14);
-    expect(mockRepo.updateConfiguration).toHaveBeenCalled();
-    expect(mockPublisher.publishConfigUpdated).toHaveBeenCalledWith(
-      updatedConfig,
-    );
+    expect(response.errorCode).toBe(DomainErrorCodes.MFA_REQUIRED);
+    expect(mockRepo.updateConfiguration).not.toHaveBeenCalled();
+    expect(mockPublisher.publishConfigUpdated).not.toHaveBeenCalled();
   });
 
   it("should fail update if key does not exist", async () => {

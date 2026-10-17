@@ -13,6 +13,8 @@ export function mapDomainErrorToHttpStatus(
       return HttpStatusCodes.NOT_FOUND;
     case DomainErrorCodes.UNAUTHORIZED_ACCESS:
       return HttpStatusCodes.UNAUTHORIZED;
+    case DomainErrorCodes.FORBIDDEN:
+      return HttpStatusCodes.FORBIDDEN;
     case DomainErrorCodes.TOO_MANY_REQUESTS:
       return HttpStatusCodes.TOO_MANY_REQUESTS;
     case DomainErrorCodes.SYSTEM_ERROR:

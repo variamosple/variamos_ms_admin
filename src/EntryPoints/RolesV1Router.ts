@@ -11,6 +11,7 @@ import type { RoleManagementUseCase } from "#src/Domain/Role/UseCase/RoleManagem
 import type { RoleQueryUseCase } from "#src/Domain/Role/UseCase/RoleQueryUseCase.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { ROLE_PERMISSIONS_V1_ROUTE } from "./RolePermissionsV1Router.js";
+import { type AccessGuard, requireAccess, toId } from "./requireAccess.js";
 
 export const ROLES_V1_ROUTE = "/v1/roles";
 
@@ -18,6 +19,7 @@ export function createRolesRouter(
   roleManagementUseCase: RoleManagementUseCase,
   roleQueryUseCase: RoleQueryUseCase,
   rolePermissionsRouter: Router,
+  accessGuard: AccessGuard,
 ): Router {
   const rolesV1Router = Router();
 
@@ -101,6 +103,10 @@ export function createRolesRouter(
   rolesV1Router.delete(
     "/:roleId",
     hasPermissions(["roles::delete"]),
+    requireAccess(accessGuard, (req) => {
+      const roleId = toId(req.params.roleId);
+      return roleId ? { kind: "delete-role", roleId } : null;
+    }),
     async (req: Request<{ roleId: string }>, res) => {
       const transactionId = "deleteRole";
       const roleId = req.params.roleId;
@@ -171,6 +177,10 @@ export function createRolesRouter(
   rolesV1Router.put(
     "/:roleId",
     hasPermissions(["roles::update"]),
+    requireAccess(accessGuard, (req) => {
+      const roleId = toId(req.params.roleId);
+      return roleId ? { kind: "update-role", roleId } : null;
+    }),
     async (req: Request<{ roleId: string }>, res) => {
       const transactionId = "updateRole";
       const roleId = req.params.roleId;

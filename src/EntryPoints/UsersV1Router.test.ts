@@ -12,6 +12,7 @@ import { User } from "#src/Domain/User/Entity/User.js";
 import { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
 import { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
 import { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
+import type { AccessGuard } from "./requireAccess.js";
 import { createUsersRouter } from "./UsersV1Router.js";
 
 vi.mock("#src/Domain/User/UseCase/UserQueryUseCase");
@@ -55,6 +56,10 @@ import type { IMailService } from "#src/Domain/Mail/IMailService.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 import type { UserPasswordUseCaseConfig } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
 
+const allowAll: AccessGuard = {
+  authorize: async () => new ResponseModel<void>("authorizeAccess"),
+};
+
 describe("UsersV1Router Integration Tests - Extended Coverage", () => {
   let app: express.Application;
   let permissionsCalls: string[][][];
@@ -79,6 +84,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         mockUserPasswordUseCase,
         mockUserManagementUseCase,
         mockUserRolesRouter,
+        allowAll,
       ),
     );
     permissionsCalls = [...mockHasPermissions.mock.calls];

@@ -10,6 +10,7 @@ import EnvVars from "#src/common/EnvVars.js";
 import {
   ConfigEventPublisherInstance,
   MicroServiceRepositoryInstance,
+  productionAccessHierarchyUseCase,
   productionBugAttachmentUseCase,
   productionBugLifecycleUseCase,
   productionBugQueryUseCase,
@@ -102,6 +103,7 @@ const baseRouter = createBaseRouter(
   productionConfigurationUseCase,
   productionUpload,
   productionNotificationAccessTokenIssuer,
+  productionAccessHierarchyUseCase,
 );
 
 const app = createServer(baseRouter);

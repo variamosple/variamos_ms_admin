@@ -227,6 +227,26 @@ describe("ConfigurationRouter Integration Tests", () => {
       expect(response.body.errorCode).toBe(DomainErrorCodes.MFA_REQUIRED);
     });
 
+    it("does not pass a client-sent MFA flag to the use case", async () => {
+      const update = vi
+        .spyOn(mockUseCase, "updateConfiguration")
+        .mockResolvedValue(
+          new ResponseModel<Configuration>("updateConfiguration").withError(
+            DomainErrorCodes.MFA_REQUIRED,
+            "MFA validation required",
+          ),
+        );
+
+      const response = await supertest(app)
+        .put("/v1/configurations/security.password.min_length")
+        .send({ value: 14, isMfaVerified: true });
+
+      expect(response.status).toBe(HttpStatusCodes.FORBIDDEN);
+      expect(update.mock.calls[0]?.[0].data).not.toHaveProperty(
+        "isMfaVerified",
+      );
+    });
+
     it("should return 200 OK and updated configuration on success", async () => {
       const updatedConfig = Configuration.builder()
         .setKey(new ConfigurationKey("general.site_name"))

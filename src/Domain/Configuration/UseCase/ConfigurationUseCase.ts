@@ -15,7 +15,6 @@ export interface UpdateConfigurationRequest {
   key: string;
   value: ConfigurationValue;
   operatorId: string;
-  isMfaVerified?: boolean;
 }
 
 export class ConfigurationUseCase {
@@ -49,7 +48,7 @@ export class ConfigurationUseCase {
       );
     }
 
-    const { key, value, operatorId, isMfaVerified } = request.data;
+    const { key, value, operatorId } = request.data;
 
     // 1. Fetch current configuration to check its security metadata
     const queryRequest = new RequestModel<string>(transactionId, key);
@@ -68,8 +67,9 @@ export class ConfigurationUseCase {
       );
     }
 
-    // 2. Validate MFA if required
-    if (configuration.requiresMfa && !isMfaVerified) {
+    // 2. MFA-protected keys need a server-side proof, which does not exist
+    // yet (T-10, two-factor authentication spec of 2026-10-17)
+    if (configuration.requiresMfa) {
       return response.withError(
         DomainErrorCodes.MFA_REQUIRED,
         `Updating configuration '${key}' requires MFA validation.`,

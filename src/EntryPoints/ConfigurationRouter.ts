@@ -294,10 +294,9 @@ export function createConfigurationRouter(
     async (req: Request<{ key: string }>, res) => {
       const transactionId = "updateConfiguration";
       const key = req.params.key;
-      const { value, isMfaVerified } = req.body as {
-        value: ConfigurationValueDto;
-        isMfaVerified?: boolean;
-      };
+      // A client-sent MFA flag is ignored: the proof must come from the
+      // server (T-10); until it exists, MFA-protected keys stay locked.
+      const { value } = req.body as { value: ConfigurationValueDto };
 
       try {
         const operatorId = (req.user as { id?: string })?.id || "system";
@@ -306,7 +305,6 @@ export function createConfigurationRouter(
           key,
           value,
           operatorId,
-          isMfaVerified,
         });
 
         const useCaseResponse =

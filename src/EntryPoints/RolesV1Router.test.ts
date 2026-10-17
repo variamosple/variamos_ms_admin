@@ -8,6 +8,7 @@ import { Role } from "#src/Domain/Role/Entity/Role.js";
 import { RoleManagementUseCase } from "#src/Domain/Role/UseCase/RoleManagementUseCase.js";
 import { RoleQueryUseCase } from "#src/Domain/Role/UseCase/RoleQueryUseCase.js";
 import { createRolesRouter } from "./RolesV1Router.js";
+import type { AccessGuard } from "./requireAccess.js";
 
 // Mock dependencies
 vi.mock("#src/Domain/Role/UseCase/RoleQueryUseCase");
@@ -26,6 +27,10 @@ vi.mock("@variamosple/variamos-security", () => ({
 
 import type { IRoleRepository } from "#src/Domain/Role/Repository/IRoleRepository.js";
 
+const allowAll: AccessGuard = {
+  authorize: async () => new ResponseModel<void>("authorizeAccess"),
+};
+
 describe("RolesV1Router Integration Tests - Extended Coverage", () => {
   let app: express.Application;
 
@@ -43,6 +48,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
         mockRoleManagementUseCase,
         mockRoleQueryUseCase,
         mockRolePermissionsRouter,
+        allowAll,
       ),
     );
   });

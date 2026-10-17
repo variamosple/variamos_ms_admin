@@ -6,6 +6,7 @@ import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { UserRole } from "#src/Domain/User/Entity/UserRole.js";
 import { UserRoleUseCase } from "#src/Domain/User/UseCase/UserRoleUseCase.js";
+import type { AccessGuard } from "./requireAccess.js";
 import { createUserRolesRouter } from "./UserRolesV1Router.js";
 
 // Mock dependencies
@@ -18,6 +19,10 @@ vi.mock("@variamosple/variamos-security", () => ({
 
 import type { IUserRoleRepository } from "#src/Domain/User/Repository/IUserRoleRepository.js";
 
+const allowAll: AccessGuard = {
+  authorize: async () => new ResponseModel<void>("authorizeAccess"),
+};
+
 describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
   let app: express.Application;
 
@@ -29,7 +34,7 @@ describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
     );
     app.use(
       "/v1/users/:userId/roles",
-      createUserRolesRouter(mockUserRoleUseCase),
+      createUserRolesRouter(mockUserRoleUseCase, allowAll),
     );
   });
 
