@@ -11,6 +11,7 @@ import {
 } from "express";
 import logger from "jet-logger";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import type { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import { BugFilter } from "#src/Domain/Bug/Entity/BugFilter.js";
 import type { BugAttachmentUseCase } from "#src/Domain/Bug/UseCase/BugAttachmentUseCase.js";
 import type { BugLifecycleUseCase } from "#src/Domain/Bug/UseCase/BugLifecycleUseCase.js";
@@ -89,6 +90,26 @@ function toUploadedFile(file?: Express.Multer.File): UploadedFile | null {
   return { content: file.buffer, originalName: file.originalname };
 }
 
+/**
+ * Reporter e-mails are personal data: only moderators (bugs::update) see
+ * them in the lists; the name stays (SEC-BE-10).
+ */
+function maskReporterEmails(
+  req: Request,
+  bugs: Bug[] | null | undefined,
+): Bug[] | null | undefined {
+  const permissions =
+    (req.user as { permissions?: string[] } | undefined)?.permissions ?? [];
+  if (!bugs || permissions.includes("bugs::update")) return bugs;
+  return bugs.map((bug) =>
+    Object.assign(Object.create(Object.getPrototypeOf(bug)) as Bug, bug, {
+      reporterEmail: undefined,
+      createdBy: bug.createdBy && { ...bug.createdBy, email: undefined },
+      updatedBy: bug.updatedBy && { ...bug.updatedBy, email: undefined },
+    }),
+  );
+}
+
 export function createBugRouter(
   bugSubmissionUseCase: BugSubmissionUseCase,
   bugLifecycleUseCase: BugLifecycleUseCase,
@@ -101,28 +122,34 @@ export function createBugRouter(
   const router = Router();
 
   // Get all bugs
-  router.get("/", authMiddleware, async (req: Request, res: Response) => {
-    const transactionId = "queryBugs";
-    const { repo, status, priority, search } = req.query;
-    try {
-      const filter = new BugFilter(
-        repo as string,
-        status as string,
-        priority as string,
-        search as string,
-      );
-      const request = new RequestModel<BugFilter>(transactionId, filter);
-      const response = await bugQueryUseCase.queryBugs(request);
+  router.get(
+    "/",
+    authMiddleware,
+    hasPermissions(["bugs::query"]),
+    async (req: Request, res: Response) => {
+      const transactionId = "queryBugs";
+      const { repo, status, priority, search } = req.query;
+      try {
+        const filter = new BugFilter(
+          repo as string,
+          status as string,
+          priority as string,
+          search as string,
+        );
+        const request = new RequestModel<BugFilter>(transactionId, filter);
+        const response = await bugQueryUseCase.queryBugs(request);
+        response.data = maskReporterEmails(req, response.data);
 
-      const code = mapDomainErrorToHttpStatus(response.errorCode);
-      res.status(code).json(response);
-    } catch (error) {
-      logger.err(error);
-      res
-        .status(HttpStatusCodes.BAD_REQUEST)
-        .json({ error: (error as Error).message });
-    }
-  });
+        const code = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(code).json(response);
+      } catch (error) {
+        logger.err(error);
+        res
+          .status(HttpStatusCodes.BAD_REQUEST)
+          .json({ error: (error as Error).message });
+      }
+    },
+  );
 
   // Get local bugs (Inbox)
   router.get(
@@ -141,6 +168,7 @@ export function createBugRouter(
         );
         const request = new RequestModel<BugFilter>(transactionId, filter);
         const response = await bugQueryUseCase.queryLocalBugs(request);
+        response.data = maskReporterEmails(req, response.data);
 
         const code = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(code).json(response);
@@ -315,7 +343,7 @@ export function createBugRouter(
   router.post(
     "/:id/status",
     authMiddleware,
-    hasPermissions(["bugs::query"]),
+    hasPermissions(["bugs::update"]),
     async (req: Request<{ id: string }>, res: Response) => {
       const transactionId = "updateStatus";
       const { id } = req.params;
@@ -378,7 +406,7 @@ export function createBugRouter(
   router.post(
     "/:id/restore",
     authMiddleware,
-    hasPermissions(["bugs::query"]),
+    hasPermissions(["bugs::update"]),
     async (req: Request<{ id: string }>, res: Response) => {
       const transactionId = "restoreBug";
       const { id } = req.params;
@@ -407,7 +435,7 @@ export function createBugRouter(
   router.post(
     "/:id/reject",
     authMiddleware,
-    hasPermissions(["bugs::query"]),
+    hasPermissions(["bugs::update"]),
     async (req: Request<{ id: string }>, res: Response) => {
       const transactionId = "rejectBug";
       const { id } = req.params;
@@ -436,7 +464,7 @@ export function createBugRouter(
   router.post(
     "/sync",
     authMiddleware,
-    hasPermissions(["bugs::query"]),
+    hasPermissions(["bugs::sync"]),
     async (_req: Request, res: Response) => {
       const transactionId = "syncBugs";
       try {
@@ -464,7 +492,7 @@ export function createBugRouter(
   router.post(
     "/:id/attachments",
     authMiddleware,
-    hasPermissions(["bugs::query"]),
+    hasPermissions(["bugs::update"]),
     acceptSingleFile(upload, "addAttachment"),
     async (req: Request<{ id: string }>, res: Response) => {
       const transactionId = "addAttachment";
@@ -501,7 +529,7 @@ export function createBugRouter(
   router.delete(
     "/attachments/:id",
     authMiddleware,
-    hasPermissions(["bugs::query"]),
+    hasPermissions(["bugs::update"]),
     async (req: Request<{ id: string }>, res: Response) => {
       const transactionId = "deleteAttachment";
       const { id } = req.params;
@@ -523,7 +551,7 @@ export function createBugRouter(
   router.post(
     "/:id/notes",
     authMiddleware,
-    hasPermissions(["bugs::query"]),
+    hasPermissions(["bugs::update"]),
     async (req: Request<{ id: string }>, res: Response) => {
       const transactionId = "createBugNote";
       const { id } = req.params;
