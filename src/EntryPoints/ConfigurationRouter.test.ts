@@ -187,12 +187,42 @@ describe("ConfigurationRouter Integration Tests", () => {
         isSecret: false,
         environmentScope: "all",
         isReadOnly: false,
+        isApplied: false,
         targetServices: ["all"],
         description: undefined,
         updatedBy: undefined,
         createdAt: undefined,
         updatedAt: undefined,
       });
+    });
+
+    it("says which keys are applied by the code", async () => {
+      const build = (key: string) =>
+        Configuration.builder()
+          .setKey(new ConfigurationKey(key))
+          .setValue(12)
+          .setType("number")
+          .setCategory("security")
+          .setTargetServices(["all"])
+          .build();
+      vi.spyOn(mockUseCase, "queryConfigurations").mockResolvedValue(
+        new ResponseModel<Configuration[]>("queryConfigurations").withResponse([
+          build("security.password.min_length"),
+          build("security.cookie.max_age"),
+        ]),
+      );
+
+      const response = await supertest(app).get("/v1/configurations");
+
+      expect(
+        response.body.data.map((c: { key: string; isApplied: boolean }) => [
+          c.key,
+          c.isApplied,
+        ]),
+      ).toEqual([
+        ["security.password.min_length", true],
+        ["security.cookie.max_age", false],
+      ]);
     });
 
     it("should cover false branch when queryConfigurations returns no data", async () => {
