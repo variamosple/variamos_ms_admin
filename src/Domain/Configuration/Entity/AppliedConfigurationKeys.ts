@@ -1,0 +1,18 @@
+import {
+  PASSWORD_POLICY_KEYS,
+  PASSWORD_RESET_EXPIRY_KEY,
+} from "#src/Domain/User/Service/PasswordPolicyService.js";
+
+/**
+ * Keys that some code reads (EV-87 lot 1). The other keys are saved but have
+ * no effect yet; the configuration screen says so, so that an administrator
+ * does not believe a protection is on when it is not (T-20).
+ */
+export const APPLIED_CONFIGURATION_KEYS: ReadonlySet<string> = new Set([
+  "monitoring.health_check_interval_seconds",
+  ...Object.values(PASSWORD_POLICY_KEYS),
+  PASSWORD_RESET_EXPIRY_KEY,
+]);
+
+export const isConfigurationApplied = (key: string): boolean =>
+  APPLIED_CONFIGURATION_KEYS.has(key);

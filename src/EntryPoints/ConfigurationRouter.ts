@@ -2,6 +2,7 @@ import { hasPermissions } from "@variamosple/variamos-security";
 import { type Request, Router } from "express";
 import logger from "jet-logger";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import { isConfigurationApplied } from "#src/Domain/Configuration/Entity/AppliedConfigurationKeys.js";
 import type { ConfigurationUseCase } from "#src/Domain/Configuration/UseCase/ConfigurationUseCase.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -28,6 +29,8 @@ export interface ConfigurationResponseDto {
   isSecret: boolean;
   environmentScope: string;
   isReadOnly: boolean;
+  /** False when no code reads the key yet: changing it has no effect. */
+  isApplied: boolean;
   targetServices: string[];
   description?: string;
   updatedBy?: string;
@@ -264,6 +267,7 @@ export function createConfigurationRouter(
               isSecret: config.isSecret,
               environmentScope: config.environmentScope,
               isReadOnly: config.isReadOnly,
+              isApplied: isConfigurationApplied(config.key.getValue()),
               targetServices: config.targetServices,
               description: config.description,
               updatedBy: config.updatedBy,
@@ -329,6 +333,7 @@ export function createConfigurationRouter(
             isSecret: config.isSecret,
             environmentScope: config.environmentScope,
             isReadOnly: config.isReadOnly,
+            isApplied: isConfigurationApplied(config.key.getValue()),
             targetServices: config.targetServices,
             description: config.description,
             updatedBy: config.updatedBy,
