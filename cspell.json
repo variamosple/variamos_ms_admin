@@ -33,7 +33,22 @@
     "DATEONLY",
     "nosniff",
     "linklocal",
-    "uniquelocal"
+    "uniquelocal",
+    "umzug",
+    "bigserial",
+    "nextval",
+    "regclass",
+    "pkey",
+    "fkey",
+    "tablename",
+    "schemaname",
+    "conname",
+    "connamespace",
+    "conrelid",
+    "constraintdef",
+    "indexdef",
+    "regnamespace",
+    "relname"
   ],
   "ignorePaths": [
     "node_modules/**",
