@@ -122,6 +122,17 @@ docker network connect variamos <container-name>
 
 Replace `<container-name>` with the name of your PostgreSQL container.
 
+### Database schema and migrations
+
+The tables of this service (bugs, configurations, password reset tokens, microservice monitoring) are created by versioned migrations in `src/Infrastructure/database/Migrations/`, run with [umzug](https://github.com/sequelize/umzug) before the server starts and recorded in `admin_migrations`. The server does not start if `DB_SCHEMA` is empty or a migration fails. Shared tables (`user`, `role`, `permission`…) are not managed here and must already exist.
+
+To change the schema, add a migration and append it to `ADMIN_MIGRATIONS` in `Migrator.ts`. Never use `Model.sync()`. The migration tests need a disposable PostgreSQL:
+
+```shell
+docker run -d --rm -p 55432:5432 -e POSTGRES_PASSWORD=pg postgres:14-alpine
+MIGRATIONS_TEST_DATABASE_URL=postgres://postgres:pg@localhost:55432/postgres npm test
+```
+
 ---
 
 ## Code Quality & Testing

@@ -33,20 +33,18 @@ import {
   productionUserRoleUseCase,
   productionVisitUseCase,
 } from "./CompositionRoot.js";
-import { BugModel } from "./DataProviders/Bug/Bug.js";
-import { BugAttachmentModel } from "./DataProviders/Bug/BugAttachment.js";
-import { BugLogModel } from "./DataProviders/Bug/BugLog.js";
-import { ConfigurationModel } from "./DataProviders/Configuration/Configuration.js";
-import { MicroServiceAuditLogModel } from "./DataProviders/MicroService/MicroServiceAuditLogModel.js";
-import { MicroServiceDailyStatsModel } from "./DataProviders/MicroService/MicroServiceDailyStatsModel.js";
-import { MicroServiceHealthLogModel } from "./DataProviders/MicroService/MicroServiceHealthLogModel.js";
 import { RequestModel } from "./Domain/Core/Entity/RequestModel.js";
 import {
   attachContainerLogsWebSocket,
   CONTAINER_LOGS_PERMISSION,
 } from "./EntryPoints/ContainerLogsWebSocket.js";
 import { createBaseRouter } from "./EntryPoints/index.js";
+import {
+  runMigrations,
+  waitForDatabase,
+} from "./Infrastructure/database/Migrations/Migrator.js";
 import { HealthCheckCollector } from "./Infrastructure/Health/HealthCheckCollector.js";
+import VARIAMOS_ORM, { DB_SCHEMA } from "./Infrastructure/VariamosORM.js";
 import { createServer } from "./server.js";
 import "./DataProviders/Bug/BugAssociations.js";
 
@@ -126,41 +124,22 @@ ConfigEventPublisherInstance.addListener((config) => {
 
 const SERVER_START_MSG = `Express server started on port: ${EnvVars.Port.toString()}`;
 
+// The schema changes only through versioned migrations (T-07): no request is
+// served on a schema that failed to migrate
+try {
+  await waitForDatabase(VARIAMOS_ORM);
+  const applied = await runMigrations(VARIAMOS_ORM, DB_SCHEMA);
+  logger.info(`[MIGRATION] ${applied.length} migration(s) applied`);
+} catch (e) {
+  logger.err(
+    `[MIGRATION] Failed, the server does not start: ${(e as Error).message}`,
+  );
+  process.exit(1);
+}
+
 const server = app.listen(EnvVars.Port, async () => {
   initKeyStore().then();
   logger.info(SERVER_START_MSG);
-
-  // Each table is synced on its own: one failing sync must not prevent the
-  // health log table from being created, nor the health collector from starting.
-  const modelsToSync: Array<{ name: string; sync: () => Promise<unknown> }> = [
-    { name: "BugModel", sync: () => BugModel.sync() },
-    { name: "BugAttachmentModel", sync: () => BugAttachmentModel.sync() },
-    { name: "BugLogModel", sync: () => BugLogModel.sync() },
-    { name: "ConfigurationModel", sync: () => ConfigurationModel.sync() },
-    {
-      name: "MicroServiceHealthLogModel",
-      sync: () => MicroServiceHealthLogModel.sync(),
-    },
-    {
-      name: "MicroServiceDailyStatsModel",
-      sync: () => MicroServiceDailyStatsModel.sync(),
-    },
-    {
-      name: "MicroServiceAuditLogModel",
-      sync: () => MicroServiceAuditLogModel.sync(),
-    },
-  ];
-  logger.info("Synchronizing Database models...");
-  for (const model of modelsToSync) {
-    try {
-      await model.sync();
-    } catch (e) {
-      logger.err(
-        `Failed to synchronize table for ${model.name}: ${(e as Error).message}`,
-      );
-    }
-  }
-  logger.info("Database models synchronization finished.");
 
   try {
     // Check if monitoring.health_check_interval_seconds exists in DB config
@@ -178,7 +157,7 @@ const server = app.listen(EnvVars.Port, async () => {
       // Configuration key might not exist initially, fallback remains EnvVars
     }
 
-    // Start periodic HealthCheckCollector, even if some table sync failed above
+    // Start periodic HealthCheckCollector
     healthCheckCollectorInstance.start();
 
     // Purge expired rejected bugs (older than 7 days) on startup
