@@ -30,6 +30,10 @@ import { PermissionUseCase } from "./Domain/Permission/UseCase/PermissionUseCase
 import { RoleManagementUseCase } from "./Domain/Role/UseCase/RoleManagementUseCase.js";
 import { RolePermissionUseCase } from "./Domain/Role/UseCase/RolePermissionUseCase.js";
 import { RoleQueryUseCase } from "./Domain/Role/UseCase/RoleQueryUseCase.js";
+import {
+  AccountLockout,
+  AccountLockoutPolicyService,
+} from "./Domain/User/Service/AccountLockoutService.js";
 import { PasswordPolicyService } from "./Domain/User/Service/PasswordPolicyService.js";
 // User Use Cases
 import { UserAuthUseCase } from "./Domain/User/UseCase/UserAuthUseCase.js";
@@ -76,6 +80,11 @@ export const productionConfigurationUseCase = new ConfigurationUseCase(
 // security.password.* keys, read at each sign-up, change and reset
 export const PasswordPolicyServiceInstance = new PasswordPolicyService(
   ConfigurationRepositoryInstance,
+);
+
+// security.lockout.* keys, read at each sign-in
+export const AccountLockoutInstance = new AccountLockout(
+  new AccountLockoutPolicyService(ConfigurationRepositoryInstance),
 );
 
 export const productionUserAuthUseCase = new UserAuthUseCase(

@@ -1,8 +1,14 @@
-import type { Request, Response, Router } from "express";
+import type { Request, RequestHandler, Response, Router } from "express";
 import { ipKeyGenerator, type Options, rateLimit } from "express-rate-limit";
+import logger from "jet-logger";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import { maskEmail } from "#src/common/maskEmail.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import {
+  AccountLockout,
+  DEFAULT_ACCOUNT_LOCKOUT_POLICY_PROVIDER,
+} from "#src/Domain/User/Service/AccountLockoutService.js";
 import { AUTH_ROUTE } from "./AuthRouter.js";
 import { BUG_V1_ROUTE } from "./BugRouter.js";
 
@@ -12,10 +18,10 @@ const HOUR_MS = 60 * MINUTE_MS;
 /**
  * Limits of the public routes (EV-74 lot 5), in memory: the service runs as
  * a single instance. Sign-in counts failures only, so a user who signs in
- * is never slowed down.
+ * is never slowed down. The limit per account is the lockout of the
+ * security.lockout.* keys (AccountLockout).
  */
 export const RATE_LIMITS = {
-  signInPerAccount: { windowMs: 15 * MINUTE_MS, limit: 10 },
   signInPerAddress: { windowMs: 15 * MINUTE_MS, limit: 100 },
   forgotPasswordPerEmail: { windowMs: HOUR_MS, limit: 5 },
   forgotPasswordPerAddress: { windowMs: HOUR_MS, limit: 20 },
@@ -26,13 +32,29 @@ export const RATE_LIMITS = {
 
 const addressKey = (req: Request) => ipKeyGenerator(req.ip ?? "");
 
-/** The e-mail of the body, so that one account is limited from any address. */
-const emailKey = (req: Request) => {
+/** The e-mail of the body, trimmed and lowercased, or null when absent. */
+const bodyEmail = (req: Request): string | null => {
   const email = (req.body as { email?: unknown } | undefined)?.email;
   return typeof email === "string" && email.trim() !== ""
-    ? `email:${email.trim().toLowerCase()}`
-    : `address:${addressKey(req)}`;
+    ? email.trim().toLowerCase()
+    : null;
 };
+
+/** The e-mail of the body, so that one account is limited from any address. */
+const emailKey = (req: Request) => {
+  const email = bodyEmail(req);
+  return email ? `email:${email}` : `address:${addressKey(req)}`;
+};
+
+const tooManyAttempts = (transactionId: string, res: Response) =>
+  res
+    .status(HttpStatusCodes.TOO_MANY_REQUESTS)
+    .json(
+      new ResponseModel<void>(transactionId).withError(
+        DomainErrorCodes.TOO_MANY_REQUESTS,
+        "Too many attempts. Please try again later.",
+      ),
+    );
 
 function limiter(
   transactionId: string,
@@ -47,30 +69,60 @@ function limiter(
     standardHeaders: "draft-8",
     legacyHeaders: false,
     handler: (_req: Request, res: Response) => {
-      res
-        .status(HttpStatusCodes.TOO_MANY_REQUESTS)
-        .json(
-          new ResponseModel<void>(transactionId).withError(
-            DomainErrorCodes.TOO_MANY_REQUESTS,
-            "Too many attempts. Please try again later.",
-          ),
-        );
+      tooManyAttempts(transactionId, res);
     },
     ...options,
   });
 }
 
+/**
+ * Refuses a locked account before its password is checked, with the same
+ * answer as the other limits. A 4xx answer counts as a failure, a 2xx or
+ * 3xx clears the count; a 5xx or an unfinished answer is not counted.
+ */
+function accountLockoutGuard(lockout: AccountLockout): RequestHandler {
+  return async (req, res, next) => {
+    const email = bodyEmail(req);
+    if (!email) {
+      next();
+      return;
+    }
+    const admission = await lockout.admit(email);
+    if (admission.locked) {
+      res.set("Retry-After", String(Math.ceil(admission.retryAfterMs / 1000)));
+      tooManyAttempts("signIn", res);
+      return;
+    }
+    const { attempt } = admission;
+    res.on("close", () => {
+      if (!res.writableFinished || res.statusCode >= 500) {
+        attempt.abandoned();
+      } else if (res.statusCode < 400) {
+        attempt.succeeded();
+      } else {
+        const lock = attempt.failed();
+        if (lock) {
+          logger.warn(
+            `[LOCKOUT] ${maskEmail(email)} locked for ${lock.durationMinutes} min after ${lock.attempts} failed sign-ins`,
+          );
+        }
+      }
+    });
+    next();
+  };
+}
+
 /** Adds the limits in front of the routers; call before mounting them. */
-export function applyRateLimits(router: Router): void {
+export function applyRateLimits(
+  router: Router,
+  lockout = new AccountLockout(DEFAULT_ACCOUNT_LOCKOUT_POLICY_PROVIDER),
+): void {
   const countFailuresOnly = { skipSuccessfulRequests: true };
 
   router.post(
     `${AUTH_ROUTE}/sign-in`,
     limiter("signIn", RATE_LIMITS.signInPerAddress, countFailuresOnly),
-    limiter("signIn", RATE_LIMITS.signInPerAccount, {
-      ...countFailuresOnly,
-      keyGenerator: emailKey,
-    }),
+    accountLockoutGuard(lockout),
   );
   router.post(
     `${AUTH_ROUTE}/forgot-password`,

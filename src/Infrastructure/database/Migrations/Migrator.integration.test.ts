@@ -9,8 +9,16 @@ import { ConfigurationModel } from "#src/DataProviders/Configuration/Configurati
 import { MicroServiceAuditLogModel } from "#src/DataProviders/MicroService/MicroServiceAuditLogModel.js";
 import { MicroServiceDailyStatsModel } from "#src/DataProviders/MicroService/MicroServiceDailyStatsModel.js";
 import { MicroServiceHealthLogModel } from "#src/DataProviders/MicroService/MicroServiceHealthLogModel.js";
-import { BASELINE_TABLES } from "./0001-baseline.js";
-import { ADMIN_MIGRATIONS_TABLE, runMigrations } from "./Migrator.js";
+import { BASELINE_TABLES, baseline } from "./0001-baseline.js";
+import { ACCOUNT_LOCKOUT_ROWS } from "./0002-account-lockout-keys.js";
+import type { SchemaMigration } from "./MigrationContext.js";
+import {
+  ADMIN_MIGRATIONS,
+  ADMIN_MIGRATIONS_TABLE,
+  runMigrations,
+} from "./Migrator.js";
+
+const ALL_MIGRATIONS = ADMIN_MIGRATIONS.map((m) => m.name);
 
 // Needs a disposable PostgreSQL (production runs 14), for example:
 //   docker run -d --rm -p 55432:5432 -e POSTGRES_PASSWORD=pg postgres:14-alpine
@@ -46,10 +54,10 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
 
   // One connection per run, as in production: umzug keeps its storage model
   // on the connection, bound to the first schema it was given
-  const migrate = async (schema: string) => {
+  const migrate = async (schema: string, migrations?: SchemaMigration[]) => {
     const connection = new Sequelize(url as string, { logging: false });
     try {
-      return await runMigrations(connection, schema);
+      return await runMigrations(connection, schema, migrations);
     } finally {
       await connection.close();
     }
@@ -105,7 +113,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
   it("creates the module tables of an empty schema, then applies nothing", async () => {
     await createSchema("t07_fresh");
 
-    expect(await migrate("t07_fresh")).toEqual(["0001-baseline"]);
+    expect(await migrate("t07_fresh")).toEqual(ALL_MIGRATIONS);
     expect(await migrate("t07_fresh")).toEqual([]);
     expect(await tablesOf("t07_fresh")).toEqual(
       [
@@ -151,7 +159,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
       `INSERT INTO "t07_legacy"."configurations" ("key") VALUES ('security.password.min_length')`,
     );
 
-    await migrate("t07_legacy");
+    await migrate("t07_legacy", [baseline]);
 
     expect(await columnsOf("t07_legacy", "configurations")).toEqual([
       "id",
@@ -175,14 +183,62 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
     );
     const before = await structureOf("t07_prod");
 
-    expect(await migrate("t07_prod")).toEqual(["0001-baseline"]);
+    expect(await migrate("t07_prod")).toEqual(ALL_MIGRATIONS);
 
     expect(await structureOf("t07_prod")).toEqual(before);
     expect(
-      await sequelize.query(`SELECT "key" FROM "t07_prod"."configurations"`, {
-        type: QueryTypes.SELECT,
-      }),
-    ).toEqual([{ key: "security.password.min_length" }]);
+      await sequelize.query(
+        `SELECT "key", "value" FROM "t07_prod"."configurations" ORDER BY "key"`,
+        { type: QueryTypes.SELECT },
+      ),
+    ).toEqual([
+      { key: "security.lockout.duration_minutes", value: 15 },
+      { key: "security.lockout.max_attempts", value: 10 },
+      { key: "security.password.min_length", value: 12 },
+    ]);
+  });
+
+  it("adds the lockout keys without overwriting one an administrator set", async () => {
+    await sequelize.query(`DROP SCHEMA IF EXISTS "t07_keys" CASCADE`);
+    await sequelize.query(`CREATE SCHEMA "t07_keys"`);
+    await sequelize.query(productionSchema("t07_keys"));
+    await sequelize.query(
+      `INSERT INTO "t07_keys"."configurations" ("key", "value", "type", "category", "target_services", "updated_by", "created_at", "updated_at")
+       VALUES ('security.lockout.max_attempts', '5', 'number', 'security', '{variamos_ms_admin}', 'admin-1', now(), now())`,
+    );
+
+    await migrate("t07_keys");
+    await migrate("t07_keys");
+
+    const rows = await sequelize.query<{
+      key: string;
+      value: number;
+      updated_by: string;
+      target_services: string[];
+    }>(
+      `SELECT "key", "value", "updated_by", "target_services", "type", "category"
+         FROM "t07_keys"."configurations" ORDER BY "key"`,
+      { type: QueryTypes.SELECT },
+    );
+    expect(rows).toEqual([
+      {
+        key: "security.lockout.duration_minutes",
+        value: 15,
+        updated_by: "system_migration",
+        target_services: ["variamos_ms_admin"],
+        type: "number",
+        category: "security",
+      },
+      {
+        key: "security.lockout.max_attempts",
+        value: 5,
+        updated_by: "admin-1",
+        target_services: ["variamos_ms_admin"],
+        type: "number",
+        category: "security",
+      },
+    ]);
+    expect(rows).toHaveLength(ACCOUNT_LOCKOUT_ROWS.length);
   });
 
   it("gives a new database the same structure as production", async () => {

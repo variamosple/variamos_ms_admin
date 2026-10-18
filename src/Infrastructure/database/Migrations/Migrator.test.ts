@@ -1,6 +1,12 @@
 import type { Sequelize } from "sequelize";
 import { describe, expect, it, vi } from "vitest";
+import { AccountLockoutPolicy } from "#src/Domain/User/Entity/AccountLockoutPolicy.js";
+import { ACCOUNT_LOCKOUT_KEYS } from "#src/Domain/User/Service/AccountLockoutService.js";
 import { BASELINE_TABLES, baseline } from "./0001-baseline.js";
+import {
+  ACCOUNT_LOCKOUT_ROWS,
+  accountLockoutKeys,
+} from "./0002-account-lockout-keys.js";
 import {
   ADMIN_MIGRATIONS,
   createMigrator,
@@ -91,6 +97,45 @@ describe("baseline migration", () => {
   });
 });
 
+describe("account lockout keys migration", () => {
+  it("adds the keys the code reads, with its defaults", () => {
+    const { maxAttempts, durationMinutes } = AccountLockoutPolicy.DEFAULT;
+
+    expect(
+      ACCOUNT_LOCKOUT_ROWS.map(({ key, value }) => ({ key, value })),
+    ).toEqual([
+      { key: ACCOUNT_LOCKOUT_KEYS.maxAttempts, value: maxAttempts },
+      { key: ACCOUNT_LOCKOUT_KEYS.durationMinutes, value: durationMinutes },
+    ]);
+  });
+
+  it("never overwrites a key, in the configured schema", async () => {
+    const { sequelize, statements } = fakeSequelize([]);
+
+    await accountLockoutKeys.up({
+      name: accountLockoutKeys.name,
+      context: { sequelize, schema: "custom" },
+    });
+
+    expect(statements).toHaveLength(2);
+    for (const sql of statements) {
+      expect(sql).toContain('INSERT INTO "custom"."configurations"');
+      expect(sql).toContain('ON CONFLICT ("key") DO NOTHING');
+    }
+  });
+
+  it("refuses to be reverted", async () => {
+    const { sequelize } = fakeSequelize([]);
+
+    await expect(
+      accountLockoutKeys.down?.({
+        name: accountLockoutKeys.name,
+        context: { sequelize, schema: "custom" },
+      }),
+    ).rejects.toThrow("cannot be reverted");
+  });
+});
+
 describe("createMigrator", () => {
   it.each(["", "  "])("refuses an empty schema (%j)", (schema) => {
     const { sequelize } = fakeSequelize([]);
@@ -100,8 +145,11 @@ describe("createMigrator", () => {
     );
   });
 
-  it("lists the baseline first", () => {
-    expect(ADMIN_MIGRATIONS[0]?.name).toBe("0001-baseline");
+  it("lists the migrations in order, the baseline first", () => {
+    expect(ADMIN_MIGRATIONS.map((m) => m.name)).toEqual([
+      "0001-baseline",
+      "0002-account-lockout-keys",
+    ]);
   });
 });
 

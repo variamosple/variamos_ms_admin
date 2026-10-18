@@ -1,3 +1,4 @@
+import { ACCOUNT_LOCKOUT_KEYS } from "#src/Domain/User/Service/AccountLockoutService.js";
 import {
   PASSWORD_POLICY_KEYS,
   PASSWORD_RESET_EXPIRY_KEY,
@@ -12,6 +13,7 @@ export const APPLIED_CONFIGURATION_KEYS: ReadonlySet<string> = new Set([
   "monitoring.health_check_interval_seconds",
   ...Object.values(PASSWORD_POLICY_KEYS),
   PASSWORD_RESET_EXPIRY_KEY,
+  ...Object.values(ACCOUNT_LOCKOUT_KEYS),
 ]);
 
 export const isConfigurationApplied = (key: string): boolean =>

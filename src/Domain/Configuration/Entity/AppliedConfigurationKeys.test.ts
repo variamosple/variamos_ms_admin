@@ -8,6 +8,8 @@ describe("isConfigurationApplied", () => {
     "security.password.require_numbers",
     "security.password.require_special",
     "security.password.reset_expiry",
+    "security.lockout.max_attempts",
+    "security.lockout.duration_minutes",
   ])("%s is read by the code", (key) => {
     expect(isConfigurationApplied(key)).toBe(true);
   });
