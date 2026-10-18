@@ -53,6 +53,7 @@ import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
+import type { MfaSignInUseCase } from "#src/Domain/Mfa/UseCase/MfaSignInUseCase.js";
 import type { IGuestRoleRepository } from "#src/Domain/Role/Repository/IGuestRoleRepository.js";
 import { User } from "#src/Domain/User/Entity/User.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
@@ -64,6 +65,12 @@ import {
 } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
 import { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
 import { AUTH_ROUTE, createAuthRouter } from "./AuthRouter.js";
+
+/** Accounts of these tests have no second factor. */
+const noMfaSignIn = {
+  begin: async () => null,
+} as unknown as MfaSignInUseCase;
+
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
 // Errors must be logged as text built by describeError, never as full
@@ -169,6 +176,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         mockUserPasswordUseCase,
         mockUserManagementUseCase,
         mockUserQueryUseCase,
+        noMfaSignIn,
       ),
     );
   });
@@ -1539,6 +1547,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
           mockUserPasswordUseCase,
           mockUserManagementUseCase,
           mockUserQueryUseCase,
+          noMfaSignIn,
         ),
       );
 
@@ -2356,6 +2365,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
           mockUserPasswordUseCase,
           mockUserManagementUseCase,
           mockUserQueryUseCase,
+          noMfaSignIn,
         ),
       );
 
@@ -2441,6 +2451,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         mock<UserPasswordUseCase>(),
         mock<UserManagementUseCase>(),
         mock<UserQueryUseCase>(),
+        noMfaSignIn,
       );
 
       const calls = vi.mocked(hasPermissions).mock.calls;
@@ -2466,6 +2477,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
           mockUserPasswordUseCase,
           mockUserManagementUseCase,
           mockUserQueryUseCase,
+          noMfaSignIn,
         ),
       );
 

@@ -29,6 +29,7 @@ export const RATE_LIMITS = {
   guestSignInPerAddress: { windowMs: HOUR_MS, limit: 300 },
   bugReportPerAddress: { windowMs: HOUR_MS, limit: 20 },
   mfaFailuresPerAccount: { windowMs: 15 * MINUTE_MS, limit: 5 },
+  signInMfaPerAddress: { windowMs: 15 * MINUTE_MS, limit: 50 },
 } as const;
 
 const addressKey = (req: Request) => ipKeyGenerator(req.ip ?? "");
@@ -139,6 +140,11 @@ export function applyRateLimits(
     `${AUTH_ROUTE}/sign-in`,
     limiter("signIn", RATE_LIMITS.signInPerAddress, countFailuresOnly),
     accountLockoutGuard(lockout),
+  );
+  // The code after the password; limited per account in MfaSignInUseCase
+  router.post(
+    `${AUTH_ROUTE}/sign-in/mfa`,
+    limiter("signInMfa", RATE_LIMITS.signInMfaPerAddress, countFailuresOnly),
   );
   router.post(
     `${AUTH_ROUTE}/forgot-password`,

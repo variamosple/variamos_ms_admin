@@ -25,6 +25,8 @@ import { ConfigurationUseCase } from "./Domain/Configuration/UseCase/Configurati
 import { CountriesQueryUseCase } from "./Domain/Countries/UseCase/CountriesQueryUseCase.js";
 // Other Use Cases
 import { MetricsQueryUseCase } from "./Domain/Metrics/UseCase/MetricsQueryUseCase.js";
+import { PendingMfaSignIns } from "./Domain/Mfa/Service/PendingMfaSignIns.js";
+import { MfaSignInUseCase } from "./Domain/Mfa/UseCase/MfaSignInUseCase.js";
 import { UserMfaUseCase } from "./Domain/Mfa/UseCase/UserMfaUseCase.js";
 import { MicroServiceManagementUseCase } from "./Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
 import { MicroServiceQueryUseCase } from "./Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
@@ -125,10 +127,19 @@ if (!mfaEncryptionKey && EnvVars.Auth.APP.MFA_ENCRYPTION_KEY.trim()) {
     "[MFA] MFA_ENCRYPTION_KEY is not 32 bytes in base64: two-factor enrollment is unavailable",
   );
 }
+const userMfaRepository = new UserMfaRepositoryImpl(VARIAMOS_ORM, DB_SCHEMA);
+const mfaSecretCipher = new AesGcmSecretCipher(mfaEncryptionKey);
 export const productionUserMfaUseCase = new UserMfaUseCase(
-  new UserMfaRepositoryImpl(VARIAMOS_ORM, DB_SCHEMA),
+  userMfaRepository,
   UserRepositoryInstance,
-  new AesGcmSecretCipher(mfaEncryptionKey),
+  mfaSecretCipher,
+);
+// The code asked after the password, for accounts with a second factor
+export const productionMfaSignInUseCase = new MfaSignInUseCase(
+  userMfaRepository,
+  productionUserMfaUseCase,
+  mfaSecretCipher,
+  new PendingMfaSignIns(),
 );
 
 export const productionUserQueryUseCase = new UserQueryUseCase(

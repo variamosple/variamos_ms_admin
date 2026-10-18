@@ -22,6 +22,8 @@ import type { Nullable } from "#src/Domain/Core/Entity/Nullable.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { MFA_SIGN_IN_TTL_MS } from "#src/Domain/Mfa/Service/PendingMfaSignIns.js";
+import type { MfaSignInUseCase } from "#src/Domain/Mfa/UseCase/MfaSignInUseCase.js";
 import { Credentials } from "#src/Domain/User/Entity/Credentials.js";
 import { PasswordUpdate } from "#src/Domain/User/Entity/PasswordUpdate.js";
 import { PersonalInformationUpdate } from "#src/Domain/User/Entity/PersonalInformationUpdate.js";
@@ -37,11 +39,15 @@ import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
 export const AUTH_ROUTE = "/auth";
 
+/** Holds the opaque token of a sign-in waiting for the second factor. */
+export const MFA_PENDING_COOKIE = "mfaPending";
+
 export function createAuthRouter(
   userAuthUseCase: UserAuthUseCase,
   userPasswordUseCase: UserPasswordUseCase,
   userManagementUseCase: UserManagementUseCase,
   userQueryUseCase: UserQueryUseCase,
+  mfaSignIn: MfaSignInUseCase,
 ): Router {
   const authRouter = Router();
 
@@ -137,6 +143,33 @@ export function createAuthRouter(
     if (url && isExternalDomain(url.hostname)) {
       url.searchParams.set("authToken", token);
     }
+  };
+
+  const mfaPendingCookieOptions = (): CookieOptions => ({
+    ...getCookieOptions({ maxAge: false }),
+    maxAge: MFA_SIGN_IN_TTL_MS,
+  });
+
+  /** Creates the session cookie; gives the address to go to. */
+  const openSession = async (
+    transactionId: string,
+    req: Request,
+    res: Response,
+    sessionUser: SessionUser,
+  ): Promise<string> => {
+    const redirect = getRedirectUrl(transactionId, req, res);
+
+    const token = (await createJwt(
+      sessionUser,
+      redirect?.hostname || EnvVars.CookieProps.Options.domain,
+    )) as string;
+
+    res.cookie("authToken", token, getCookieOptions());
+    setRedirectAuthToken(redirect, token);
+
+    return redirect
+      ? redirect.toString()
+      : `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`;
   };
 
   authRouter.get("/session-info", async (req: Request, res) => {
@@ -328,22 +361,102 @@ export function createAuthRouter(
         permissions,
       };
 
-      const redirect = getRedirectUrl(transactionId, req, res);
-
-      const token = (await createJwt(
-        sessionUser,
-        redirect?.hostname || EnvVars.CookieProps.Options.domain,
-      )) as string;
-
-      res.cookie("authToken", token, getCookieOptions());
-      setRedirectAuthToken(redirect, token);
+      // With a second factor, no session until the code is right
+      const pendingToken = await mfaSignIn.begin(String(sessionUser.id));
+      if (pendingToken) {
+        res.cookie(MFA_PENDING_COOKIE, pendingToken, mfaPendingCookieOptions());
+        response.data = { mfaRequired: true };
+        return res.status(200).json(response);
+      }
 
       response.data = {
-        redirect: redirect
-          ? redirect.toString()
-          : `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`,
+        redirect: await openSession(transactionId, req, res, sessionUser),
       };
 
+      res.status(200).json(response);
+    } catch (err) {
+      logger.err(describeError(err));
+      res
+        .status(500)
+        .json(
+          new ResponseModel<void>(transactionId).withError(
+            DomainErrorCodes.SYSTEM_ERROR,
+            "Sign in error. Please try again later.",
+          ),
+        );
+    }
+  });
+
+  authRouter.post("/sign-in/mfa", async (req, res) => {
+    const transactionId = "signInMfa";
+    const response = new ResponseModel<SingInResponse>(transactionId);
+    const pendingToken = req.cookies?.[MFA_PENDING_COOKIE] as
+      | string
+      | undefined;
+    const { code } = (req.body || {}) as Record<string, unknown>;
+    const clearPending = () =>
+      res.clearCookie(MFA_PENDING_COOKIE, getCookieOptions({ maxAge: false }));
+
+    if (typeof code !== "string" || !code.trim() || code.length > 32) {
+      return res
+        .status(HttpStatusCodes.BAD_REQUEST)
+        .json(
+          response.withError(
+            DomainErrorCodes.INVALID_INPUT,
+            "The code is required.",
+          ),
+        );
+    }
+
+    try {
+      const checked = await mfaSignIn.complete(
+        transactionId,
+        pendingToken ?? "",
+        code,
+      );
+      if (checked.errorCode || !checked.data) {
+        if (checked.errorCode !== DomainErrorCodes.INVALID_INPUT) {
+          clearPending();
+        }
+        return res
+          .status(mapDomainErrorToHttpStatus(checked.errorCode))
+          .json(checked);
+      }
+
+      // Read again: the account may have been disabled since the password
+      const found = await userQueryUseCase.sessionUser(
+        new RequestModel<string>(transactionId, checked.data),
+      );
+      clearPending();
+      if (found.errorCode || !found.data) {
+        return res
+          .status(HttpStatusCodes.UNAUTHORIZED)
+          .json(
+            response.withError(
+              DomainErrorCodes.UNAUTHORIZED_ACCESS,
+              "Your sign-in has expired, please sign in again.",
+            ),
+          );
+      }
+
+      const {
+        id,
+        name,
+        user: username,
+        email,
+        roles,
+        permissions,
+      } = found.data;
+      response.data = {
+        redirect: await openSession(transactionId, req, res, {
+          id: id || "",
+          name,
+          email,
+          user: username,
+          roles,
+          permissions,
+        }),
+      };
       res.status(200).json(response);
     } catch (err) {
       logger.err(describeError(err));
@@ -502,6 +615,15 @@ export function createAuthRouter(
         roles,
         permissions,
       };
+
+      const pendingToken = await mfaSignIn.begin(String(sessionUser.id));
+      if (pendingToken) {
+        res.cookie(MFA_PENDING_COOKIE, pendingToken, mfaPendingCookieOptions());
+        return res.redirect(
+          302,
+          `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?mfa=required`,
+        );
+      }
 
       const redirect = getRedirectUrl(transactionId, req, res, false);
       const token = (await createJwt(
