@@ -11,6 +11,7 @@ import { MicroServiceDailyStatsModel } from "#src/DataProviders/MicroService/Mic
 import { MicroServiceHealthLogModel } from "#src/DataProviders/MicroService/MicroServiceHealthLogModel.js";
 import { BASELINE_TABLES, baseline } from "./0001-baseline.js";
 import { ACCOUNT_LOCKOUT_ROWS } from "./0002-account-lockout-keys.js";
+import { USER_MFA_TABLES } from "./0003-user-mfa.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 import {
   ADMIN_MIGRATIONS,
@@ -64,10 +65,10 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
   };
 
   // Columns, constraints and indexes, with the schema name left out
-  const structureOf = async (schema: string) => {
+  const structureOf = async (schema: string, leftOut: string[] = []) => {
     const select = (sql: string) =>
       sequelize.query(sql, {
-        replacements: { schema, ignored: ADMIN_MIGRATIONS_TABLE },
+        replacements: { schema, ignored: [ADMIN_MIGRATIONS_TABLE, ...leftOut] },
         type: QueryTypes.SELECT,
       });
     const structure = {
@@ -75,18 +76,18 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         `SELECT table_name, column_name, data_type, udt_name, character_maximum_length,
                 numeric_precision, is_nullable, column_default
            FROM information_schema.columns
-          WHERE table_schema = :schema AND table_name <> :ignored
+          WHERE table_schema = :schema AND table_name NOT IN (:ignored)
           ORDER BY table_name, column_name`,
       ),
       constraints: await select(
         `SELECT c.relname AS on_table, k.conname, pg_get_constraintdef(k.oid) AS def
            FROM pg_constraint k JOIN pg_class c ON c.oid = k.conrelid
-          WHERE k.connamespace = :schema::regnamespace AND c.relname <> :ignored
+          WHERE k.connamespace = :schema::regnamespace AND c.relname NOT IN (:ignored)
           ORDER BY k.conname`,
       ),
       indexes: await select(
         `SELECT indexname, indexdef FROM pg_indexes
-          WHERE schemaname = :schema AND tablename <> :ignored ORDER BY indexname`,
+          WHERE schemaname = :schema AND tablename NOT IN (:ignored) ORDER BY indexname`,
       ),
     };
     return JSON.parse(JSON.stringify(structure).replaceAll(`${schema}.`, ""));
@@ -120,6 +121,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         ADMIN_MIGRATIONS_TABLE,
         "user",
         ...BASELINE_TABLES.map((t) => t.name),
+        ...USER_MFA_TABLES,
       ].sort(),
     );
   });
@@ -185,7 +187,8 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
 
     expect(await migrate("t07_prod")).toEqual(ALL_MIGRATIONS);
 
-    expect(await structureOf("t07_prod")).toEqual(before);
+    // The tables added after the baseline are new; the others are unchanged
+    expect(await structureOf("t07_prod", USER_MFA_TABLES)).toEqual(before);
     expect(
       await sequelize.query(
         `SELECT "key", "value" FROM "t07_prod"."configurations" ORDER BY "key"`,
@@ -265,5 +268,39 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
   it("does not run against a missing schema", async () => {
     await expect(migrate("t07_absent")).rejects.toThrow();
     expect(await tablesOf("public")).not.toContain(ADMIN_MIGRATIONS_TABLE);
+  });
+
+  it("keeps one second factor per user, dropped with the user", async () => {
+    await sequelize.query(
+      `INSERT INTO "t07_fresh"."user" ("id") VALUES ('u-1'), ('u-2')`,
+    );
+    await sequelize.query(
+      `INSERT INTO "t07_fresh"."user_mfa" ("user_id", "secret_encrypted") VALUES ('u-1', 'v1:x')`,
+    );
+    await sequelize.query(
+      `INSERT INTO "t07_fresh"."user_mfa_recovery_code" ("user_id", "code_hash") VALUES ('u-1', 'h1'), ('u-1', 'h2'), ('u-2', 'h1')`,
+    );
+
+    await expect(
+      sequelize.query(
+        `INSERT INTO "t07_fresh"."user_mfa" ("user_id", "secret_encrypted") VALUES ('u-1', 'v1:y')`,
+      ),
+    ).rejects.toThrow();
+    await expect(
+      sequelize.query(
+        `INSERT INTO "t07_fresh"."user_mfa_recovery_code" ("user_id", "code_hash") VALUES ('u-1', 'h1')`,
+      ),
+    ).rejects.toThrow();
+
+    await sequelize.query(`DELETE FROM "t07_fresh"."user" WHERE "id" = 'u-1'`);
+
+    expect(
+      await sequelize.query(
+        `SELECT
+           (SELECT count(*)::int FROM "t07_fresh"."user_mfa") AS factors,
+           (SELECT count(*)::int FROM "t07_fresh"."user_mfa_recovery_code") AS codes`,
+        { type: QueryTypes.SELECT },
+      ),
+    ).toEqual([{ factors: 0, codes: 1 }]);
   });
 });

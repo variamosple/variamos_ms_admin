@@ -1,9 +1,11 @@
+import logger from "jet-logger";
 import EnvVars from "#src/common/EnvVars.js";
 import { AccessHierarchyRepositoryImpl } from "./DataProviders/AccessControl/AccessHierarchyRepository.js";
 import { BugRepositoryImpl } from "./DataProviders/Bug/BugRepository.js";
 import { ConfigurationRepositoryImpl } from "./DataProviders/Configuration/ConfigurationRepository.js";
 import { CountriesRepositoryImpl } from "./DataProviders/Countries/CountriesRepository.js";
 import { MetricsRepositoryImpl } from "./DataProviders/Metrics/MetricsRepository.js";
+import { UserMfaRepositoryImpl } from "./DataProviders/Mfa/UserMfaRepository.js";
 import { MicroServiceRepositoryImpl } from "./DataProviders/MicroService/MicroServiceRepository.js";
 import { PermissionRepositoryImpl } from "./DataProviders/Permission/PermissionRepository.js";
 import { RolePermissionRepositoryImpl } from "./DataProviders/Role/RolePermissionRepository.js";
@@ -23,6 +25,7 @@ import { ConfigurationUseCase } from "./Domain/Configuration/UseCase/Configurati
 import { CountriesQueryUseCase } from "./Domain/Countries/UseCase/CountriesQueryUseCase.js";
 // Other Use Cases
 import { MetricsQueryUseCase } from "./Domain/Metrics/UseCase/MetricsQueryUseCase.js";
+import { UserMfaUseCase } from "./Domain/Mfa/UseCase/UserMfaUseCase.js";
 import { MicroServiceManagementUseCase } from "./Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
 import { MicroServiceQueryUseCase } from "./Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
 // Permission & Role Use Cases
@@ -45,8 +48,13 @@ import { VisitUseCase } from "./Domain/Visit/UseCase/VisitUseCase.js";
 import { GitHubIssuesServiceInstance } from "./Infrastructure/GitHub/GitHubIssuesService.js";
 import { MailServiceInstance } from "./Infrastructure/Mail/MailService.js";
 import { ConfigEventPublisherImpl } from "./Infrastructure/Messaging/ConfigEventPublisher.js";
+import {
+  AesGcmSecretCipher,
+  parseEncryptionKey,
+} from "./Infrastructure/Mfa/AesGcmSecretCipher.js";
 import { NotificationAccessTokenIssuer } from "./Infrastructure/Notification/NotificationAccessTokenIssuer.js";
 import { DiskStorageServiceInstance } from "./Infrastructure/Storage/DiskStorageService.js";
+import VARIAMOS_ORM, { DB_SCHEMA } from "./Infrastructure/VariamosORM.js";
 
 // Repositories
 export const UserRepositoryInstance = new UserRepositoryImpl({
@@ -106,6 +114,21 @@ export const productionUserPasswordUseCase = new UserPasswordUseCase(
 export const productionUserManagementUseCase = new UserManagementUseCase(
   UserRepositoryInstance,
   PasswordPolicyServiceInstance,
+);
+
+// Two-factor authentication (SPC-2026-10-17-001); off without a valid key
+const mfaEncryptionKey = parseEncryptionKey(
+  EnvVars.Auth.APP.MFA_ENCRYPTION_KEY,
+);
+if (!mfaEncryptionKey && EnvVars.Auth.APP.MFA_ENCRYPTION_KEY.trim()) {
+  logger.warn(
+    "[MFA] MFA_ENCRYPTION_KEY is not 32 bytes in base64: two-factor enrollment is unavailable",
+  );
+}
+export const productionUserMfaUseCase = new UserMfaUseCase(
+  new UserMfaRepositoryImpl(VARIAMOS_ORM, DB_SCHEMA),
+  UserRepositoryInstance,
+  new AesGcmSecretCipher(mfaEncryptionKey),
 );
 
 export const productionUserQueryUseCase = new UserQueryUseCase(

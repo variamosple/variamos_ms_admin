@@ -149,6 +149,7 @@ describe("createMigrator", () => {
     expect(ADMIN_MIGRATIONS.map((m) => m.name)).toEqual([
       "0001-baseline",
       "0002-account-lockout-keys",
+      "0003-user-mfa",
     ]);
   });
 });

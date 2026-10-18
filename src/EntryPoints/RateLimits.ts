@@ -28,6 +28,7 @@ export const RATE_LIMITS = {
   resetPasswordPerAddress: { windowMs: HOUR_MS, limit: 20 },
   guestSignInPerAddress: { windowMs: HOUR_MS, limit: 300 },
   bugReportPerAddress: { windowMs: HOUR_MS, limit: 20 },
+  mfaFailuresPerAccount: { windowMs: 15 * MINUTE_MS, limit: 5 },
 } as const;
 
 const addressKey = (req: Request) => ipKeyGenerator(req.ip ?? "");
@@ -110,6 +111,21 @@ function accountLockoutGuard(lockout: AccountLockout): RequestHandler {
     });
     next();
   };
+}
+
+/**
+ * Wrong passwords and codes on the two-factor routes, per signed-in account
+ * (SPC-2026-10-17-001). Place it after the session check; one instance
+ * shared by the routes keeps one count.
+ */
+export function mfaFailureLimiter(): RequestHandler {
+  return limiter("mfa", RATE_LIMITS.mfaFailuresPerAccount, {
+    skipSuccessfulRequests: true,
+    keyGenerator: (req: Request) => {
+      const id = (req.user as { id?: unknown } | null | undefined)?.id;
+      return id ? `user:${String(id)}` : `address:${addressKey(req)}`;
+    },
+  });
 }
 
 /** Adds the limits in front of the routers; call before mounting them. */

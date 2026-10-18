@@ -21,6 +21,9 @@ describe("errorMapper Unit Tests", () => {
     expect(mapDomainErrorToHttpStatus(DomainErrorCodes.SYSTEM_ERROR)).toBe(
       HttpStatusCodes.INTERNAL_SERVER_ERROR,
     );
+    expect(mapDomainErrorToHttpStatus(DomainErrorCodes.UNAVAILABLE)).toBe(
+      HttpStatusCodes.SERVICE_UNAVAILABLE,
+    );
   });
 
   it("should return the errorCode if it is a number in default case", () => {

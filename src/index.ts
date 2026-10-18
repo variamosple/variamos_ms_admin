@@ -29,6 +29,7 @@ import {
   productionRoleQueryUseCase,
   productionUserAuthUseCase,
   productionUserManagementUseCase,
+  productionUserMfaUseCase,
   productionUserPasswordUseCase,
   productionUserQueryUseCase,
   productionUserRoleUseCase,
@@ -104,6 +105,7 @@ const baseRouter = createBaseRouter(
   productionNotificationAccessTokenIssuer,
   productionAccessHierarchyUseCase,
   AccountLockoutInstance,
+  productionUserMfaUseCase,
 );
 
 const app = createServer(baseRouter);

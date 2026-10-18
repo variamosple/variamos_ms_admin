@@ -12,6 +12,7 @@ import type { ConfigurationUseCase } from "#src/Domain/Configuration/UseCase/Con
 import type { CountriesQueryUseCase } from "#src/Domain/Countries/UseCase/CountriesQueryUseCase.js";
 // Other Use Cases
 import type { MetricsQueryUseCase } from "#src/Domain/Metrics/UseCase/MetricsQueryUseCase.js";
+import type { UserMfaUseCase } from "#src/Domain/Mfa/UseCase/UserMfaUseCase.js";
 import type { MicroServiceManagementUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
 import type { MicroServiceQueryUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
 import type { INotificationAccessTokenIssuer } from "#src/Domain/Notification/INotificationAccessTokenIssuer.js";
@@ -47,6 +48,7 @@ import {
 } from "./CountriesV1Router.js";
 import { createHealthRouter } from "./HealthRouter.js";
 import { createMetricsRouter, METRICS_V1_ROUTE } from "./MetricsV1Router.js";
+import { createMfaRouter, MFA_ROUTE } from "./MfaRouter.js";
 import {
   createMicroServicesRouter,
   MICRO_SERVICES_V1_ROUTE,
@@ -108,6 +110,7 @@ export function createBaseRouter(
   notificationAccessTokenIssuer: INotificationAccessTokenIssuer,
   accessGuard: AccessGuard,
   accountLockout: AccountLockout,
+  mfaUseCase: UserMfaUseCase,
 ): Router {
   const baseRouter = Router();
 
@@ -163,6 +166,7 @@ export function createBaseRouter(
   );
 
   applyRateLimits(baseRouter, accountLockout);
+  baseRouter.use(MFA_ROUTE, createMfaRouter(mfaUseCase));
   baseRouter.use(AUTH_ROUTE, authRouter);
   baseRouter.use(CONFIGURATION_V1_ROUTE, configurationV1Router);
   baseRouter.use(USERS_V1_ROUTE, usersV1Router);
