@@ -20,6 +20,7 @@ import type { PermissionUseCase } from "#src/Domain/Permission/UseCase/Permissio
 import type { RoleManagementUseCase } from "#src/Domain/Role/UseCase/RoleManagementUseCase.js";
 import type { RolePermissionUseCase } from "#src/Domain/Role/UseCase/RolePermissionUseCase.js";
 import type { RoleQueryUseCase } from "#src/Domain/Role/UseCase/RoleQueryUseCase.js";
+import type { AccountLockout } from "#src/Domain/User/Service/AccountLockoutService.js";
 import type { UserAuthUseCase } from "#src/Domain/User/UseCase/UserAuthUseCase.js";
 import type { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
 import type { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
@@ -106,6 +107,7 @@ export function createBaseRouter(
   upload: MulterUpload,
   notificationAccessTokenIssuer: INotificationAccessTokenIssuer,
   accessGuard: AccessGuard,
+  accountLockout: AccountLockout,
 ): Router {
   const baseRouter = Router();
 
@@ -160,7 +162,7 @@ export function createBaseRouter(
     isAuthenticated,
   );
 
-  applyRateLimits(baseRouter);
+  applyRateLimits(baseRouter, accountLockout);
   baseRouter.use(AUTH_ROUTE, authRouter);
   baseRouter.use(CONFIGURATION_V1_ROUTE, configurationV1Router);
   baseRouter.use(USERS_V1_ROUTE, usersV1Router);

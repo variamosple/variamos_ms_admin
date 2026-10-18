@@ -1,14 +1,19 @@
 import express, { Router } from "express";
+import logger from "jet-logger";
 import supertest from "supertest";
+import { AccountLockoutPolicy } from "#src/Domain/User/Entity/AccountLockoutPolicy.js";
+import { AccountLockout } from "#src/Domain/User/Service/AccountLockoutService.js";
 import { applyRateLimits, RATE_LIMITS } from "./RateLimits.js";
 
+const MAX_ATTEMPTS = AccountLockoutPolicy.DEFAULT.maxAttempts;
+
 /** The app answers each route with the status chosen by the test. */
-function createApp(status: { value: number }) {
+function createApp(status: { value: number }, lockout?: AccountLockout) {
   const app = express();
   app.set("trust proxy", "loopback, linklocal, uniquelocal");
   app.use(express.json());
   const router = Router();
-  applyRateLimits(router);
+  applyRateLimits(router, lockout);
   router.post(/.*/, (_req, res) => {
     res.status(status.value).json({});
   });
@@ -35,8 +40,7 @@ async function send(
 describe("rate limits", () => {
   it("refuses sign-in failures beyond the account limit, from any address", async () => {
     const app = createApp({ value: 400 });
-    const { limit } = RATE_LIMITS.signInPerAccount;
-    for (let i = 0; i < limit; i++) {
+    for (let i = 0; i < MAX_ATTEMPTS; i++) {
       await send(
         app,
         "/auth/sign-in",
@@ -71,12 +75,9 @@ describe("rate limits", () => {
   it("does not count successful sign-ins", async () => {
     const app = createApp({ value: 200 });
 
-    const last = await send(
-      app,
-      "/auth/sign-in",
-      RATE_LIMITS.signInPerAccount.limit + 5,
-      { email: "ana@example.com" },
-    );
+    const last = await send(app, "/auth/sign-in", MAX_ATTEMPTS + 5, {
+      email: "ana@example.com",
+    });
 
     expect(last.status).toBe(200);
   });
@@ -149,5 +150,87 @@ describe("rate limits", () => {
     const app = createApp({ value: 200 });
 
     expect((await send(app, "/auth/logout", 50)).status).toBe(200);
+  });
+
+  describe("account lockout", () => {
+    const signIn = (app: express.Express, email = "ana@example.com") =>
+      send(app, "/auth/sign-in", 1, { email, password: "x" });
+
+    const lockoutOf = (maxAttempts: number, durationMinutes: number) =>
+      new AccountLockout({
+        getPolicy: async () =>
+          AccountLockoutPolicy.fromConfiguration({
+            maxAttempts,
+            durationMinutes,
+          }),
+      });
+
+    beforeEach(() => {
+      vi.spyOn(logger, "warn").mockImplementation(() => {});
+    });
+    afterEach(() => vi.restoreAllMocks());
+
+    it("follows the configured attempts and duration", async () => {
+      const status = { value: 401 };
+      const app = createApp(status, lockoutOf(3, 20));
+      for (let i = 0; i < 3; i++) {
+        expect((await signIn(app)).status).toBe(401);
+      }
+
+      const refused = await signIn(app);
+
+      expect(refused.status).toBe(429);
+      expect(Number(refused.headers["retry-after"])).toBeGreaterThan(19 * 60);
+      expect(Number(refused.headers["retry-after"])).toBeLessThanOrEqual(
+        20 * 60,
+      );
+    });
+
+    it("refuses a locked account even with the right password", async () => {
+      const status = { value: 401 };
+      const app = createApp(status, lockoutOf(3, 15));
+      for (let i = 0; i < 3; i++) await signIn(app);
+
+      status.value = 200;
+
+      expect((await signIn(app)).status).toBe(429);
+    });
+
+    it("clears the count after a successful sign-in", async () => {
+      const status = { value: 401 };
+      const app = createApp(status, lockoutOf(3, 15));
+      await signIn(app);
+      await signIn(app);
+      status.value = 200;
+      await signIn(app);
+      status.value = 401;
+
+      await signIn(app);
+      await signIn(app);
+
+      expect((await signIn(app)).status).toBe(401);
+      expect((await signIn(app)).status).toBe(429);
+    });
+
+    it("does not count server errors", async () => {
+      const status = { value: 500 };
+      const app = createApp(status, lockoutOf(3, 15));
+      for (let i = 0; i < 5; i++) await signIn(app);
+
+      status.value = 401;
+
+      expect((await signIn(app)).status).toBe(401);
+    });
+
+    it("logs the lock without the address in clear", async () => {
+      const app = createApp({ value: 401 }, lockoutOf(3, 15));
+      for (let i = 0; i < 3; i++) await signIn(app, "ana@example.com");
+
+      const logged = vi.mocked(logger.warn).mock.calls.flat().join("\n");
+      expect(logged).toContain(
+        "[LOCKOUT] a***@example.com locked for 15 min after 3 failed sign-ins",
+      );
+      expect(logged).not.toContain("ana@example.com");
+    });
   });
 });

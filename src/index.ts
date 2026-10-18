@@ -8,6 +8,7 @@ import {
 } from "@variamosple/variamos-security";
 import EnvVars from "#src/common/EnvVars.js";
 import {
+  AccountLockoutInstance,
   ConfigEventPublisherInstance,
   MicroServiceRepositoryInstance,
   productionAccessHierarchyUseCase,
@@ -102,6 +103,7 @@ const baseRouter = createBaseRouter(
   productionUpload,
   productionNotificationAccessTokenIssuer,
   productionAccessHierarchyUseCase,
+  AccountLockoutInstance,
 );
 
 const app = createServer(baseRouter);
