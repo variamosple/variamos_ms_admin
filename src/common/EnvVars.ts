@@ -46,6 +46,8 @@ export default {
         process.env.PASSWORD_RESET_EXPIRY_IN_MS ?? 60 * 60 * 1000,
       ),
       BCRYPT_SALT_ROUNDS: Number(process.env.BCRYPT_SALT_ROUNDS ?? 10),
+      // 32 bytes in base64; empty, two-factor enrollment is unavailable
+      MFA_ENCRYPTION_KEY: process.env.MFA_ENCRYPTION_KEY ?? "",
     },
   },
   DOCKER: {

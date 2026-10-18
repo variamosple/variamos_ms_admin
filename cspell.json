@@ -48,7 +48,10 @@
     "constraintdef",
     "indexdef",
     "regnamespace",
-    "relname"
+    "relname",
+    "totp",
+    "otpauth",
+    "ciphertext"
   ],
   "ignorePaths": [
     "node_modules/**",

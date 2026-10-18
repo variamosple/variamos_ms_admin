@@ -23,6 +23,8 @@ export function mapDomainErrorToHttpStatus(
       return HttpStatusCodes.CONFLICT;
     case DomainErrorCodes.MFA_REQUIRED:
       return HttpStatusCodes.FORBIDDEN;
+    case DomainErrorCodes.UNAVAILABLE:
+      return HttpStatusCodes.SERVICE_UNAVAILABLE;
     default: {
       if (typeof errorCode === "number") return errorCode;
       const parsed = Number(errorCode);

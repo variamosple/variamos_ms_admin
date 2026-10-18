@@ -31,6 +31,8 @@ export interface IUserRepository {
   ): Promise<ResponseModel<void>>;
   userExists(request: RequestModel<string>): Promise<ResponseModel<boolean>>;
   getUserByEmail(email: string): Promise<User | null>;
+  /** False for a wrong password, and for an unknown or disabled account. */
+  verifyPassword(userId: string, password: string): Promise<boolean>;
   savePasswordResetToken(
     userId: string,
     tokenHash: string,

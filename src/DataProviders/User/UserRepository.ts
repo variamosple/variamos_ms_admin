@@ -666,6 +666,21 @@ export class UserRepositoryImpl
     return response;
   }
 
+  /** Same cost whatever the account, as at sign-in. */
+  public async verifyPassword(
+    userId: string,
+    password: string,
+  ): Promise<boolean> {
+    const dbUser = await UserModel.findOne({ where: { id: userId } });
+    const canSignIn =
+      !!dbUser?.password && dbUser.isEnabled && !dbUser.isDeleted;
+    const passwordMatch = await bcrypt.compare(
+      password,
+      canSignIn ? (dbUser.password as string) : await this.dummyHash(),
+    );
+    return canSignIn === true && passwordMatch;
+  }
+
   public async getUserByEmail(email: string): Promise<User | null> {
     try {
       const dbUser = await UserModel.findOne({
