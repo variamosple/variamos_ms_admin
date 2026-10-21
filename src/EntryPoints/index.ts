@@ -12,6 +12,7 @@ import type { ConfigurationUseCase } from "#src/Domain/Configuration/UseCase/Con
 import type { CountriesQueryUseCase } from "#src/Domain/Countries/UseCase/CountriesQueryUseCase.js";
 // Other Use Cases
 import type { MetricsQueryUseCase } from "#src/Domain/Metrics/UseCase/MetricsQueryUseCase.js";
+import type { MfaSignInUseCase } from "#src/Domain/Mfa/UseCase/MfaSignInUseCase.js";
 import type { UserMfaUseCase } from "#src/Domain/Mfa/UseCase/UserMfaUseCase.js";
 import type { MicroServiceManagementUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
 import type { MicroServiceQueryUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
@@ -111,6 +112,7 @@ export function createBaseRouter(
   accessGuard: AccessGuard,
   accountLockout: AccountLockout,
   mfaUseCase: UserMfaUseCase,
+  mfaSignIn: MfaSignInUseCase,
 ): Router {
   const baseRouter = Router();
 
@@ -119,6 +121,7 @@ export function createBaseRouter(
     usersUseCases.password,
     usersUseCases.management,
     usersUseCases.query,
+    mfaSignIn,
   );
   const configurationV1Router = createConfigurationRouter(configurationUseCase);
   const userRolesRouter = createUserRolesRouter(
