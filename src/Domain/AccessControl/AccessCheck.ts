@@ -12,6 +12,7 @@ export type AccessCheck =
         | "disable-account"
         | "enable-account"
         | "delete-account"
-        | "recovery-link";
+        | "recovery-link"
+        | "reset-mfa";
       userId: string;
     };

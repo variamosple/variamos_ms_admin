@@ -90,6 +90,9 @@ describe("AccessHierarchyUseCase", () => {
       await expect(
         authorize("admin", { kind: "recovery-link", userId: "admin2" }),
       ).resolves.toBeUndefined();
+      await expect(
+        authorize("admin", { kind: "reset-mfa", userId: "admin2" }),
+      ).resolves.toBeUndefined();
     });
 
     it("add any permission to a role, a new one included", async () => {
@@ -130,6 +133,9 @@ describe("AccessHierarchyUseCase", () => {
     it("cannot act on an account above them", async () => {
       await expect(
         authorize("manager", { kind: "recovery-link", userId: "admin" }),
+      ).resolves.toBe(FORBIDDEN);
+      await expect(
+        authorize("manager", { kind: "reset-mfa", userId: "admin" }),
       ).resolves.toBe(FORBIDDEN);
       await expect(
         authorize("manager", { kind: "disable-account", userId: "director" }),
@@ -177,14 +183,15 @@ describe("AccessHierarchyUseCase", () => {
       },
     );
 
-    it.each<AccessCheck["kind"]>(["disable-account", "delete-account"])(
-      "%s on oneself is refused",
-      async (kind) => {
-        await expect(
-          authorize("admin", { kind, userId: "admin" } as AccessCheck),
-        ).resolves.toBe(FORBIDDEN);
-      },
-    );
+    it.each<AccessCheck["kind"]>([
+      "disable-account",
+      "delete-account",
+      "reset-mfa",
+    ])("%s on oneself is refused", async (kind) => {
+      await expect(
+        authorize("admin", { kind, userId: "admin" } as AccessCheck),
+      ).resolves.toBe(FORBIDDEN);
+    });
   });
 
   describe("last active top account", () => {

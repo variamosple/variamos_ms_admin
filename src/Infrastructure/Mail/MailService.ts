@@ -15,6 +15,46 @@ export function describeDuration(ms: number): string {
   return minutes === 1 ? "1 minute" : `${minutes} minutes`;
 }
 
+/** The VariaMos frame of every e-mail: logo, signature and footer. */
+function renderMail(content: string): string {
+  const logoUrl =
+    "https://app.variamos.com/variamos_admin/images/VariaMosLogo.png";
+  return `
+      <div style="background-color: #f8f9fa; padding: 40px 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333;">
+        <div style="max-width: 550px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #e9ecef;">
+          
+          <!-- Header (Logo / Title) -->
+          <div style="background-color: #ffffff; padding: 30px; text-align: center; border-bottom: 1px solid #e9ecef;">
+            <img src="${logoUrl}" alt="VariaMos Logo" style="max-height: 45px; display: block; margin: 0 auto;" />
+            <p style="color: #6c757d; margin: 8px 0 0 0; font-size: 13px; font-weight: 500; letter-spacing: 0.5px;">Platform Admin Panel</p>
+          </div>
+
+          <!-- Main content -->
+          <div style="padding: 40px 30px;">
+${content}            <hr style="border: 0; border-top: 1px solid #e9ecef; margin: 30px 0;" />
+
+            <!-- Signature -->
+            <p style="font-size: 15px; line-height: 1.6; color: #495057; margin-bottom: 0;">
+              Best regards,<br />
+              <strong>The VariaMos Team</strong>
+            </p>
+          </div>
+
+          <!-- Footer -->
+          <div style="background-color: #f1f3f5; padding: 20px; text-align: center; border-top: 1px solid #e9ecef;">
+            <p style="font-size: 12px; color: #868e96; margin: 0;">
+              This is an automated email, please do not reply directly.
+            </p>
+            <p style="font-size: 12px; color: #868e96; margin: 5px 0 0 0;">
+              &copy; ${new Date().getFullYear()} VariaMos Project. All rights reserved.
+            </p>
+          </div>
+
+        </div>
+      </div>
+    `;
+}
+
 export class MailServiceImpl implements IMailService {
   private transporter = nodemailer.createTransport({
     host: EnvVars.SMTP.HOST,
@@ -79,20 +119,7 @@ export class MailServiceImpl implements IMailService {
     validForMs: number,
   ): Promise<boolean> {
     const subject = "VariaMos - Password Recovery Request";
-    const logoUrl =
-      "https://app.variamos.com/variamos_admin/images/VariaMosLogo.png";
-    const html = `
-      <div style="background-color: #f8f9fa; padding: 40px 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333;">
-        <div style="max-width: 550px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #e9ecef;">
-          
-          <!-- Header (Logo / Title) -->
-          <div style="background-color: #ffffff; padding: 30px; text-align: center; border-bottom: 1px solid #e9ecef;">
-            <img src="${logoUrl}" alt="VariaMos Logo" style="max-height: 45px; display: block; margin: 0 auto;" />
-            <p style="color: #6c757d; margin: 8px 0 0 0; font-size: 13px; font-weight: 500; letter-spacing: 0.5px;">Platform Admin Panel</p>
-          </div>
-
-          <!-- Main content -->
-          <div style="padding: 40px 30px;">
+    const html = renderMail(`
             <h2 style="color: #212529; font-size: 20px; margin-top: 0; font-weight: 600;">Hello,</h2>
             <p style="font-size: 15px; line-height: 1.6; color: #495057;">
               You have requested to reset the password for your <strong>VariaMos</strong> account.
@@ -114,28 +141,28 @@ export class MailServiceImpl implements IMailService {
               <a href="${recoveryLink}" style="color: #0d6efd; word-break: break-all;">${recoveryLink}</a>
             </p>
 
-            <hr style="border: 0; border-top: 1px solid #e9ecef; margin: 30px 0;" />
+`);
+    return this.sendMail(to, subject, html);
+  }
 
-            <!-- Signature -->
-            <p style="font-size: 15px; line-height: 1.6; color: #495057; margin-bottom: 0;">
-              Best regards,<br />
-              <strong>The VariaMos Team</strong>
+  /**
+   * Tells the owner that an administrator turned their second factor off
+   */
+  public async sendMfaResetMail(to: string): Promise<boolean> {
+    const subject = "VariaMos - Two-factor authentication turned off";
+    const html = renderMail(`
+            <h2 style="color: #212529; font-size: 20px; margin-top: 0; font-weight: 600;">Hello,</h2>
+            <p style="font-size: 15px; line-height: 1.6; color: #495057;">
+              An administrator has turned off two-factor authentication on your <strong>VariaMos</strong> account. Your recovery codes no longer work.
             </p>
-          </div>
+            <p style="font-size: 15px; line-height: 1.6; color: #495057;">
+              You can now sign in with your password alone, then turn two-factor authentication on again from <strong>My account</strong>.
+            </p>
+            <p style="font-size: 15px; line-height: 1.6; color: #495057;">
+              If you did not ask for this, change your password and contact the VariaMos team.
+            </p>
 
-          <!-- Footer -->
-          <div style="background-color: #f1f3f5; padding: 20px; text-align: center; border-top: 1px solid #e9ecef;">
-            <p style="font-size: 12px; color: #868e96; margin: 0;">
-              This is an automated email, please do not reply directly.
-            </p>
-            <p style="font-size: 12px; color: #868e96; margin: 5px 0 0 0;">
-              &copy; ${new Date().getFullYear()} VariaMos Project. All rights reserved.
-            </p>
-          </div>
-
-        </div>
-      </div>
-    `;
+`);
     return this.sendMail(to, subject, html);
   }
 }
