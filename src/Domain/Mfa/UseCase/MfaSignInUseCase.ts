@@ -4,6 +4,10 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { IUserMfaRepository } from "#src/Domain/Mfa/Repository/IUserMfaRepository.js";
 import type { ISecretCipher } from "#src/Domain/Mfa/Service/ISecretCipher.js";
 import type { PendingMfaSignIns } from "#src/Domain/Mfa/Service/PendingMfaSignIns.js";
+import type {
+  TrustedDeviceToken,
+  TrustedDeviceUseCase,
+} from "./TrustedDeviceUseCase.js";
 import type { UserMfaUseCase } from "./UserMfaUseCase.js";
 
 /** Wrong codes per account, whatever the number of password checks. */
@@ -24,17 +28,56 @@ export class MfaSignInUseCase {
     private readonly mfaUseCase: Pick<UserMfaUseCase, "verifySecondFactor">,
     private readonly cipher: ISecretCipher,
     private readonly pending: PendingMfaSignIns,
+    private readonly trustedDevices: Pick<
+      TrustedDeviceUseCase,
+      "days" | "isTrusted" | "trust"
+    >,
     private readonly now: () => number = Date.now,
   ) {}
 
   /**
    * Called once the password is right: a token to send with the code, or
-   * null when the account has no second factor. A storage error is thrown,
-   * so that the sign-in fails rather than skipping the code.
+   * null when no code is needed (no second factor, or a browser the user
+   * trusted). A storage error is thrown, so that the sign-in fails rather
+   * than skipping the code.
    */
-  public async begin(userId: string): Promise<string | null> {
+  public async begin(
+    userId: string,
+    deviceToken?: string,
+  ): Promise<string | null> {
     const record = await this.mfaRepository.findByUser(userId);
-    return record?.enabledAt ? this.pending.create(userId) : null;
+    if (!record?.enabledAt) return null;
+    if (await this.trustedDevices.isTrusted(userId, deviceToken)) {
+      logger.info(
+        `[MFA] User ${userId} signed in without a code on a trusted browser`,
+      );
+      return null;
+    }
+    return this.pending.create(userId);
+  }
+
+  /** Days a browser may skip the code; 0 when the option is off. */
+  public trustedDeviceDays(): Promise<number> {
+    return this.trustedDevices.days();
+  }
+
+  /**
+   * After a right code, when the user asked not to be asked again here.
+   * Never throws: the sign-in itself has succeeded.
+   */
+  public async trustDevice(userId: string): Promise<TrustedDeviceToken | null> {
+    try {
+      const trusted = await this.trustedDevices.trust(userId);
+      if (trusted) {
+        logger.info(`[MFA] User ${userId} trusted a browser`);
+      }
+      return trusted;
+    } catch (error) {
+      logger.warn(
+        `[MFA] Could not trust the browser of user ${userId}: ${(error as Error).message}`,
+      );
+      return null;
+    }
   }
 
   /** Checks the code of a pending sign-in; gives the user id when right. */

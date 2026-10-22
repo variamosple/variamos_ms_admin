@@ -20,5 +20,6 @@ export interface IUserMfaRepository {
   /** Marks an unused recovery code as used; false when there is none. */
   useRecoveryCode(userId: string, codeHash: string): Promise<boolean>;
   countUnusedRecoveryCodes(userId: string): Promise<number>;
+  /** Removes the factor, its recovery codes and its trusted browsers. */
   remove(userId: string): Promise<void>;
 }

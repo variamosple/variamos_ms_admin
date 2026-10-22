@@ -14,6 +14,7 @@ import type { CountriesQueryUseCase } from "#src/Domain/Countries/UseCase/Countr
 import type { MetricsQueryUseCase } from "#src/Domain/Metrics/UseCase/MetricsQueryUseCase.js";
 import type { MfaResetUseCase } from "#src/Domain/Mfa/UseCase/MfaResetUseCase.js";
 import type { MfaSignInUseCase } from "#src/Domain/Mfa/UseCase/MfaSignInUseCase.js";
+import type { TrustedDeviceUseCase } from "#src/Domain/Mfa/UseCase/TrustedDeviceUseCase.js";
 import type { UserMfaUseCase } from "#src/Domain/Mfa/UseCase/UserMfaUseCase.js";
 import type { MicroServiceManagementUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
 import type { MicroServiceQueryUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
@@ -116,6 +117,7 @@ export function createBaseRouter(
   mfaUseCase: UserMfaUseCase,
   mfaSignIn: MfaSignInUseCase,
   mfaReset: MfaResetUseCase,
+  trustedDevices: TrustedDeviceUseCase,
 ): Router {
   const baseRouter = Router();
 
@@ -172,7 +174,7 @@ export function createBaseRouter(
   );
 
   applyRateLimits(baseRouter, accountLockout);
-  baseRouter.use(MFA_ROUTE, createMfaRouter(mfaUseCase));
+  baseRouter.use(MFA_ROUTE, createMfaRouter(mfaUseCase, trustedDevices));
   baseRouter.use(AUTH_ROUTE, authRouter);
   baseRouter.use(CONFIGURATION_V1_ROUTE, configurationV1Router);
   baseRouter.use(USER_MFA_V1_ROUTE, createUserMfaRouter(mfaReset, accessGuard));

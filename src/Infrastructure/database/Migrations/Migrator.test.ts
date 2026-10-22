@@ -150,6 +150,7 @@ describe("createMigrator", () => {
       "0001-baseline",
       "0002-account-lockout-keys",
       "0003-user-mfa",
+      "0004-mfa-trusted-devices",
     ]);
   });
 });

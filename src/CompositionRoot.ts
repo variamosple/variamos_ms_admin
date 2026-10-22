@@ -5,6 +5,7 @@ import { BugRepositoryImpl } from "./DataProviders/Bug/BugRepository.js";
 import { ConfigurationRepositoryImpl } from "./DataProviders/Configuration/ConfigurationRepository.js";
 import { CountriesRepositoryImpl } from "./DataProviders/Countries/CountriesRepository.js";
 import { MetricsRepositoryImpl } from "./DataProviders/Metrics/MetricsRepository.js";
+import { TrustedDeviceRepositoryImpl } from "./DataProviders/Mfa/TrustedDeviceRepository.js";
 import { UserMfaRepositoryImpl } from "./DataProviders/Mfa/UserMfaRepository.js";
 import { MicroServiceRepositoryImpl } from "./DataProviders/MicroService/MicroServiceRepository.js";
 import { PermissionRepositoryImpl } from "./DataProviders/Permission/PermissionRepository.js";
@@ -28,6 +29,7 @@ import { MetricsQueryUseCase } from "./Domain/Metrics/UseCase/MetricsQueryUseCas
 import { PendingMfaSignIns } from "./Domain/Mfa/Service/PendingMfaSignIns.js";
 import { MfaResetUseCase } from "./Domain/Mfa/UseCase/MfaResetUseCase.js";
 import { MfaSignInUseCase } from "./Domain/Mfa/UseCase/MfaSignInUseCase.js";
+import { TrustedDeviceUseCase } from "./Domain/Mfa/UseCase/TrustedDeviceUseCase.js";
 import { UserMfaUseCase } from "./Domain/Mfa/UseCase/UserMfaUseCase.js";
 import { MicroServiceManagementUseCase } from "./Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
 import { MicroServiceQueryUseCase } from "./Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
@@ -135,12 +137,18 @@ export const productionUserMfaUseCase = new UserMfaUseCase(
   UserRepositoryInstance,
   mfaSecretCipher,
 );
+// Browsers where the user chose not to be asked the code (lot 6)
+export const productionTrustedDeviceUseCase = new TrustedDeviceUseCase(
+  new TrustedDeviceRepositoryImpl(VARIAMOS_ORM, DB_SCHEMA),
+  ConfigurationRepositoryInstance,
+);
 // The code asked after the password, for accounts with a second factor
 export const productionMfaSignInUseCase = new MfaSignInUseCase(
   userMfaRepository,
   productionUserMfaUseCase,
   mfaSecretCipher,
   new PendingMfaSignIns(),
+  productionTrustedDeviceUseCase,
 );
 // An administrator turns off the second factor of an account that lost it
 export const productionMfaResetUseCase = new MfaResetUseCase(

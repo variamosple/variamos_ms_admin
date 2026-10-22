@@ -142,7 +142,12 @@ export class UserMfaRepositoryImpl implements IUserMfaRepository {
 
   public async remove(userId: string): Promise<void> {
     await this.sequelize.transaction(async (transaction) => {
-      for (const table of ["user_mfa_recovery_code", "user_mfa"]) {
+      // The trusted browsers go with the factor (lot 6)
+      for (const table of [
+        "user_mfa_trusted_device",
+        "user_mfa_recovery_code",
+        "user_mfa",
+      ]) {
         await this.sequelize.query(
           `DELETE FROM ${this.table(table)} WHERE "user_id" = :userId`,
           { replacements: { userId }, transaction },
