@@ -109,6 +109,39 @@ describe("ConfigurationRouter Integration Tests", () => {
       expect(myAccountOption?.location).toBe("/variamos_admin/#/my-account");
     });
 
+    const myAccountFrom = async (referer?: string) => {
+      const request = supertest(app).get("/v1/configurations/menu");
+      const response = await (referer
+        ? request.set("Referer", referer)
+        : request);
+      const body = response.body as MenuApiResponse;
+      return body.data.options.find((opt) => opt.title === "My account")
+        ?.location;
+    };
+
+    it.each([
+      ["PLE", "https://app.variamos.com/"],
+      ["Languages", "https://app.variamos.com/variamos_languages/"],
+      ["no referer", undefined],
+    ])("opens My account in the admin from %s", async (_from, referer) => {
+      process.env.NODE_ENV = "test";
+
+      expect(await myAccountFrom(referer)).toBe(
+        "https://app.variamos.com/variamos_admin/#/my-account",
+      );
+    });
+
+    it("points My account to the local admin in development", async () => {
+      process.env.NODE_ENV = "development";
+
+      expect(await myAccountFrom("http://localhost:3000/")).toBe(
+        "http://localhost:3000/variamos_admin/#/my-account",
+      );
+      expect(await myAccountFrom("http://localhost:3000/variamos_admin/")).toBe(
+        "/variamos_admin/#/my-account",
+      );
+    });
+
     it("should handle missing items, Admin item, or My Account option (branch coverage)", async () => {
       vi.spyOn(JSON, "parse").mockReturnValueOnce({
         options: [],
