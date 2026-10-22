@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import bcrypt from "bcrypt";
 import logger from "jet-logger";
-import { Op, QueryTypes, type WhereOptions } from "sequelize";
+import { Op, QueryTypes, type Transaction, type WhereOptions } from "sequelize";
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -642,14 +642,13 @@ export class UserRepositoryImpl
         10,
       );
 
-      await UserModel.update(
-        { password: newHashedPassword },
-        {
-          where: {
-            id: dbUser.id,
-          },
-        },
-      );
+      await VARIAMOS_ORM.transaction(async (transaction) => {
+        await UserModel.update(
+          { password: newHashedPassword },
+          { where: { id: dbUser.id }, transaction },
+        );
+        await this.forgetTrustedDevices(String(dbUser.id), transaction);
+      });
     } catch (error) {
       const err = error as Error;
       logger.err("Error in updateUserPassword:");
@@ -664,6 +663,17 @@ export class UserRepositoryImpl
     }
 
     return response;
+  }
+
+  /** A new password asks the sign-in code again on every browser (lot 6). */
+  private async forgetTrustedDevices(
+    userId: string,
+    transaction: Transaction,
+  ): Promise<void> {
+    await VARIAMOS_ORM.query(
+      `DELETE FROM "${DB_SCHEMA}"."user_mfa_trusted_device" WHERE "user_id" = :userId`,
+      { replacements: { userId }, transaction },
+    );
   }
 
   /** Same cost whatever the account, as at sign-in. */
@@ -821,6 +831,7 @@ export class UserRepositoryImpl
         { password: passwordHash },
         { where: { id: userId }, transaction },
       );
+      await this.forgetTrustedDevices(userId, transaction);
 
       await transaction.commit();
       return "reset";

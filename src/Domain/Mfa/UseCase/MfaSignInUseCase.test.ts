@@ -14,6 +14,7 @@ import {
   MFA_SIGN_IN_FAILURES_PER_ACCOUNT,
   MfaSignInUseCase,
 } from "./MfaSignInUseCase.js";
+import type { TrustedDeviceToken } from "./TrustedDeviceUseCase.js";
 
 const ENABLED: UserMfaRecord = {
   userId: "user-1",
@@ -29,6 +30,11 @@ describe("MfaSignInUseCase", () => {
   let verify: Mock<(record: UserMfaRecord, code: string) => Promise<boolean>>;
   let available: boolean;
   let useCase: MfaSignInUseCase;
+  let trustedDevices: {
+    days: Mock<() => Promise<number>>;
+    isTrusted: Mock<(userId: string, token?: string) => Promise<boolean>>;
+    trust: Mock<(userId: string) => Promise<TrustedDeviceToken | null>>;
+  };
 
   beforeEach(() => {
     now = 1_000_000;
@@ -43,17 +49,50 @@ describe("MfaSignInUseCase", () => {
     });
     const cipher = mock<ISecretCipher>();
     cipher.isAvailable.mockImplementation(() => available);
+    trustedDevices = {
+      days: vi.fn(async () => 14),
+      isTrusted: vi.fn(async () => false),
+      trust: vi.fn(async () => ({ token: "t", maxAgeMs: 1000 })),
+    };
     useCase = new MfaSignInUseCase(
       repository,
       { verifySecondFactor: verify },
       cipher,
       new PendingMfaSignIns(() => now),
+      trustedDevices,
       () => now,
     );
   });
 
   it("lets an account without second factor sign in as before", async () => {
     expect(await useCase.begin("user-2")).toBeNull();
+  });
+
+  it("skips the code on a browser the user trusted", async () => {
+    trustedDevices.isTrusted.mockResolvedValue(true);
+
+    expect(await useCase.begin("user-1", "device-token")).toBeNull();
+    expect(trustedDevices.isTrusted).toHaveBeenCalledWith(
+      "user-1",
+      "device-token",
+    );
+  });
+
+  it("does not look for a trusted browser without second factor", async () => {
+    await useCase.begin("user-2", "device-token");
+
+    expect(trustedDevices.isTrusted).not.toHaveBeenCalled();
+  });
+
+  it("trusts a browser on request, never failing the sign-in", async () => {
+    expect(await useCase.trustDevice("user-1")).toEqual({
+      token: "t",
+      maxAgeMs: 1000,
+    });
+
+    trustedDevices.trust.mockRejectedValue(new Error("connection lost"));
+    expect(await useCase.trustDevice("user-1")).toBeNull();
+    expect(await useCase.trustedDeviceDays()).toBe(14);
   });
 
   it("asks the code of an account with a second factor", async () => {

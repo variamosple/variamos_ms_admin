@@ -12,6 +12,10 @@ import { MicroServiceHealthLogModel } from "#src/DataProviders/MicroService/Micr
 import { BASELINE_TABLES, baseline } from "./0001-baseline.js";
 import { ACCOUNT_LOCKOUT_ROWS } from "./0002-account-lockout-keys.js";
 import { USER_MFA_TABLES } from "./0003-user-mfa.js";
+import {
+  TRUSTED_DEVICE_DAYS_ROW,
+  TRUSTED_DEVICE_TABLE,
+} from "./0004-mfa-trusted-devices.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 import {
   ADMIN_MIGRATIONS,
@@ -122,6 +126,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         "user",
         ...BASELINE_TABLES.map((t) => t.name),
         ...USER_MFA_TABLES,
+        TRUSTED_DEVICE_TABLE,
       ].sort(),
     );
   });
@@ -188,7 +193,9 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
     expect(await migrate("t07_prod")).toEqual(ALL_MIGRATIONS);
 
     // The tables added after the baseline are new; the others are unchanged
-    expect(await structureOf("t07_prod", USER_MFA_TABLES)).toEqual(before);
+    expect(
+      await structureOf("t07_prod", [...USER_MFA_TABLES, TRUSTED_DEVICE_TABLE]),
+    ).toEqual(before);
     expect(
       await sequelize.query(
         `SELECT "key", "value" FROM "t07_prod"."configurations" ORDER BY "key"`,
@@ -197,6 +204,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
     ).toEqual([
       { key: "security.lockout.duration_minutes", value: 15 },
       { key: "security.lockout.max_attempts", value: 10 },
+      { key: "security.mfa.trusted_device_days", value: 14 },
       { key: "security.password.min_length", value: 12 },
     ]);
   });
@@ -220,7 +228,8 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
       target_services: string[];
     }>(
       `SELECT "key", "value", "updated_by", "target_services", "type", "category"
-         FROM "t07_keys"."configurations" ORDER BY "key"`,
+         FROM "t07_keys"."configurations"
+        WHERE "key" LIKE 'security.lockout.%' ORDER BY "key"`,
       { type: QueryTypes.SELECT },
     );
     expect(rows).toEqual([
@@ -242,6 +251,45 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
       },
     ]);
     expect(rows).toHaveLength(ACCOUNT_LOCKOUT_ROWS.length);
+  });
+
+  it("adds the trusted device days without overwriting an administrator's value", async () => {
+    await sequelize.query(`DROP SCHEMA IF EXISTS "t07_trusted" CASCADE`);
+    await sequelize.query(`CREATE SCHEMA "t07_trusted"`);
+    await sequelize.query(productionSchema("t07_trusted"));
+    await migrate("t07_trusted");
+    const trustedDaysOf = async () =>
+      sequelize.query<{ value: number; updated_by: string }>(
+        `SELECT "value", "updated_by" FROM "t07_trusted"."configurations"
+          WHERE "key" = :key`,
+        {
+          replacements: { key: TRUSTED_DEVICE_DAYS_ROW.key },
+          type: QueryTypes.SELECT,
+        },
+      );
+    expect(await trustedDaysOf()).toEqual([
+      { value: 14, updated_by: "system_migration" },
+    ]);
+
+    await sequelize.query(`DROP SCHEMA IF EXISTS "t07_trusted2" CASCADE`);
+    await sequelize.query(`CREATE SCHEMA "t07_trusted2"`);
+    await sequelize.query(productionSchema("t07_trusted2"));
+    await sequelize.query(
+      `INSERT INTO "t07_trusted2"."configurations" ("key", "value", "type", "category", "target_services", "updated_by", "created_at", "updated_at")
+       VALUES (:key, '3', 'number', 'security', '{variamos_ms_admin}', 'admin-1', now(), now())`,
+      { replacements: { key: TRUSTED_DEVICE_DAYS_ROW.key } },
+    );
+    await migrate("t07_trusted2");
+    expect(
+      await sequelize.query(
+        `SELECT "value", "updated_by" FROM "t07_trusted2"."configurations"
+          WHERE "key" = :key`,
+        {
+          replacements: { key: TRUSTED_DEVICE_DAYS_ROW.key },
+          type: QueryTypes.SELECT,
+        },
+      ),
+    ).toEqual([{ value: 3, updated_by: "admin-1" }]);
   });
 
   it("gives a new database the same structure as production", async () => {

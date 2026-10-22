@@ -3,8 +3,10 @@ import cookieParser from "cookie-parser";
 import express from "express";
 import supertest from "supertest";
 import { mock } from "vitest-mock-extended";
+import type { IConfigurationRepository } from "#src/Domain/Configuration/Repository/IConfigurationRepository.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ITrustedDeviceRepository } from "#src/Domain/Mfa/Repository/ITrustedDeviceRepository.js";
 import type {
   IUserMfaRepository,
   UserMfaRecord,
@@ -12,6 +14,7 @@ import type {
 import type { ISecretCipher } from "#src/Domain/Mfa/Service/ISecretCipher.js";
 import { PendingMfaSignIns } from "#src/Domain/Mfa/Service/PendingMfaSignIns.js";
 import { MfaSignInUseCase } from "#src/Domain/Mfa/UseCase/MfaSignInUseCase.js";
+import { TrustedDeviceUseCase } from "#src/Domain/Mfa/UseCase/TrustedDeviceUseCase.js";
 import { User } from "#src/Domain/User/Entity/User.js";
 import type { UserAuthUseCase } from "#src/Domain/User/UseCase/UserAuthUseCase.js";
 import type { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
@@ -21,6 +24,7 @@ import {
   AUTH_ROUTE,
   createAuthRouter,
   MFA_PENDING_COOKIE,
+  MFA_TRUSTED_COOKIE,
 } from "./AuthRouter.js";
 
 vi.mock("@variamosple/variamos-security", async () => {
@@ -51,7 +55,28 @@ const ana = () =>
     .setPermissions(["my-account::query"])
     .build();
 
-function setUp(mfaEnabled: boolean) {
+/** Trusted browsers in memory: token hash -> user. */
+function memoryTrustedDevices(): ITrustedDeviceRepository & {
+  hashes: Map<string, string>;
+} {
+  const hashes = new Map<string, string>();
+  return {
+    hashes,
+    add: async (userId, tokenHash) => {
+      hashes.set(tokenHash, userId);
+    },
+    use: async (userId, tokenHash) => hashes.get(tokenHash) === userId,
+    removeAll: async (userId) => {
+      let removed = 0;
+      for (const [hash, owner] of hashes) {
+        if (owner === userId && hashes.delete(hash)) removed += 1;
+      }
+      return removed;
+    },
+  };
+}
+
+function setUp(mfaEnabled: boolean, trustedDeviceDays = 14) {
   const auth = mock<UserAuthUseCase>();
   const query = mock<UserQueryUseCase>();
   auth.signIn.mockResolvedValue(
@@ -76,6 +101,14 @@ function setUp(mfaEnabled: boolean) {
   );
   const cipher = mock<ISecretCipher>();
   cipher.isAvailable.mockReturnValue(true);
+  const devices = memoryTrustedDevices();
+  const configuration = mock<IConfigurationRepository>();
+  configuration.queryByKey.mockImplementation(async () =>
+    new ResponseModel<never>("readTrustedDeviceDays").withResponse({
+      value: trustedDeviceDays,
+    } as never),
+  );
+  const trustedDevices = new TrustedDeviceUseCase(devices, configuration);
   const mfaSignIn = new MfaSignInUseCase(
     repository,
     {
@@ -84,6 +117,7 @@ function setUp(mfaEnabled: boolean) {
     },
     cipher,
     new PendingMfaSignIns(),
+    trustedDevices,
   );
 
   const app = express();
@@ -100,7 +134,7 @@ function setUp(mfaEnabled: boolean) {
       mfaSignIn,
     ),
   );
-  return { app, query, repository };
+  return { app, query, repository, devices };
 }
 
 const cookiesOf = (response: supertest.Response): string[] => {
@@ -146,7 +180,7 @@ describe("sign-in with a second factor", () => {
 
     expect(response.body).toEqual({
       transactionId: "signIn",
-      data: { mfaRequired: true },
+      data: { mfaRequired: true, trustedDeviceDays: 14 },
     });
     expect(cookieNamed(response, "authToken")).toBeUndefined();
     expect(createJwt).not.toHaveBeenCalled();
@@ -256,7 +290,9 @@ describe("sign-in with a second factor", () => {
       .send({ credential: "google-token" })
       .expect(302);
 
-    expect(response.headers.location).toMatch(/\?mfa=required$/);
+    expect(response.headers.location).toMatch(
+      /\?mfa=required&trustedDeviceDays=14$/,
+    );
     expect(cookieNamed(response, "authToken")).toBeUndefined();
     expect(cookieNamed(response, MFA_PENDING_COOKIE)).toBeDefined();
   });
@@ -266,6 +302,108 @@ describe("sign-in with a second factor", () => {
 
     const response = await supertest(app)
       .post("/auth/google/callback")
+      .send({ credential: "google-token" })
+      .expect(302);
+
+    expect(response.headers.location).not.toContain("mfa=required");
+    expect(cookieNamed(response, "authToken")).toBeDefined();
+  });
+});
+
+describe("browsers where the code is not asked (lot 6)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(createJwt).mockResolvedValue("session-jwt");
+  });
+
+  /** Signs in with the code, asking or not to trust this browser. */
+  const signInWithCode = async (
+    app: express.Express,
+    body: Record<string, unknown>,
+  ) => {
+    const pending = pendingCookieOf(await signIn(app));
+    return supertest(app)
+      .post("/auth/sign-in/mfa")
+      .set("Cookie", pending)
+      .send({ code: RIGHT_CODE, ...body })
+      .expect(200);
+  };
+  const trustedCookieOf = (response: supertest.Response) =>
+    cookieNamed(response, MFA_TRUSTED_COOKIE);
+
+  it("trusts the browser only when asked", async () => {
+    const { app, devices } = setUp(true);
+
+    const plain = await signInWithCode(app, {});
+    const truthy = await signInWithCode(app, { rememberDevice: "true" });
+    const asked = await signInWithCode(app, { rememberDevice: true });
+
+    expect(trustedCookieOf(plain)).toBeUndefined();
+    expect(trustedCookieOf(truthy)).toBeUndefined();
+    const cookie = trustedCookieOf(asked) as string;
+    expect(cookie).toContain("HttpOnly");
+    expect(cookie).toContain("Secure");
+    expect(cookie).toContain("SameSite=None");
+    expect(cookie).toContain(`Max-Age=${14 * 24 * 60 * 60}`);
+    expect(devices.hashes.size).toBe(1);
+    // Only the hash is stored
+    const token = cookie.split(";")[0]?.split("=")[1] as string;
+    expect([...devices.hashes.keys()]).not.toContain(token);
+  });
+
+  it("then signs in without the code on that browser only", async () => {
+    const { app } = setUp(true);
+    const trusted = trustedCookieOf(
+      await signInWithCode(app, { rememberDevice: true }),
+    ) as string;
+
+    const again = await signIn(app)
+      .set("Cookie", trusted.split(";")[0] as string)
+      .expect(200);
+    const elsewhere = await signIn(app).expect(200);
+
+    expect(again.body.data).toEqual({ redirect: "http://localhost:3000" });
+    expect(cookieNamed(again, "authToken")).toContain("session-jwt");
+    expect(elsewhere.body.data.mfaRequired).toBe(true);
+  });
+
+  it("asks the code again once the browsers are forgotten", async () => {
+    const { app, devices } = setUp(true);
+    const trusted = trustedCookieOf(
+      await signInWithCode(app, { rememberDevice: true }),
+    ) as string;
+
+    await devices.removeAll("user-1");
+    const response = await signIn(app)
+      .set("Cookie", trusted.split(";")[0] as string)
+      .expect(200);
+
+    expect(response.body.data.mfaRequired).toBe(true);
+  });
+
+  it("neither offers nor trusts a browser when the option is off", async () => {
+    const { app, devices } = setUp(true, 0);
+
+    const first = await signIn(app).expect(200);
+    const asked = await signInWithCode(app, { rememberDevice: true });
+
+    expect(first.body.data).toEqual({
+      mfaRequired: true,
+      trustedDeviceDays: 0,
+    });
+    expect(trustedCookieOf(asked)).toBeUndefined();
+    expect(devices.hashes.size).toBe(0);
+  });
+
+  it("skips the code of a Google sign-in on a trusted browser", async () => {
+    const { app } = setUp(true);
+    const trusted = trustedCookieOf(
+      await signInWithCode(app, { rememberDevice: true }),
+    ) as string;
+
+    const response = await supertest(app)
+      .post("/auth/google/callback")
+      .set("Cookie", trusted.split(";")[0] as string)
       .send({ credential: "google-token" })
       .expect(302);
 

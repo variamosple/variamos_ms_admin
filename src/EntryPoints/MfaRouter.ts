@@ -13,6 +13,7 @@ import { describeError } from "#src/common/describeError.js";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { TrustedDeviceUseCase } from "#src/Domain/Mfa/UseCase/TrustedDeviceUseCase.js";
 import type { UserMfaUseCase } from "#src/Domain/Mfa/UseCase/UserMfaUseCase.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { mfaFailureLimiter } from "./RateLimits.js";
@@ -43,6 +44,7 @@ const text = (body: unknown, field: string): string | null => {
  */
 export function createMfaRouter(
   useCase: UserMfaUseCase,
+  trustedDevices: Pick<TrustedDeviceUseCase, "forgetAll">,
   requirePermissions: PermissionGuard = hasPermissions,
 ): Router {
   const router = Router();
@@ -151,6 +153,19 @@ export function createMfaRouter(
         return invalid("disableMfa", "The password and a code are required.");
       }
       return useCase.disable("disableMfa", String(user.id), password, code);
+    }),
+  );
+
+  // Asks the code again on every browser the user trusted (lot 6)
+  router.delete(
+    "/trusted-devices",
+    requirePermissions(["my-account::update"]),
+    handle("forgetTrustedDevices", async (user) => {
+      const removed = await trustedDevices.forgetAll(String(user.id));
+      logger.info(`[MFA] User ${user.id} forgot ${removed} trusted browser(s)`);
+      return new ResponseModel<{ removed: number }>(
+        "forgetTrustedDevices",
+      ).withResponse({ removed });
     }),
   );
 

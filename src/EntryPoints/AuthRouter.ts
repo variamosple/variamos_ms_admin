@@ -42,6 +42,9 @@ export const AUTH_ROUTE = "/auth";
 /** Holds the opaque token of a sign-in waiting for the second factor. */
 export const MFA_PENDING_COOKIE = "mfaPending";
 
+/** Holds the token of a browser where the code is not asked (lot 6). */
+export const MFA_TRUSTED_COOKIE = "mfaTrustedDevice";
+
 export function createAuthRouter(
   userAuthUseCase: UserAuthUseCase,
   userPasswordUseCase: UserPasswordUseCase,
@@ -149,6 +152,19 @@ export function createAuthRouter(
     ...getCookieOptions({ maxAge: false }),
     maxAge: MFA_SIGN_IN_TTL_MS,
   });
+
+  // Google posts its callback from its own site: only SameSite=None comes
+  // back with it. The token alone opens nothing, it only spares the code
+  // after a right password or Google credential.
+  const mfaTrustedCookieOptions = (maxAgeMs: number): CookieOptions => ({
+    ...getCookieOptions({ sameSite: "none", maxAge: false }),
+    maxAge: maxAgeMs,
+  });
+
+  const trustedDeviceToken = (req: Request): string | undefined => {
+    const token = req.cookies?.[MFA_TRUSTED_COOKIE] as unknown;
+    return typeof token === "string" ? token : undefined;
+  };
 
   /** Creates the session cookie; gives the address to go to. */
   const openSession = async (
@@ -362,10 +378,16 @@ export function createAuthRouter(
       };
 
       // With a second factor, no session until the code is right
-      const pendingToken = await mfaSignIn.begin(String(sessionUser.id));
+      const pendingToken = await mfaSignIn.begin(
+        String(sessionUser.id),
+        trustedDeviceToken(req),
+      );
       if (pendingToken) {
         res.cookie(MFA_PENDING_COOKIE, pendingToken, mfaPendingCookieOptions());
-        response.data = { mfaRequired: true };
+        response.data = {
+          mfaRequired: true,
+          trustedDeviceDays: await mfaSignIn.trustedDeviceDays(),
+        };
         return res.status(200).json(response);
       }
 
@@ -393,7 +415,10 @@ export function createAuthRouter(
     const pendingToken = req.cookies?.[MFA_PENDING_COOKIE] as
       | string
       | undefined;
-    const { code } = (req.body || {}) as Record<string, unknown>;
+    const { code, rememberDevice } = (req.body || {}) as Record<
+      string,
+      unknown
+    >;
     const clearPending = () =>
       res.clearCookie(MFA_PENDING_COOKIE, getCookieOptions({ maxAge: false }));
 
@@ -447,6 +472,16 @@ export function createAuthRouter(
         roles,
         permissions,
       } = found.data;
+      if (rememberDevice === true) {
+        const trusted = await mfaSignIn.trustDevice(checked.data);
+        if (trusted) {
+          res.cookie(
+            MFA_TRUSTED_COOKIE,
+            trusted.token,
+            mfaTrustedCookieOptions(trusted.maxAgeMs),
+          );
+        }
+      }
       response.data = {
         redirect: await openSession(transactionId, req, res, {
           id: id || "",
@@ -616,12 +651,16 @@ export function createAuthRouter(
         permissions,
       };
 
-      const pendingToken = await mfaSignIn.begin(String(sessionUser.id));
+      const pendingToken = await mfaSignIn.begin(
+        String(sessionUser.id),
+        trustedDeviceToken(req),
+      );
       if (pendingToken) {
         res.cookie(MFA_PENDING_COOKIE, pendingToken, mfaPendingCookieOptions());
+        const days = await mfaSignIn.trustedDeviceDays();
         return res.redirect(
           302,
-          `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?mfa=required`,
+          `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?mfa=required&trustedDeviceDays=${days}`,
         );
       }
 

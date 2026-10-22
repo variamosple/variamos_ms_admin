@@ -9,6 +9,7 @@ import { createMfaRouter, MFA_ROUTE } from "./MfaRouter.js";
 import { RATE_LIMITS } from "./RateLimits.js";
 
 const useCase = mock<UserMfaUseCase>();
+const trustedDevices = { forgetAll: vi.fn(async (_userId: string) => 2) };
 
 const ANA = {
   id: "user-1",
@@ -30,7 +31,7 @@ function appWith(user?: object) {
   };
   const app = express();
   app.use(express.json());
-  app.use(MFA_ROUTE, createMfaRouter(useCase, guard));
+  app.use(MFA_ROUTE, createMfaRouter(useCase, trustedDevices, guard));
   return { app, required };
 }
 
@@ -49,6 +50,7 @@ describe("MfaRouter", () => {
 
     expect(required).toEqual([
       ["my-account::query"],
+      ["my-account::update"],
       ["my-account::update"],
       ["my-account::update"],
       ["my-account::update"],
@@ -205,5 +207,24 @@ describe("MfaRouter", () => {
     const response = await request(appWith(ANA).app).get(MFA_ROUTE).expect(500);
 
     expect(JSON.stringify(response.body)).not.toContain("secret detail");
+  });
+
+  it("forgets every trusted browser of the signed-in user", async () => {
+    vi.spyOn(logger, "info").mockImplementation(() => {});
+
+    const response = await request(appWith(ANA).app)
+      .delete(`${MFA_ROUTE}/trusted-devices`)
+      .expect(200);
+
+    expect(response.body.data).toEqual({ removed: 2 });
+    expect(trustedDevices.forgetAll).toHaveBeenCalledWith("user-1");
+  });
+
+  it("refuses a guest the trusted browsers", async () => {
+    await request(appWith({ ...ANA, roles: ["Guest"] }).app)
+      .delete(`${MFA_ROUTE}/trusted-devices`)
+      .expect(403);
+
+    expect(trustedDevices.forgetAll).not.toHaveBeenCalled();
   });
 });
