@@ -12,6 +12,7 @@ import type { ConfigurationUseCase } from "#src/Domain/Configuration/UseCase/Con
 import type { CountriesQueryUseCase } from "#src/Domain/Countries/UseCase/CountriesQueryUseCase.js";
 // Other Use Cases
 import type { MetricsQueryUseCase } from "#src/Domain/Metrics/UseCase/MetricsQueryUseCase.js";
+import type { MfaResetUseCase } from "#src/Domain/Mfa/UseCase/MfaResetUseCase.js";
 import type { MfaSignInUseCase } from "#src/Domain/Mfa/UseCase/MfaSignInUseCase.js";
 import type { UserMfaUseCase } from "#src/Domain/Mfa/UseCase/UserMfaUseCase.js";
 import type { MicroServiceManagementUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
@@ -66,6 +67,7 @@ import { applyRateLimits } from "./RateLimits.js";
 import { createRolePermissionsRouter } from "./RolePermissionsV1Router.js";
 import { createRolesRouter, ROLES_V1_ROUTE } from "./RolesV1Router.js";
 import type { AccessGuard } from "./requireAccess.js";
+import { createUserMfaRouter, USER_MFA_V1_ROUTE } from "./UserMfaV1Router.js";
 import { createUserRolesRouter } from "./UserRolesV1Router.js";
 import { createUsersRouter, USERS_V1_ROUTE } from "./UsersV1Router.js";
 import { createVisitsRouter, VISITS_V1_ROUTE } from "./VisitsV1Router.js";
@@ -113,6 +115,7 @@ export function createBaseRouter(
   accountLockout: AccountLockout,
   mfaUseCase: UserMfaUseCase,
   mfaSignIn: MfaSignInUseCase,
+  mfaReset: MfaResetUseCase,
 ): Router {
   const baseRouter = Router();
 
@@ -172,6 +175,7 @@ export function createBaseRouter(
   baseRouter.use(MFA_ROUTE, createMfaRouter(mfaUseCase));
   baseRouter.use(AUTH_ROUTE, authRouter);
   baseRouter.use(CONFIGURATION_V1_ROUTE, configurationV1Router);
+  baseRouter.use(USER_MFA_V1_ROUTE, createUserMfaRouter(mfaReset, accessGuard));
   baseRouter.use(USERS_V1_ROUTE, usersV1Router);
   baseRouter.use(ROLES_V1_ROUTE, rolesV1Router);
   baseRouter.use(PERMISSIONS_V1_ROUTE, permissionsV1Router);

@@ -20,6 +20,7 @@ import {
   productionConfigurationUseCase,
   productionCountriesQueryUseCase,
   productionMetricsQueryUseCase,
+  productionMfaResetUseCase,
   productionMfaSignInUseCase,
   productionMicroServiceManagementUseCase,
   productionMicroServiceQueryUseCase,
@@ -108,6 +109,7 @@ const baseRouter = createBaseRouter(
   AccountLockoutInstance,
   productionUserMfaUseCase,
   productionMfaSignInUseCase,
+  productionMfaResetUseCase,
 );
 
 const app = createServer(baseRouter);

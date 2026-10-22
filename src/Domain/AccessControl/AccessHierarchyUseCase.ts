@@ -127,9 +127,12 @@ export class AccessHierarchyUseCase {
 
       default: {
         const isSelf = check.userId === operatorId;
+        // Turning off one's own second factor asks for a code (/auth/mfa)
         if (
           isSelf &&
-          (check.kind === "disable-account" || check.kind === "delete-account")
+          (check.kind === "disable-account" ||
+            check.kind === "delete-account" ||
+            check.kind === "reset-mfa")
         ) {
           return refuse(MESSAGES.self);
         }

@@ -40,6 +40,46 @@ describe("MailServiceImpl logging", () => {
   });
 });
 
+describe("MailServiceImpl messages", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("frames the reset link with the VariaMos logo and signature", async () => {
+    const service = new MailServiceImpl();
+    const send = vi.spyOn(service, "sendMail").mockResolvedValue(true);
+
+    await service.sendPasswordResetMail(
+      "alice@example.com",
+      "https://app.example.com/reset?token=abc",
+      60 * 60 * 1000,
+    );
+
+    const [to, subject, html] = send.mock.calls[0] as [string, string, string];
+    expect(to).toBe("alice@example.com");
+    expect(subject).toBe("VariaMos - Password Recovery Request");
+    expect(html).toContain('href="https://app.example.com/reset?token=abc"');
+    expect(html).toContain("valid for the next <strong>1 hour</strong>");
+    expect(html).toContain("VariaMosLogo.png");
+    expect(html).toContain("The VariaMos Team");
+  });
+
+  it("tells the owner that their second factor was turned off", async () => {
+    const service = new MailServiceImpl();
+    const send = vi.spyOn(service, "sendMail").mockResolvedValue(true);
+
+    await expect(service.sendMfaResetMail("bea@example.com")).resolves.toBe(
+      true,
+    );
+
+    const [to, subject, html] = send.mock.calls[0] as [string, string, string];
+    expect(to).toBe("bea@example.com");
+    expect(subject).toBe("VariaMos - Two-factor authentication turned off");
+    expect(html).toContain("turned off two-factor authentication");
+    expect(html).toContain("The VariaMos Team");
+  });
+});
+
 describe("describeDuration", () => {
   it.each([
     [60 * 60 * 1000, "1 hour"],

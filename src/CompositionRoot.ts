@@ -26,6 +26,7 @@ import { CountriesQueryUseCase } from "./Domain/Countries/UseCase/CountriesQuery
 // Other Use Cases
 import { MetricsQueryUseCase } from "./Domain/Metrics/UseCase/MetricsQueryUseCase.js";
 import { PendingMfaSignIns } from "./Domain/Mfa/Service/PendingMfaSignIns.js";
+import { MfaResetUseCase } from "./Domain/Mfa/UseCase/MfaResetUseCase.js";
 import { MfaSignInUseCase } from "./Domain/Mfa/UseCase/MfaSignInUseCase.js";
 import { UserMfaUseCase } from "./Domain/Mfa/UseCase/UserMfaUseCase.js";
 import { MicroServiceManagementUseCase } from "./Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
@@ -140,6 +141,12 @@ export const productionMfaSignInUseCase = new MfaSignInUseCase(
   productionUserMfaUseCase,
   mfaSecretCipher,
   new PendingMfaSignIns(),
+);
+// An administrator turns off the second factor of an account that lost it
+export const productionMfaResetUseCase = new MfaResetUseCase(
+  userMfaRepository,
+  UserRepositoryInstance,
+  MailServiceInstance,
 );
 
 export const productionUserQueryUseCase = new UserQueryUseCase(
