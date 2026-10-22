@@ -136,7 +136,8 @@ const MENU: Menu = {
   options: [
     {
       title: "My account",
-      location: "/variamos_admin/#/my-account",
+      // Absolute: the shared header opens it from PLE and Languages too
+      location: "https://app.variamos.com/variamos_admin/#/my-account",
       allowedPermissions: ["my-account::query"],
     },
     {
@@ -198,14 +199,13 @@ export function createConfigurationRouter(
 
     // Rewrite prod URLs to local dev server in development environment
     if (process.env.NODE_ENV === "development") {
-      if (menuCopy.items) {
-        for (const item of menuCopy.items) {
-          if (item.location?.startsWith("https://app.variamos.com")) {
-            const urlPath = item.location.substring(
-              "https://app.variamos.com".length,
-            );
-            item.location = `http://localhost:3000${urlPath}`;
-          }
+      const entries = [...(menuCopy.items ?? []), ...(menuCopy.options ?? [])];
+      for (const item of entries) {
+        if (item.location?.startsWith("https://app.variamos.com")) {
+          const urlPath = item.location.substring(
+            "https://app.variamos.com".length,
+          );
+          item.location = `http://localhost:3000${urlPath}`;
         }
       }
     } else {
@@ -222,10 +222,9 @@ export function createConfigurationRouter(
     const myAccountOption = menuCopy.options?.find(
       (opt) => opt.title === "My account",
     );
-    if (myAccountOption) {
-      myAccountOption.location = hasAdminSubpath
-        ? "/variamos_admin/#/my-account"
-        : "/my-account";
+    // Inside the admin, stay in the same page; elsewhere, open the admin
+    if (myAccountOption && hasAdminSubpath) {
+      myAccountOption.location = "/variamos_admin/#/my-account";
     }
 
     res.status(200).json(response.withResponse(menuCopy));
