@@ -71,8 +71,12 @@ const noMfaSignIn = {
   begin: async () => null,
 } as unknown as MfaSignInUseCase;
 
+import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
+
+// The access journal is checked by its own tests (T-24)
+const accessJournal = mock<IAccessJournal>();
 
 // Errors must be logged as text built by describeError, never as full
 // objects (`logger.err(error, true)` dumps the SQL and values of the error).
@@ -180,6 +184,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         mockUserManagementUseCase,
         mockUserQueryUseCase,
         noMfaSignIn,
+        accessJournal,
       ),
     );
   });
@@ -760,6 +765,69 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       expect(response.status).toBe(HttpStatusCodes.UNAUTHORIZED);
     });
 
+    it("records a successful sign-in in the access journal", async () => {
+      vi.mocked(createJwt).mockResolvedValue("jwt-token");
+      (UserAuthUseCase.prototype.signIn as vi.Mock).mockResolvedValue(
+        new ResponseModel("signIn").withResponse(
+          User.builder().setId("user-123").setName("John Doe").build(),
+        ),
+      );
+
+      await supertest(app)
+        .post("/auth/sign-in")
+        .send({ email: "john@example.com", password: "Password123!" });
+
+      await vi.waitFor(() =>
+        expect(accessJournal.record).toHaveBeenCalledWith(
+          expect.objectContaining({
+            event: "sign-in",
+            outcome: "success",
+            reason: null,
+            userId: "user-123",
+            path: "/auth/sign-in",
+            statusCode: 200,
+          }),
+        ),
+      );
+    });
+
+    it.each([
+      [null, null, "invalid_credentials"],
+      [{ id: "user-7", active: true }, "user-7", "invalid_credentials"],
+      [{ id: "user-8", active: false }, "user-8", "account_inactive"],
+    ])(
+      "records a failed sign-in with the account it names (%o)",
+      async (account, userId, reason) => {
+        accessJournal.accountByEmail.mockResolvedValueOnce(account);
+        (UserAuthUseCase.prototype.signIn as vi.Mock).mockResolvedValue(
+          new ResponseModel("signIn").withError(
+            DomainErrorCodes.INVALID_INPUT,
+            "Incorrect username or password.",
+          ),
+        );
+
+        await supertest(app)
+          .post("/auth/sign-in")
+          .send({ email: "john@example.com", password: "WrongPassword" });
+
+        await vi.waitFor(() =>
+          expect(accessJournal.record).toHaveBeenCalledWith(
+            expect.objectContaining({
+              event: "sign-in",
+              outcome: "failed",
+              reason,
+              userId,
+              statusCode: 400,
+            }),
+          ),
+        );
+        // Never the typed e-mail: a password is sometimes typed there
+        expect(JSON.stringify(accessJournal.record.mock.calls)).not.toContain(
+          "john@example.com",
+        );
+      },
+    );
+
     it("should redirect to external allowed redirect origin on successful sign in", async () => {
       const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
       Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
@@ -1201,6 +1269,73 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       expect(response.headers.location).not.toContain("errorMessage");
     });
 
+    it("records a Google sign-in, refused or accepted", async () => {
+      accessJournal.accountByEmail.mockResolvedValueOnce({
+        id: "user-8",
+        active: false,
+      });
+      (UserAuthUseCase.prototype.findOrCreate as vi.Mock).mockResolvedValue(
+        new ResponseModel("loginWithGoogle").withError(
+          DomainErrorCodes.FORBIDDEN,
+          "Your account is disabled.",
+        ),
+      );
+
+      await supertest(app)
+        .post("/auth/google/callback")
+        .send({ credential: "mock-google-id-token" });
+
+      await vi.waitFor(() =>
+        expect(accessJournal.record).toHaveBeenCalledWith(
+          expect.objectContaining({
+            event: "sign-in.google",
+            outcome: "failed",
+            reason: "account_inactive",
+            userId: "user-8",
+            statusCode: 302,
+          }),
+        ),
+      );
+
+      vi.mocked(createJwt).mockResolvedValue("google-jwt-token");
+      (UserAuthUseCase.prototype.findOrCreate as vi.Mock).mockResolvedValue(
+        new ResponseModel("loginWithGoogle").withResponse(
+          User.builder().setId("user-123").setEmail("john@example.com").build(),
+        ),
+      );
+
+      await supertest(app)
+        .post("/auth/google/callback")
+        .send({ credential: "mock-google-id-token" });
+
+      await vi.waitFor(() =>
+        expect(accessJournal.record).toHaveBeenCalledWith(
+          expect.objectContaining({
+            event: "sign-in.google",
+            outcome: "success",
+            userId: "user-123",
+          }),
+        ),
+      );
+    });
+
+    it("records a Google sign-in that fails on the token", async () => {
+      const response = await supertest(app)
+        .post("/auth/google/callback")
+        .send({ credential: "invalid-token" });
+
+      expect(response.status).toBe(302);
+      await vi.waitFor(() =>
+        expect(accessJournal.record).toHaveBeenCalledWith(
+          expect.objectContaining({
+            event: "sign-in.google",
+            outcome: "failed",
+          }),
+        ),
+      );
+      expect(accessJournal.record).toHaveBeenCalledTimes(1);
+    });
+
     it("should redirect to login if ticket verification throws an exception", async () => {
       const response = await supertest(app)
         .post("/auth/google/callback")
@@ -1585,6 +1720,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
           mockUserManagementUseCase,
           mockUserQueryUseCase,
           noMfaSignIn,
+          accessJournal,
         ),
       );
 
@@ -2401,6 +2537,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
           mockUserManagementUseCase,
           mockUserQueryUseCase,
           noMfaSignIn,
+          accessJournal,
         ),
       );
 
@@ -2487,6 +2624,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         mock<UserManagementUseCase>(),
         mock<UserQueryUseCase>(),
         noMfaSignIn,
+        accessJournal,
       );
 
       const calls = vi.mocked(hasPermissions).mock.calls;
@@ -2513,6 +2651,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
           mockUserManagementUseCase,
           mockUserQueryUseCase,
           noMfaSignIn,
+          accessJournal,
         ),
       );
 

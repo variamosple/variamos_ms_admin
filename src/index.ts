@@ -8,6 +8,7 @@ import {
 } from "@variamosple/variamos-security";
 import EnvVars from "#src/common/EnvVars.js";
 import {
+  AccessJournalInstance,
   AccountLockoutInstance,
   ActivityJournalInstance,
   ConfigEventPublisherInstance,
@@ -60,6 +61,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import multer from "multer";
+import { startJournalPurge } from "./Infrastructure/Activity/JournalPurge.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -116,6 +118,7 @@ const baseRouter = createBaseRouter(
   productionMfaResetUseCase,
   productionTrustedDeviceUseCase,
   ActivityJournalInstance,
+  AccessJournalInstance,
 );
 
 const app = createServer(baseRouter);
@@ -144,6 +147,8 @@ try {
   await waitForDatabase(VARIAMOS_ORM);
   const applied = await runMigrations(VARIAMOS_ORM, DB_SCHEMA);
   logger.info(`[MIGRATION] ${applied.length} migration(s) applied`);
+  // Retention of the journals (T-24), on tables the migrations made
+  startJournalPurge([ActivityJournalInstance, AccessJournalInstance]);
 } catch (e) {
   logger.err(
     `[MIGRATION] Failed, the server does not start: ${(e as Error).message}`,

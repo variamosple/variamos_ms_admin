@@ -2,6 +2,7 @@
 import { isAuthenticated } from "@variamosple/variamos-security";
 import { Router } from "express";
 import EnvVars from "#src/common/EnvVars.js";
+import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import type { BugAttachmentUseCase } from "#src/Domain/Bug/UseCase/BugAttachmentUseCase.js";
 import type { BugLifecycleUseCase } from "#src/Domain/Bug/UseCase/BugLifecycleUseCase.js";
@@ -37,6 +38,7 @@ import {
   createAdminNotificationsRouter,
 } from "./AdminNotificationsRouter.js";
 import { AUTH_ROUTE, createAuthRouter } from "./AuthRouter.js";
+import { recordRefusals } from "./accessJournal.js";
 import {
   BUG_V1_ROUTE,
   createBugRouter,
@@ -120,6 +122,7 @@ export function createBaseRouter(
   mfaReset: MfaResetUseCase,
   trustedDevices: TrustedDeviceUseCase,
   activityJournal: IActivityJournal,
+  accessJournal: IAccessJournal,
 ): Router {
   const baseRouter = Router();
 
@@ -129,6 +132,7 @@ export function createBaseRouter(
     usersUseCases.management,
     usersUseCases.query,
     mfaSignIn,
+    accessJournal,
   );
   const configurationV1Router = createConfigurationRouter(configurationUseCase);
   const userRolesRouter = createUserRolesRouter(
@@ -176,7 +180,9 @@ export function createBaseRouter(
     isAuthenticated,
   );
 
-  applyRateLimits(baseRouter, accountLockout);
+  // First, so that it sees the refusals of every router and limit (T-24)
+  baseRouter.use(recordRefusals(accessJournal));
+  applyRateLimits(baseRouter, accountLockout, accessJournal);
   baseRouter.use(MFA_ROUTE, createMfaRouter(mfaUseCase, trustedDevices));
   baseRouter.use(AUTH_ROUTE, authRouter);
   baseRouter.use(CONFIGURATION_V1_ROUTE, configurationV1Router);

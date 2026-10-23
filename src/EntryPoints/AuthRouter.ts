@@ -18,6 +18,7 @@ import logger from "jet-logger";
 import { describeError } from "#src/common/describeError.js";
 import EnvVars from "#src/common/EnvVars.js";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
 import type { Nullable } from "#src/Domain/Core/Entity/Nullable.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -35,6 +36,7 @@ import type { UserAuthUseCase } from "#src/Domain/User/UseCase/UserAuthUseCase.j
 import type { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
 import type { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
 import type { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
+import { recordAccess } from "./accessJournal.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
 
@@ -46,12 +48,21 @@ export const MFA_PENDING_COOKIE = "mfaPending";
 /** Holds the token of a browser where the code is not asked (lot 6). */
 export const MFA_TRUSTED_COOKIE = "mfaTrustedDevice";
 
+// Reason of a refused second factor, from the code of the answer
+const MFA_FAILURES: Record<string, string> = {
+  [DomainErrorCodes.INVALID_INPUT]: "wrong_code",
+  [DomainErrorCodes.TOO_MANY_REQUESTS]: "too_many_attempts",
+  [DomainErrorCodes.UNAUTHORIZED_ACCESS]: "expired",
+  [DomainErrorCodes.UNAVAILABLE]: "unavailable",
+};
+
 export function createAuthRouter(
   userAuthUseCase: UserAuthUseCase,
   userPasswordUseCase: UserPasswordUseCase,
   userManagementUseCase: UserManagementUseCase,
   userQueryUseCase: UserQueryUseCase,
   mfaSignIn: MfaSignInUseCase,
+  accessJournal: IAccessJournal,
 ): Router {
   const authRouter = Router();
 
@@ -350,6 +361,19 @@ export function createAuthRouter(
       const singInResponse = await userAuthUseCase.signIn(request);
 
       if (singInResponse.errorCode) {
+        // The account is named when it exists; the typed e-mail never is
+        const account = await accessJournal.accountByEmail(email);
+        recordAccess(accessJournal, req, res, {
+          event: "sign-in",
+          outcome: "failed",
+          reason:
+            singInResponse.errorCode === DomainErrorCodes.SYSTEM_ERROR
+              ? "system_error"
+              : account && !account.active
+                ? "account_inactive"
+                : "invalid_credentials",
+          userId: account?.id,
+        });
         return res
           .status(mapDomainErrorToHttpStatus(singInResponse.errorCode))
           .json(singInResponse);
@@ -383,6 +407,12 @@ export function createAuthRouter(
         String(sessionUser.id),
         trustedDeviceToken(req),
       );
+      recordAccess(accessJournal, req, res, {
+        event: "sign-in",
+        outcome: "success",
+        reason: pendingToken ? "mfa_required" : null,
+        userId: sessionUser.id,
+      });
       if (pendingToken) {
         res.cookie(MFA_PENDING_COOKIE, pendingToken, mfaPendingCookieOptions());
         response.data = {
@@ -427,12 +457,22 @@ export function createAuthRouter(
     }
 
     try {
+      // Read before the check, which may end the pending sign-in
+      const pendingUserId = pendingToken
+        ? mfaSignIn.pendingUser(pendingToken)
+        : null;
       const checked = await mfaSignIn.complete(
         transactionId,
         pendingToken ?? "",
         code,
       );
       if (checked.errorCode || !checked.data) {
+        recordAccess(accessJournal, req, res, {
+          event: "sign-in.mfa",
+          outcome: "failed",
+          reason: MFA_FAILURES[String(checked.errorCode)] ?? "failed",
+          userId: pendingUserId,
+        });
         if (checked.errorCode !== DomainErrorCodes.INVALID_INPUT) {
           clearPending();
         }
@@ -447,6 +487,12 @@ export function createAuthRouter(
       );
       clearPending();
       if (found.errorCode || !found.data) {
+        recordAccess(accessJournal, req, res, {
+          event: "sign-in.mfa",
+          outcome: "failed",
+          reason: "account_inactive",
+          userId: checked.data,
+        });
         return res
           .status(HttpStatusCodes.UNAUTHORIZED)
           .json(
@@ -465,6 +511,12 @@ export function createAuthRouter(
         roles,
         permissions,
       } = found.data;
+      recordAccess(accessJournal, req, res, {
+        event: "sign-in.mfa",
+        outcome: "success",
+        reason: null,
+        userId: checked.data,
+      });
       if (rememberDevice === true) {
         const trusted = await mfaSignIn.trustDevice(checked.data);
         if (trusted) {
@@ -592,10 +644,17 @@ export function createAuthRouter(
       // The login page shows the message of a reason code, never a text
       // read from its address (T-16)
       if (response.errorCode) {
-        const reason =
-          response.errorCode === DomainErrorCodes.FORBIDDEN
-            ? "account-inactive"
-            : "sign-in-failed";
+        const inactive = response.errorCode === DomainErrorCodes.FORBIDDEN;
+        const account = user?.email
+          ? await accessJournal.accountByEmail(user.email)
+          : null;
+        recordAccess(accessJournal, req, res, {
+          event: "sign-in.google",
+          outcome: "failed",
+          reason: inactive ? "account_inactive" : "sign_in_failed",
+          userId: account?.id,
+        });
+        const reason = inactive ? "account-inactive" : "sign-in-failed";
         return res.redirect(
           302,
           `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?reason=${reason}`,
@@ -603,6 +662,11 @@ export function createAuthRouter(
       }
 
       if (!response.data) {
+        recordAccess(accessJournal, req, res, {
+          event: "sign-in.google",
+          outcome: "failed",
+          reason: "sign_in_failed",
+        });
         return res.redirect(
           302,
           `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?reason=sign-in-failed`,
@@ -631,6 +695,12 @@ export function createAuthRouter(
         String(sessionUser.id),
         trustedDeviceToken(req),
       );
+      recordAccess(accessJournal, req, res, {
+        event: "sign-in.google",
+        outcome: "success",
+        reason: pendingToken ? "mfa_required" : null,
+        userId: sessionUser.id,
+      });
       if (pendingToken) {
         res.cookie(MFA_PENDING_COOKIE, pendingToken, mfaPendingCookieOptions());
         const days = await mfaSignIn.trustedDeviceDays();
@@ -651,6 +721,13 @@ export function createAuthRouter(
       res.redirect(302, `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`);
     } catch (err) {
       logger.err(describeError(err));
+      if (!res.locals.accessRecorded) {
+        recordAccess(accessJournal, req, res, {
+          event: "sign-in.google",
+          outcome: "failed",
+          reason: "sign_in_failed",
+        });
+      }
       res.redirect(
         302,
         `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?reason=sign-in-failed`,

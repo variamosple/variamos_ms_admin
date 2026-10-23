@@ -81,6 +81,11 @@ export class MfaSignInUseCase {
   }
 
   /** Checks the code of a pending sign-in; gives the user id when right. */
+  /** The account of a pending sign-in, for the access journal (T-24). */
+  public pendingUser(token: string): string | null {
+    return this.pending.find(token);
+  }
+
   public async complete(
     transactionId: string,
     token: string,

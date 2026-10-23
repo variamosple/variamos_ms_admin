@@ -1,6 +1,7 @@
 import logger from "jet-logger";
 import EnvVars from "#src/common/EnvVars.js";
 import { AccessHierarchyRepositoryImpl } from "./DataProviders/AccessControl/AccessHierarchyRepository.js";
+import { AccessJournalRepositoryImpl } from "./DataProviders/Activity/AccessJournalRepository.js";
 import { ActivityJournalRepositoryImpl } from "./DataProviders/Activity/ActivityJournalRepository.js";
 import { BugRepositoryImpl } from "./DataProviders/Bug/BugRepository.js";
 import { ConfigurationRepositoryImpl } from "./DataProviders/Configuration/ConfigurationRepository.js";
@@ -102,6 +103,11 @@ export const ConfigurationRepositoryInstance = new ConfigurationRepositoryImpl(
 export const ConfigEventPublisherInstance = new ConfigEventPublisherImpl();
 // Administration operations (T-24): table admin_activity_logs, append-only
 export const ActivityJournalInstance = new ActivityJournalRepositoryImpl(
+  VARIAMOS_ORM,
+  DB_SCHEMA,
+);
+// Sign-ins, locks and refused requests (T-24): table admin_access_logs
+export const AccessJournalInstance = new AccessJournalRepositoryImpl(
   VARIAMOS_ORM,
   DB_SCHEMA,
 );

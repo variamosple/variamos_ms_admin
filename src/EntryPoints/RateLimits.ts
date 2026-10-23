@@ -3,6 +3,7 @@ import { ipKeyGenerator, type Options, rateLimit } from "express-rate-limit";
 import logger from "jet-logger";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { maskEmail } from "#src/common/maskEmail.js";
+import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import {
@@ -10,6 +11,7 @@ import {
   DEFAULT_ACCOUNT_LOCKOUT_POLICY_PROVIDER,
 } from "#src/Domain/User/Service/AccountLockoutService.js";
 import { AUTH_ROUTE } from "./AuthRouter.js";
+import { recordAccess } from "./accessJournal.js";
 import { BUG_V1_ROUTE } from "./BugRouter.js";
 
 const MINUTE_MS = 60 * 1000;
@@ -82,7 +84,10 @@ function limiter(
  * answer as the other limits. A 4xx answer counts as a failure, a 2xx or
  * 3xx clears the count; a 5xx or an unfinished answer is not counted.
  */
-function accountLockoutGuard(lockout: AccountLockout): RequestHandler {
+function accountLockoutGuard(
+  lockout: AccountLockout,
+  journal?: IAccessJournal,
+): RequestHandler {
   return async (req, res, next) => {
     const email = bodyEmail(req);
     if (!email) {
@@ -91,6 +96,14 @@ function accountLockoutGuard(lockout: AccountLockout): RequestHandler {
     }
     const admission = await lockout.admit(email);
     if (admission.locked) {
+      if (journal) {
+        recordAccess(journal, req, res, {
+          event: "sign-in",
+          outcome: "failed",
+          reason: "locked",
+          userId: (await journal.accountByEmail(email))?.id,
+        });
+      }
       res.set("Retry-After", String(Math.ceil(admission.retryAfterMs / 1000)));
       tooManyAttempts("signIn", res);
       return;
@@ -107,11 +120,31 @@ function accountLockoutGuard(lockout: AccountLockout): RequestHandler {
           logger.warn(
             `[LOCKOUT] ${maskEmail(email)} locked for ${lock.durationMinutes} min after ${lock.attempts} failed sign-ins`,
           );
+          if (journal) void recordLock(journal, req, email);
         }
       }
     });
     next();
   };
+}
+
+// The lock itself, once the answer that caused it is sent (T-24)
+async function recordLock(
+  journal: IAccessJournal,
+  req: Request,
+  email: string,
+): Promise<void> {
+  const account = await journal.accountByEmail(email);
+  await journal.record({
+    event: "account.locked",
+    outcome: "failed",
+    reason: "too_many_failures",
+    userId: account?.id ?? null,
+    ip: req.ip ?? null,
+    method: req.method,
+    path: req.originalUrl.split("?")[0],
+    statusCode: null,
+  });
 }
 
 /**
@@ -133,13 +166,14 @@ export function mfaFailureLimiter(): RequestHandler {
 export function applyRateLimits(
   router: Router,
   lockout = new AccountLockout(DEFAULT_ACCOUNT_LOCKOUT_POLICY_PROVIDER),
+  accessJournal?: IAccessJournal,
 ): void {
   const countFailuresOnly = { skipSuccessfulRequests: true };
 
   router.post(
     `${AUTH_ROUTE}/sign-in`,
     limiter("signIn", RATE_LIMITS.signInPerAddress, countFailuresOnly),
-    accountLockoutGuard(lockout),
+    accountLockoutGuard(lockout, accessJournal),
   );
   // The code after the password; limited per account in MfaSignInUseCase
   router.post(
