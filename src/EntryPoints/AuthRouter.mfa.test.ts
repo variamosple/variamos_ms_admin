@@ -3,6 +3,7 @@ import cookieParser from "cookie-parser";
 import express from "express";
 import supertest from "supertest";
 import { mock } from "vitest-mock-extended";
+import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
 import type { IConfigurationRepository } from "#src/Domain/Configuration/Repository/IConfigurationRepository.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -26,6 +27,9 @@ import {
   MFA_PENDING_COOKIE,
   MFA_TRUSTED_COOKIE,
 } from "./AuthRouter.js";
+
+// The access journal is checked by its own tests (T-24)
+const accessJournal = mock<IAccessJournal>();
 
 vi.mock("@variamosple/variamos-security", async () => {
   const actual = await vi.importActual<
@@ -132,6 +136,7 @@ function setUp(mfaEnabled: boolean, trustedDeviceDays = 14) {
       mock<UserManagementUseCase>(),
       query,
       mfaSignIn,
+      accessJournal,
     ),
   );
   return { app, query, repository, devices };
@@ -230,6 +235,52 @@ describe("sign-in with a second factor", () => {
     expect(wrong.body.message).toBe("The code is incorrect.");
     expect(cookieNamed(wrong, "authToken")).toBeUndefined();
     expect(right.status).toBe(200);
+  });
+
+  it("records the password step, a wrong code and the right code", async () => {
+    const { app } = setUp(true);
+    const pending = pendingCookieOf(await signIn(app));
+    await supertest(app)
+      .post("/auth/sign-in/mfa")
+      .set("Cookie", pending)
+      .send({ code: "000000" });
+    await supertest(app)
+      .post("/auth/sign-in/mfa")
+      .set("Cookie", pending)
+      .send({ code: RIGHT_CODE });
+
+    await vi.waitFor(() =>
+      expect(
+        accessJournal.record.mock.calls.map(([entry]) => [
+          entry.event,
+          entry.outcome,
+          entry.reason,
+          entry.userId,
+        ]),
+      ).toEqual([
+        ["sign-in", "success", "mfa_required", "user-1"],
+        ["sign-in.mfa", "failed", "wrong_code", "user-1"],
+        ["sign-in.mfa", "success", null, "user-1"],
+      ]),
+    );
+  });
+
+  it("records a code sent without a pending sign-in", async () => {
+    const { app } = setUp(true);
+
+    await supertest(app).post("/auth/sign-in/mfa").send({ code: RIGHT_CODE });
+
+    await vi.waitFor(() =>
+      expect(accessJournal.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "sign-in.mfa",
+          outcome: "failed",
+          reason: "expired",
+          userId: null,
+          statusCode: 401,
+        }),
+      ),
+    );
   });
 
   it("refuses the code without a pending sign-in", async () => {

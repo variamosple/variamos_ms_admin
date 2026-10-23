@@ -2,12 +2,20 @@ import logger from "jet-logger";
 import type { Sequelize } from "sequelize";
 import type { ActivityEntry } from "#src/Domain/Activity/ActivityEntry.js";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
+import type { IJournalPurge } from "#src/Domain/Activity/IJournalPurge.js";
+
+// Same value as the trigger of migration 0005
+const RETENTION = "1 year";
 
 /**
  * Table `admin_activity_logs` (migration 0005), append-only. A failed write
  * is logged and never fails the operation it records.
  */
-export class ActivityJournalRepositoryImpl implements IActivityJournal {
+export class ActivityJournalRepositoryImpl
+  implements IActivityJournal, IJournalPurge
+{
+  public readonly journal = "activity";
+
   public constructor(
     private readonly sequelize: Sequelize,
     private readonly schema: string,
@@ -36,5 +44,13 @@ export class ActivityJournalRepositoryImpl implements IActivityJournal {
         `[ACTIVITY] ${entry.action} on ${entry.entityType} not recorded: ${(error as Error).name}`,
       );
     }
+  }
+
+  public async purgeExpired(): Promise<number> {
+    const [, result] = await this.sequelize.query(
+      `DELETE FROM "${this.schema}"."admin_activity_logs"
+        WHERE "occurred_at" < now() - interval '${RETENTION}'`,
+    );
+    return (result as { rowCount?: number } | undefined)?.rowCount ?? 0;
   }
 }

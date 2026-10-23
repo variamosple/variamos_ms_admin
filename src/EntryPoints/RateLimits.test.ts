@@ -1,6 +1,8 @@
 import express, { Router } from "express";
 import logger from "jet-logger";
 import supertest from "supertest";
+import { mock } from "vitest-mock-extended";
+import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
 import { AccountLockoutPolicy } from "#src/Domain/User/Entity/AccountLockoutPolicy.js";
 import { AccountLockout } from "#src/Domain/User/Service/AccountLockoutService.js";
 import { applyRateLimits, RATE_LIMITS } from "./RateLimits.js";
@@ -8,12 +10,16 @@ import { applyRateLimits, RATE_LIMITS } from "./RateLimits.js";
 const MAX_ATTEMPTS = AccountLockoutPolicy.DEFAULT.maxAttempts;
 
 /** The app answers each route with the status chosen by the test. */
-function createApp(status: { value: number }, lockout?: AccountLockout) {
+function createApp(
+  status: { value: number },
+  lockout?: AccountLockout,
+  journal?: IAccessJournal,
+) {
   const app = express();
   app.set("trust proxy", "loopback, linklocal, uniquelocal");
   app.use(express.json());
   const router = Router();
-  applyRateLimits(router, lockout);
+  applyRateLimits(router, lockout, journal);
   router.post(/.*/, (_req, res) => {
     res.status(status.value).json({});
   });
@@ -183,6 +189,41 @@ describe("rate limits", () => {
       expect(Number(refused.headers["retry-after"])).toBeGreaterThan(19 * 60);
       expect(Number(refused.headers["retry-after"])).toBeLessThanOrEqual(
         20 * 60,
+      );
+    });
+
+    it("records the lock and each refused attempt in the access journal", async () => {
+      const journal = mock<IAccessJournal>();
+      journal.accountByEmail.mockResolvedValue({ id: "user-1", active: true });
+      const app = createApp({ value: 401 }, lockoutOf(3, 15), journal);
+      for (let i = 0; i < 3; i++) await signIn(app);
+
+      await vi.waitFor(() =>
+        expect(journal.record).toHaveBeenCalledWith(
+          expect.objectContaining({
+            event: "account.locked",
+            reason: "too_many_failures",
+            userId: "user-1",
+            ip: "203.0.113.1",
+          }),
+        ),
+      );
+
+      expect((await signIn(app)).status).toBe(429);
+      await vi.waitFor(() =>
+        expect(journal.record).toHaveBeenCalledWith(
+          expect.objectContaining({
+            event: "sign-in",
+            outcome: "failed",
+            reason: "locked",
+            userId: "user-1",
+            statusCode: 429,
+          }),
+        ),
+      );
+      // The typed e-mail is only used to find the account
+      expect(JSON.stringify(journal.record.mock.calls)).not.toContain(
+        "ana@example.com",
       );
     });
 
