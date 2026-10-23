@@ -26,17 +26,18 @@ describe("errorMapper Unit Tests", () => {
     );
   });
 
-  it("should return the errorCode if it is a number in default case", () => {
-    expect(mapDomainErrorToHttpStatus(418)).toBe(418);
-  });
+  it.each([418, "404", 0.5])(
+    "answers 500 for a code outside the enumeration, even a number: %j",
+    (code) => {
+      expect(mapDomainErrorToHttpStatus(code)).toBe(
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+      );
+    },
+  );
 
   it("should return INTERNAL_SERVER_ERROR if it is an unknown domain error code and not a number", () => {
     expect(
       mapDomainErrorToHttpStatus("UNKNOWN_ERROR" as DomainErrorCodes),
     ).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
-  });
-
-  it("should return parsed number if errorCode is a numeric string", () => {
-    expect(mapDomainErrorToHttpStatus("404")).toBe(404);
   });
 });

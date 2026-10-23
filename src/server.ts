@@ -24,6 +24,10 @@ import { describeError } from "#src/common/describeError.js";
 import EnvVars from "#src/common/EnvVars.js";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { NodeEnvs } from "#src/common/misc.js";
+import {
+  errorResponse,
+  hideInternalErrorMessages,
+} from "#src/EntryPoints/errorResponse.js";
 import { createUploadsRouter } from "#src/EntryPoints/UploadsRouter.js";
 
 export function createServer(baseRouter: Router) {
@@ -35,6 +39,9 @@ export function createServer(baseRouter: Router) {
   app.set("trust proxy", "loopback, linklocal, uniquelocal");
 
   // **** Setup **** //
+
+  // A server error never sends its own message to the client (T-16)
+  app.use(hideInternalErrorMessages);
 
   // Basic middleware
   app.use(express.json());
@@ -56,7 +63,9 @@ export function createServer(baseRouter: Router) {
       if (isAllowed) {
         callback(null, true);
       } else {
-        callback(new Error("Not allowed by CORS"));
+        callback(
+          new RouteError(HttpStatusCodes.FORBIDDEN, "Origin not allowed."),
+        );
       }
     },
     credentials: true,
@@ -81,16 +90,13 @@ export function createServer(baseRouter: Router) {
   // Add APIs, must be after middleware
   app.use("/", baseRouter);
 
-  // Add error handler
+  // Add error handler: only a DomainError or a RouteError shows its message
   app.use((err: Error, _: Request, res: Response, _next: NextFunction) => {
     if (EnvVars.NodeEnv !== NodeEnvs.Test.valueOf()) {
       logger.err(describeError(err));
     }
-    let status = HttpStatusCodes.BAD_REQUEST;
-    if (err instanceof RouteError) {
-      status = err.status;
-    }
-    return res.status(status).json({ error: err.message });
+    const { status, body } = errorResponse(err);
+    return res.status(status).json(body);
   });
 
   // **** Front-End Content **** //

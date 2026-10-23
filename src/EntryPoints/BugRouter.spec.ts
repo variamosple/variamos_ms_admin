@@ -59,6 +59,7 @@ import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { MAX_ATTACHMENT_SIZE_BYTES } from "#src/Domain/Core/File/AllowedFileType.js";
 import { createBugRouter } from "./BugRouter.js";
+import { INTERNAL_ERROR_MESSAGE } from "./errorResponse.js";
 
 const mockLoggerInfo = vi.spyOn(logger, "info").mockImplementation(() => {});
 const mockLoggerErr = vi.spyOn(logger, "err").mockImplementation(() => {});
@@ -267,15 +268,19 @@ describe("BugRouter HTTP Integration Tests", () => {
       );
     });
 
-    it("should return 400 when queryBugRepos throws an exception", async () => {
+    it("should return 500 when queryBugRepos throws an exception", async () => {
       mockBugQueryUseCase.queryBugRepos.mockRejectedValue(
         new Error("Internal Config Fail"),
       );
 
       const res = await request(app).get("/bugs/repos");
 
-      expect(res.status).toBe(400);
-      expect(res.body.error).toBe("Internal Config Fail");
+      expect(res.status).toBe(500);
+      expect(res.body).toMatchObject({
+        errorCode: DomainErrorCodes.SYSTEM_ERROR,
+        message: INTERNAL_ERROR_MESSAGE,
+      });
+      expect(JSON.stringify(res.body)).not.toContain("Internal Config Fail");
     });
   });
 
@@ -296,15 +301,19 @@ describe("BugRouter HTTP Integration Tests", () => {
       );
     });
 
-    it("should return 400 when queryCategories throws an exception", async () => {
+    it("should return 500 when queryCategories throws an exception", async () => {
       mockBugQueryUseCase.queryCategories.mockRejectedValue(
         new Error("Database Query Failed"),
       );
 
       const res = await request(app).get("/bugs/categories");
 
-      expect(res.status).toBe(400);
-      expect(res.body.error).toBe("Database Query Failed");
+      expect(res.status).toBe(500);
+      expect(res.body).toMatchObject({
+        errorCode: DomainErrorCodes.SYSTEM_ERROR,
+        message: INTERNAL_ERROR_MESSAGE,
+      });
+      expect(JSON.stringify(res.body)).not.toContain("Database Query Failed");
     });
   });
 
@@ -361,15 +370,19 @@ describe("BugRouter HTTP Integration Tests", () => {
       expect(Buffer.from(passedFile?.content ?? [])).toEqual(PNG_BYTES);
     });
 
-    it("should return 400 when creation throws an error", async () => {
+    it("should return 500 when creation throws an error", async () => {
       mockBugSubmissionUseCase.createBug.mockRejectedValue(
         new Error("Required fields missing"),
       );
 
       const res = await request(app).post("/bugs").send({});
 
-      expect(res.status).toBe(400);
-      expect(res.body.error).toBe("Required fields missing");
+      expect(res.status).toBe(500);
+      expect(res.body).toMatchObject({
+        errorCode: DomainErrorCodes.SYSTEM_ERROR,
+        message: INTERNAL_ERROR_MESSAGE,
+      });
+      expect(JSON.stringify(res.body)).not.toContain("Required fields missing");
     });
   });
 
@@ -390,15 +403,19 @@ describe("BugRouter HTTP Integration Tests", () => {
       );
     });
 
-    it("should return 400 when fetching history throws", async () => {
+    it("should return 500 when fetching history throws", async () => {
       mockBugQueryUseCase.queryHistory.mockRejectedValue(
         new Error("DB Query Timeout"),
       );
 
       const res = await request(app).get("/bugs/local-1/history");
 
-      expect(res.status).toBe(400);
-      expect(res.body.error).toBe("DB Query Timeout");
+      expect(res.status).toBe(500);
+      expect(res.body).toMatchObject({
+        errorCode: DomainErrorCodes.SYSTEM_ERROR,
+        message: INTERNAL_ERROR_MESSAGE,
+      });
+      expect(JSON.stringify(res.body)).not.toContain("DB Query Timeout");
     });
   });
 
@@ -442,7 +459,7 @@ describe("BugRouter HTTP Integration Tests", () => {
       );
     });
 
-    it("should return 400 when update status throws", async () => {
+    it("should return 500 when update status throws", async () => {
       mockBugLifecycleUseCase.updateStatus.mockRejectedValue(
         new Error("Update failed"),
       );
@@ -451,60 +468,80 @@ describe("BugRouter HTTP Integration Tests", () => {
         .post("/bugs/local-1/status")
         .send({ status: "closed" });
 
-      expect(res.status).toBe(400);
-      expect(res.body.error).toBe("Update failed");
+      expect(res.status).toBe(500);
+      expect(res.body).toMatchObject({
+        errorCode: DomainErrorCodes.SYSTEM_ERROR,
+        message: INTERNAL_ERROR_MESSAGE,
+      });
+      expect(JSON.stringify(res.body)).not.toContain("Update failed");
     });
   });
 
   describe("POST /bugs/:id/reject exception routing", () => {
-    it("should return 400 when rejectBug throws exception", async () => {
+    it("should return 500 when rejectBug throws exception", async () => {
       mockBugLifecycleUseCase.rejectBug.mockRejectedValue(
         new Error("Reject exception"),
       );
 
       const res = await request(app).post("/bugs/local-1/reject").send();
 
-      expect(res.status).toBe(400);
-      expect(res.body.error).toBe("Reject exception");
+      expect(res.status).toBe(500);
+      expect(res.body).toMatchObject({
+        errorCode: DomainErrorCodes.SYSTEM_ERROR,
+        message: INTERNAL_ERROR_MESSAGE,
+      });
+      expect(JSON.stringify(res.body)).not.toContain("Reject exception");
     });
   });
 
   describe("POST /bugs/:id/restore exception routing", () => {
-    it("should return 400 when restoreBug throws exception", async () => {
+    it("should return 500 when restoreBug throws exception", async () => {
       mockBugLifecycleUseCase.restoreBug.mockRejectedValue(
         new Error("Restore exception"),
       );
 
       const res = await request(app).post("/bugs/local-1/restore").send();
 
-      expect(res.status).toBe(400);
-      expect(res.body.error).toBe("Restore exception");
+      expect(res.status).toBe(500);
+      expect(res.body).toMatchObject({
+        errorCode: DomainErrorCodes.SYSTEM_ERROR,
+        message: INTERNAL_ERROR_MESSAGE,
+      });
+      expect(JSON.stringify(res.body)).not.toContain("Restore exception");
     });
   });
 
   describe("GET /bugs error routing", () => {
-    it("should return 400 when queryBugs throws an exception", async () => {
+    it("should return 500 when queryBugs throws an exception", async () => {
       mockBugQueryUseCase.queryBugs.mockRejectedValue(
         new Error("Query exception"),
       );
 
       const res = await request(app).get("/bugs");
 
-      expect(res.status).toBe(400);
-      expect(res.body.error).toBe("Query exception");
+      expect(res.status).toBe(500);
+      expect(res.body).toMatchObject({
+        errorCode: DomainErrorCodes.SYSTEM_ERROR,
+        message: INTERNAL_ERROR_MESSAGE,
+      });
+      expect(JSON.stringify(res.body)).not.toContain("Query exception");
     });
   });
 
   describe("GET /bugs/local error routing", () => {
-    it("should return 400 when queryLocalBugs throws an exception", async () => {
+    it("should return 500 when queryLocalBugs throws an exception", async () => {
       mockBugQueryUseCase.queryLocalBugs.mockRejectedValue(
         new Error("Query local exception"),
       );
 
       const res = await request(app).get("/bugs/local");
 
-      expect(res.status).toBe(400);
-      expect(res.body.error).toBe("Query local exception");
+      expect(res.status).toBe(500);
+      expect(res.body).toMatchObject({
+        errorCode: DomainErrorCodes.SYSTEM_ERROR,
+        message: INTERNAL_ERROR_MESSAGE,
+      });
+      expect(JSON.stringify(res.body)).not.toContain("Query local exception");
     });
   });
 
@@ -539,7 +576,7 @@ describe("BugRouter HTTP Integration Tests", () => {
       expect(res.status).toBe(500);
     });
 
-    it("should return the exact numeric code if it is an unknown number", async () => {
+    it("should answer 500 for a numeric code outside the enumeration", async () => {
       mockBugQueryUseCase.queryBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withError(
           "418" as unknown as DomainErrorCodes,
@@ -547,10 +584,10 @@ describe("BugRouter HTTP Integration Tests", () => {
         ),
       );
       const res = await request(app).get("/bugs");
-      expect(res.status).toBe(418);
+      expect(res.status).toBe(500);
     });
 
-    it("should map direct numeric error codes correctly", async () => {
+    it("should not take a numeric string code as a status", async () => {
       mockBugQueryUseCase.queryBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withError(
           "404" as unknown as DomainErrorCodes,
@@ -558,7 +595,7 @@ describe("BugRouter HTTP Integration Tests", () => {
         ),
       );
       const res = await request(app).get("/bugs");
-      expect(res.status).toBe(404);
+      expect(res.status).toBe(500);
     });
   });
 
@@ -592,18 +629,25 @@ describe("BugRouter HTTP Integration Tests", () => {
       const res = await request(app).post("/bugs/sync").send();
 
       expect(res.status).toBe(400);
-      expect(res.body.error).toBe("GitHub Sync is not configured.");
+      expect(res.body).toMatchObject({
+        errorCode: DomainErrorCodes.INVALID_INPUT,
+        message: "GitHub Sync is not configured.",
+      });
     });
 
-    it("should return 400 when syncBugs throws an exception", async () => {
+    it("should return 500 when syncBugs throws an exception", async () => {
       mockBugSyncUseCase.syncBugs.mockRejectedValue(
         new Error("Sync exception"),
       );
 
       const res = await request(app).post("/bugs/sync").send();
 
-      expect(res.status).toBe(400);
-      expect(res.body.error).toBe("Sync exception");
+      expect(res.status).toBe(500);
+      expect(res.body).toMatchObject({
+        errorCode: DomainErrorCodes.SYSTEM_ERROR,
+        message: INTERNAL_ERROR_MESSAGE,
+      });
+      expect(JSON.stringify(res.body)).not.toContain("Sync exception");
     });
   });
 
@@ -877,7 +921,7 @@ describe("BugRouter HTTP Integration Tests", () => {
         );
       });
 
-      it("should handle unexpected errors during attachment upload and return 400", async () => {
+      it("should handle unexpected errors during attachment upload and return 500", async () => {
         mockBugAttachmentUseCase.addAttachment.mockRejectedValue(
           new Error("Upload failed"),
         );
@@ -886,15 +930,22 @@ describe("BugRouter HTTP Integration Tests", () => {
           .post("/bugs/local-1/attachments")
           .attach("file", Buffer.from("fake png"), "test-image.png");
 
-        expect(res.status).toBe(400);
-        expect(res.body.error).toBe("Upload failed");
+        expect(res.status).toBe(500);
+        expect(res.body).toMatchObject({
+          errorCode: DomainErrorCodes.SYSTEM_ERROR,
+          message: INTERNAL_ERROR_MESSAGE,
+        });
+        expect(JSON.stringify(res.body)).not.toContain("Upload failed");
       });
 
       it("should return 400 when no file is attached", async () => {
         const res = await request(app).post("/bugs/local-1/attachments").send();
 
         expect(res.status).toBe(400);
-        expect(res.body.error).toBe("File attachment is required.");
+        expect(res.body).toMatchObject({
+          errorCode: DomainErrorCodes.INVALID_INPUT,
+          message: "File attachment is required.",
+        });
       });
     });
 
@@ -915,15 +966,19 @@ describe("BugRouter HTTP Integration Tests", () => {
         );
       });
 
-      it("should handle unexpected errors during attachment deletion and return 400", async () => {
+      it("should handle unexpected errors during attachment deletion and return 500", async () => {
         mockBugAttachmentUseCase.deleteAttachment.mockRejectedValue(
           new Error("Delete failed"),
         );
 
         const res = await request(app).delete("/bugs/attachments/1");
 
-        expect(res.status).toBe(400);
-        expect(res.body.error).toBe("Delete failed");
+        expect(res.status).toBe(500);
+        expect(res.body).toMatchObject({
+          errorCode: DomainErrorCodes.SYSTEM_ERROR,
+          message: INTERNAL_ERROR_MESSAGE,
+        });
+        expect(JSON.stringify(res.body)).not.toContain("Delete failed");
       });
     });
   });
@@ -960,7 +1015,7 @@ describe("BugRouter HTTP Integration Tests", () => {
         );
       });
 
-      it("should handle unexpected errors during note creation and return 400", async () => {
+      it("should handle unexpected errors during note creation and return 500", async () => {
         mockBugAttachmentUseCase.createNote.mockRejectedValue(
           new Error("Note creation failed"),
         );
@@ -969,8 +1024,12 @@ describe("BugRouter HTTP Integration Tests", () => {
           .post("/bugs/local-1/notes")
           .send({ body: "Hello note" });
 
-        expect(res.status).toBe(400);
-        expect(res.body.error).toBe("Note creation failed");
+        expect(res.status).toBe(500);
+        expect(res.body).toMatchObject({
+          errorCode: DomainErrorCodes.SYSTEM_ERROR,
+          message: INTERNAL_ERROR_MESSAGE,
+        });
+        expect(JSON.stringify(res.body)).not.toContain("Note creation failed");
       });
     });
 
@@ -995,14 +1054,18 @@ describe("BugRouter HTTP Integration Tests", () => {
         );
       });
 
-      it("should handle unexpected errors during notes query and return 400", async () => {
+      it("should handle unexpected errors during notes query and return 500", async () => {
         mockBugQueryUseCase.queryNotes.mockRejectedValue(
           new Error("Notes query failed"),
         );
         const res = await request(app).get("/bugs/local-1/notes");
 
-        expect(res.status).toBe(400);
-        expect(res.body.error).toBe("Notes query failed");
+        expect(res.status).toBe(500);
+        expect(res.body).toMatchObject({
+          errorCode: DomainErrorCodes.SYSTEM_ERROR,
+          message: INTERNAL_ERROR_MESSAGE,
+        });
+        expect(JSON.stringify(res.body)).not.toContain("Notes query failed");
       });
     });
   });

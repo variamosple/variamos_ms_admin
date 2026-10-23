@@ -1,3 +1,5 @@
+import { DomainError } from "#src/Domain/Core/Error/DomainError.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { PasswordPolicy } from "./PasswordPolicy.js";
 
 /**
@@ -13,7 +15,7 @@ export class Password {
     policy: PasswordPolicy = PasswordPolicy.BASELINE,
   ) {
     if (!value || policy.violations(value).length > 0) {
-      throw new Error(policy.describe());
+      throw new DomainError(DomainErrorCodes.INVALID_INPUT, policy.describe());
     }
     this.value = value;
   }

@@ -36,6 +36,7 @@ import type { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagem
 import type { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
 import type { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
+import { sendError } from "./errorResponse.js";
 
 export const AUTH_ROUTE = "/auth";
 
@@ -525,14 +526,7 @@ export function createAuthRouter(
         passwordConfirmation,
       );
     } catch (error) {
-      return res
-        .status(HttpStatusCodes.BAD_REQUEST)
-        .json(
-          new ResponseModel<void>(transactionId).withError(
-            DomainErrorCodes.INVALID_INPUT,
-            (error as Error).message,
-          ),
-        );
+      return sendError(res, error, transactionId);
     }
 
     try {
