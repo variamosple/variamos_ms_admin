@@ -21,13 +21,13 @@ export default defineConfig({
       provider: "v8",
       include: ["src/Domain/**/*.ts", "src/EntryPoints/**/*.ts"],
       exclude: ["src/EntryPoints/index.ts", "src/**/*.d.ts"],
+      // Just under the measure without PostgreSQL, as in CI (2026-10-23:
+      // 98.26 / 92.39 / 99.09 / 98.45). Raise them, never lower them (T-17).
       thresholds: {
-        global: {
-          branches: 80,
-          functions: 80,
-          lines: 80,
-          statements: 80,
-        },
+        statements: 97,
+        branches: 91,
+        functions: 98,
+        lines: 97,
       },
     },
   },
