@@ -37,7 +37,9 @@ import {
   productionUserQueryUseCase,
   productionUserRoleUseCase,
   productionVisitUseCase,
+  SecretConfigurationValueInstance,
 } from "./CompositionRoot.js";
+import { encryptPlainSecrets } from "./DataProviders/Configuration/EncryptPlainSecrets.js";
 import { RequestModel } from "./Domain/Core/Entity/RequestModel.js";
 import {
   attachContainerLogsWebSocket,
@@ -145,6 +147,27 @@ try {
     `[MIGRATION] Failed, the server does not start: ${(e as Error).message}`,
   );
   process.exit(1);
+}
+
+// Secret configurations still in clear are encrypted (T-13); on failure they
+// stay as they were, and the server still starts
+if (SecretConfigurationValueInstance.canEncrypt()) {
+  try {
+    const encrypted = await encryptPlainSecrets(
+      VARIAMOS_ORM,
+      DB_SCHEMA,
+      SecretConfigurationValueInstance,
+    );
+    logger.info(`[CONFIG] ${encrypted} secret configuration(s) encrypted`);
+  } catch (e) {
+    logger.err(
+      `[CONFIG] Secret configurations left as they were: ${(e as Error).message}`,
+    );
+  }
+} else {
+  logger.warn(
+    "[CONFIG] No CONFIG_ENCRYPTION_KEY: secret configurations cannot be changed",
+  );
 }
 
 const server = app.listen(EnvVars.Port, async () => {

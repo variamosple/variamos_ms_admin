@@ -1,8 +1,8 @@
 import logger from "jet-logger";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ISecretCipher } from "#src/Domain/Core/Secret/ISecretCipher.js";
 import type { IUserMfaRepository } from "#src/Domain/Mfa/Repository/IUserMfaRepository.js";
-import type { ISecretCipher } from "#src/Domain/Mfa/Service/ISecretCipher.js";
 import type { PendingMfaSignIns } from "#src/Domain/Mfa/Service/PendingMfaSignIns.js";
 import type {
   TrustedDeviceToken,

@@ -1,6 +1,7 @@
 import logger from "jet-logger";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ISecretCipher } from "#src/Domain/Core/Secret/ISecretCipher.js";
 import {
   generateRecoveryCodes,
   hashRecoveryCode,
@@ -15,7 +16,6 @@ import type {
   IUserMfaRepository,
   UserMfaRecord,
 } from "#src/Domain/Mfa/Repository/IUserMfaRepository.js";
-import type { ISecretCipher } from "#src/Domain/Mfa/Service/ISecretCipher.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 
 export const MFA_ISSUER = "VariaMos";

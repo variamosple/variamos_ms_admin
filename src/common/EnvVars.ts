@@ -48,6 +48,8 @@ export default {
       BCRYPT_SALT_ROUNDS: Number(process.env.BCRYPT_SALT_ROUNDS ?? 10),
       // 32 bytes in base64; empty, two-factor enrollment is unavailable
       MFA_ENCRYPTION_KEY: process.env.MFA_ENCRYPTION_KEY ?? "",
+      // 32 bytes in base64; empty, secret configurations cannot be changed
+      CONFIG_ENCRYPTION_KEY: process.env.CONFIG_ENCRYPTION_KEY ?? "",
     },
   },
   DOCKER: {

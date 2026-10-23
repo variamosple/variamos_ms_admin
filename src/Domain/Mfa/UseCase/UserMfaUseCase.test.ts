@@ -1,4 +1,5 @@
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ISecretCipher } from "#src/Domain/Core/Secret/ISecretCipher.js";
 import { hashRecoveryCode } from "#src/Domain/Mfa/Entity/RecoveryCodes.js";
 import {
   base32Decode,
@@ -10,7 +11,6 @@ import type {
   IUserMfaRepository,
   UserMfaRecord,
 } from "#src/Domain/Mfa/Repository/IUserMfaRepository.js";
-import type { ISecretCipher } from "#src/Domain/Mfa/Service/ISecretCipher.js";
 import { UserMfaUseCase } from "./UserMfaUseCase.js";
 
 /** Behaves as the SQL repository does, in memory. */

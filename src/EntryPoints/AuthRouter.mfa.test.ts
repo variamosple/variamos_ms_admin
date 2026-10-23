@@ -6,12 +6,12 @@ import { mock } from "vitest-mock-extended";
 import type { IConfigurationRepository } from "#src/Domain/Configuration/Repository/IConfigurationRepository.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ISecretCipher } from "#src/Domain/Core/Secret/ISecretCipher.js";
 import type { ITrustedDeviceRepository } from "#src/Domain/Mfa/Repository/ITrustedDeviceRepository.js";
 import type {
   IUserMfaRepository,
   UserMfaRecord,
 } from "#src/Domain/Mfa/Repository/IUserMfaRepository.js";
-import type { ISecretCipher } from "#src/Domain/Mfa/Service/ISecretCipher.js";
 import { PendingMfaSignIns } from "#src/Domain/Mfa/Service/PendingMfaSignIns.js";
 import { MfaSignInUseCase } from "#src/Domain/Mfa/UseCase/MfaSignInUseCase.js";
 import { TrustedDeviceUseCase } from "#src/Domain/Mfa/UseCase/TrustedDeviceUseCase.js";

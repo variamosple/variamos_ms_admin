@@ -1,3 +1,5 @@
+import { AesGcmSecretCipher } from "#src/Infrastructure/Security/AesGcmSecretCipher.js";
+import { SecretConfigurationValue } from "../Configuration/SecretConfigurationValue.js";
 import { MicroServiceRepositoryImpl } from "./MicroServiceRepository.js";
 
 const FULL_ID =
@@ -22,6 +24,7 @@ describe("MicroServiceRepositoryImpl container resolution", () => {
   const resolve = (target: string) => {
     const repository = new MicroServiceRepositoryImpl({
       socketPath: "/nonexistent/docker.sock",
+      secrets: new SecretConfigurationValue(new AesGcmSecretCipher(null)),
     });
     (repository as unknown as { dockerConnection: unknown }).dockerConnection =
       {

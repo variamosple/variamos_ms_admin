@@ -3,6 +3,7 @@ import type { WhereOptions } from "sequelize";
 import {
   Configuration,
   ConfigurationKey,
+  type ConfigurationValue,
   type EnvironmentScope,
 } from "#src/Domain/Configuration/Entity/Configuration.js";
 import type {
@@ -13,13 +14,19 @@ import type {
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { SECRET_MASK } from "#src/Domain/Core/Secret/SecretMask.js";
 import { BaseRepository } from "../BaseRepository.js";
 import { ConfigurationModel } from "./Configuration.js";
+import type { SecretConfigurationValue } from "./SecretConfigurationValue.js";
 
 export class ConfigurationRepositoryImpl
   extends BaseRepository
   implements IConfigurationRepository
 {
+  public constructor(private readonly secrets: SecretConfigurationValue) {
+    super();
+  }
+
   async queryConfigurations(
     request: RequestModel<ConfigurationFilter>,
   ): Promise<ResponseModel<Configuration[]>> {
@@ -121,9 +128,17 @@ export class ConfigurationRepositoryImpl
         );
       }
 
+      // A secret is never written in clear (T-13)
+      if (model.isSecret && !this.secrets.canEncrypt()) {
+        return response.withError(
+          DomainErrorCodes.UNAVAILABLE,
+          "Secret configurations cannot be changed: no encryption key is configured.",
+        );
+      }
+
       await ConfigurationModel.update(
         {
-          value,
+          value: model.isSecret ? this.secrets.encrypt(key, value) : value,
           updatedBy: operatorId,
         },
         { where: { key } },
@@ -149,11 +164,24 @@ export class ConfigurationRepositoryImpl
     return response;
   }
 
+  /** The value in clear; the mask when a secret cannot be decrypted. */
+  private valueOf(model: ConfigurationModel): ConfigurationValue {
+    if (!model.isSecret) return model.value;
+    const value = this.secrets.decrypt(model.key, model.value);
+    if (value === null) {
+      logger.warn(
+        `[Configuration] The secret '${model.key}' cannot be decrypted with the current key.`,
+      );
+      return SECRET_MASK;
+    }
+    return value;
+  }
+
   private mapToDomain(model: ConfigurationModel): Configuration {
     return Configuration.builder()
       .setId(model.id)
       .setKey(new ConfigurationKey(model.key))
-      .setValue(model.value)
+      .setValue(this.valueOf(model))
       .setType(model.type)
       .setCategory(model.category)
       .setRequiresMfa(model.requiresMfa)

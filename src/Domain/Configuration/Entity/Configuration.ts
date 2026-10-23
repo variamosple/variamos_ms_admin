@@ -79,8 +79,11 @@ export class Configuration {
       throw new Error("At least one target service is required.");
     }
 
-    // Strict type validation on instantiation
-    Configuration.validateValueType(key.getValue(), value, type);
+    // Strict type validation on instantiation; a secret that cannot be
+    // decrypted is loaded as the mask, whatever its type
+    if (!(isSecret && isSecretMask(value))) {
+      Configuration.validateValueType(key.getValue(), value, type);
+    }
 
     this.id = id;
     this.key = key;

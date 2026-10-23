@@ -1,11 +1,11 @@
 import type { Mock } from "vitest";
 import { mock } from "vitest-mock-extended";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ISecretCipher } from "#src/Domain/Core/Secret/ISecretCipher.js";
 import type {
   IUserMfaRepository,
   UserMfaRecord,
 } from "#src/Domain/Mfa/Repository/IUserMfaRepository.js";
-import type { ISecretCipher } from "#src/Domain/Mfa/Service/ISecretCipher.js";
 import {
   MFA_SIGN_IN_MAX_ATTEMPTS,
   PendingMfaSignIns,
