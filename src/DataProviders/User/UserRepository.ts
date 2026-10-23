@@ -219,14 +219,14 @@ export class UserRepositoryImpl
 
       if (!dbUser.isEnabled) {
         return response.withError(
-          DomainErrorCodes.INVALID_INPUT,
+          DomainErrorCodes.FORBIDDEN,
           "Your account is disabled.",
         );
       }
 
       if (dbUser.isDeleted) {
         return response.withError(
-          DomainErrorCodes.INVALID_INPUT,
+          DomainErrorCodes.FORBIDDEN,
           "Your account is deleted.",
         );
       }

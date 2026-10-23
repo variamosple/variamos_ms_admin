@@ -1177,9 +1177,25 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .send({ credential: "mock-google-id-token" });
 
       expect(response.status).toBe(302);
-      expect(response.headers.location).toContain(
-        "errorMessage=Creation%20failed",
+      expect(response.headers.location).toContain("reason=sign-in-failed");
+      expect(response.headers.location).not.toContain("Creation");
+    });
+
+    it("redirects an inactive account with its own reason", async () => {
+      (UserAuthUseCase.prototype.findOrCreate as vi.Mock).mockResolvedValue(
+        new ResponseModel("loginWithGoogle").withError(
+          DomainErrorCodes.FORBIDDEN,
+          "Your account is disabled.",
+        ),
       );
+
+      const response = await supertest(app)
+        .post("/auth/google/callback")
+        .send({ credential: "mock-google-id-token" });
+
+      expect(response.status).toBe(302);
+      expect(response.headers.location).toContain("reason=account-inactive");
+      expect(response.headers.location).not.toContain("errorMessage");
     });
 
     it("should redirect to login if ticket verification throws an exception", async () => {
@@ -1188,7 +1204,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .send({ credential: "invalid-token" });
 
       expect(response.status).toBe(302);
-      expect(response.headers.location).toContain("errorMessage=Login%20error");
+      expect(response.headers.location).toContain("reason=sign-in-failed");
     });
 
     it("should redirect to login if ticket verification succeeds but payload is empty", async () => {
@@ -1197,7 +1213,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .send({ credential: "empty-payload-token" });
 
       expect(response.status).toBe(302);
-      expect(response.headers.location).toContain("errorMessage=Login%20error");
+      expect(response.headers.location).toContain("reason=sign-in-failed");
     });
 
     it("should handle external allowed redirect origin and append token to redirect location", async () => {
@@ -1982,9 +1998,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .send({ credential: "mock-google-id-token" });
 
       expect(response.status).toBe(302);
-      expect(response.headers.location).toContain(
-        "errorMessage=Login%20failed",
-      );
+      expect(response.headers.location).toContain("reason=sign-in-failed");
     });
 
     it("should call logger.err with true flag when google callback throws (Line 440)", async () => {
