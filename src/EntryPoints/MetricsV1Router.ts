@@ -1,13 +1,10 @@
 import { hasPermissions } from "@variamosple/variamos-security";
 import { type Request, Router } from "express";
-import logger from "jet-logger";
-import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { MetricsFilter } from "#src/Domain/Metrics/Entity/MetricsFilter.js";
 import type { MetricsQueryUseCase } from "#src/Domain/Metrics/UseCase/MetricsQueryUseCase.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
+import { sendError } from "./errorResponse.js";
 
 export const METRICS_V1_ROUTE = "/v1/metrics";
 
@@ -29,13 +26,7 @@ export function createMetricsRouter(
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error);
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -62,13 +53,7 @@ export function createMetricsRouter(
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error);
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );

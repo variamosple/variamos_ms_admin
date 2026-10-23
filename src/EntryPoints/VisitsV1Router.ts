@@ -1,6 +1,5 @@
 import { isAuthenticated } from "@variamosple/variamos-security";
 import { Router } from "express";
-import logger from "jet-logger";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -8,6 +7,7 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { Visit } from "#src/Domain/Visit/Entity/Visit.js";
 import type { VisitUseCase } from "#src/Domain/Visit/UseCase/VisitUseCase.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
+import { sendError } from "./errorResponse.js";
 
 export const VISITS_V1_ROUTE = "/v1/visits";
 
@@ -41,13 +41,7 @@ export function createVisitsRouter(visitUseCase: VisitUseCase): Router {
       const status = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(status).json(response);
     } catch (error) {
-      logger.err(error);
-      const response = new ResponseModel(
-        transactionId,
-        DomainErrorCodes.SYSTEM_ERROR,
-        "Internal Server Error",
-      );
-      res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+      sendError(res, error, transactionId);
     }
   });
 

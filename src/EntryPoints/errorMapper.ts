@@ -8,6 +8,7 @@ export function mapDomainErrorToHttpStatus(
   if (!errorCode) return defaultSuccessCode;
   switch (errorCode) {
     case DomainErrorCodes.INVALID_INPUT:
+    case DomainErrorCodes.PASSWORD_REUSED:
       return HttpStatusCodes.BAD_REQUEST;
     case DomainErrorCodes.ENTITY_NOT_FOUND:
       return HttpStatusCodes.NOT_FOUND;

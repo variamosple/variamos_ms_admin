@@ -6,6 +6,7 @@ import type { GitHubTokenResolver } from "#src/Domain/Bug/Service/GitHubTokenRes
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { INTERNAL_ERROR_MESSAGE } from "#src/Domain/Core/Error/InternalErrorMessage.js";
 import type { IIssueTrackerService } from "#src/Domain/Core/Service/IIssueTrackerService.js";
 import { ALLOWED_CATEGORIES } from "./BugQueryUseCase.js";
 
@@ -126,7 +127,7 @@ export class BugSyncUseCase {
     } catch (error) {
       const err = error as Error;
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, err.message);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;
   }

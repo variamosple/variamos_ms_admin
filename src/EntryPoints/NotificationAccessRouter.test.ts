@@ -3,6 +3,7 @@ import logger from "jet-logger";
 import request from "supertest";
 import { mock } from "vitest-mock-extended";
 import type { INotificationAccessTokenIssuer } from "#src/Domain/Notification/INotificationAccessTokenIssuer.js";
+import { INTERNAL_ERROR_MESSAGE } from "./errorResponse.js";
 import {
   createNotificationAccessRouter,
   NOTIFICATION_ACCESS_V1_ROUTE,
@@ -61,7 +62,7 @@ describe("GET /v1/notifications/access-token", () => {
       .get("/v1/notifications/access-token")
       .expect(500);
 
-    expect(response.body.message).toBe("Internal Server Error");
+    expect(response.body.message).toBe(INTERNAL_ERROR_MESSAGE);
     expect(JSON.stringify(response.body)).not.toContain("key missing");
   });
 

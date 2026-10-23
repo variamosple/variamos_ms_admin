@@ -1,3 +1,4 @@
+import logger from "jet-logger";
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -160,9 +161,10 @@ export class MicroServiceManagementUseCase {
       }
       return defaultResponse;
     } catch (error) {
+      logger.err(error as Error);
       return defaultResponse.withError(
         DomainErrorCodes.SYSTEM_ERROR,
-        `Failed to trigger health checks: ${(error as Error).message}`,
+        "Failed to trigger health checks.",
       );
     }
   }

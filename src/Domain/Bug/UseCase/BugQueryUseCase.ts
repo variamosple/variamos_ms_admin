@@ -8,6 +8,7 @@ import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.j
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { INTERNAL_ERROR_MESSAGE } from "#src/Domain/Core/Error/InternalErrorMessage.js";
 
 export const ALLOWED_CATEGORIES = [
   "Editor",
@@ -59,7 +60,7 @@ export class BugQueryUseCase {
     } catch (error) {
       const err = error as Error;
       logger.err(err);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, err.message);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return Promise.resolve(response);
   }

@@ -3,12 +3,12 @@ import { type Request, Router } from "express";
 import logger from "jet-logger";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
-import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { MicroServiceFilter } from "#src/Domain/MicroService/Entity/MicroServiceFilter.js";
 import type { MicroServiceManagementUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
 import type { MicroServiceQueryUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
+import { sendError } from "./errorResponse.js";
 
 export const MICRO_SERVICES_V1_ROUTE = "/v1/micro-services";
 
@@ -52,13 +52,7 @@ export function createMicroServicesRouter(
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error);
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -82,13 +76,7 @@ export function createMicroServicesRouter(
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error);
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -112,13 +100,7 @@ export function createMicroServicesRouter(
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error);
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -143,13 +125,7 @@ export function createMicroServicesRouter(
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error);
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -170,13 +146,7 @@ export function createMicroServicesRouter(
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error);
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -210,13 +180,7 @@ export function createMicroServicesRouter(
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error);
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -240,13 +204,7 @@ export function createMicroServicesRouter(
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error);
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -271,13 +229,7 @@ export function createMicroServicesRouter(
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error);
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -300,13 +252,7 @@ export function createMicroServicesRouter(
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error);
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -330,13 +276,7 @@ export function createMicroServicesRouter(
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error);
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -359,13 +299,7 @@ export function createMicroServicesRouter(
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error);
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -424,13 +358,7 @@ export function createMicroServicesRouter(
           res.end();
         });
       } catch (error) {
-        logger.err(error);
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );

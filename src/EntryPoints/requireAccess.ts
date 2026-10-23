@@ -1,11 +1,8 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
-import logger from "jet-logger";
-import { describeError } from "#src/common/describeError.js";
-import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import type { AccessCheck } from "#src/Domain/AccessControl/AccessCheck.js";
-import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
+import { sendError } from "./errorResponse.js";
 
 export interface AccessGuard {
   authorize(
@@ -35,15 +32,7 @@ export function requireAccess(
       }
       next();
     } catch (error) {
-      logger.err(describeError(error));
-      res
-        .status(HttpStatusCodes.INTERNAL_SERVER_ERROR)
-        .json(
-          new ResponseModel<void>("authorizeAccess").withError(
-            DomainErrorCodes.SYSTEM_ERROR,
-            "Internal Server Error",
-          ),
-        );
+      sendError(res, error, "authorizeAccess");
     }
   };
 }

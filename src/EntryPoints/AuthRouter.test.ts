@@ -1446,6 +1446,24 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
     });
 
+    it("answers 400 with PASSWORD_REUSED for the current password", async () => {
+      (
+        UserPasswordUseCase.prototype.resetPassword as vi.Mock
+      ).mockResolvedValue(
+        new ResponseModel("resetPassword").withError(
+          DomainErrorCodes.PASSWORD_REUSED,
+          "New password cannot be the same as the old password.",
+        ),
+      );
+
+      const response = await supertest(app)
+        .post("/auth/reset-password")
+        .send({ token: "valid-token", password: "OldPassword123!" });
+
+      expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
+      expect(response.body.errorCode).toBe(DomainErrorCodes.PASSWORD_REUSED);
+    });
+
     it("should return 500 when resetPassword throws an exception", async () => {
       (
         UserPasswordUseCase.prototype.resetPassword as vi.Mock

@@ -230,7 +230,9 @@ export class UserPasswordUseCase {
       );
       if (outcome !== "reset") {
         return response.withErrorPromise(
-          DomainErrorCodes.INVALID_INPUT,
+          outcome === "same_password"
+            ? DomainErrorCodes.PASSWORD_REUSED
+            : DomainErrorCodes.INVALID_INPUT,
           RESET_REFUSALS[outcome],
         );
       }
