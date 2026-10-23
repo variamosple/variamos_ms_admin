@@ -1,6 +1,7 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import type { AccessCheck } from "#src/Domain/AccessControl/AccessCheck.js";
 import type { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { actorOf } from "./actor.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
 
@@ -23,8 +24,7 @@ export function requireAccess(
     const check = toCheck(req);
     if (!check) return next();
     try {
-      const operatorId = (req.user as { id?: string } | undefined)?.id;
-      const decision = await guard.authorize(operatorId, check);
+      const decision = await guard.authorize(actorOf(req), check);
       if (decision.errorCode) {
         return res
           .status(mapDomainErrorToHttpStatus(decision.errorCode))

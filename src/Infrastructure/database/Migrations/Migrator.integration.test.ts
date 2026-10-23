@@ -16,6 +16,7 @@ import {
   TRUSTED_DEVICE_DAYS_ROW,
   TRUSTED_DEVICE_TABLE,
 } from "./0004-mfa-trusted-devices.js";
+import { ACTIVITY_LOG_TABLE } from "./0005-admin-activity-logs.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 import {
   ADMIN_MIGRATIONS,
@@ -127,6 +128,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         ...BASELINE_TABLES.map((t) => t.name),
         ...USER_MFA_TABLES,
         TRUSTED_DEVICE_TABLE,
+        ACTIVITY_LOG_TABLE,
       ].sort(),
     );
   });
@@ -194,7 +196,11 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
 
     // The tables added after the baseline are new; the others are unchanged
     expect(
-      await structureOf("t07_prod", [...USER_MFA_TABLES, TRUSTED_DEVICE_TABLE]),
+      await structureOf("t07_prod", [
+        ...USER_MFA_TABLES,
+        TRUSTED_DEVICE_TABLE,
+        ACTIVITY_LOG_TABLE,
+      ]),
     ).toEqual(before);
     expect(
       await sequelize.query(

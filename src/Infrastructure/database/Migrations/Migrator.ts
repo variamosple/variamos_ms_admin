@@ -5,6 +5,7 @@ import { baseline } from "./0001-baseline.js";
 import { accountLockoutKeys } from "./0002-account-lockout-keys.js";
 import { userMfa } from "./0003-user-mfa.js";
 import { mfaTrustedDevices } from "./0004-mfa-trusted-devices.js";
+import { adminActivityLogs } from "./0005-admin-activity-logs.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 
 // Applied in order at start-up, each one once; append new migrations here
@@ -13,6 +14,7 @@ export const ADMIN_MIGRATIONS: SchemaMigration[] = [
   accountLockoutKeys,
   userMfa,
   mfaTrustedDevices,
+  adminActivityLogs,
 ];
 
 // The schema is shared with other services: a name of our own

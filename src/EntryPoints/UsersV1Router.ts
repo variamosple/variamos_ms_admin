@@ -6,6 +6,7 @@ import { UserFilter } from "#src/Domain/User/Entity/UserFilter.js";
 import type { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
 import type { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
 import type { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
+import { actorOf } from "./actor.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
 import { type AccessGuard, requireAccess, toUserId } from "./requireAccess.js";
@@ -110,7 +111,11 @@ export function createUsersRouter(
       const userId = req.params.userId;
 
       try {
-        const request = new RequestModel<string>(transactionId, userId);
+        const request = new RequestModel<string>(
+          transactionId,
+          userId,
+          actorOf(req),
+        );
         const response = await userManagementUseCase.disable(request);
 
         const status = mapDomainErrorToHttpStatus(
@@ -135,7 +140,11 @@ export function createUsersRouter(
       const userId = req.params.userId;
 
       try {
-        const request = new RequestModel<string>(transactionId, userId);
+        const request = new RequestModel<string>(
+          transactionId,
+          userId,
+          actorOf(req),
+        );
         const response = await userManagementUseCase.enable(request);
 
         const status = mapDomainErrorToHttpStatus(
@@ -160,7 +169,11 @@ export function createUsersRouter(
       const userId = req.params.userId;
 
       try {
-        const request = new RequestModel<string>(transactionId, userId);
+        const request = new RequestModel<string>(
+          transactionId,
+          userId,
+          actorOf(req),
+        );
         const response = await userManagementUseCase.delete(request);
 
         const status = mapDomainErrorToHttpStatus(

@@ -2,6 +2,7 @@
 import { isAuthenticated } from "@variamosple/variamos-security";
 import { Router } from "express";
 import EnvVars from "#src/common/EnvVars.js";
+import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import type { BugAttachmentUseCase } from "#src/Domain/Bug/UseCase/BugAttachmentUseCase.js";
 import type { BugLifecycleUseCase } from "#src/Domain/Bug/UseCase/BugLifecycleUseCase.js";
 import type { BugQueryUseCase } from "#src/Domain/Bug/UseCase/BugQueryUseCase.js";
@@ -118,6 +119,7 @@ export function createBaseRouter(
   mfaSignIn: MfaSignInUseCase,
   mfaReset: MfaResetUseCase,
   trustedDevices: TrustedDeviceUseCase,
+  activityJournal: IActivityJournal,
 ): Router {
   const baseRouter = Router();
 
@@ -167,7 +169,8 @@ export function createBaseRouter(
     upload,
     isAuthenticated,
   );
-  const adminNotificationsV1Router = createAdminNotificationsRouter();
+  const adminNotificationsV1Router =
+    createAdminNotificationsRouter(activityJournal);
   const notificationAccessV1Router = createNotificationAccessRouter(
     notificationAccessTokenIssuer,
     isAuthenticated,

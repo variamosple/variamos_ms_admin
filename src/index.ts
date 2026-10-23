@@ -9,6 +9,7 @@ import {
 import EnvVars from "#src/common/EnvVars.js";
 import {
   AccountLockoutInstance,
+  ActivityJournalInstance,
   ConfigEventPublisherInstance,
   MicroServiceRepositoryInstance,
   productionAccessHierarchyUseCase,
@@ -114,6 +115,7 @@ const baseRouter = createBaseRouter(
   productionMfaSignInUseCase,
   productionMfaResetUseCase,
   productionTrustedDeviceUseCase,
+  ActivityJournalInstance,
 );
 
 const app = createServer(baseRouter);

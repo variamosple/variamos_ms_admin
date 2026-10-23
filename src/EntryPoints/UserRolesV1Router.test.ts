@@ -17,6 +17,7 @@ vi.mock("@variamosple/variamos-security", () => ({
   },
 }));
 
+import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import type { IUserRoleRepository } from "#src/Domain/User/Repository/IUserRoleRepository.js";
 
 const allowAll: AccessGuard = {
@@ -31,6 +32,7 @@ describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
     app.use(express.json());
     const mockUserRoleUseCase = new UserRoleUseCase(
       mock<IUserRoleRepository>(),
+      mock<IActivityJournal>(),
     );
     app.use(
       "/v1/users/:userId/roles",

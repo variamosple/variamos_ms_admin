@@ -7,6 +7,8 @@ import { UserModel } from "#src/DataProviders/User/User.js";
 import { NotificationClientInstance } from "#src/Infrastructure/Notification/NotificationClient.js";
 import { createAdminNotificationsRouter } from "./AdminNotificationsRouter.js";
 
+const activityJournal = { record: vi.fn().mockResolvedValue(undefined) };
+
 // Mock security permission helper
 vi.mock("@variamosple/variamos-security", () => ({
   hasPermissions:
@@ -56,7 +58,10 @@ describe("AdminNotificationsRouter Integration Tests", () => {
       };
       next();
     });
-    app.use("/v1/admin/notifications", createAdminNotificationsRouter());
+    app.use(
+      "/v1/admin/notifications",
+      createAdminNotificationsRouter(activityJournal),
+    );
   });
 
   beforeEach(() => {
@@ -221,6 +226,58 @@ describe("AdminNotificationsRouter Integration Tests", () => {
         actorId: "admin-user-id",
       });
       expect(response.body.errorCode).toBeUndefined();
+    });
+
+    it("journals the dispatch without the body of the message (T-24)", async () => {
+      vi.mocked(
+        NotificationClientInstance.dispatchNotification,
+      ).mockResolvedValue(undefined);
+      activityJournal.record.mockClear();
+
+      await supertest(app)
+        .post("/v1/admin/notifications/dispatch")
+        .send({
+          audience: "users",
+          title: "User Title",
+          body: "User Body",
+          userIds: ["user-1", "user-2"],
+        })
+        .expect(HttpStatusCodes.OK);
+
+      expect(activityJournal.record).toHaveBeenCalledTimes(1);
+      expect(activityJournal.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actorId: "admin-user-id",
+          action: "notification.dispatch",
+          outcome: "success",
+          after: {
+            audience: "users",
+            roles: null,
+            title: "User Title",
+            recipientCount: 2,
+          },
+        }),
+      );
+      expect(JSON.stringify(activityJournal.record.mock.calls)).not.toContain(
+        "User Body",
+      );
+    });
+
+    it("journals a refused dispatch as failed", async () => {
+      activityJournal.record.mockClear();
+
+      await supertest(app)
+        .post("/v1/admin/notifications/dispatch")
+        .send({ audience: "users", title: "T", body: "B", userIds: [] })
+        .expect(HttpStatusCodes.BAD_REQUEST);
+
+      expect(activityJournal.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "notification.dispatch",
+          outcome: "failed",
+          errorCode: "INVALID_INPUT",
+        }),
+      );
     });
 
     it("answers a generic message when the dispatch fails", async () => {

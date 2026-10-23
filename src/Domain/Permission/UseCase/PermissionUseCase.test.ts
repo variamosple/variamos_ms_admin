@@ -6,13 +6,16 @@ import { PermissionFilter } from "#src/Domain/Permission/Entity/PermissionFilter
 import type { IPermissionRepository } from "#src/Domain/Permission/Repository/IPermissionRepository.js";
 import { PermissionUseCase } from "./PermissionUseCase.js";
 
+// The activity journal is checked by its own tests (T-24)
+const activityJournal = { record: vi.fn().mockResolvedValue(undefined) };
+
 describe("PermissionUseCase - Unit Tests", () => {
   let useCase: PermissionUseCase;
   let mockPermissionRepository: MockProxy<IPermissionRepository>;
 
   beforeEach(() => {
     mockPermissionRepository = mock<IPermissionRepository>();
-    useCase = new PermissionUseCase(mockPermissionRepository);
+    useCase = new PermissionUseCase(mockPermissionRepository, activityJournal);
   });
 
   test("should query permissions", async () => {

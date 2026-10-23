@@ -15,6 +15,9 @@ import { UserAuthUseCase } from "./UserAuthUseCase.js";
 import { UserManagementUseCase } from "./UserManagementUseCase.js";
 import { UserPasswordUseCase } from "./UserPasswordUseCase.js";
 
+// The activity journal is checked by its own tests (T-24)
+const activityJournal = { record: vi.fn().mockResolvedValue(undefined) };
+
 /** A configured policy stricter than the default: 12 characters. */
 const strict: IPasswordPolicyProvider = {
   getPolicy: async () => PasswordPolicy.fromConfiguration({ minLength: 12 }),
@@ -54,7 +57,7 @@ describe("configured password policy in the use cases", () => {
   });
 
   it("password change refuses it too", async () => {
-    const useCase = new UserManagementUseCase(users, strict);
+    const useCase = new UserManagementUseCase(users, activityJournal, strict);
 
     const res = await useCase.updatePassword(
       new RequestModel(
@@ -77,6 +80,7 @@ describe("configured password policy in the use cases", () => {
       users,
       mock<IMailService>(),
       { passwordResetExpiryInMs: 3_600_000, adminHomeUri: "http://ui" },
+      activityJournal,
       strict,
     );
 
@@ -102,6 +106,7 @@ describe("configured password policy in the use cases", () => {
       users,
       mail,
       { passwordResetExpiryInMs: 3_600_000, adminHomeUri: "http://ui" },
+      activityJournal,
       strict,
     );
 
@@ -122,6 +127,7 @@ describe("configured password policy in the use cases", () => {
       users,
       mock<IMailService>(),
       { passwordResetExpiryInMs: 3_600_000, adminHomeUri: "http://ui" },
+      activityJournal,
       strict,
     );
 

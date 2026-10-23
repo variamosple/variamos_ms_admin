@@ -151,6 +151,7 @@ describe("createMigrator", () => {
       "0002-account-lockout-keys",
       "0003-user-mfa",
       "0004-mfa-trusted-devices",
+      "0005-admin-activity-logs",
     ]);
   });
 });

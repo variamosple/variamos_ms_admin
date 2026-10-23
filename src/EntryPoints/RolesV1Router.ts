@@ -8,6 +8,7 @@ import { Role } from "#src/Domain/Role/Entity/Role.js";
 import { RoleFilter } from "#src/Domain/Role/Entity/RoleFilter.js";
 import type { RoleManagementUseCase } from "#src/Domain/Role/UseCase/RoleManagementUseCase.js";
 import type { RoleQueryUseCase } from "#src/Domain/Role/UseCase/RoleQueryUseCase.js";
+import { actorOf } from "./actor.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
 import { ROLE_PERMISSIONS_V1_ROUTE } from "./RolePermissionsV1Router.js";
@@ -75,7 +76,11 @@ export function createRolesRouter(
             );
         }
 
-        const request = new RequestModel<Role>(transactionId, role);
+        const request = new RequestModel<Role>(
+          transactionId,
+          role,
+          actorOf(req),
+        );
         const response = await roleManagementUseCase.createRole(request);
 
         const status = response.errorCode
@@ -110,7 +115,11 @@ export function createRolesRouter(
             );
         }
 
-        const request = new RequestModel<string>(transactionId, roleId);
+        const request = new RequestModel<string>(
+          transactionId,
+          roleId,
+          actorOf(req),
+        );
         const response = await roleManagementUseCase.deleteRole(request);
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);
@@ -198,7 +207,11 @@ export function createRolesRouter(
             );
         }
 
-        const request = new RequestModel<Role>(transactionId, permission);
+        const request = new RequestModel<Role>(
+          transactionId,
+          permission,
+          actorOf(req),
+        );
         const response = await roleManagementUseCase.updateRole(request);
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);

@@ -10,11 +10,18 @@ import {
   type UpdateConfigurationRequest,
 } from "./ConfigurationUseCase.js";
 
+// The activity journal is checked by its own tests (T-24)
+const activityJournal = { record: vi.fn().mockResolvedValue(undefined) };
+
 describe("ConfigurationUseCase Unit Tests", () => {
   it("should query configurations successfully", async () => {
     const mockRepo = mock<IConfigurationRepository>();
     const mockPublisher = mock<IConfigEventPublisher>();
-    const useCase = new ConfigurationUseCase(mockRepo, mockPublisher);
+    const useCase = new ConfigurationUseCase(
+      mockRepo,
+      mockPublisher,
+      activityJournal,
+    );
 
     const expectedConfigs = [
       Configuration.builder()
@@ -43,7 +50,11 @@ describe("ConfigurationUseCase Unit Tests", () => {
   it("should query by key successfully", async () => {
     const mockRepo = mock<IConfigurationRepository>();
     const mockPublisher = mock<IConfigEventPublisher>();
-    const useCase = new ConfigurationUseCase(mockRepo, mockPublisher);
+    const useCase = new ConfigurationUseCase(
+      mockRepo,
+      mockPublisher,
+      activityJournal,
+    );
 
     const expectedConfig = Configuration.builder()
       .setKey(new ConfigurationKey("general.site_name"))
@@ -70,7 +81,11 @@ describe("ConfigurationUseCase Unit Tests", () => {
   it("should block update if MFA is required and not validated", async () => {
     const mockRepo = mock<IConfigurationRepository>();
     const mockPublisher = mock<IConfigEventPublisher>();
-    const useCase = new ConfigurationUseCase(mockRepo, mockPublisher);
+    const useCase = new ConfigurationUseCase(
+      mockRepo,
+      mockPublisher,
+      activityJournal,
+    );
 
     const sensitiveConfig = Configuration.builder()
       .setKey(new ConfigurationKey("security.password.min_length"))
@@ -106,7 +121,11 @@ describe("ConfigurationUseCase Unit Tests", () => {
   it("refuses an MFA-protected key even when the client claims MFA", async () => {
     const mockRepo = mock<IConfigurationRepository>();
     const mockPublisher = mock<IConfigEventPublisher>();
-    const useCase = new ConfigurationUseCase(mockRepo, mockPublisher);
+    const useCase = new ConfigurationUseCase(
+      mockRepo,
+      mockPublisher,
+      activityJournal,
+    );
 
     mockRepo.queryByKey.mockResolvedValue(
       new ResponseModel<Configuration>("queryByKey").withResponse(
@@ -139,7 +158,11 @@ describe("ConfigurationUseCase Unit Tests", () => {
   it("should fail update if key does not exist", async () => {
     const mockRepo = mock<IConfigurationRepository>();
     const mockPublisher = mock<IConfigEventPublisher>();
-    const useCase = new ConfigurationUseCase(mockRepo, mockPublisher);
+    const useCase = new ConfigurationUseCase(
+      mockRepo,
+      mockPublisher,
+      activityJournal,
+    );
 
     mockRepo.queryByKey.mockResolvedValue(
       new ResponseModel<Configuration>("queryByKey").withResponse(null),
@@ -164,7 +187,11 @@ describe("ConfigurationUseCase Unit Tests", () => {
   it("should fail update if request has no data", async () => {
     const mockRepo = mock<IConfigurationRepository>();
     const mockPublisher = mock<IConfigEventPublisher>();
-    const useCase = new ConfigurationUseCase(mockRepo, mockPublisher);
+    const useCase = new ConfigurationUseCase(
+      mockRepo,
+      mockPublisher,
+      activityJournal,
+    );
 
     const request = new RequestModel<UpdateConfigurationRequest>(
       "updateConfiguration",
@@ -180,7 +207,11 @@ describe("ConfigurationUseCase Unit Tests", () => {
   it("should fail update if new value type is mismatched", async () => {
     const mockRepo = mock<IConfigurationRepository>();
     const mockPublisher = mock<IConfigEventPublisher>();
-    const useCase = new ConfigurationUseCase(mockRepo, mockPublisher);
+    const useCase = new ConfigurationUseCase(
+      mockRepo,
+      mockPublisher,
+      activityJournal,
+    );
 
     const config = Configuration.builder()
       .setKey(new ConfigurationKey("general.site_name"))
@@ -210,7 +241,11 @@ describe("ConfigurationUseCase Unit Tests", () => {
   it("should refuse the mask as the new value of a secret", async () => {
     const mockRepo = mock<IConfigurationRepository>();
     const mockPublisher = mock<IConfigEventPublisher>();
-    const useCase = new ConfigurationUseCase(mockRepo, mockPublisher);
+    const useCase = new ConfigurationUseCase(
+      mockRepo,
+      mockPublisher,
+      activityJournal,
+    );
 
     const config = Configuration.builder()
       .setKey(new ConfigurationKey("notification.smtp.password"))
@@ -240,7 +275,11 @@ describe("ConfigurationUseCase Unit Tests", () => {
   it("should fail update if queryByKey returns an error code", async () => {
     const mockRepo = mock<IConfigurationRepository>();
     const mockPublisher = mock<IConfigEventPublisher>();
-    const useCase = new ConfigurationUseCase(mockRepo, mockPublisher);
+    const useCase = new ConfigurationUseCase(
+      mockRepo,
+      mockPublisher,
+      activityJournal,
+    );
 
     mockRepo.queryByKey.mockResolvedValue(
       new ResponseModel<Configuration>("queryByKey").withError(

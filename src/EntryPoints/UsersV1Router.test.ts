@@ -52,6 +52,7 @@ interface TestApiResponse<T> {
   recoveryUrl?: string;
 }
 
+import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 import type { UserPasswordUseCaseConfig } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
@@ -72,9 +73,11 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
       mock<IUserRepository>(),
       mock<IMailService>(),
       mock<UserPasswordUseCaseConfig>(),
+      mock<IActivityJournal>(),
     );
     const mockUserManagementUseCase = new UserManagementUseCase(
       mock<IUserRepository>(),
+      mock<IActivityJournal>(),
     );
     const mockUserRolesRouter = express.Router();
     app.use(
@@ -300,8 +303,12 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
       const response = await supertest(app).put("/v1/users/123/disable");
 
       expect(response.status).toBe(HttpStatusCodes.OK);
+      // The signed-in user is the actor of the activity journal (T-24)
       expect(UserManagementUseCase.prototype.disable).toHaveBeenCalledWith(
-        expect.objectContaining({ transactionId: "disableUser" }),
+        expect.objectContaining({
+          transactionId: "disableUser",
+          actorId: "admin-id",
+        }),
       );
     });
 

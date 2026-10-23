@@ -7,13 +7,16 @@ import { PersonalInformationUpdate } from "#src/Domain/User/Entity/PersonalInfor
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 import { UserManagementUseCase } from "./UserManagementUseCase.js";
 
+// The activity journal is checked by its own tests (T-24)
+const activityJournal = { record: vi.fn().mockResolvedValue(undefined) };
+
 describe("UserManagementUseCase", () => {
   let useCase: UserManagementUseCase;
   let mockUserRepository: MockProxy<IUserRepository>;
 
   beforeEach(() => {
     mockUserRepository = mock<IUserRepository>();
-    useCase = new UserManagementUseCase(mockUserRepository);
+    useCase = new UserManagementUseCase(mockUserRepository, activityJournal);
   });
 
   describe("enable", () => {

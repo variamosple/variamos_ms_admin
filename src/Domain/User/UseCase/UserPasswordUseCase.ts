@@ -1,5 +1,7 @@
 import crypto from "node:crypto";
 import logger from "jet-logger";
+import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
+import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -37,6 +39,7 @@ export class UserPasswordUseCase {
     private readonly userRepository: IUserRepository,
     private readonly mailService: IMailService,
     private readonly config: UserPasswordUseCaseConfig,
+    private readonly journal: IActivityJournal,
     private readonly passwordPolicy: IPasswordPolicyProvider = DEFAULT_PASSWORD_POLICY_PROVIDER,
   ) {
     this.tokenService = new PasswordResetTokenService(userRepository);
@@ -249,6 +252,24 @@ export class UserPasswordUseCase {
   }
 
   public async generateLink(
+    request: RequestModel<{ userId: string; adminId: string }>,
+  ): Promise<ResponseModel<{ recoveryUrl: string }>> {
+    // The link itself is a secret: only the fact that one was made is kept
+    return withJournal(
+      this.journal,
+      {
+        actorId: request.data?.adminId,
+        action: "user.recovery-link",
+        entityType: "user",
+        entityId: request.data?.userId,
+        transactionId: request.transactionId,
+      },
+      () => this.createLink(request),
+      (response) => ({ after: { linkCreated: Boolean(response.data) } }),
+    );
+  }
+
+  private async createLink(
     request: RequestModel<{ userId: string; adminId: string }>,
   ): Promise<ResponseModel<{ recoveryUrl: string }>> {
     const response = new ResponseModel<{ recoveryUrl: string }>(

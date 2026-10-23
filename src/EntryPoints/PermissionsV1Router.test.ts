@@ -22,6 +22,7 @@ vi.mock("@variamosple/variamos-security", () => ({
     },
 }));
 
+import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import type { IPermissionRepository } from "#src/Domain/Permission/Repository/IPermissionRepository.js";
 
 describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
@@ -32,6 +33,7 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
     app.use(express.json());
     const mockPermissionUseCase = new PermissionUseCase(
       mock<IPermissionRepository>(),
+      mock<IActivityJournal>(),
     );
     app.use("/v1/permissions", createPermissionsRouter(mockPermissionUseCase));
   });
