@@ -21,6 +21,7 @@ import {
   productionBugSyncUseCase,
   productionConfigurationUseCase,
   productionCountriesQueryUseCase,
+  productionJournalQueryUseCase,
   productionMetricsQueryUseCase,
   productionMfaResetUseCase,
   productionMfaSignInUseCase,
@@ -119,6 +120,7 @@ const baseRouter = createBaseRouter(
   productionTrustedDeviceUseCase,
   ActivityJournalInstance,
   AccessJournalInstance,
+  productionJournalQueryUseCase,
 );
 
 const app = createServer(baseRouter);

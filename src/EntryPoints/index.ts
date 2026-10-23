@@ -4,6 +4,7 @@ import { Router } from "express";
 import EnvVars from "#src/common/EnvVars.js";
 import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
+import type { JournalQueryUseCase } from "#src/Domain/Activity/JournalQueryUseCase.js";
 import type { BugAttachmentUseCase } from "#src/Domain/Bug/UseCase/BugAttachmentUseCase.js";
 import type { BugLifecycleUseCase } from "#src/Domain/Bug/UseCase/BugLifecycleUseCase.js";
 import type { BugQueryUseCase } from "#src/Domain/Bug/UseCase/BugQueryUseCase.js";
@@ -53,6 +54,12 @@ import {
   createCountriesRouter,
 } from "./CountriesV1Router.js";
 import { createHealthRouter } from "./HealthRouter.js";
+import {
+  ACCESS_LOGS_V1_ROUTE,
+  ACTIVITY_LOGS_V1_ROUTE,
+  createAccessLogsRouter,
+  createActivityLogsRouter,
+} from "./JournalV1Router.js";
 import { createMetricsRouter, METRICS_V1_ROUTE } from "./MetricsV1Router.js";
 import { createMfaRouter, MFA_ROUTE } from "./MfaRouter.js";
 import {
@@ -123,6 +130,7 @@ export function createBaseRouter(
   trustedDevices: TrustedDeviceUseCase,
   activityJournal: IActivityJournal,
   accessJournal: IAccessJournal,
+  journalQuery: JournalQueryUseCase,
 ): Router {
   const baseRouter = Router();
 
@@ -197,6 +205,11 @@ export function createBaseRouter(
   baseRouter.use(BUG_V1_ROUTE, bugV1Router);
   baseRouter.use(ADMIN_NOTIFICATIONS_V1_ROUTE, adminNotificationsV1Router);
   baseRouter.use(NOTIFICATION_ACCESS_V1_ROUTE, notificationAccessV1Router);
+  baseRouter.use(
+    ACTIVITY_LOGS_V1_ROUTE,
+    createActivityLogsRouter(journalQuery),
+  );
+  baseRouter.use(ACCESS_LOGS_V1_ROUTE, createAccessLogsRouter(journalQuery));
   baseRouter.use("/health", createHealthRouter());
 
   baseRouter.get("/version", (_, res) => {

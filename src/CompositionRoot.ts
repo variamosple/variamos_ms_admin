@@ -3,6 +3,7 @@ import EnvVars from "#src/common/EnvVars.js";
 import { AccessHierarchyRepositoryImpl } from "./DataProviders/AccessControl/AccessHierarchyRepository.js";
 import { AccessJournalRepositoryImpl } from "./DataProviders/Activity/AccessJournalRepository.js";
 import { ActivityJournalRepositoryImpl } from "./DataProviders/Activity/ActivityJournalRepository.js";
+import { JournalReaderRepositoryImpl } from "./DataProviders/Activity/JournalReaderRepository.js";
 import { BugRepositoryImpl } from "./DataProviders/Bug/BugRepository.js";
 import { ConfigurationRepositoryImpl } from "./DataProviders/Configuration/ConfigurationRepository.js";
 import { SecretConfigurationValue } from "./DataProviders/Configuration/SecretConfigurationValue.js";
@@ -18,6 +19,7 @@ import { UserRepositoryImpl } from "./DataProviders/User/UserRepository.js";
 import { UserRoleRepositoryImpl } from "./DataProviders/User/UserRoleRepository.js";
 import { VisitRepositoryImpl } from "./DataProviders/Visit/VisitRepository.js";
 import { AccessHierarchyUseCase } from "./Domain/AccessControl/AccessHierarchyUseCase.js";
+import { JournalQueryUseCase } from "./Domain/Activity/JournalQueryUseCase.js";
 // Bug Use Cases
 import { GitHubTokenResolver } from "./Domain/Bug/Service/GitHubTokenResolver.js";
 import { BugAttachmentUseCase } from "./Domain/Bug/UseCase/BugAttachmentUseCase.js";
@@ -110,6 +112,10 @@ export const ActivityJournalInstance = new ActivityJournalRepositoryImpl(
 export const AccessJournalInstance = new AccessJournalRepositoryImpl(
   VARIAMOS_ORM,
   DB_SCHEMA,
+);
+// Read-only pages of both journals (T-24 lot 3)
+export const productionJournalQueryUseCase = new JournalQueryUseCase(
+  new JournalReaderRepositoryImpl(VARIAMOS_ORM, DB_SCHEMA),
 );
 
 // Configuration Use Case Instantiations

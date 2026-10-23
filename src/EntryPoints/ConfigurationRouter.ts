@@ -128,6 +128,11 @@ const MENU: Menu = {
           location: "/admin/notifications",
           allowedPermissions: ["admin::notifications::dispatch"],
         },
+        {
+          title: "Journal",
+          location: "/journal",
+          allowedPermissions: ["activity-logs::query"],
+        },
       ],
     },
   ],
