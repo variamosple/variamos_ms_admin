@@ -613,17 +613,23 @@ export function createAuthRouter(
       const request = new RequestModel<User>(transactionId, user);
       const response = await userAuthUseCase.findOrCreate(request);
 
+      // The login page shows the message of a reason code, never a text
+      // read from its address (T-16)
       if (response.errorCode) {
+        const reason =
+          response.errorCode === DomainErrorCodes.FORBIDDEN
+            ? "account-inactive"
+            : "sign-in-failed";
         return res.redirect(
           302,
-          `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?errorMessage=${response.message}`,
+          `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?reason=${reason}`,
         );
       }
 
       if (!response.data) {
         return res.redirect(
           302,
-          `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?errorMessage=Login failed`,
+          `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?reason=sign-in-failed`,
         );
       }
 
@@ -671,7 +677,7 @@ export function createAuthRouter(
       logger.err(describeError(err));
       res.redirect(
         302,
-        `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?errorMessage=Login error.`,
+        `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?reason=sign-in-failed`,
       );
     }
   });
