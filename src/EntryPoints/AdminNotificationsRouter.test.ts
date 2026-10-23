@@ -73,7 +73,8 @@ describe("AdminNotificationsRouter Integration Tests", () => {
         });
 
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
-      expect(response.body.error).toBe("Title and body are required.");
+      expect(response.body).toMatchObject({ errorCode: "INVALID_INPUT" });
+      expect(response.body.message).toBe("Title and body are required.");
     });
 
     it("should return 400 for role audience if roles array is empty", async () => {
@@ -87,7 +88,8 @@ describe("AdminNotificationsRouter Integration Tests", () => {
         });
 
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
-      expect(response.body.error).toBe(
+      expect(response.body).toMatchObject({ errorCode: "INVALID_INPUT" });
+      expect(response.body.message).toBe(
         "At least one role is required for role audience.",
       );
     });
@@ -103,7 +105,8 @@ describe("AdminNotificationsRouter Integration Tests", () => {
         });
 
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
-      expect(response.body.error).toBe(
+      expect(response.body).toMatchObject({ errorCode: "INVALID_INPUT" });
+      expect(response.body.message).toBe(
         "At least one user ID is required for users audience.",
       );
     });
@@ -217,6 +220,29 @@ describe("AdminNotificationsRouter Integration Tests", () => {
         },
         actorId: "admin-user-id",
       });
+      expect(response.body.errorCode).toBeUndefined();
+    });
+
+    it("answers a generic message when the dispatch fails", async () => {
+      vi.mocked(
+        NotificationClientInstance.dispatchNotification,
+      ).mockRejectedValue(new Error("connect ECONNREFUSED 10.0.0.5:3001"));
+
+      const response = await supertest(app)
+        .post("/v1/admin/notifications/dispatch")
+        .send({
+          audience: "users",
+          title: "User Title",
+          body: "User Body",
+          userIds: ["user-1"],
+        });
+
+      expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body).toMatchObject({
+        errorCode: "SYSTEM_ERROR",
+        message: "An unexpected error occurred. Please try again later.",
+      });
+      expect(JSON.stringify(response.body)).not.toContain("ECONNREFUSED");
     });
   });
 });

@@ -1,10 +1,24 @@
 import { hasPermissions } from "@variamosple/variamos-security";
-import { type Request, Router } from "express";
-import logger from "jet-logger";
+import { type Request, type Response, Router } from "express";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { RoleModel } from "#src/DataProviders/Role/Role.js";
 import { UserModel } from "#src/DataProviders/User/User.js";
+import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { NotificationClientInstance } from "#src/Infrastructure/Notification/NotificationClient.js";
+import { sendError } from "./errorResponse.js";
+
+const TRANSACTION_ID = "dispatchNotification";
+
+const refuse = (res: Response, message: string) =>
+  res
+    .status(HttpStatusCodes.BAD_REQUEST)
+    .json(
+      new ResponseModel<void>(TRANSACTION_ID).withError(
+        DomainErrorCodes.INVALID_INPUT,
+        message,
+      ),
+    );
 
 export const ADMIN_NOTIFICATIONS_V1_ROUTE = "/v1/admin/notifications";
 
@@ -25,9 +39,7 @@ export function createAdminNotificationsRouter(): Router {
 
       try {
         if (!title || !body) {
-          return res.status(HttpStatusCodes.BAD_REQUEST).json({
-            error: "Title and body are required.",
-          });
+          return refuse(res, "Title and body are required.");
         }
 
         let resolvedUserIds: string[] = [];
@@ -41,9 +53,10 @@ export function createAdminNotificationsRouter(): Router {
           resolvedUserIds = users.map((u) => u.id as string).filter(Boolean);
         } else if (audience === "role") {
           if (!roles || roles.length === 0) {
-            return res.status(HttpStatusCodes.BAD_REQUEST).json({
-              error: "At least one role is required for role audience.",
-            });
+            return refuse(
+              res,
+              "At least one role is required for role audience.",
+            );
           }
           const rolesData = await RoleModel.findAll({
             where: { name: roles },
@@ -66,15 +79,14 @@ export function createAdminNotificationsRouter(): Router {
           resolvedUserIds = Array.from(new Set(ids)).filter(Boolean);
         } else if (audience === "users") {
           if (!userIds || userIds.length === 0) {
-            return res.status(HttpStatusCodes.BAD_REQUEST).json({
-              error: "At least one user ID is required for users audience.",
-            });
+            return refuse(
+              res,
+              "At least one user ID is required for users audience.",
+            );
           }
           resolvedUserIds = userIds;
         } else {
-          return res.status(HttpStatusCodes.BAD_REQUEST).json({
-            error: "Invalid audience type.",
-          });
+          return refuse(res, "Invalid audience type.");
         }
 
         // Dispatch via NotificationClient using the admin_alert template key
@@ -90,19 +102,17 @@ export function createAdminNotificationsRouter(): Router {
           actorId: (req.user as { id?: string })?.id || null,
         });
 
-        return res.status(HttpStatusCodes.OK).json({
-          errorCode: 0,
-          message: "Notification dispatched successfully.",
-        });
+        return res
+          .status(HttpStatusCodes.OK)
+          .json(
+            new ResponseModel<void>(
+              TRANSACTION_ID,
+              undefined,
+              "Notification dispatched successfully.",
+            ),
+          );
       } catch (error: unknown) {
-        logger.err(error);
-        const err = error as Error;
-        return res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json({
-          errorCode: 500,
-          message:
-            err.message ||
-            "Internal server error occurred while dispatching notifications.",
-        });
+        return sendError(res, error, TRANSACTION_ID);
       }
     },
   );

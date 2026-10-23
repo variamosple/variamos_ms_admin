@@ -25,11 +25,8 @@ export function mapDomainErrorToHttpStatus(
       return HttpStatusCodes.FORBIDDEN;
     case DomainErrorCodes.UNAVAILABLE:
       return HttpStatusCodes.SERVICE_UNAVAILABLE;
-    default: {
-      if (typeof errorCode === "number") return errorCode;
-      const parsed = Number(errorCode);
-      if (!Number.isNaN(parsed)) return parsed;
+    // A code outside the enumeration is a server bug, never a status (T-16)
+    default:
       return HttpStatusCodes.INTERNAL_SERVER_ERROR;
-    }
   }
 }

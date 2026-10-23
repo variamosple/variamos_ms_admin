@@ -1,4 +1,6 @@
 import type { Nullable } from "#src/Domain/Core/Entity/Nullable.js";
+import { DomainError } from "#src/Domain/Core/Error/DomainError.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { Email } from "./Email.js";
 
 export class User {
@@ -30,7 +32,10 @@ export class User {
     permissions?: string[],
   ) {
     if (name !== undefined && name !== null && name.trim() === "") {
-      throw new Error("Name is required.");
+      throw new DomainError(
+        DomainErrorCodes.INVALID_INPUT,
+        "Name is required.",
+      );
     }
     const validatedEmail = email ? new Email(email).getValue() : email;
 

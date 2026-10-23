@@ -24,6 +24,7 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { MAX_ATTACHMENT_SIZE_BYTES } from "#src/Domain/Core/File/AllowedFileType.js";
 import type { UploadedFile } from "#src/Domain/Core/File/UploadedFile.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
+import { sendError } from "./errorResponse.js";
 
 /**
  * Factory function to create Bug Router with decoupled dependency injection
@@ -143,10 +144,7 @@ export function createBugRouter(
         const code = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(code).json(response);
       } catch (error) {
-        logger.err(error);
-        res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json({ error: (error as Error).message });
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -173,10 +171,7 @@ export function createBugRouter(
         const code = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(code).json(response);
       } catch (error) {
-        logger.err(error);
-        res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json({ error: (error as Error).message });
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -195,10 +190,7 @@ export function createBugRouter(
         const code = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(code).json(response);
       } catch (error) {
-        logger.err(error);
-        res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json({ error: (error as Error).message });
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -213,10 +205,7 @@ export function createBugRouter(
       const code = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(code).json(response);
     } catch (error) {
-      logger.err(error);
-      res
-        .status(HttpStatusCodes.BAD_REQUEST)
-        .json({ error: (error as Error).message });
+      sendError(res, error, transactionId);
     }
   });
 
@@ -307,10 +296,7 @@ export function createBugRouter(
         );
         res.status(code).json(response);
       } catch (error) {
-        logger.err(error);
-        res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json({ error: (error as Error).message });
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -331,10 +317,7 @@ export function createBugRouter(
         const code = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(code).json(response);
       } catch (error) {
-        logger.err(error);
-        res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json({ error: (error as Error).message });
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -394,10 +377,7 @@ export function createBugRouter(
         const code = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(code).json(response);
       } catch (error) {
-        logger.err(error);
-        res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json({ error: (error as Error).message });
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -423,10 +403,7 @@ export function createBugRouter(
         const code = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(code).json(response);
       } catch (error) {
-        logger.err(error);
-        res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json({ error: (error as Error).message });
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -452,10 +429,7 @@ export function createBugRouter(
         const code = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(code).json(response);
       } catch (error) {
-        logger.err(error);
-        res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json({ error: (error as Error).message });
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -473,17 +447,20 @@ export function createBugRouter(
 
         const code = mapDomainErrorToHttpStatus(response.errorCode);
         if (response.errorCode) {
-          res.status(code).json({ error: response.message });
+          res.status(code).json(response);
         } else {
-          res.status(code).json({
-            message: "GitHub bugs synchronization completed successfully.",
-          });
+          res
+            .status(code)
+            .json(
+              new ResponseModel<void>(
+                transactionId,
+                undefined,
+                "GitHub bugs synchronization completed successfully.",
+              ),
+            );
         }
       } catch (error) {
-        logger.err(error);
-        res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json({ error: (error as Error).message });
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -501,7 +478,12 @@ export function createBugRouter(
       if (!file) {
         res
           .status(HttpStatusCodes.BAD_REQUEST)
-          .json({ error: "File attachment is required." });
+          .json(
+            new ResponseModel(transactionId).withError(
+              DomainErrorCodes.INVALID_INPUT,
+              "File attachment is required.",
+            ),
+          );
         return;
       }
       try {
@@ -517,10 +499,7 @@ export function createBugRouter(
         );
         res.status(code).json(response);
       } catch (error) {
-        logger.err(error);
-        res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json({ error: (error as Error).message });
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -539,10 +518,7 @@ export function createBugRouter(
         const code = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(code).json(response);
       } catch (error) {
-        logger.err(error);
-        res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json({ error: (error as Error).message });
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -565,10 +541,7 @@ export function createBugRouter(
         const code = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(code).json(response);
       } catch (error) {
-        logger.err(error);
-        res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json({ error: (error as Error).message });
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -588,10 +561,7 @@ export function createBugRouter(
         const code = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(code).json(response);
       } catch (error) {
-        logger.err(error);
-        res
-          .status(HttpStatusCodes.BAD_REQUEST)
-          .json({ error: (error as Error).message });
+        sendError(res, error, transactionId);
       }
     },
   );

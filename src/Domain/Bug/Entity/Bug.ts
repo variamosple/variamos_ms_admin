@@ -1,3 +1,5 @@
+import { DomainError } from "#src/Domain/Core/Error/DomainError.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { BugAttachment } from "./BugAttachment.js";
 import { BugPriority } from "./BugPriority.js";
 
@@ -147,13 +149,19 @@ class BugBuilder {
 
   public build(): Bug {
     if (this.title !== undefined && (!this.title || this.title.trim() === "")) {
-      throw new Error("Bug title cannot be empty.");
+      throw new DomainError(
+        DomainErrorCodes.INVALID_INPUT,
+        "Bug title cannot be empty.",
+      );
     }
     if (
       this.description !== undefined &&
       (!this.description || this.description.trim() === "")
     ) {
-      throw new Error("Bug description cannot be empty.");
+      throw new DomainError(
+        DomainErrorCodes.INVALID_INPUT,
+        "Bug description cannot be empty.",
+      );
     }
     if (this.priority !== undefined) {
       new BugPriority(this.priority);

@@ -1,3 +1,5 @@
+import { DomainError } from "#src/Domain/Core/Error/DomainError.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { Credentials } from "./Credentials.js";
 import { Email } from "./Email.js";
 import { Password } from "./Password.js";
@@ -19,12 +21,16 @@ export class UserRegistration extends Credentials {
     super(validatedEmail.getValue(), validatedPassword.getValue());
 
     if (!name || name.trim() === "") {
-      throw new Error(
+      throw new DomainError(
+        DomainErrorCodes.INVALID_INPUT,
         "Full name, Email and password, and password confirmation are required.",
       );
     }
     if (validatedPassword.getValue() !== passwordConfirmation) {
-      throw new Error("Password and password confirmation do not match.");
+      throw new DomainError(
+        DomainErrorCodes.INVALID_INPUT,
+        "Password and password confirmation do not match.",
+      );
     }
 
     this.name = name;
@@ -69,7 +75,8 @@ export class UserRegistrationBuilder {
       !this.password ||
       !this.passwordConfirmation
     ) {
-      throw new Error(
+      throw new DomainError(
+        DomainErrorCodes.INVALID_INPUT,
         "Full name, Email and password, and password confirmation are required.",
       );
     }
