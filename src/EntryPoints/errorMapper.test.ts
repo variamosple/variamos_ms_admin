@@ -24,6 +24,9 @@ describe("errorMapper Unit Tests", () => {
     expect(mapDomainErrorToHttpStatus(DomainErrorCodes.UNAVAILABLE)).toBe(
       HttpStatusCodes.SERVICE_UNAVAILABLE,
     );
+    expect(mapDomainErrorToHttpStatus(DomainErrorCodes.PASSWORD_REUSED)).toBe(
+      HttpStatusCodes.BAD_REQUEST,
+    );
   });
 
   it.each([418, "404", 0.5])(

@@ -9,13 +9,13 @@ import {
   Router,
 } from "express";
 import logger from "jet-logger";
-import { describeError } from "#src/common/describeError.js";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { TrustedDeviceUseCase } from "#src/Domain/Mfa/UseCase/TrustedDeviceUseCase.js";
 import type { UserMfaUseCase } from "#src/Domain/Mfa/UseCase/UserMfaUseCase.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
+import { sendError } from "./errorResponse.js";
 import { mfaFailureLimiter } from "./RateLimits.js";
 
 export const MFA_ROUTE = "/auth/mfa";
@@ -79,15 +79,7 @@ export function createMfaRouter(
           .status(mapDomainErrorToHttpStatus(response.errorCode))
           .json(response);
       } catch (error) {
-        logger.err(describeError(error));
-        res
-          .status(HttpStatusCodes.INTERNAL_SERVER_ERROR)
-          .json(
-            new ResponseModel(transactionId).withError(
-              DomainErrorCodes.SYSTEM_ERROR,
-              "Internal Server Error",
-            ),
-          );
+        sendError(res, error, transactionId);
       }
     };
 

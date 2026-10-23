@@ -1,12 +1,10 @@
 import { hasPermissions } from "@variamosple/variamos-security";
 import { type Request, type Response, Router } from "express";
-import logger from "jet-logger";
-import { describeError } from "#src/common/describeError.js";
-import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
-import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import type { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { MfaResetUseCase } from "#src/Domain/Mfa/UseCase/MfaResetUseCase.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
+import { sendError } from "./errorResponse.js";
 import type { PermissionGuard } from "./MfaRouter.js";
 import { type AccessGuard, requireAccess, toUserId } from "./requireAccess.js";
 
@@ -37,15 +35,7 @@ export function createUserMfaRouter(
   };
 
   const fail = (res: Response, transactionId: string, error: unknown) => {
-    logger.err(describeError(error));
-    res
-      .status(HttpStatusCodes.INTERNAL_SERVER_ERROR)
-      .json(
-        new ResponseModel<void>(transactionId).withError(
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        ),
-      );
+    sendError(res, error, transactionId);
   };
 
   router.get(

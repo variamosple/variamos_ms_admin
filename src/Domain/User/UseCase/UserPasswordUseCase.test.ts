@@ -605,7 +605,7 @@ describe("UserPasswordUseCase", () => {
       });
       const res = await useCase.resetPassword(req);
 
-      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(res.errorCode).toBe(DomainErrorCodes.PASSWORD_REUSED);
       expect(res.message).toBe(
         "New password cannot be the same as the old password.",
       );

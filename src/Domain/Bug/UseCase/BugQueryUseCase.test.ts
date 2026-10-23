@@ -8,6 +8,7 @@ import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.j
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { INTERNAL_ERROR_MESSAGE } from "#src/Domain/Core/Error/InternalErrorMessage.js";
 import { ALLOWED_CATEGORIES, BugQueryUseCase } from "./BugQueryUseCase.js";
 
 describe("BugQueryUseCase", () => {
@@ -124,7 +125,7 @@ describe("BugQueryUseCase", () => {
       const response = await useCase.queryBugRepos(request);
 
       expect(response.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
-      expect(response.message).toBe("config fail");
+      expect(response.message).toBe(INTERNAL_ERROR_MESSAGE);
     });
   });
 

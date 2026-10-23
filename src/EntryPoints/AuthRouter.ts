@@ -398,15 +398,7 @@ export function createAuthRouter(
 
       res.status(200).json(response);
     } catch (err) {
-      logger.err(describeError(err));
-      res
-        .status(500)
-        .json(
-          new ResponseModel<void>(transactionId).withError(
-            DomainErrorCodes.SYSTEM_ERROR,
-            "Sign in error. Please try again later.",
-          ),
-        );
+      sendError(res, err, transactionId);
     }
   });
 
@@ -495,15 +487,7 @@ export function createAuthRouter(
       };
       res.status(200).json(response);
     } catch (err) {
-      logger.err(describeError(err));
-      res
-        .status(500)
-        .json(
-          new ResponseModel<void>(transactionId).withError(
-            DomainErrorCodes.SYSTEM_ERROR,
-            "Sign in error. Please try again later.",
-          ),
-        );
+      sendError(res, err, transactionId);
     }
   });
 
@@ -550,15 +534,7 @@ export function createAuthRouter(
 
       res.status(HttpStatusCodes.OK).json(successfulResponse);
     } catch (err) {
-      logger.err(describeError(err));
-      res
-        .status(500)
-        .json(
-          new ResponseModel<void>(transactionId).withError(
-            DomainErrorCodes.SYSTEM_ERROR,
-            "Sign in error. Please try again later.",
-          ),
-        );
+      sendError(res, err, transactionId);
     }
   });
 
@@ -698,13 +674,7 @@ export function createAuthRouter(
         );
         res.status(status).json(response);
       } catch (error) {
-        logger.err(describeError(error));
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(500).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -737,13 +707,7 @@ export function createAuthRouter(
         );
         res.status(status).json(response);
       } catch (error) {
-        logger.err(describeError(error));
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(500).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -773,13 +737,7 @@ export function createAuthRouter(
         );
         res.status(status).json(response);
       } catch (error) {
-        logger.err(describeError(error));
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(500).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -834,15 +792,7 @@ export function createAuthRouter(
 
       res.status(200).json(response);
     } catch (err) {
-      logger.err(describeError(err));
-      res
-        .status(500)
-        .json(
-          new ResponseModel<void>(transactionId).withError(
-            DomainErrorCodes.SYSTEM_ERROR,
-            "Sign in error. Please try again later.",
-          ),
-        );
+      sendError(res, err, transactionId);
     }
   });
 
@@ -878,15 +828,7 @@ export function createAuthRouter(
     try {
       res.status(200).json(await userPasswordUseCase.getPasswordPolicy());
     } catch (err) {
-      logger.err(describeError(err));
-      res
-        .status(500)
-        .json(
-          new ResponseModel<void>("getPasswordPolicy").withError(
-            DomainErrorCodes.SYSTEM_ERROR,
-            "Password policy error.",
-          ),
-        );
+      sendError(res, err, "getPasswordPolicy");
     }
   });
 
@@ -907,15 +849,7 @@ export function createAuthRouter(
 
       res.status(200).json(forgotPasswordResponse);
     } catch (err) {
-      logger.err(describeError(err));
-      res
-        .status(500)
-        .json(
-          new ResponseModel<void>(transactionId).withError(
-            DomainErrorCodes.SYSTEM_ERROR,
-            "Forgot password error. Please try again later.",
-          ),
-        );
+      sendError(res, err, transactionId);
     }
   });
 
@@ -940,15 +874,7 @@ export function createAuthRouter(
 
       res.status(200).json(verifyResponse);
     } catch (err) {
-      logger.err(describeError(err));
-      res
-        .status(500)
-        .json(
-          new ResponseModel<void>(transactionId).withError(
-            DomainErrorCodes.SYSTEM_ERROR,
-            "Token verification error.",
-          ),
-        );
+      sendError(res, err, transactionId);
     }
   };
 
@@ -982,15 +908,7 @@ export function createAuthRouter(
 
       res.status(200).json(resetResponse);
     } catch (err) {
-      logger.err(describeError(err));
-      res
-        .status(500)
-        .json(
-          new ResponseModel<void>(transactionId).withError(
-            DomainErrorCodes.SYSTEM_ERROR,
-            "Reset password error. Please try again later.",
-          ),
-        );
+      sendError(res, err, transactionId);
     }
   });
 

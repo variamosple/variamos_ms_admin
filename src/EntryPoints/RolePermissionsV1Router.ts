@@ -1,6 +1,5 @@
 import { hasPermissions } from "@variamosple/variamos-security";
 import { type Request, Router } from "express";
-import logger from "jet-logger";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -9,6 +8,7 @@ import { RolePermission } from "#src/Domain/Role/Entity/RolePermission.js";
 import { RolePermissionFilter } from "#src/Domain/Role/Entity/RolePermissionFilter.js";
 import type { RolePermissionUseCase } from "#src/Domain/Role/UseCase/RolePermissionUseCase.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
+import { sendError } from "./errorResponse.js";
 import { type AccessGuard, requireAccess, toId } from "./requireAccess.js";
 
 export const ROLE_PERMISSIONS_V1_ROUTE = "/:roleId/permissions";
@@ -54,13 +54,7 @@ export function createRolePermissionsRouter(
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error);
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -115,13 +109,7 @@ export function createRolePermissionsRouter(
           : HttpStatusCodes.CREATED;
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error);
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -171,13 +159,7 @@ export function createRolePermissionsRouter(
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error);
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );

@@ -5,6 +5,7 @@ import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.j
 import type { GitHubTokenResolver } from "#src/Domain/Bug/Service/GitHubTokenResolver.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { INTERNAL_ERROR_MESSAGE } from "#src/Domain/Core/Error/InternalErrorMessage.js";
 import type {
   GitHubIssueLabel,
   IIssueTrackerService,
@@ -708,6 +709,6 @@ describe("BugSyncUseCase", () => {
     const res = await useCase.syncBugs(req);
 
     expect(res.errorCode).toBe("SYSTEM_ERROR");
-    expect(res.message).toBe("Disk read error");
+    expect(res.message).toBe(INTERNAL_ERROR_MESSAGE);
   });
 });

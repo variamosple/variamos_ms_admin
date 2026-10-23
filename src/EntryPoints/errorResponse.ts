@@ -6,11 +6,10 @@ import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainError } from "#src/Domain/Core/Error/DomainError.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { INTERNAL_ERROR_MESSAGE } from "#src/Domain/Core/Error/InternalErrorMessage.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
-/** The only message an internal error shows to the client (T-16). */
-export const INTERNAL_ERROR_MESSAGE =
-  "An unexpected error occurred. Please try again later.";
+export { INTERNAL_ERROR_MESSAGE };
 
 const codeOfStatus = (status: number): DomainErrorCodes => {
   switch (status) {

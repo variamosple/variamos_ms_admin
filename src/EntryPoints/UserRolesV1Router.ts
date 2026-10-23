@@ -1,6 +1,5 @@
 import { hasPermissions } from "@variamosple/variamos-security";
 import { type Request, Router } from "express";
-import logger from "jet-logger";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -9,6 +8,7 @@ import { UserRole } from "#src/Domain/User/Entity/UserRole.js";
 import { UserRoleFilter } from "#src/Domain/User/Entity/UserRoleFilter.js";
 import type { UserRoleUseCase } from "#src/Domain/User/UseCase/UserRoleUseCase.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
+import { sendError } from "./errorResponse.js";
 import {
   type AccessGuard,
   requireAccess,
@@ -56,13 +56,7 @@ export function createUserRolesRouter(
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error);
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -99,13 +93,7 @@ export function createUserRolesRouter(
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error);
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -149,13 +137,7 @@ export function createUserRolesRouter(
           : HttpStatusCodes.CREATED;
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error);
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -196,13 +178,7 @@ export function createUserRolesRouter(
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error);
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );

@@ -1,14 +1,12 @@
 import { hasPermissions } from "@variamosple/variamos-security";
 import { type Request, Router } from "express";
-import logger from "jet-logger";
-import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { isConfigurationApplied } from "#src/Domain/Configuration/Entity/AppliedConfigurationKeys.js";
 import type { ConfigurationUseCase } from "#src/Domain/Configuration/UseCase/ConfigurationUseCase.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
-import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { Menu } from "#src/Domain/Menu/Entity/Menu.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
+import { sendError } from "./errorResponse.js";
 
 export const CONFIGURATION_V1_ROUTE = "/v1/configurations";
 
@@ -279,13 +277,7 @@ export function createConfigurationRouter(
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error);
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );
@@ -344,13 +336,7 @@ export function createConfigurationRouter(
         const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
       } catch (error) {
-        logger.err(error);
-        const response = new ResponseModel(
-          transactionId,
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal Server Error",
-        );
-        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(response);
+        sendError(res, error, transactionId);
       }
     },
   );

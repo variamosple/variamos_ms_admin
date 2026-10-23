@@ -5,8 +5,6 @@ import {
   type Response,
   Router,
 } from "express";
-import logger from "jet-logger";
-import { describeError } from "#src/common/describeError.js";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -14,6 +12,7 @@ import type {
   INotificationAccessTokenIssuer,
   NotificationAccessToken,
 } from "#src/Domain/Notification/INotificationAccessTokenIssuer.js";
+import { sendError } from "./errorResponse.js";
 
 export const NOTIFICATION_ACCESS_V1_ROUTE = "/v1/notifications";
 
@@ -56,15 +55,7 @@ export function createNotificationAccessRouter(
             ).withResponse(accessToken),
           );
       } catch (error) {
-        logger.err(describeError(error));
-        res
-          .status(HttpStatusCodes.INTERNAL_SERVER_ERROR)
-          .json(
-            new ResponseModel(transactionId).withError(
-              DomainErrorCodes.SYSTEM_ERROR,
-              "Internal Server Error",
-            ),
-          );
+        sendError(res, error, transactionId);
       }
     },
   );
