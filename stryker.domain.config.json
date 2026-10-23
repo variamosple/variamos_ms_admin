@@ -27,6 +27,6 @@
   "coverageAnalysis": "perTest",
   "incrementalFile": "reports/stryker-incremental-domain.json",
   "thresholds": {
-    "break": null
+    "break": 77
   }
 }
