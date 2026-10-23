@@ -7,13 +7,19 @@ import { RolePermissionFilter } from "#src/Domain/Role/Entity/RolePermissionFilt
 import type { IRolePermissionRepository } from "#src/Domain/Role/Repository/IRolePermissionRepository.js";
 import { RolePermissionUseCase } from "./RolePermissionUseCase.js";
 
+// The activity journal is checked by its own tests (T-24)
+const activityJournal = { record: vi.fn().mockResolvedValue(undefined) };
+
 describe("RolePermissionUseCase - Unit Tests", () => {
   let useCase: RolePermissionUseCase;
   let mockRolePermissionRepository: MockProxy<IRolePermissionRepository>;
 
   beforeEach(() => {
     mockRolePermissionRepository = mock<IRolePermissionRepository>();
-    useCase = new RolePermissionUseCase(mockRolePermissionRepository);
+    useCase = new RolePermissionUseCase(
+      mockRolePermissionRepository,
+      activityJournal,
+    );
   });
 
   test("should query role permissions", async () => {

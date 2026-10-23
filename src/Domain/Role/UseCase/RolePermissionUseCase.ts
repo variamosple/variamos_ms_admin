@@ -1,3 +1,5 @@
+import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
+import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import type { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import type { Permission } from "#src/Domain/Permission/Entity/Permission.js";
@@ -8,6 +10,7 @@ import type { IRolePermissionRepository } from "#src/Domain/Role/Repository/IRol
 export class RolePermissionUseCase {
   public constructor(
     private readonly rolePermissionRepository: IRolePermissionRepository,
+    private readonly journal: IActivityJournal,
   ) {}
 
   public queryRolePermissions(
@@ -19,12 +22,34 @@ export class RolePermissionUseCase {
   public createRolePermission(
     request: RequestModel<RolePermission>,
   ): Promise<ResponseModel<RolePermission>> {
-    return this.rolePermissionRepository.createRolePermission(request);
+    return withJournal(
+      this.journal,
+      {
+        actorId: request.actorId,
+        action: "role.permission.assign",
+        entityType: "role",
+        entityId: request.data?.roleId,
+        after: { permissionId: request.data?.permissionId ?? null },
+        transactionId: request.transactionId,
+      },
+      () => this.rolePermissionRepository.createRolePermission(request),
+    );
   }
 
   public deleteRolePermission(
     request: RequestModel<RolePermission>,
   ): Promise<ResponseModel<void>> {
-    return this.rolePermissionRepository.deleteRolePermission(request);
+    return withJournal(
+      this.journal,
+      {
+        actorId: request.actorId,
+        action: "role.permission.remove",
+        entityType: "role",
+        entityId: request.data?.roleId,
+        before: { permissionId: request.data?.permissionId ?? null },
+        transactionId: request.transactionId,
+      },
+      () => this.rolePermissionRepository.deleteRolePermission(request),
+    );
   }
 }

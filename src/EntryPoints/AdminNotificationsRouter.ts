@@ -1,116 +1,151 @@
 import { hasPermissions } from "@variamosple/variamos-security";
-import { type Request, type Response, Router } from "express";
+import { type Request, Router } from "express";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { RoleModel } from "#src/DataProviders/Role/Role.js";
 import { UserModel } from "#src/DataProviders/User/User.js";
+import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
+import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { NotificationClientInstance } from "#src/Infrastructure/Notification/NotificationClient.js";
+import { actorOf } from "./actor.js";
 import { sendError } from "./errorResponse.js";
 
 const TRANSACTION_ID = "dispatchNotification";
 
-const refuse = (res: Response, message: string) =>
-  res
-    .status(HttpStatusCodes.BAD_REQUEST)
-    .json(
-      new ResponseModel<void>(TRANSACTION_ID).withError(
-        DomainErrorCodes.INVALID_INPUT,
-        message,
-      ),
-    );
-
 export const ADMIN_NOTIFICATIONS_V1_ROUTE = "/v1/admin/notifications";
 
-export function createAdminNotificationsRouter(): Router {
+type Audience = "broadcast" | "role" | "users";
+
+interface DispatchRequest {
+  audience: Audience;
+  roles?: string[];
+  userIds?: string[];
+  title: string;
+  body: string;
+}
+
+const invalid = (message: string) =>
+  new ResponseModel<void>(TRANSACTION_ID).withError(
+    DomainErrorCodes.INVALID_INPUT,
+    message,
+  );
+
+// Active, non-deleted accounts of the audience; an error answer otherwise
+async function recipientsOf(
+  request: DispatchRequest,
+): Promise<string[] | ResponseModel<void>> {
+  const { audience, roles, userIds } = request;
+  if (audience === "broadcast") {
+    const users = await UserModel.findAll({
+      attributes: ["id"],
+      where: { isDeleted: false, isEnabled: true },
+    });
+    return users.map((u) => u.id as string).filter(Boolean);
+  }
+  if (audience === "role") {
+    if (!roles || roles.length === 0) {
+      return invalid("At least one role is required for role audience.");
+    }
+    const rolesData = await RoleModel.findAll({
+      where: { name: roles },
+      include: [
+        {
+          model: UserModel,
+          as: "users",
+          attributes: ["id"],
+          where: { isDeleted: false, isEnabled: true },
+          through: { attributes: [] },
+        },
+      ],
+    });
+    const ids = rolesData.flatMap(
+      (r) =>
+        (r as RoleModel & { users?: UserModel[] }).users?.map(
+          (u) => u.id as string,
+        ) || [],
+    );
+    return Array.from(new Set(ids)).filter(Boolean);
+  }
+  if (audience === "users") {
+    if (!userIds || userIds.length === 0) {
+      return invalid("At least one user ID is required for users audience.");
+    }
+    return userIds;
+  }
+  return invalid("Invalid audience type.");
+}
+
+export function createAdminNotificationsRouter(
+  journal: IActivityJournal,
+): Router {
   const router = Router();
 
   router.post(
     "/dispatch",
     hasPermissions(["admin::notifications::dispatch"]),
     async (req: Request, res) => {
-      const { audience, roles, userIds, title, body } = req.body as {
-        audience: "broadcast" | "role" | "users";
-        roles?: string[];
-        userIds?: string[];
-        title: string;
-        body: string;
-      };
+      const request = req.body as DispatchRequest;
+      const actorId = actorOf(req) ?? null;
+      let recipientCount = 0;
 
-      try {
-        if (!title || !body) {
-          return refuse(res, "Title and body are required.");
+      // The only administration operation without a use case: it is
+      // recorded here; the body of the message is not kept (T-24)
+      const dispatch = async (): Promise<ResponseModel<void>> => {
+        if (!request.title || !request.body) {
+          return invalid("Title and body are required.");
         }
-
-        let resolvedUserIds: string[] = [];
-
-        if (audience === "broadcast") {
-          // Query all active and non-deleted user IDs
-          const users = await UserModel.findAll({
-            attributes: ["id"],
-            where: { isDeleted: false, isEnabled: true },
-          });
-          resolvedUserIds = users.map((u) => u.id as string).filter(Boolean);
-        } else if (audience === "role") {
-          if (!roles || roles.length === 0) {
-            return refuse(
-              res,
-              "At least one role is required for role audience.",
-            );
-          }
-          const rolesData = await RoleModel.findAll({
-            where: { name: roles },
-            include: [
-              {
-                model: UserModel,
-                as: "users",
-                attributes: ["id"],
-                where: { isDeleted: false, isEnabled: true },
-                through: { attributes: [] },
-              },
-            ],
-          });
-          const ids = rolesData.flatMap(
-            (r) =>
-              (r as RoleModel & { users?: UserModel[] }).users?.map(
-                (u) => u.id as string,
-              ) || [],
-          );
-          resolvedUserIds = Array.from(new Set(ids)).filter(Boolean);
-        } else if (audience === "users") {
-          if (!userIds || userIds.length === 0) {
-            return refuse(
-              res,
-              "At least one user ID is required for users audience.",
-            );
-          }
-          resolvedUserIds = userIds;
-        } else {
-          return refuse(res, "Invalid audience type.");
-        }
+        const recipients = await recipientsOf(request);
+        if (recipients instanceof ResponseModel) return recipients;
+        recipientCount = recipients.length;
 
         // Dispatch via NotificationClient using the admin_alert template key
         await NotificationClientInstance.dispatchNotification({
           recipients: {
-            userIds: resolvedUserIds.length > 0 ? resolvedUserIds : undefined,
+            userIds: recipients.length > 0 ? recipients : undefined,
           },
           templateKey: "admin_alert",
-          variables: {
-            title,
-            body,
-          },
-          actorId: (req.user as { id?: string })?.id || null,
+          variables: { title: request.title, body: request.body },
+          actorId,
         });
+        return new ResponseModel<void>(
+          TRANSACTION_ID,
+          undefined,
+          "Notification dispatched successfully.",
+        );
+      };
 
+      try {
+        const response = await withJournal(
+          journal,
+          {
+            actorId,
+            action: "notification.dispatch",
+            entityType: "notification",
+            after: {
+              audience: request.audience ?? null,
+              roles: request.roles ?? null,
+              title: request.title ?? null,
+            },
+            transactionId: TRANSACTION_ID,
+          },
+          dispatch,
+          () => ({
+            after: {
+              audience: request.audience,
+              roles: request.roles ?? null,
+              title: request.title,
+              recipientCount,
+            },
+          }),
+        );
         return res
-          .status(HttpStatusCodes.OK)
-          .json(
-            new ResponseModel<void>(
-              TRANSACTION_ID,
-              undefined,
-              "Notification dispatched successfully.",
-            ),
-          );
+          .status(
+            response.errorCode
+              ? HttpStatusCodes.BAD_REQUEST
+              : HttpStatusCodes.OK,
+          )
+          .json(response);
       } catch (error: unknown) {
         return sendError(res, error, TRANSACTION_ID);
       }

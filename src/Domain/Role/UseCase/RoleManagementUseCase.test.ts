@@ -5,13 +5,16 @@ import { Role } from "#src/Domain/Role/Entity/Role.js";
 import type { IRoleRepository } from "#src/Domain/Role/Repository/IRoleRepository.js";
 import { RoleManagementUseCase } from "./RoleManagementUseCase.js";
 
+// The activity journal is checked by its own tests (T-24)
+const activityJournal = { record: vi.fn().mockResolvedValue(undefined) };
+
 describe("RoleManagementUseCase - Unit Tests", () => {
   let useCase: RoleManagementUseCase;
   let mockRoleRepository: MockProxy<IRoleRepository>;
 
   beforeEach(() => {
     mockRoleRepository = mock<IRoleRepository>();
-    useCase = new RoleManagementUseCase(mockRoleRepository);
+    useCase = new RoleManagementUseCase(mockRoleRepository, activityJournal);
   });
 
   test("should create role", async () => {

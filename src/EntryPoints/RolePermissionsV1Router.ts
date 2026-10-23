@@ -7,6 +7,7 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { RolePermission } from "#src/Domain/Role/Entity/RolePermission.js";
 import { RolePermissionFilter } from "#src/Domain/Role/Entity/RolePermissionFilter.js";
 import type { RolePermissionUseCase } from "#src/Domain/Role/UseCase/RolePermissionUseCase.js";
+import { actorOf } from "./actor.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
 import { type AccessGuard, requireAccess, toId } from "./requireAccess.js";
@@ -100,6 +101,7 @@ export function createRolePermissionsRouter(
         const request = new RequestModel<RolePermission>(
           transactionId,
           rolePermission,
+          actorOf(req),
         );
         const response =
           await rolePermissionUseCase.createRolePermission(request);
@@ -152,6 +154,7 @@ export function createRolePermissionsRouter(
         const request = new RequestModel<RolePermission>(
           transactionId,
           rolePermission,
+          actorOf(req),
         );
         const response =
           await rolePermissionUseCase.deleteRolePermission(request);

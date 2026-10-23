@@ -23,6 +23,7 @@ vi.mock("@variamosple/variamos-security", () => ({
     },
 }));
 
+import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import type { IRolePermissionRepository } from "#src/Domain/Role/Repository/IRolePermissionRepository.js";
 
 const allowAll: AccessGuard = {
@@ -37,6 +38,7 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
     app.use(express.json());
     const mockRolePermissionUseCase = new RolePermissionUseCase(
       mock<IRolePermissionRepository>(),
+      mock<IActivityJournal>(),
     );
     app.use(
       "/v1/roles/:roleId/permissions",

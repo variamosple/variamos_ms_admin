@@ -7,6 +7,7 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { UserRole } from "#src/Domain/User/Entity/UserRole.js";
 import { UserRoleFilter } from "#src/Domain/User/Entity/UserRoleFilter.js";
 import type { UserRoleUseCase } from "#src/Domain/User/UseCase/UserRoleUseCase.js";
+import { actorOf } from "./actor.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
 import {
@@ -128,7 +129,11 @@ export function createUserRolesRouter(
           Number.parseInt(roleId, 10),
         );
 
-        const request = new RequestModel<UserRole>(transactionId, userRole);
+        const request = new RequestModel<UserRole>(
+          transactionId,
+          userRole,
+          actorOf(req),
+        );
         const response = await userRoleUseCase.createUserRole(request);
 
         // If success, default status maps to CREATED (201) in errorMapper default config if not error
@@ -172,7 +177,11 @@ export function createUserRolesRouter(
           Number.parseInt(roleId, 10),
         );
 
-        const request = new RequestModel<UserRole>(transactionId, userRole);
+        const request = new RequestModel<UserRole>(
+          transactionId,
+          userRole,
+          actorOf(req),
+        );
         const response = await userRoleUseCase.deleteUserRole(request);
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);

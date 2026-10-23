@@ -36,6 +36,9 @@ vi.mock("@variamosple/variamos-security", () => ({
 
 import type { IConfigEventPublisher } from "#src/Domain/Configuration/Event/IConfigEventPublisher.js";
 
+// The activity journal is checked by its own tests (T-24)
+const activityJournal = { record: vi.fn().mockResolvedValue(undefined) };
+
 describe("ConfigurationRouter Integration Tests", () => {
   let app: express.Application;
   let mockUseCase: ConfigurationUseCase;
@@ -47,7 +50,11 @@ describe("ConfigurationRouter Integration Tests", () => {
     app.use(express.json());
     mockRepo = mock<IConfigurationRepository>();
     mockPublisher = mock<IConfigEventPublisher>();
-    mockUseCase = new ConfigurationUseCase(mockRepo, mockPublisher);
+    mockUseCase = new ConfigurationUseCase(
+      mockRepo,
+      mockPublisher,
+      activityJournal,
+    );
     app.use("/v1/configurations", createConfigurationRouter(mockUseCase));
   });
 

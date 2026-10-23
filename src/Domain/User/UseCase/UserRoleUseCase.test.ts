@@ -7,13 +7,16 @@ import { UserRoleFilter } from "../Entity/UserRoleFilter.js";
 import type { IUserRoleRepository } from "../Repository/IUserRoleRepository.js";
 import { UserRoleUseCase } from "./UserRoleUseCase.js";
 
+// The activity journal is checked by its own tests (T-24)
+const activityJournal = { record: vi.fn().mockResolvedValue(undefined) };
+
 describe("UserRoleUseCase", () => {
   let useCase: UserRoleUseCase;
   let mockRepository: MockProxy<IUserRoleRepository>;
 
   beforeEach(() => {
     mockRepository = mock<IUserRoleRepository>();
-    useCase = new UserRoleUseCase(mockRepository);
+    useCase = new UserRoleUseCase(mockRepository, activityJournal);
   });
 
   it("should query user roles", async () => {

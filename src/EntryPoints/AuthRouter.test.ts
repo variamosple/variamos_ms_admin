@@ -71,6 +71,7 @@ const noMfaSignIn = {
   begin: async () => null,
 } as unknown as MfaSignInUseCase;
 
+import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
 // Errors must be logged as text built by describeError, never as full
@@ -164,9 +165,11 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       mock<IUserRepository>(),
       mock<IMailService>(),
       mock<UserPasswordUseCaseConfig>(),
+      mock<IActivityJournal>(),
     );
     const mockUserManagementUseCase = new UserManagementUseCase(
       mock<IUserRepository>(),
+      mock<IActivityJournal>(),
     );
     const mockUserQueryUseCase = new UserQueryUseCase(mock<IUserRepository>());
     app.use(

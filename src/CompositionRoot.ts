@@ -1,6 +1,7 @@
 import logger from "jet-logger";
 import EnvVars from "#src/common/EnvVars.js";
 import { AccessHierarchyRepositoryImpl } from "./DataProviders/AccessControl/AccessHierarchyRepository.js";
+import { ActivityJournalRepositoryImpl } from "./DataProviders/Activity/ActivityJournalRepository.js";
 import { BugRepositoryImpl } from "./DataProviders/Bug/BugRepository.js";
 import { ConfigurationRepositoryImpl } from "./DataProviders/Configuration/ConfigurationRepository.js";
 import { SecretConfigurationValue } from "./DataProviders/Configuration/SecretConfigurationValue.js";
@@ -99,11 +100,17 @@ export const ConfigurationRepositoryInstance = new ConfigurationRepositoryImpl(
   SecretConfigurationValueInstance,
 );
 export const ConfigEventPublisherInstance = new ConfigEventPublisherImpl();
+// Administration operations (T-24): table admin_activity_logs, append-only
+export const ActivityJournalInstance = new ActivityJournalRepositoryImpl(
+  VARIAMOS_ORM,
+  DB_SCHEMA,
+);
 
 // Configuration Use Case Instantiations
 export const productionConfigurationUseCase = new ConfigurationUseCase(
   ConfigurationRepositoryInstance,
   ConfigEventPublisherInstance,
+  ActivityJournalInstance,
 );
 
 // User Use Case Instantiations
@@ -130,11 +137,13 @@ export const productionUserPasswordUseCase = new UserPasswordUseCase(
     passwordResetExpiryInMs: EnvVars.Auth.APP.PASSWORD_RESET_EXPIRY_IN_MS,
     adminHomeUri: EnvVars.Auth.APP.ADMIN_HOME_URI,
   },
+  ActivityJournalInstance,
   PasswordPolicyServiceInstance,
 );
 
 export const productionUserManagementUseCase = new UserManagementUseCase(
   UserRepositoryInstance,
+  ActivityJournalInstance,
   PasswordPolicyServiceInstance,
 );
 
@@ -172,6 +181,7 @@ export const productionMfaResetUseCase = new MfaResetUseCase(
   userMfaRepository,
   UserRepositoryInstance,
   MailServiceInstance,
+  ActivityJournalInstance,
 );
 
 export const productionUserQueryUseCase = new UserQueryUseCase(
@@ -180,6 +190,7 @@ export const productionUserQueryUseCase = new UserQueryUseCase(
 
 export const productionUserRoleUseCase = new UserRoleUseCase(
   UserRoleRepositoryInstance,
+  ActivityJournalInstance,
 );
 
 // Bug Tracker Config
@@ -234,10 +245,12 @@ export const productionBugAttachmentUseCase = new BugAttachmentUseCase(
 // Other Use Case Instantiations
 export const productionPermissionUseCase = new PermissionUseCase(
   PermissionRepositoryInstance,
+  ActivityJournalInstance,
 );
 
 export const productionRoleManagementUseCase = new RoleManagementUseCase(
   RoleRepositoryInstance,
+  ActivityJournalInstance,
 );
 
 export const productionRoleQueryUseCase = new RoleQueryUseCase(
@@ -246,6 +259,7 @@ export const productionRoleQueryUseCase = new RoleQueryUseCase(
 
 export const productionRolePermissionUseCase = new RolePermissionUseCase(
   RolePermissionRepositoryInstance,
+  ActivityJournalInstance,
 );
 
 export const productionAccessHierarchyUseCase = new AccessHierarchyUseCase(

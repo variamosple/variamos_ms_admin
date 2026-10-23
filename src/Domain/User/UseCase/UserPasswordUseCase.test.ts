@@ -12,6 +12,9 @@ import {
   type UserPasswordUseCaseConfig,
 } from "./UserPasswordUseCase.js";
 
+// The activity journal is checked by its own tests (T-24)
+const activityJournal = { record: vi.fn().mockResolvedValue(undefined) };
+
 describe("UserPasswordUseCase", () => {
   let useCase: UserPasswordUseCase;
   let mockUserRepository: MockProxy<IUserRepository>;
@@ -43,6 +46,7 @@ describe("UserPasswordUseCase", () => {
       mockUserRepository,
       mockMailService,
       mockConfig,
+      activityJournal,
     );
   });
 
@@ -298,6 +302,7 @@ describe("UserPasswordUseCase", () => {
         mockUserRepository,
         mockMailService,
         { ...mockConfig, passwordResetExpiryInMs: configured },
+        activityJournal,
       );
       mockUserRepository.getUserByEmail.mockResolvedValue(mockUser);
       const createTokenSpy = vi

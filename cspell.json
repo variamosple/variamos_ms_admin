@@ -3,6 +3,8 @@
   "language": "en",
   "words": [
     "variamos",
+    "plpgsql",
+    "ERRCODE",
     "axios",
     "sequelize",
     "postgres",

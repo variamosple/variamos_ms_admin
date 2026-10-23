@@ -1,4 +1,6 @@
 import logger from "jet-logger";
+import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
+import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -28,6 +30,7 @@ export class MfaResetUseCase {
     >,
     private readonly userRepository: Pick<IUserRepository, "queryById">,
     private readonly mailService: Pick<IMailService, "sendMfaResetMail">,
+    private readonly journal: IActivityJournal,
   ) {}
 
   public async status(
@@ -44,6 +47,25 @@ export class MfaResetUseCase {
   }
 
   public async reset(
+    transactionId: string,
+    userId: string,
+    adminId: string,
+  ): Promise<ResponseModel<MfaResetResult>> {
+    return withJournal(
+      this.journal,
+      {
+        actorId: adminId,
+        action: "user.mfa.reset",
+        entityType: "user",
+        entityId: userId,
+        after: { mfaEnabled: false },
+        transactionId,
+      },
+      () => this.turnOff(transactionId, userId, adminId),
+    );
+  }
+
+  private async turnOff(
     transactionId: string,
     userId: string,
     adminId: string,

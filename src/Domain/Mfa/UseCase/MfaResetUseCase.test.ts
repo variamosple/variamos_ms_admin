@@ -11,6 +11,9 @@ import { User } from "#src/Domain/User/Entity/User.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 import { MfaResetUseCase } from "./MfaResetUseCase.js";
 
+// The activity journal is checked by its own tests (T-24)
+const activityJournal = { record: vi.fn().mockResolvedValue(undefined) };
+
 const ON: UserMfaRecord = {
   userId: "user-2",
   secretEncrypted: "v1:x",
@@ -39,6 +42,7 @@ function setUp(record: UserMfaRecord | null) {
     mfaRepository,
     userRepository,
     mailService,
+    activityJournal,
   );
   return { useCase, mfaRepository, userRepository, mailService };
 }

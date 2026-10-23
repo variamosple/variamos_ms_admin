@@ -1,3 +1,6 @@
+import type { ActivityValues } from "#src/Domain/Activity/ActivityEntry.js";
+import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
+import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -21,6 +24,7 @@ export class ConfigurationUseCase {
   public constructor(
     private readonly configurationRepository: IConfigurationRepository,
     private readonly configEventPublisher: IConfigEventPublisher,
+    private readonly journal: IActivityJournal,
   ) {}
 
   public async queryConfigurations(
@@ -37,6 +41,29 @@ export class ConfigurationUseCase {
 
   public async updateConfiguration(
     request: RequestModel<UpdateConfigurationRequest>,
+  ): Promise<ResponseModel<Configuration>> {
+    // Display values: a secret is kept as its mask, never in clear (T-13)
+    let change: { before: ActivityValues; after: ActivityValues } | undefined;
+    return withJournal(
+      this.journal,
+      {
+        actorId: request.data?.operatorId,
+        action: "configuration.update",
+        entityType: "configuration",
+        entityId: request.data?.key,
+        transactionId: request.transactionId,
+      },
+      () =>
+        this.applyUpdate(request, (before, after) => {
+          change = { before: { value: before }, after: { value: after } };
+        }),
+      () => change ?? {},
+    );
+  }
+
+  private async applyUpdate(
+    request: RequestModel<UpdateConfigurationRequest>,
+    onChange: (before: ConfigurationValue, after: ConfigurationValue) => void,
   ): Promise<ResponseModel<Configuration>> {
     const transactionId = request.transactionId;
     const response = new ResponseModel<Configuration>(transactionId);
@@ -77,6 +104,7 @@ export class ConfigurationUseCase {
     }
 
     // 3. Mutate domain entity state (validates type invariants and readonly flag)
+    const before = configuration.getDisplayValue();
     try {
       configuration.updateValue(value, operatorId);
     } catch (e) {
@@ -92,6 +120,10 @@ export class ConfigurationUseCase {
     });
     const updateResponse =
       await this.configurationRepository.updateConfiguration(updateRequest);
+
+    if (!updateResponse.errorCode) {
+      onChange(before, configuration.getDisplayValue());
+    }
 
     // 5. Publish config updated event on success
     if (!updateResponse.errorCode && updateResponse.data) {

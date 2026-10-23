@@ -7,6 +7,7 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { Permission } from "#src/Domain/Permission/Entity/Permission.js";
 import { PermissionFilter } from "#src/Domain/Permission/Entity/PermissionFilter.js";
 import type { PermissionUseCase } from "#src/Domain/Permission/UseCase/PermissionUseCase.js";
+import { actorOf } from "./actor.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
 
@@ -76,7 +77,11 @@ export function createPermissionsRouter(
             );
         }
 
-        const request = new RequestModel<Permission>(transactionId, permission);
+        const request = new RequestModel<Permission>(
+          transactionId,
+          permission,
+          actorOf(req),
+        );
         const response = await permissionUseCase.createPermission(request);
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);
@@ -108,6 +113,7 @@ export function createPermissionsRouter(
         const request = new RequestModel<number>(
           transactionId,
           Number.parseInt(permissionId, 10),
+          actorOf(req),
         );
         const response = await permissionUseCase.deletePermission(request);
 
@@ -196,7 +202,11 @@ export function createPermissionsRouter(
             );
         }
 
-        const request = new RequestModel<Permission>(transactionId, permission);
+        const request = new RequestModel<Permission>(
+          transactionId,
+          permission,
+          actorOf(req),
+        );
         const response = await permissionUseCase.updatePermission(request);
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);

@@ -1,3 +1,5 @@
+import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
+import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -13,25 +15,53 @@ import {
 export class UserManagementUseCase {
   public constructor(
     private readonly userRepository: IUserRepository,
+    private readonly journal: IActivityJournal,
     private readonly passwordPolicy: IPasswordPolicyProvider = DEFAULT_PASSWORD_POLICY_PROVIDER,
   ) {}
 
   public async enable(
     request: RequestModel<string>,
   ): Promise<ResponseModel<void>> {
-    return this.userRepository.enableUser(request);
+    return withJournal(
+      this.journal,
+      this.userActivity(request, "user.enable", { isEnabled: true }),
+      () => this.userRepository.enableUser(request),
+    );
   }
 
   public async disable(
     request: RequestModel<string>,
   ): Promise<ResponseModel<void>> {
-    return this.userRepository.disableUser(request);
+    return withJournal(
+      this.journal,
+      this.userActivity(request, "user.disable", { isEnabled: false }),
+      () => this.userRepository.disableUser(request),
+    );
   }
 
   public async delete(
     request: RequestModel<string>,
   ): Promise<ResponseModel<void>> {
-    return this.userRepository.deleteUser(request);
+    return withJournal(
+      this.journal,
+      this.userActivity(request, "user.delete", { isDeleted: true }),
+      () => this.userRepository.deleteUser(request),
+    );
+  }
+
+  private userActivity(
+    request: RequestModel<string>,
+    action: string,
+    after: Record<string, boolean>,
+  ) {
+    return {
+      actorId: request.actorId,
+      action,
+      entityType: "user",
+      entityId: request.data,
+      after,
+      transactionId: request.transactionId,
+    };
   }
 
   public async updateProfile(
