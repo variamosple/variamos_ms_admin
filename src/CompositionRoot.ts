@@ -3,6 +3,7 @@ import EnvVars from "#src/common/EnvVars.js";
 import { AccessHierarchyRepositoryImpl } from "./DataProviders/AccessControl/AccessHierarchyRepository.js";
 import { BugRepositoryImpl } from "./DataProviders/Bug/BugRepository.js";
 import { ConfigurationRepositoryImpl } from "./DataProviders/Configuration/ConfigurationRepository.js";
+import { SecretConfigurationValue } from "./DataProviders/Configuration/SecretConfigurationValue.js";
 import { CountriesRepositoryImpl } from "./DataProviders/Countries/CountriesRepository.js";
 import { MetricsRepositoryImpl } from "./DataProviders/Metrics/MetricsRepository.js";
 import { TrustedDeviceRepositoryImpl } from "./DataProviders/Mfa/TrustedDeviceRepository.js";
@@ -53,13 +54,27 @@ import { VisitUseCase } from "./Domain/Visit/UseCase/VisitUseCase.js";
 import { GitHubIssuesServiceInstance } from "./Infrastructure/GitHub/GitHubIssuesService.js";
 import { MailServiceInstance } from "./Infrastructure/Mail/MailService.js";
 import { ConfigEventPublisherImpl } from "./Infrastructure/Messaging/ConfigEventPublisher.js";
+import { NotificationAccessTokenIssuer } from "./Infrastructure/Notification/NotificationAccessTokenIssuer.js";
 import {
   AesGcmSecretCipher,
   parseEncryptionKey,
-} from "./Infrastructure/Mfa/AesGcmSecretCipher.js";
-import { NotificationAccessTokenIssuer } from "./Infrastructure/Notification/NotificationAccessTokenIssuer.js";
+} from "./Infrastructure/Security/AesGcmSecretCipher.js";
 import { DiskStorageServiceInstance } from "./Infrastructure/Storage/DiskStorageService.js";
 import VARIAMOS_ORM, { DB_SCHEMA } from "./Infrastructure/VariamosORM.js";
+
+// Secret configurations are encrypted at rest (T-13, EV-78 lot 2); without
+// a valid key they cannot be changed
+const configEncryptionKey = parseEncryptionKey(
+  EnvVars.Auth.APP.CONFIG_ENCRYPTION_KEY,
+);
+if (!configEncryptionKey && EnvVars.Auth.APP.CONFIG_ENCRYPTION_KEY.trim()) {
+  logger.warn(
+    "[CONFIG] CONFIG_ENCRYPTION_KEY is not 32 bytes in base64: secret configurations cannot be changed",
+  );
+}
+export const SecretConfigurationValueInstance = new SecretConfigurationValue(
+  new AesGcmSecretCipher(configEncryptionKey),
+);
 
 // Repositories
 export const UserRepositoryInstance = new UserRepositoryImpl({
@@ -68,6 +83,7 @@ export const UserRepositoryInstance = new UserRepositoryImpl({
 
 export const MicroServiceRepositoryInstance = new MicroServiceRepositoryImpl({
   socketPath: EnvVars.DOCKER.SOCKET_PATH,
+  secrets: SecretConfigurationValueInstance,
 });
 
 export const RoleRepositoryInstance = new RoleRepositoryImpl();
@@ -79,8 +95,9 @@ export const VisitRepositoryInstance = new VisitRepositoryImpl();
 export const CountriesRepositoryInstance = new CountriesRepositoryImpl();
 export const MetricsRepositoryInstance = new MetricsRepositoryImpl();
 export const BugRepositoryInstance = new BugRepositoryImpl();
-export const ConfigurationRepositoryInstance =
-  new ConfigurationRepositoryImpl();
+export const ConfigurationRepositoryInstance = new ConfigurationRepositoryImpl(
+  SecretConfigurationValueInstance,
+);
 export const ConfigEventPublisherInstance = new ConfigEventPublisherImpl();
 
 // Configuration Use Case Instantiations

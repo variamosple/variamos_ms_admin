@@ -53,7 +53,7 @@ describe("AesGcmSecretCipher", () => {
     const cipher = new AesGcmSecretCipher(null);
 
     expect(cipher.isAvailable()).toBe(false);
-    expect(() => cipher.encrypt(secret, "user-1")).toThrow("No MFA");
+    expect(() => cipher.encrypt(secret, "user-1")).toThrow("No encryption key");
   });
 });
 

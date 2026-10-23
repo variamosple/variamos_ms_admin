@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
-import type { ISecretCipher } from "#src/Domain/Mfa/Service/ISecretCipher.js";
+import type { ISecretCipher } from "#src/Domain/Core/Secret/ISecretCipher.js";
 
 const VERSION = "v1";
 const KEY_BYTES = 32;
@@ -26,7 +26,7 @@ export class AesGcmSecretCipher implements ISecretCipher {
 
   private requireKey(): Buffer {
     if (!this.key) {
-      throw new Error("No MFA encryption key is configured.");
+      throw new Error("No encryption key is configured.");
     }
     return this.key;
   }
@@ -43,11 +43,11 @@ export class AesGcmSecretCipher implements ISecretCipher {
   public decrypt(stored: string, context: string): Buffer {
     const [version, data] = stored.split(":");
     if (version !== VERSION || !data) {
-      throw new Error("Unknown MFA secret format.");
+      throw new Error("Unknown encrypted value format.");
     }
     const payload = Buffer.from(data, "base64");
     if (payload.length <= IV_BYTES + TAG_BYTES) {
-      throw new Error("Unknown MFA secret format.");
+      throw new Error("Unknown encrypted value format.");
     }
     const decipher = createDecipheriv(
       "aes-256-gcm",

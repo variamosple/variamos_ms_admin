@@ -24,6 +24,7 @@ import {
   ConfigurationModel,
   type ConfigurationValue,
 } from "../Configuration/Configuration.js";
+import type { SecretConfigurationValue } from "../Configuration/SecretConfigurationValue.js";
 import { MicroServiceAuditLogModel } from "./MicroServiceAuditLogModel.js";
 import { MicroServiceHealthLogModel } from "./MicroServiceHealthLogModel.js";
 
@@ -65,10 +66,24 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
     ) => Promise<MicroServiceHealthInfo[]>;
   };
 
-  public constructor(config: { socketPath: string }) {
+  private readonly secrets: SecretConfigurationValue;
+
+  public constructor(config: {
+    socketPath: string;
+    secrets: SecretConfigurationValue;
+  }) {
     this.dockerConnection = new Docker({
       socketPath: config.socketPath,
     });
+    this.secrets = config.secrets;
+  }
+
+  /** The value as text, in clear; the mask when a secret cannot be decrypted. */
+  private displayedValueOf(config: ConfigurationModel): string {
+    const value = config.isSecret
+      ? (this.secrets.decrypt(config.key, config.value) ?? SECRET_MASK)
+      : config.value;
+    return typeof value === "string" ? value : JSON.stringify(value);
   }
 
   public setHealthCollector(collector: {
@@ -726,7 +741,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
             c.id,
             serviceName,
             c.key,
-            typeof c.value === "string" ? c.value : JSON.stringify(c.value),
+            this.displayedValueOf(c),
             (c.type as "string" | "number" | "boolean" | "json") || "string",
             c.isSecret,
             c.isReadOnly,
@@ -793,11 +808,20 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
       let config: ConfigurationModel;
 
       if (existing) {
+        // A secret is never written in clear (T-13)
+        if (existing.isSecret && !this.secrets.canEncrypt()) {
+          return response.withError(
+            DomainErrorCodes.UNAVAILABLE,
+            "Secret configurations cannot be changed: no encryption key is configured.",
+          );
+        }
         const targetServices = Array.from(
           new Set([...existing.targetServices, serviceName]),
         );
         await existing.update({
-          value: parsedValue,
+          value: existing.isSecret
+            ? this.secrets.encrypt(key, parsedValue)
+            : parsedValue,
           targetServices,
           updatedBy: operatorId,
         });
@@ -829,9 +853,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         config.id,
         serviceName,
         config.key,
-        typeof config.value === "string"
-          ? config.value
-          : JSON.stringify(config.value),
+        this.displayedValueOf(config),
         (config.type as "string" | "number" | "boolean" | "json") || "string",
         config.isSecret,
         config.isReadOnly,

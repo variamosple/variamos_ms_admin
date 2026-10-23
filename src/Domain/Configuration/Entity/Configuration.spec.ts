@@ -278,6 +278,22 @@ describe("Configuration Entity Invariants", () => {
       },
     );
 
+    it("loads an unreadable secret as the mask, whatever its type", () => {
+      const config = Configuration.builder()
+        .setKey(new ConfigurationKey("notification.smtp.port"))
+        .setValue("********")
+        .setType("number")
+        .setCategory("notification")
+        .setTargetServices(["variamos_ms_notifications"])
+        .setIsSecret(true)
+        .build();
+
+      expect(config.getDisplayValue()).toBe("********");
+      expect(() => config.updateValue("********", "admin123")).toThrow(
+        "Enter a new value",
+      );
+    });
+
     it("accepts a new secret value", () => {
       const config = secretConfig();
 
