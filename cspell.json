@@ -53,7 +53,8 @@
     "relname",
     "totp",
     "otpauth",
-    "ciphertext"
+    "ciphertext",
+    "unstub"
   ],
   "ignorePaths": [
     "node_modules/**",
