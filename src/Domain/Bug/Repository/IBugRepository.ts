@@ -1,3 +1,5 @@
+import type { BugComponentValue } from "#src/Domain/Bug/Entity/BugComponent.js";
+import type { BugPriorityValue } from "#src/Domain/Bug/Entity/BugPriority.js";
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import type { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import type { Bug, BugUserRef } from "../Entity/Bug.js";
@@ -47,8 +49,9 @@ export interface IBugRepository {
     request: RequestModel<{
       title: string;
       description: string;
-      priority: "low" | "medium" | "high";
+      priority: BugPriorityValue;
       category: string;
+      component?: BugComponentValue;
       githubRepo?: string;
       createdById: string;
       resolvedFile?: { filePath: string; fileType: string };
@@ -70,8 +73,9 @@ export interface IBugRepository {
       githubHtmlUrl?: string;
       title?: string;
       description?: string;
-      priority?: "low" | "medium" | "high";
+      priority?: BugPriorityValue;
       category?: string;
+      component?: BugComponentValue;
       githubRepo?: string;
     }>,
   ): Promise<ResponseModel<Bug>>;

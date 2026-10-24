@@ -1,7 +1,12 @@
 import { DomainError } from "#src/Domain/Core/Error/DomainError.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { BugAttachment } from "./BugAttachment.js";
-import { BugPriority } from "./BugPriority.js";
+import {
+  BUG_COMPONENTS,
+  type BugComponentValue,
+  isBugComponent,
+} from "./BugComponent.js";
+import { BugPriority, type BugPriorityValue } from "./BugPriority.js";
 
 export interface BugUserRef {
   id: string;
@@ -13,8 +18,9 @@ export class Bug {
   public id!: string;
   public title!: string;
   public description!: string;
-  public priority!: "low" | "medium" | "high";
+  public priority!: BugPriorityValue;
   public category?: string;
+  public component?: BugComponentValue;
   public status!: string;
   public githubRepo!: string;
   public gitIssueNumber!: number;
@@ -48,8 +54,9 @@ class BugBuilder {
   public id?: string;
   public title!: string;
   public description!: string;
-  public priority!: "low" | "medium" | "high";
+  public priority!: BugPriorityValue;
   public category?: string;
+  public component?: BugComponentValue;
   public status!: string;
   public githubRepo?: string;
   public gitIssueNumber?: number;
@@ -78,12 +85,17 @@ class BugBuilder {
     this.description = description;
     return this;
   }
-  public setPriority(priority: "low" | "medium" | "high") {
+  public setPriority(priority: BugPriorityValue) {
     this.priority = priority;
     return this;
   }
   public setCategory(category?: string) {
     this.category = category;
+    return this;
+  }
+  // Checked by build(): the value may come from a request
+  public setComponent(component?: string) {
+    this.component = (component || undefined) as BugComponentValue | undefined;
     return this;
   }
   public setStatus(status: string) {
@@ -165,6 +177,12 @@ class BugBuilder {
     }
     if (this.priority !== undefined) {
       new BugPriority(this.priority);
+    }
+    if (this.component !== undefined && !isBugComponent(this.component)) {
+      throw new DomainError(
+        DomainErrorCodes.INVALID_INPUT,
+        `Bug component must be one of: ${BUG_COMPONENTS.join(", ")}.`,
+      );
     }
     return new Bug(this);
   }

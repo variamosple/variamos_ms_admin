@@ -148,6 +148,68 @@ describe("BugSubmissionUseCase", () => {
     );
   });
 
+  it("writes a critical severity and the component in the issue, and stores them", async () => {
+    mockUserRepository.findSessionUser.mockResolvedValue(
+      new ResponseModel<User>("tx-1").withResponse(
+        User.builder().setId("admin-123").setEmail("admin@test.com").build(),
+      ),
+    );
+    mockTokenResolver.resolveGitHubToken.mockResolvedValue("github-token-abc");
+    mockIssueTracker.createIssue.mockResolvedValue(42);
+    mockBugRepository.createBug.mockResolvedValue(
+      new ResponseModel<Bug>("tx-1").withResponse(
+        Bug.builder().setTitle("Crash").build(),
+      ),
+    );
+
+    await useCase.createBug(
+      new RequestModel("tx-1", {
+        title: "Crash",
+        description: "On save",
+        priority: "critical" as const,
+        category: "Model",
+        component: "admin",
+        createdById: "admin-123",
+        githubRepo: "VariaMos/VariaMosAdmin",
+      }),
+    );
+
+    expect(mockIssueTracker.createIssue).toHaveBeenCalledWith(
+      "VariaMos/VariaMosAdmin",
+      "Crash",
+      "On save\n\n---\n*Reported directly by Admin*\n*Priority: critical*\n*Category: Model*\n*Component: Administration interface*",
+      ["bug", "model", "critical"],
+      "github-token-abc",
+    );
+    expect(mockBugRepository.createBug).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          priority: "critical",
+          component: "admin",
+        }),
+      }),
+    );
+  });
+
+  it("refuses a component outside the list before anything is stored", async () => {
+    const res = await useCase.createBug(
+      new RequestModel("tx-1", {
+        title: "Crash",
+        description: "On save",
+        priority: "high" as const,
+        category: "Model",
+        component: "kernel",
+        reporterEmail: "guest@test.com",
+      }),
+    );
+
+    expect(res.errorCode).toBe("INVALID_INPUT");
+    expect(res.message).toBe(
+      "Bug component must be one of: language, model, microservice, admin, other.",
+    );
+    expect(mockBugRepository.createBug).not.toHaveBeenCalled();
+  });
+
   it("should return error if request data is missing", async () => {
     const req = new RequestModel<{
       title: string;
@@ -173,7 +235,7 @@ describe("BugSubmissionUseCase", () => {
   });
 
   it("should return error if priority format is invalid", async () => {
-    const invalidPriority: string = "critical";
+    const invalidPriority: string = "urgent";
     const req = new RequestModel("tx-1", {
       title: "Title",
       description: "Desc",
@@ -184,7 +246,7 @@ describe("BugSubmissionUseCase", () => {
     const res = await useCase.createBug(req);
     expect(res.errorCode).toBe("INVALID_INPUT");
     expect(res.message).toBe(
-      "Bug priority must be either 'low', 'medium', or 'high'.",
+      "Bug priority must be one of: low, medium, high, critical.",
     );
   });
 

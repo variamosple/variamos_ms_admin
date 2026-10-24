@@ -2,8 +2,10 @@ import logger from "jet-logger";
 import { Op, QueryTypes, type Transaction, type WhereOptions } from "sequelize";
 import { Bug, type BugUserRef } from "#src/Domain/Bug/Entity/Bug.js";
 import { BugAttachment } from "#src/Domain/Bug/Entity/BugAttachment.js";
+import type { BugComponentValue } from "#src/Domain/Bug/Entity/BugComponent.js";
 import { BugFilter } from "#src/Domain/Bug/Entity/BugFilter.js";
 import { BugNote } from "#src/Domain/Bug/Entity/BugNote.js";
+import type { BugPriorityValue } from "#src/Domain/Bug/Entity/BugPriority.js";
 import { BugStatusLog } from "#src/Domain/Bug/Entity/BugStatusLog.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
@@ -74,6 +76,7 @@ export class BugRepositoryImpl implements IBugRepository {
       }
       if (filter.status) whereClause.status = filter.status;
       if (filter.priority) whereClause.priority = filter.priority;
+      if (filter.component) whereClause.component = filter.component;
       if (filter.assigneeId) {
         whereClause.id = {
           [Op.in]: await this.bugIdsAssignedTo(filter.assigneeId),
@@ -113,6 +116,7 @@ export class BugRepositoryImpl implements IBugRepository {
           .setDescription(typedBug.description)
           .setPriority(typedBug.priority)
           .setCategory(typedBug.category || undefined)
+          .setComponent(typedBug.component || undefined)
           .setStatus(typedBug.status)
           .setGithubRepo(typedBug.githubRepo || undefined)
           .setGitIssueNumber(typedBug.gitIssueNumber || undefined)
@@ -169,6 +173,9 @@ export class BugRepositoryImpl implements IBugRepository {
       if (filter.priority) {
         whereClause.priority = filter.priority;
       }
+      if (filter.component) {
+        whereClause.component = filter.component;
+      }
       if (filter.repo) {
         whereClause.githubRepo = filter.repo;
       }
@@ -198,6 +205,7 @@ export class BugRepositoryImpl implements IBugRepository {
           .setDescription(typedBug.description)
           .setPriority(typedBug.priority)
           .setCategory(typedBug.category || undefined)
+          .setComponent(typedBug.component || undefined)
           .setStatus(typedBug.status)
           .setGithubRepo(typedBug.githubRepo || undefined)
           .setGitIssueNumber(typedBug.gitIssueNumber || undefined)
@@ -256,6 +264,7 @@ export class BugRepositoryImpl implements IBugRepository {
         .setDescription(typedBug.description)
         .setPriority(typedBug.priority)
         .setCategory(typedBug.category || undefined)
+        .setComponent(typedBug.component || undefined)
         .setStatus(typedBug.status)
         .setGithubRepo(typedBug.githubRepo || undefined)
         .setGitIssueNumber(typedBug.gitIssueNumber || undefined)
@@ -508,6 +517,7 @@ export class BugRepositoryImpl implements IBugRepository {
           .setDescription(typedBug.description)
           .setPriority(typedBug.priority)
           .setCategory(typedBug.category || undefined)
+          .setComponent(typedBug.component || undefined)
           .setStatus(typedBug.status)
           .setGithubRepo(typedBug.githubRepo || undefined)
           .setCreatedById(typedBug.createdById || undefined)
@@ -582,8 +592,9 @@ export class BugRepositoryImpl implements IBugRepository {
     request: RequestModel<{
       title: string;
       description: string;
-      priority: "low" | "medium" | "high";
+      priority: BugPriorityValue;
       category: string;
+      component?: BugComponentValue;
       githubRepo?: string;
       createdById: string;
       resolvedFile?: { filePath: string; fileType: string };
@@ -608,6 +619,7 @@ export class BugRepositoryImpl implements IBugRepository {
         description,
         priority,
         category,
+        component,
         githubRepo,
         createdById,
         resolvedFile,
@@ -625,6 +637,7 @@ export class BugRepositoryImpl implements IBugRepository {
             description,
             priority,
             category,
+            component,
             status,
             githubRepo,
             reporterEmail,
@@ -675,6 +688,7 @@ export class BugRepositoryImpl implements IBugRepository {
           .setDescription(typedBug.description)
           .setPriority(typedBug.priority)
           .setCategory(typedBug.category || undefined)
+          .setComponent(typedBug.component || undefined)
           .setStatus(typedBug.status)
           .setGithubRepo(typedBug.githubRepo || undefined)
           .setCreatedById(typedBug.createdById || undefined)
@@ -754,8 +768,9 @@ export class BugRepositoryImpl implements IBugRepository {
       githubHtmlUrl?: string;
       title?: string;
       description?: string;
-      priority?: "low" | "medium" | "high";
+      priority?: BugPriorityValue;
       category?: string;
+      component?: BugComponentValue;
       githubRepo?: string;
     }>,
   ): Promise<ResponseModel<Bug>> {
@@ -779,6 +794,7 @@ export class BugRepositoryImpl implements IBugRepository {
         description,
         priority,
         category,
+        component,
         githubRepo,
       } = data;
       await VARIAMOS_ORM.transaction(async (t) => {
@@ -809,6 +825,9 @@ export class BugRepositoryImpl implements IBugRepository {
         }
         if (category !== undefined) {
           dbBug.category = category;
+        }
+        if (component !== undefined) {
+          dbBug.component = component;
         }
         if (githubRepo !== undefined) {
           dbBug.githubRepo = githubRepo;

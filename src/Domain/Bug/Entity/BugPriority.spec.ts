@@ -5,17 +5,15 @@ describe("BugPriority Value Object", () => {
     expect(new BugPriority("low").getValue()).toBe("low");
     expect(new BugPriority("MEDIUM").getValue()).toBe("medium");
     expect(new BugPriority("high").getValue()).toBe("high");
+    expect(new BugPriority("Critical").getValue()).toBe("critical");
   });
 
-  it("should throw an error for invalid priorities", () => {
-    expect(() => new BugPriority("")).toThrow(
-      "Bug priority must be either 'low', 'medium', or 'high'.",
-    );
-    expect(() => new BugPriority("critical")).toThrow(
-      "Bug priority must be either 'low', 'medium', or 'high'.",
-    );
-    expect(() => new BugPriority("urgent")).toThrow(
-      "Bug priority must be either 'low', 'medium', or 'high'.",
-    );
-  });
+  it.each(["", "urgent", "blocker"])(
+    "should throw an error for the invalid priority %j",
+    (value) => {
+      expect(() => new BugPriority(value)).toThrow(
+        "Bug priority must be one of: low, medium, high, critical.",
+      );
+    },
+  );
 });

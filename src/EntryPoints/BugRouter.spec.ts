@@ -164,6 +164,26 @@ describe("BugRouter HTTP Integration Tests", () => {
       expect(res.body.message).toBe("Invalid repository format");
     });
 
+    it.each(["/bugs", "/bugs/local"])(
+      "%s passes the component filter to the use case",
+      async (path) => {
+        mockBugQueryUseCase.queryBugs.mockResolvedValue(
+          new ResponseModel<Bug[]>("tx-id").withResponse([]),
+        );
+        mockBugQueryUseCase.queryLocalBugs.mockResolvedValue(
+          new ResponseModel<Bug[]>("tx-id").withResponse([]),
+        );
+
+        await request(app).get(path).query({ component: "model" });
+
+        const [[req]] =
+          path === "/bugs"
+            ? mockBugQueryUseCase.queryBugs.mock.calls
+            : mockBugQueryUseCase.queryLocalBugs.mock.calls;
+        expect(req.data?.component).toBe("model");
+      },
+    );
+
     it("passes the assignee filter to the use case", async () => {
       mockBugQueryUseCase.queryBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([]),
@@ -433,6 +453,31 @@ describe("BugRouter HTTP Integration Tests", () => {
       );
     });
 
+    it("passes a critical severity and the component to the use case", async () => {
+      mockBugSubmissionUseCase.createBug.mockResolvedValue(
+        new ResponseModel<Bug>("tx-id").withResponse(
+          Bug.builder().setId("b1").build(),
+        ),
+      );
+
+      await request(app).post("/bugs").send({
+        title: "UI Crash",
+        description: "Crashes on click",
+        category: "Editor",
+        priority: "critical",
+        component: "language",
+      });
+
+      expect(mockBugSubmissionUseCase.createBug).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            priority: "critical",
+            component: "language",
+          }),
+        }),
+      );
+    });
+
     it("should pass the file content and declared name to the use case", async () => {
       const newBug = Bug.builder().setId("local-file").build();
       mockBugSubmissionUseCase.createBug.mockResolvedValue(
@@ -538,6 +583,27 @@ describe("BugRouter HTTP Integration Tests", () => {
             category: "Editor",
             githubRepo: "VariaMos/VariaMosAdmin",
           },
+        }),
+      );
+    });
+
+    it("passes a critical severity and the component on approval", async () => {
+      mockBugLifecycleUseCase.updateStatus.mockResolvedValue(
+        new ResponseModel<Bug>("tx-id").withResponse(
+          Bug.builder().setId("local-1").build(),
+        ),
+      );
+
+      await request(app)
+        .post("/bugs/local-1/status")
+        .send({ status: "open", priority: "critical", component: "model" });
+
+      expect(mockBugLifecycleUseCase.updateStatus).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            priority: "critical",
+            component: "model",
+          }),
         }),
       );
     });

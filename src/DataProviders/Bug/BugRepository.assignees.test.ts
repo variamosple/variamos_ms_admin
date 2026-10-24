@@ -6,7 +6,7 @@ import VARIAMOS_ORM from "#src/Infrastructure/VariamosORM.js";
 import { BugModel } from "./Bug.js";
 import { BugRepositoryImpl } from "./BugRepository.js";
 
-/** Assignees of a bug (EV-84 lot 3); the SQL itself is run on PostgreSQL by hand. */
+/** Assignees and component filter of the bug queries; the SQL itself is run on PostgreSQL by hand. */
 describe("BugRepositoryImpl assignees", () => {
   const repository = new BugRepositoryImpl();
   const transaction = {} as Transaction;
@@ -136,6 +136,36 @@ describe("BugRepositoryImpl assignees", () => {
         ],
         [],
       ]);
+    });
+
+    it("filters by component and reads it back (EV-84 lot 5)", async () => {
+      const findAll = vi
+        .spyOn(BugModel, "findAll")
+        .mockResolvedValue([
+          { id: "b1", title: "b1", status: "open", component: "model" },
+        ] as never);
+      query.mockResolvedValue([] as never);
+
+      const res = await repository.queryBugs(
+        new RequestModel(
+          "tx",
+          new BugFilter(
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            [],
+            undefined,
+            "model",
+          ),
+        ),
+      );
+
+      expect(findAll.mock.calls[0]?.[0]?.where).toHaveProperty(
+        "component",
+        "model",
+      );
+      expect(res.data?.[0]?.component).toBe("model");
     });
 
     it("does not filter by assignee without one", async () => {

@@ -1,12 +1,18 @@
 import { DATE, ENUM, INTEGER, Model, TEXT, UUID, UUIDV4 } from "sequelize";
+import type { BugComponentValue } from "#src/Domain/Bug/Entity/BugComponent.js";
+import {
+  BUG_PRIORITIES,
+  type BugPriorityValue,
+} from "#src/Domain/Bug/Entity/BugPriority.js";
 import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 
 export interface BugAttributes {
   id?: string;
   title: string;
   description: string;
-  priority: "low" | "medium" | "high";
+  priority: BugPriorityValue;
   category?: string;
+  component?: BugComponentValue;
   status: string;
   reporterEmail?: string;
   createdById?: string;
@@ -24,8 +30,9 @@ export class BugModel extends Model<BugAttributes> implements BugAttributes {
   public id?: string;
   public title!: string;
   public description!: string;
-  public priority!: "low" | "medium" | "high";
+  public priority!: BugPriorityValue;
   public category?: string;
+  public component?: BugComponentValue;
   public status!: string;
   public reporterEmail?: string;
   public createdById?: string;
@@ -56,11 +63,16 @@ BugModel.init(
       allowNull: false,
     },
     priority: {
-      type: ENUM("low", "medium", "high"),
+      type: ENUM(...BUG_PRIORITIES),
       defaultValue: "medium",
       allowNull: false,
     },
     category: {
+      type: TEXT,
+      allowNull: true,
+    },
+    // One of BUG_COMPONENTS, checked by the database (migration 0008)
+    component: {
       type: TEXT,
       allowNull: true,
     },

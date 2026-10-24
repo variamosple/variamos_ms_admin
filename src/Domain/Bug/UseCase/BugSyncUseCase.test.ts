@@ -272,7 +272,7 @@ describe("BugSyncUseCase", () => {
     );
   });
 
-  it("should map all high and low priority labels correctly", async () => {
+  it("should map the critical, high and low priority labels correctly", async () => {
     mockGithubConfig.getGitHubToken.mockReturnValue("pat-token");
     mockGithubConfig.getGitHubManagedRepos.mockReturnValue(["Repo1"]);
     mockTokenResolver.resolveGitHubToken.mockResolvedValue("token");
@@ -288,7 +288,20 @@ describe("BugSyncUseCase", () => {
       },
       {
         labels: [{ name: "critical" }, { name: "other-label" }],
-        expectedPriority: "high",
+        expectedPriority: "critical",
+      },
+      {
+        labels: [{ name: "P0" }, { name: "other-label" }],
+        expectedPriority: "critical",
+      },
+      {
+        labels: [{ name: "blocker" }, { name: "other-label" }],
+        expectedPriority: "critical",
+      },
+      {
+        // The label the module writes wins over a second, lower one
+        labels: [{ name: "high" }, { name: "critical" }],
+        expectedPriority: "critical",
       },
       {
         labels: [{ name: "urg" }, { name: "other-label" }],
@@ -365,10 +378,10 @@ describe("BugSyncUseCase", () => {
         body: "Body",
         state: "open",
         created_at: "2026-07-13T00:00:00Z",
-        // 'critical' is high priority. 'eDiToR' (mixed case) should map to 'Editor'
+        // 'important' is high priority. 'eDiToR' (mixed case) should map to 'Editor'
         // We include 'other-label' to kill some -> every mutant (since length > 1)
         labels: [
-          { name: "critical" },
+          { name: "important" },
           { name: "eDiToR" },
           { name: "other-label" },
         ],

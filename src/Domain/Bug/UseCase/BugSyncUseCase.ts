@@ -2,6 +2,7 @@ import logger from "jet-logger";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import { BugFilter } from "#src/Domain/Bug/Entity/BugFilter.js";
+import type { BugPriorityValue } from "#src/Domain/Bug/Entity/BugPriority.js";
 import { statusFromGitHub } from "#src/Domain/Bug/Entity/BugStatus.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
 import type { GitHubTokenResolver } from "#src/Domain/Bug/Service/GitHubTokenResolver.js";
@@ -75,16 +76,26 @@ export class BugSyncUseCase {
         for (const issue of issues) {
           if (issue.pull_request) continue;
 
-          let priority: "low" | "medium" | "high" = "medium";
+          let priority: BugPriorityValue = "medium";
           let category: string | undefined;
           if (issue.labels && Array.isArray(issue.labels)) {
             const labelNames = issue.labels.map((l) => l.name.toLowerCase());
+            // "critical" is a priority of its own since EV-84 lot 5; read
+            // back as "high", it would be downgraded at every sync
             if (
+              labelNames.some(
+                (n: string) =>
+                  n.includes("critical") ||
+                  n.includes("p0") ||
+                  n.includes("blocker"),
+              )
+            ) {
+              priority = "critical";
+            } else if (
               labelNames.some(
                 (n: string) =>
                   n.includes("high") ||
                   n.includes("p1") ||
-                  n.includes("critical") ||
                   n.includes("urg") ||
                   n.includes("important"),
               )
