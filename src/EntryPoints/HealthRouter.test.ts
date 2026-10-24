@@ -48,4 +48,39 @@ describe("HealthRouter - Black-Box Contract & Resilience Tests", () => {
     expect(response.body.status).toBe("DEGRADED");
     expect(response.body.checks.database.status).toBe("DOWN");
   });
+
+  // The check after each deployment reads serviceName, status and
+  // uptimeSeconds; the monitoring reads the whole contract (EV-108)
+  it.each([
+    [
+      "reachable",
+      () => vi.mocked(VARIAMOS_ORM.authenticate).mockResolvedValueOnce(),
+    ],
+    [
+      "unreachable",
+      () =>
+        vi
+          .mocked(VARIAMOS_ORM.authenticate)
+          .mockRejectedValueOnce(new Error("refused")),
+    ],
+  ])(
+    "keeps the shared /health contract when the database is %s",
+    async (_case, setUp) => {
+      setUp();
+
+      const response = await supertest(buildApp()).get("/health");
+
+      expect([200, 503]).toContain(response.status);
+      expect(response.headers["content-type"]).toMatch(/application\/json/);
+      expect(response.body).toMatchObject({
+        serviceName: "variamos_ms_admin",
+        status: expect.stringMatching(/^(UP|DEGRADED|DOWN)$/),
+        version: expect.any(String),
+        timestamp: expect.any(String),
+        checks: expect.any(Object),
+      });
+      expect(Number.isInteger(response.body.uptimeSeconds)).toBe(true);
+      expect(response.body.uptimeSeconds).toBeGreaterThanOrEqual(0);
+    },
+  );
 });
