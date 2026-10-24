@@ -18,6 +18,7 @@ import {
 } from "./0004-mfa-trusted-devices.js";
 import { ACTIVITY_LOG_TABLE } from "./0005-admin-activity-logs.js";
 import { ACCESS_LOG_TABLE } from "./0006-admin-access-logs.js";
+import { BUG_ASSIGNEES_TABLE } from "./0007-bug-assignees.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 import {
   ADMIN_MIGRATIONS,
@@ -131,6 +132,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         TRUSTED_DEVICE_TABLE,
         ACTIVITY_LOG_TABLE,
         ACCESS_LOG_TABLE,
+        BUG_ASSIGNEES_TABLE,
       ].sort(),
     );
   });
@@ -203,6 +205,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         TRUSTED_DEVICE_TABLE,
         ACTIVITY_LOG_TABLE,
         ACCESS_LOG_TABLE,
+        BUG_ASSIGNEES_TABLE,
       ]),
     ).toEqual(before);
     expect(

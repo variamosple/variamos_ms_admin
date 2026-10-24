@@ -50,6 +50,7 @@ import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import { BugAttachment } from "#src/Domain/Bug/Entity/BugAttachment.js";
 import { BugNote } from "#src/Domain/Bug/Entity/BugNote.js";
 import type { BugStatusLog } from "#src/Domain/Bug/Entity/BugStatusLog.js";
+import type { BugAssignmentUseCase } from "#src/Domain/Bug/UseCase/BugAssignmentUseCase.js";
 import type { BugAttachmentUseCase } from "#src/Domain/Bug/UseCase/BugAttachmentUseCase.js";
 import type { BugLifecycleUseCase } from "#src/Domain/Bug/UseCase/BugLifecycleUseCase.js";
 import type { BugQueryUseCase } from "#src/Domain/Bug/UseCase/BugQueryUseCase.js";
@@ -80,6 +81,7 @@ const mockBugLifecycleUseCase = mock<BugLifecycleUseCase>();
 const mockBugSyncUseCase = mock<BugSyncUseCase>();
 const mockBugQueryUseCase = mock<BugQueryUseCase>();
 const mockBugAttachmentUseCase = mock<BugAttachmentUseCase>();
+const mockBugAssignmentUseCase = mock<BugAssignmentUseCase>();
 
 // Use memory storage for testing to bypass physical disk writes and keep tests clean
 const mockUpload = multer({ storage: multer.memoryStorage() });
@@ -110,6 +112,7 @@ app.use(
     mockBugAttachmentUseCase,
     mockUpload,
     mockAuth,
+    mockBugAssignmentUseCase,
   ),
 );
 
@@ -159,6 +162,86 @@ describe("BugRouter HTTP Integration Tests", () => {
 
       expect(res.status).toBe(400);
       expect(res.body.message).toBe("Invalid repository format");
+    });
+
+    it("passes the assignee filter to the use case", async () => {
+      mockBugQueryUseCase.queryBugs.mockResolvedValue(
+        new ResponseModel<Bug[]>("tx-id").withResponse([]),
+      );
+
+      await request(app).get("/bugs").query({ assignee: "admin-7" });
+      await request(app).get("/bugs");
+
+      const filters = mockBugQueryUseCase.queryBugs.mock.calls.map(
+        ([req]) => req.data?.assigneeId,
+      );
+      expect(filters).toEqual(["admin-7", undefined]);
+    });
+  });
+
+  describe("GET /bugs/assignable-users", () => {
+    it("answers the administrators a bug can be assigned to", async () => {
+      mockBugAssignmentUseCase.queryAssignableUsers.mockResolvedValue(
+        new ResponseModel<{ id: string; name: string }[]>("tx").withResponse([
+          { id: "admin-7", name: "Ana" },
+        ]),
+      );
+
+      const res = await request(app).get("/bugs/assignable-users");
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toEqual([{ id: "admin-7", name: "Ana" }]);
+    });
+  });
+
+  describe("PUT /bugs/:id/assignees", () => {
+    it("replaces the assignees, on behalf of the signed-in administrator", async () => {
+      mockBugAssignmentUseCase.setAssignees.mockResolvedValue(
+        new ResponseModel<{ id: string; name: string }[]>("tx").withResponse([
+          { id: "admin-7", name: "Ana" },
+        ]),
+      );
+
+      const res = await request(app)
+        .put("/bugs/b1/assignees")
+        .send({ userIds: ["admin-7"] });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toEqual([{ id: "admin-7", name: "Ana" }]);
+      expect(mockBugAssignmentUseCase.setAssignees).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: { bugId: "b1", userIds: ["admin-7"] },
+          actorId: "admin-123",
+        }),
+      );
+    });
+
+    it.each([
+      [{}],
+      [{ userIds: "admin-7" }],
+      [{ userIds: ["admin-7", 3] }],
+      [{ userIds: [""] }],
+    ])("refuses %j without calling the use case", async (body) => {
+      const res = await request(app).put("/bugs/b1/assignees").send(body);
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("userIds must be a list of account ids.");
+      expect(mockBugAssignmentUseCase.setAssignees).not.toHaveBeenCalled();
+    });
+
+    it("answers the error of the use case", async () => {
+      mockBugAssignmentUseCase.setAssignees.mockResolvedValue(
+        new ResponseModel<{ id: string; name: string }[]>("tx").withError(
+          DomainErrorCodes.ENTITY_NOT_FOUND,
+          "Bug not found.",
+        ),
+      );
+
+      const res = await request(app)
+        .put("/bugs/b1/assignees")
+        .send({ userIds: [] });
+
+      expect(res.status).toBe(404);
     });
   });
 
@@ -669,6 +752,7 @@ describe("BugRouter HTTP Integration Tests", () => {
           mockBugAttachmentUseCase,
           mockUpload,
           noAuth,
+          mockBugAssignmentUseCase,
         ),
       );
       mockValidateSession.mockReset();
@@ -1094,6 +1178,7 @@ describe("BugRouter upload limits and anonymous files", () => {
         mockBugAttachmentUseCase,
         limitedUpload,
         mockAuth,
+        mockBugAssignmentUseCase,
       ),
     );
     mockBugSubmissionUseCase.createBug.mockResolvedValue(

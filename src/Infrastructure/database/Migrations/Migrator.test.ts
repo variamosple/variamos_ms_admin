@@ -153,6 +153,7 @@ describe("createMigrator", () => {
       "0004-mfa-trusted-devices",
       "0005-admin-activity-logs",
       "0006-admin-access-logs",
+      "0007-bug-assignees",
     ]);
   });
 });

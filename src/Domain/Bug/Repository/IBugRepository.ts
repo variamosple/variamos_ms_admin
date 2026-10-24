@@ -1,6 +1,6 @@
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import type { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
-import type { Bug } from "../Entity/Bug.js";
+import type { Bug, BugUserRef } from "../Entity/Bug.js";
 import type { BugAttachment } from "../Entity/BugAttachment.js";
 import type { BugFilter } from "../Entity/BugFilter.js";
 import type { BugNote } from "../Entity/BugNote.js";
@@ -90,4 +90,16 @@ export interface IBugRepository {
     request: RequestModel<{ bugId: string; body: string; authorId?: string }>,
   ): Promise<ResponseModel<BugNote>>;
   queryNotes(request: RequestModel<string>): Promise<ResponseModel<BugNote[]>>;
+  /** Replaces the administrators assigned to a bug; answers the new list. */
+  setAssignees(
+    request: RequestModel<{
+      bugId: string;
+      userIds: string[];
+      assignedBy?: string;
+    }>,
+  ): Promise<ResponseModel<BugUserRef[]>>;
+  /** Enabled accounts that hold the given permission. */
+  queryUsersWithPermission(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<BugUserRef[]>>;
 }
