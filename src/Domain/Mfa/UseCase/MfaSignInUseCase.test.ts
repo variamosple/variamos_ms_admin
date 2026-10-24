@@ -166,6 +166,15 @@ describe("MfaSignInUseCase", () => {
     expect(later.data).toBe("user-1");
   });
 
+  it("does not count right codes: frequent sign-ins never block", async () => {
+    for (let i = 0; i <= MFA_SIGN_IN_FAILURES_PER_ACCOUNT.limit; i++) {
+      const token = (await useCase.begin("user-1")) as string;
+      expect((await useCase.complete("t", token, RIGHT_CODE)).data).toBe(
+        "user-1",
+      );
+    }
+  });
+
   it("checks a single code at a time for parallel requests", async () => {
     const token = (await useCase.begin("user-1")) as string;
 
@@ -223,5 +232,8 @@ describe("MfaSignInUseCase", () => {
 
     expect(failed.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
     expect(failed.message).toBe("Internal server error");
+    expect((await useCase.complete("t", token, RIGHT_CODE)).data).toBe(
+      "user-1",
+    );
   });
 });

@@ -142,6 +142,14 @@ describe("AccessHierarchyUseCase", () => {
       ).resolves.toBe(FORBIDDEN);
     });
 
+    it("cannot assign or remove a role on an account above them", async () => {
+      for (const kind of ["assign-role", "remove-role"] as const) {
+        await expect(
+          authorize("manager", { kind, userId: "admin", roleId: 3 }),
+        ).resolves.toBe(FORBIDDEN);
+      }
+    });
+
     it("cannot add to a role a permission they do not hold", async () => {
       await expect(
         authorize("manager", {
@@ -205,15 +213,32 @@ describe("AccessHierarchyUseCase", () => {
       await expect(authorize("admin", check)).resolves.toBe(FORBIDDEN);
     });
 
-    it("allows it while another role keeps an active top account", async () => {
-      const twoTopRoles = setup({
-        admin: { roles: [1] },
-        keeper: { roles: [5] },
-      });
+    it.each<[string, AccessCheck]>([
+      [
+        "removing the top permission",
+        { kind: "remove-permission", roleId: 1, permissionId: 12 },
+      ],
+      ["deleting the top role", { kind: "delete-role", roleId: 1 }],
+    ])(
+      "allows %s while another role keeps an active top account",
+      async (_label, check) => {
+        const twoTopRoles = setup({
+          admin: { roles: [1] },
+          keeper: { roles: [5] },
+        });
 
-      await expect(
-        twoTopRoles("admin", { kind: "delete-role", roleId: 1 }),
-      ).resolves.toBeUndefined();
+        await expect(twoTopRoles("admin", check)).resolves.toBeUndefined();
+      },
+    );
+
+    it.each<[string, AccessCheck]>([
+      ["updating the top role", { kind: "update-role", roleId: 1 }],
+      [
+        "removing another permission from it",
+        { kind: "remove-permission", roleId: 1, permissionId: 11 },
+      ],
+    ])("does not block %s", async (_label, check) => {
+      await expect(authorize("admin", check)).resolves.toBeUndefined();
     });
 
     it("does not count a disabled account as remaining", async () => {

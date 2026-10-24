@@ -164,14 +164,29 @@ describe("AccountLockout", () => {
     expect(await fail()).toEqual({ attempts: 3, durationMinutes: 15 });
   });
 
-  it("settles an attempt once", async () => {
+  it("settles an attempt once: a double callback cannot erase failures", async () => {
+    await fail();
+    await fail();
     const attempt = admitted(await lockout.admit("ana@example.com"));
     attempt.abandoned();
     attempt.abandoned();
-    await fail();
-    await fail();
 
     expect(await fail()).toEqual({ attempts: 3, durationMinutes: 15 });
+  });
+
+  it("locks at once when the limit is lowered to the failures already made", async () => {
+    policy = AccountLockoutPolicy.fromConfiguration({
+      maxAttempts: 5,
+      durationMinutes: 15,
+    });
+    for (let i = 0; i < 4; i++) await fail();
+
+    policy = AccountLockoutPolicy.fromConfiguration({
+      maxAttempts: 4,
+      durationMinutes: 15,
+    });
+
+    expect((await lockout.admit("ana@example.com")).locked).toBe(true);
   });
 
   it("applies a lowered limit from the next attempt", async () => {
@@ -190,5 +205,7 @@ describe("AccountLockout", () => {
       locked: true,
       retryAfterMs: 10 * MINUTE_MS,
     });
+    now += 10 * MINUTE_MS - 1;
+    expect((await lockout.admit("ana@example.com")).locked).toBe(true);
   });
 });
