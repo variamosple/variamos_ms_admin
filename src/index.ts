@@ -14,6 +14,7 @@ import {
   ConfigEventPublisherInstance,
   MicroServiceRepositoryInstance,
   productionAccessHierarchyUseCase,
+  productionBugAssignmentUseCase,
   productionBugAttachmentUseCase,
   productionBugLifecycleUseCase,
   productionBugQueryUseCase,
@@ -106,6 +107,7 @@ const baseRouter = createBaseRouter(
     sync: productionBugSyncUseCase,
     query: productionBugQueryUseCase,
     attachment: productionBugAttachmentUseCase,
+    assignment: productionBugAssignmentUseCase,
   },
   {
     query: productionMicroServiceQueryUseCase,

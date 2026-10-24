@@ -7,6 +7,7 @@ import { userMfa } from "./0003-user-mfa.js";
 import { mfaTrustedDevices } from "./0004-mfa-trusted-devices.js";
 import { adminActivityLogs } from "./0005-admin-activity-logs.js";
 import { adminAccessLogs } from "./0006-admin-access-logs.js";
+import { bugAssignees } from "./0007-bug-assignees.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 
 // Applied in order at start-up, each one once; append new migrations here
@@ -17,6 +18,7 @@ export const ADMIN_MIGRATIONS: SchemaMigration[] = [
   mfaTrustedDevices,
   adminActivityLogs,
   adminAccessLogs,
+  bugAssignees,
 ];
 
 // The schema is shared with other services: a name of our own

@@ -22,6 +22,7 @@ import { AccessHierarchyUseCase } from "./Domain/AccessControl/AccessHierarchyUs
 import { JournalQueryUseCase } from "./Domain/Activity/JournalQueryUseCase.js";
 // Bug Use Cases
 import { GitHubTokenResolver } from "./Domain/Bug/Service/GitHubTokenResolver.js";
+import { BugAssignmentUseCase } from "./Domain/Bug/UseCase/BugAssignmentUseCase.js";
 import { BugAttachmentUseCase } from "./Domain/Bug/UseCase/BugAttachmentUseCase.js";
 import { BugLifecycleUseCase } from "./Domain/Bug/UseCase/BugLifecycleUseCase.js";
 import { BugQueryUseCase } from "./Domain/Bug/UseCase/BugQueryUseCase.js";
@@ -58,7 +59,9 @@ import { VisitUseCase } from "./Domain/Visit/UseCase/VisitUseCase.js";
 import { GitHubIssuesServiceInstance } from "./Infrastructure/GitHub/GitHubIssuesService.js";
 import { MailServiceInstance } from "./Infrastructure/Mail/MailService.js";
 import { ConfigEventPublisherImpl } from "./Infrastructure/Messaging/ConfigEventPublisher.js";
+import { BugAssignmentNotifier } from "./Infrastructure/Notification/BugAssignmentNotifier.js";
 import { NotificationAccessTokenIssuer } from "./Infrastructure/Notification/NotificationAccessTokenIssuer.js";
+import { NotificationClientInstance } from "./Infrastructure/Notification/NotificationClient.js";
 import {
   AesGcmSecretCipher,
   parseEncryptionKey,
@@ -248,6 +251,12 @@ export const productionBugSyncUseCase = new BugSyncUseCase(
 export const productionBugQueryUseCase = new BugQueryUseCase(
   BugRepositoryInstance,
   bugTrackerConfig,
+);
+
+export const productionBugAssignmentUseCase = new BugAssignmentUseCase(
+  BugRepositoryInstance,
+  new BugAssignmentNotifier(NotificationClientInstance),
+  ActivityJournalInstance,
 );
 
 export const productionBugAttachmentUseCase = new BugAttachmentUseCase(

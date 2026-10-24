@@ -2,6 +2,7 @@ import express, { type RequestHandler } from "express";
 import supertest from "supertest";
 import { mock } from "vitest-mock-extended";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
+import type { BugAssignmentUseCase } from "#src/Domain/Bug/UseCase/BugAssignmentUseCase.js";
 import type { BugAttachmentUseCase } from "#src/Domain/Bug/UseCase/BugAttachmentUseCase.js";
 import type { BugLifecycleUseCase } from "#src/Domain/Bug/UseCase/BugLifecycleUseCase.js";
 import type { BugQueryUseCase } from "#src/Domain/Bug/UseCase/BugQueryUseCase.js";
@@ -28,6 +29,7 @@ function createApp(permissions: string[]) {
   const lifecycle = mock<BugLifecycleUseCase>();
   const sync = mock<BugSyncUseCase>();
   const attachment = mock<BugAttachmentUseCase>();
+  const assignment = mock<BugAssignmentUseCase>();
   const ok = new ResponseModel<never>("tx");
   for (const fn of [
     lifecycle.updateStatus,
@@ -37,6 +39,8 @@ function createApp(permissions: string[]) {
     attachment.addAttachment,
     attachment.deleteAttachment,
     attachment.createNote,
+    assignment.setAssignees,
+    assignment.queryAssignableUsers,
   ]) {
     fn?.mockResolvedValue?.(ok);
   }
@@ -71,6 +75,7 @@ function createApp(permissions: string[]) {
       attachment,
       { single: () => passThrough } as never,
       passThrough,
+      assignment,
     ),
   );
   return app;
@@ -91,6 +96,8 @@ describe("bug report permissions", () => {
     ["post", "/bugs/b1/notes"],
     ["post", "/bugs/b1/attachments"],
     ["delete", "/bugs/attachments/a1"],
+    ["put", "/bugs/b1/assignees"],
+    ["get", "/bugs/assignable-users"],
   ] as const)(
     "%s %s needs bugs::update, not only bugs::query",
     async (method, path) => {

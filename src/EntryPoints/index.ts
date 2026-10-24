@@ -5,6 +5,7 @@ import EnvVars from "#src/common/EnvVars.js";
 import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import type { JournalQueryUseCase } from "#src/Domain/Activity/JournalQueryUseCase.js";
+import type { BugAssignmentUseCase } from "#src/Domain/Bug/UseCase/BugAssignmentUseCase.js";
 import type { BugAttachmentUseCase } from "#src/Domain/Bug/UseCase/BugAttachmentUseCase.js";
 import type { BugLifecycleUseCase } from "#src/Domain/Bug/UseCase/BugLifecycleUseCase.js";
 import type { BugQueryUseCase } from "#src/Domain/Bug/UseCase/BugQueryUseCase.js";
@@ -97,6 +98,7 @@ export interface BugFlowUseCases {
   sync: BugSyncUseCase;
   query: BugQueryUseCase;
   attachment: BugAttachmentUseCase;
+  assignment: BugAssignmentUseCase;
 }
 
 export interface MicroServiceFlowUseCases {
@@ -180,6 +182,7 @@ export function createBaseRouter(
     bugUseCases.attachment,
     upload,
     isAuthenticated,
+    bugUseCases.assignment,
   );
   const adminNotificationsV1Router =
     createAdminNotificationsRouter(activityJournal);

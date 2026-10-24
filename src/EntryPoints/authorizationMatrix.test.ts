@@ -91,6 +91,8 @@ const GUARDED: Record<string, string> = {
   "DELETE /bugs/attachments/:id": "bugs::update",
   "POST /bugs/:id/notes": "bugs::update",
   "GET /bugs/:id/notes": "bugs::query",
+  "GET /bugs/assignable-users": "bugs::update",
+  "PUT /bugs/:id/assignees": "bugs::update",
   "POST /v1/admin/notifications/dispatch": "admin::notifications::dispatch",
   "GET /v1/activity-logs": "activity-logs::query",
   "GET /v1/access-logs": "activity-logs::query",

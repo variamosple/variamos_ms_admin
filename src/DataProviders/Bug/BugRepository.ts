@@ -1,6 +1,6 @@
 import logger from "jet-logger";
-import { Op, type Transaction, type WhereOptions } from "sequelize";
-import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
+import { Op, QueryTypes, type Transaction, type WhereOptions } from "sequelize";
+import { Bug, type BugUserRef } from "#src/Domain/Bug/Entity/Bug.js";
 import { BugAttachment } from "#src/Domain/Bug/Entity/BugAttachment.js";
 import { BugFilter } from "#src/Domain/Bug/Entity/BugFilter.js";
 import { BugNote } from "#src/Domain/Bug/Entity/BugNote.js";
@@ -10,7 +10,7 @@ import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { INTERNAL_ERROR_MESSAGE } from "#src/Domain/Core/Error/InternalErrorMessage.js";
-import VARIAMOS_ORM from "#src/Infrastructure/VariamosORM.js";
+import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 import { UserModel } from "../User/User.js";
 import { BugModel } from "./Bug.js";
 import { BugAttachmentModel } from "./BugAttachment.js";
@@ -74,6 +74,11 @@ export class BugRepositoryImpl implements IBugRepository {
       }
       if (filter.status) whereClause.status = filter.status;
       if (filter.priority) whereClause.priority = filter.priority;
+      if (filter.assigneeId) {
+        whereClause.id = {
+          [Op.in]: await this.bugIdsAssignedTo(filter.assigneeId),
+        };
+      }
       if (filter.search) {
         const orConditions: object[] = [
           { title: { [Op.iLike]: `%${filter.search}%` } },
@@ -96,6 +101,9 @@ export class BugRepositoryImpl implements IBugRepository {
         ],
         order: [["createdAt", "DESC"]],
       });
+      const assignees = await this.assigneesOf(
+        dbBugs.map((dbBug) => dbBug.id ?? ""),
+      );
 
       response.data = dbBugs.map((dbBug) => {
         const typedBug = dbBug as DbBugWithAssociations;
@@ -125,6 +133,7 @@ export class BugRepositoryImpl implements IBugRepository {
               : undefined,
           )
           .setAttachments(typedBug.attachments ?? undefined)
+          .setAssignedAdmins(assignees.get(typedBug.id ?? "") ?? [])
           .build();
       });
     } catch (error) {
@@ -240,6 +249,7 @@ export class BugRepositoryImpl implements IBugRepository {
       }
 
       const typedBug = dbBug as DbBugWithAssociations;
+      const assignees = await this.assigneesOf([id]);
       response.data = Bug.builder()
         .setId(typedBug.id)
         .setTitle(typedBug.title)
@@ -262,6 +272,7 @@ export class BugRepositoryImpl implements IBugRepository {
             : undefined,
         )
         .setAttachments(typedBug.attachments ?? undefined)
+        .setAssignedAdmins(assignees.get(id) ?? [])
         .build();
     } catch (error) {
       const err = error as Error;
@@ -1009,6 +1020,109 @@ export class BugRepositoryImpl implements IBugRepository {
     }
     return response;
   }
-}
 
-export const BugRepositoryInstance = new BugRepositoryImpl();
+  public async setAssignees(
+    request: RequestModel<{
+      bugId: string;
+      userIds: string[];
+      assignedBy?: string;
+    }>,
+  ): Promise<ResponseModel<BugUserRef[]>> {
+    const response = new ResponseModel<BugUserRef[]>(request.transactionId);
+    try {
+      const data = request.data;
+      if (!data?.bugId) {
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Bug ID is required.",
+        );
+      }
+      const { bugId, userIds, assignedBy } = data;
+      await VARIAMOS_ORM.transaction(async (transaction) => {
+        await VARIAMOS_ORM.query(
+          userIds.length > 0
+            ? `DELETE FROM ${DB_SCHEMA}.bug_assignees
+                WHERE bug_id = :bugId AND user_id NOT IN (:userIds)`
+            : `DELETE FROM ${DB_SCHEMA}.bug_assignees WHERE bug_id = :bugId`,
+          { replacements: { bugId, userIds }, transaction },
+        );
+        for (const userId of userIds) {
+          await VARIAMOS_ORM.query(
+            `INSERT INTO ${DB_SCHEMA}.bug_assignees (bug_id, user_id, assigned_by)
+             VALUES (:bugId, :userId, :assignedBy)
+             ON CONFLICT (bug_id, user_id) DO NOTHING`,
+            {
+              replacements: { bugId, userId, assignedBy: assignedBy ?? null },
+              transaction,
+            },
+          );
+        }
+      });
+      response.data = (await this.assigneesOf([bugId])).get(bugId) ?? [];
+    } catch (error) {
+      const err = error as Error;
+      logger.err(err);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
+    }
+    return response;
+  }
+
+  public async queryUsersWithPermission(
+    request: RequestModel<string>,
+  ): Promise<ResponseModel<BugUserRef[]>> {
+    const response = new ResponseModel<BugUserRef[]>(request.transactionId);
+    try {
+      response.data = await VARIAMOS_ORM.query<BugUserRef>(
+        `SELECT DISTINCT u.id, u.name
+           FROM ${DB_SCHEMA}.user u
+           JOIN ${DB_SCHEMA}.user_role ur ON ur.user_id = u.id
+           JOIN ${DB_SCHEMA}.role_permission rp ON rp.role_id = ur.role_id
+           JOIN ${DB_SCHEMA}.permission p ON p.id = rp.permission_id
+          WHERE p.name = :permission AND u.is_enabled AND NOT u.is_deleted
+          ORDER BY u.name`,
+        {
+          replacements: { permission: request.data ?? "" },
+          type: QueryTypes.SELECT,
+        },
+      );
+    } catch (error) {
+      const err = error as Error;
+      logger.err(err);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
+    }
+    return response;
+  }
+
+  // Assignees by bug: id and name only, the list is shown to administrators
+  private async assigneesOf(
+    bugIds: string[],
+  ): Promise<Map<string, BugUserRef[]>> {
+    const byBug = new Map<string, BugUserRef[]>();
+    if (bugIds.length === 0) return byBug;
+    const rows = await VARIAMOS_ORM.query<{
+      bugId: string;
+      id: string;
+      name: string;
+    }>(
+      `SELECT ba.bug_id AS "bugId", u.id, u.name
+         FROM ${DB_SCHEMA}.bug_assignees ba
+         JOIN ${DB_SCHEMA}.user u ON u.id = ba.user_id
+        WHERE ba.bug_id IN (:bugIds)
+        ORDER BY u.name`,
+      { replacements: { bugIds }, type: QueryTypes.SELECT },
+    );
+    for (const { bugId, id, name } of rows) {
+      byBug.set(bugId, [...(byBug.get(bugId) ?? []), { id, name }]);
+    }
+    return byBug;
+  }
+
+  private async bugIdsAssignedTo(userId: string): Promise<string[]> {
+    const rows = await VARIAMOS_ORM.query<{ bugId: string }>(
+      `SELECT bug_id AS "bugId" FROM ${DB_SCHEMA}.bug_assignees
+        WHERE user_id = :userId`,
+      { replacements: { userId }, type: QueryTypes.SELECT },
+    );
+    return rows.map((row) => row.bugId);
+  }
+}

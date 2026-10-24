@@ -5,5 +5,7 @@ export class BugFilter {
     public readonly priority?: string,
     public readonly search?: string,
     public readonly managedRepos?: string[],
+    // Bugs assigned to this account
+    public readonly assigneeId?: string,
   ) {}
 }

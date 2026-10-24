@@ -13,6 +13,7 @@ import logger from "jet-logger";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import type { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import { BugFilter } from "#src/Domain/Bug/Entity/BugFilter.js";
+import type { BugAssignmentUseCase } from "#src/Domain/Bug/UseCase/BugAssignmentUseCase.js";
 import type { BugAttachmentUseCase } from "#src/Domain/Bug/UseCase/BugAttachmentUseCase.js";
 import type { BugLifecycleUseCase } from "#src/Domain/Bug/UseCase/BugLifecycleUseCase.js";
 import type { BugQueryUseCase } from "#src/Domain/Bug/UseCase/BugQueryUseCase.js";
@@ -23,6 +24,7 @@ import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { MAX_ATTACHMENT_SIZE_BYTES } from "#src/Domain/Core/File/AllowedFileType.js";
 import type { UploadedFile } from "#src/Domain/Core/File/UploadedFile.js";
+import { actorOf } from "./actor.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
 
@@ -119,6 +121,7 @@ export function createBugRouter(
   bugAttachmentUseCase: BugAttachmentUseCase,
   upload: MulterUpload,
   authMiddleware: RequestHandler,
+  bugAssignmentUseCase: BugAssignmentUseCase,
 ): Router {
   const router = Router();
 
@@ -129,13 +132,15 @@ export function createBugRouter(
     hasPermissions(["bugs::query"]),
     async (req: Request, res: Response) => {
       const transactionId = "queryBugs";
-      const { repo, status, priority, search } = req.query;
+      const { repo, status, priority, search, assignee } = req.query;
       try {
         const filter = new BugFilter(
           repo as string,
           status as string,
           priority as string,
           search as string,
+          undefined,
+          typeof assignee === "string" && assignee ? assignee : undefined,
         );
         const request = new RequestModel<BugFilter>(transactionId, filter);
         const response = await bugQueryUseCase.queryBugs(request);
@@ -168,6 +173,62 @@ export function createBugRouter(
         const response = await bugQueryUseCase.queryLocalBugs(request);
         response.data = maskReporterEmails(req, response.data);
 
+        const code = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(code).json(response);
+      } catch (error) {
+        sendError(res, error, transactionId);
+      }
+    },
+  );
+
+  // Administrators a bug can be assigned to
+  router.get(
+    "/assignable-users",
+    authMiddleware,
+    hasPermissions(["bugs::update"]),
+    async (_req: Request, res: Response) => {
+      const transactionId = "queryAssignableUsers";
+      try {
+        const response = await bugAssignmentUseCase.queryAssignableUsers(
+          new RequestModel<void>(transactionId),
+        );
+        const code = mapDomainErrorToHttpStatus(response.errorCode);
+        res.status(code).json(response);
+      } catch (error) {
+        sendError(res, error, transactionId);
+      }
+    },
+  );
+
+  // Replace the administrators assigned to a bug
+  router.put(
+    "/:id/assignees",
+    authMiddleware,
+    hasPermissions(["bugs::update"]),
+    async (req: Request<{ id: string }>, res: Response) => {
+      const transactionId = "setBugAssignees";
+      const { userIds } = (req.body ?? {}) as { userIds?: unknown };
+      if (
+        !Array.isArray(userIds) ||
+        !userIds.every((id) => typeof id === "string" && id.length > 0)
+      ) {
+        const response = new ResponseModel(transactionId).withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "userIds must be a list of account ids.",
+        );
+        res
+          .status(mapDomainErrorToHttpStatus(response.errorCode))
+          .json(response);
+        return;
+      }
+      try {
+        const response = await bugAssignmentUseCase.setAssignees(
+          new RequestModel(
+            transactionId,
+            { bugId: req.params.id, userIds: userIds as string[] },
+            actorOf(req),
+          ),
+        );
         const code = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(code).json(response);
       } catch (error) {
