@@ -62,7 +62,18 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import multer from "multer";
+import { missingRequiredSecrets } from "#src/common/requiredSecrets.js";
 import { startJournalPurge } from "./Infrastructure/Activity/JournalPurge.js";
+
+// Without these secrets the server would run on empty or known values, or on
+// test credentials: in production, it does not start (EV-69)
+const missingSecrets = missingRequiredSecrets(process.env, EnvVars.NodeEnv);
+if (missingSecrets.length > 0) {
+  logger.err(
+    `[CONFIG] Missing in production, the server does not start: ${missingSecrets.join(", ")}`,
+  );
+  process.exit(1);
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
