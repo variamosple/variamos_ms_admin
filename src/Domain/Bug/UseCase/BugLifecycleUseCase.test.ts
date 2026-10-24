@@ -1,5 +1,6 @@
 import logger from "jet-logger";
 import { type MockProxy, mock } from "vitest-mock-extended";
+import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
@@ -18,6 +19,7 @@ describe("BugLifecycleUseCase", () => {
   let mockStorageService: MockProxy<IStorageService>;
   let mockGithubConfig: MockProxy<IBugTrackerConfig>;
   let mockTokenResolver: MockProxy<GitHubTokenResolver>;
+  let mockJournal: MockProxy<IActivityJournal>;
 
   beforeEach(() => {
     mockBugRepository = mock<IBugRepository>();
@@ -25,12 +27,14 @@ describe("BugLifecycleUseCase", () => {
     mockStorageService = mock<IStorageService>();
     mockGithubConfig = mock<IBugTrackerConfig>();
     mockTokenResolver = mock<GitHubTokenResolver>();
+    mockJournal = mock<IActivityJournal>();
     useCase = new BugLifecycleUseCase(
       mockBugRepository,
       mockIssueTracker,
       mockStorageService,
       mockGithubConfig,
       mockTokenResolver,
+      mockJournal,
     );
   });
 
@@ -1016,17 +1020,15 @@ describe("BugLifecycleUseCase", () => {
       expect(mockBugRepository.createNote).not.toHaveBeenCalled();
     });
 
-    it("should not invoke closeIssue or reopenIssue if dbResponse data is empty", async () => {
+    it("keeps the status when GitHub refuses to close the issue", async () => {
       const bug = createMockBug("bug-123", "Title", "open");
       bug.gitIssueNumber = 500;
 
       mockBugRepository.findById.mockResolvedValue(
         new ResponseModel<Bug>("tx-1").withResponse(bug),
       );
-      mockBugRepository.updateStatus.mockResolvedValue(
-        new ResponseModel<Bug>("tx-1"), // Empty response data
-      );
       mockTokenResolver.resolveGitHubToken.mockResolvedValue("token");
+      mockIssueTracker.closeIssue.mockResolvedValue(false);
 
       const req = new RequestModel("tx-1", {
         id: "bug-123",
@@ -1034,8 +1036,9 @@ describe("BugLifecycleUseCase", () => {
         adminId: "admin-123",
       });
 
-      await useCase.updateStatus(req);
-      expect(mockIssueTracker.closeIssue).not.toHaveBeenCalled();
+      const result = await useCase.updateStatus(req);
+      expect(result.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(mockBugRepository.updateStatus).not.toHaveBeenCalled();
     });
 
     it("should not invoke closeIssue or reopenIssue if bug githubRepo is missing", async () => {
@@ -1083,7 +1086,46 @@ describe("BugLifecycleUseCase", () => {
       expect(mockTokenResolver.resolveGitHubToken).not.toHaveBeenCalled();
     });
 
-    it("should not call reopenIssue or closeIssue when status is resolved", async () => {
+    it("closes the issue before saving when a bug in progress is resolved", async () => {
+      const bug = createMockBug("bug-123", "Title", "in_progress");
+      bug.gitIssueNumber = 500;
+
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug>("tx-1").withResponse(bug),
+      );
+      mockBugRepository.updateStatus.mockResolvedValue(
+        new ResponseModel<Bug>("tx-1").withResponse(bug),
+      );
+      mockTokenResolver.resolveGitHubToken.mockResolvedValue("token");
+      mockIssueTracker.closeIssue.mockResolvedValue(true);
+
+      const req = new RequestModel("tx-1", {
+        id: "bug-123",
+        status: "resolved",
+        adminId: "admin-123",
+      });
+
+      await useCase.updateStatus(req);
+      expect(mockIssueTracker.closeIssue).toHaveBeenCalledWith(
+        "VariaMos/VariaMosAdmin",
+        500,
+        "token",
+      );
+      expect(mockIssueTracker.removeLabel).toHaveBeenCalledWith(
+        "VariaMos/VariaMosAdmin",
+        500,
+        "in progress",
+        "token",
+      );
+      expect(mockIssueTracker.reopenIssue).not.toHaveBeenCalled();
+      expect(
+        mockIssueTracker.closeIssue.mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        mockBugRepository.updateStatus.mock.invocationCallOrder[0],
+      );
+    });
+
+    it("labels the open issue of a bug put in progress, without reopening it", async () => {
       const bug = createMockBug("bug-123", "Title", "open");
       bug.gitIssueNumber = 500;
 
@@ -1095,15 +1137,110 @@ describe("BugLifecycleUseCase", () => {
       );
       mockTokenResolver.resolveGitHubToken.mockResolvedValue("token");
 
-      const req = new RequestModel("tx-1", {
-        id: "bug-123",
-        status: "resolved",
-        adminId: "admin-123",
-      });
+      await useCase.updateStatus(
+        new RequestModel("tx-1", {
+          id: "bug-123",
+          status: "in_progress",
+          adminId: "admin-123",
+        }),
+      );
 
-      await useCase.updateStatus(req);
+      expect(mockIssueTracker.addLabels).toHaveBeenCalledWith(
+        "VariaMos/VariaMosAdmin",
+        500,
+        ["in progress"],
+        "token",
+      );
       expect(mockIssueTracker.closeIssue).not.toHaveBeenCalled();
       expect(mockIssueTracker.reopenIssue).not.toHaveBeenCalled();
+      expect(mockBugRepository.updateStatus).toHaveBeenCalled();
+    });
+
+    it("reopens the issue of a resolved bug put back in progress", async () => {
+      const bug = createMockBug("bug-123", "Title", "resolved");
+      bug.gitIssueNumber = 500;
+
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug>("tx-1").withResponse(bug),
+      );
+      mockBugRepository.updateStatus.mockResolvedValue(
+        new ResponseModel<Bug>("tx-1").withResponse(bug),
+      );
+      mockTokenResolver.resolveGitHubToken.mockResolvedValue("token");
+      mockIssueTracker.reopenIssue.mockResolvedValue(true);
+
+      await useCase.updateStatus(
+        new RequestModel("tx-1", {
+          id: "bug-123",
+          status: "in_progress",
+          adminId: "admin-123",
+        }),
+      );
+
+      expect(mockIssueTracker.reopenIssue).toHaveBeenCalledWith(
+        "VariaMos/VariaMosAdmin",
+        500,
+        "token",
+      );
+      expect(mockIssueTracker.addLabels).toHaveBeenCalled();
+    });
+
+    it("refuses a change outside the allowed transitions", async () => {
+      const bug = createMockBug("bug-123", "Title", "closed");
+      bug.gitIssueNumber = 500;
+
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug>("tx-1").withResponse(bug),
+      );
+
+      const result = await useCase.updateStatus(
+        new RequestModel("tx-1", {
+          id: "bug-123",
+          status: "in_progress",
+          adminId: "admin-123",
+        }),
+      );
+
+      expect(result.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(result.message).toBe(
+        'A bug cannot go from "closed" to "in_progress".',
+      );
+      expect(mockBugRepository.updateStatus).not.toHaveBeenCalled();
+      expect(mockTokenResolver.resolveGitHubToken).not.toHaveBeenCalled();
+      expect(mockJournal.record).not.toHaveBeenCalled();
+    });
+
+    it("records the change of status in the activity journal", async () => {
+      const bug = createMockBug("bug-123", "Title", "open");
+      bug.gitIssueNumber = 500;
+
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug>("tx-1").withResponse(bug),
+      );
+      mockBugRepository.updateStatus.mockResolvedValue(
+        new ResponseModel<Bug>("tx-1").withResponse(bug),
+      );
+      mockTokenResolver.resolveGitHubToken.mockResolvedValue("token");
+
+      await useCase.updateStatus(
+        new RequestModel("tx-1", {
+          id: "bug-123",
+          status: "in_progress",
+          adminId: "admin-123",
+        }),
+      );
+
+      expect(mockJournal.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actorId: "admin-123",
+          action: "bug.status.update",
+          entityType: "bug",
+          entityId: "bug-123",
+          outcome: "success",
+          before: { status: "open" },
+          after: { status: "in_progress" },
+        }),
+      );
     });
 
     it("should not reopen GitHub issue if changing status to open but issue number is missing", async () => {
