@@ -22,7 +22,7 @@
 
 2. **Initialize Environment Variables for Development:**
 
-   - Use the `./env/development.env` file.
+   - Copy `./env/development.env.example` to `./env/development.env`, which git ignores, and fill it in.
    - Set the `VARIAMOS_PRIVATE_KEY_PATH` in `./env/development.env`:
      ```env
      VARIAMOS_PRIVATE_KEY_PATH=./jwtRS256.key

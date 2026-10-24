@@ -58,6 +58,15 @@ typings/
 .env
 .env.*
 
+# Environment files hold secrets: only the test values are versioned (EV-69)
+env/*.env
+!env/test.env
+
+# JWT signing keys
+jwtRS256.key
+jwtRS256.key.pub
+*.pem
+
 # next.js build output
 .next
 

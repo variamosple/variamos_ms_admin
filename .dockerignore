@@ -1,0 +1,15 @@
+# Secrets never enter the image: the variables come from the container (EV-69)
+env/
+.env
+.env.*
+*.key
+*.key.pub
+*.pem
+
+node_modules
+dist
+coverage
+reports
+.stryker-tmp
+.git
+.github
