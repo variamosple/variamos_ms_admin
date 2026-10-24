@@ -95,6 +95,14 @@ describe("MfaResetUseCase", () => {
       expect(JSON.stringify(vi.mocked(logger.info).mock.calls)).toContain(
         "user-2 turned off by administrator admin-1",
       );
+      expect(activityJournal.record).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          actorId: "admin-1",
+          action: "user.mfa.reset",
+          entityType: "user",
+          entityId: "user-2",
+        }),
+      );
     });
 
     it.each([
