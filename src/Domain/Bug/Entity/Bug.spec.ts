@@ -50,9 +50,20 @@ describe("Bug Entity", () => {
   });
 
   it("should throw an error for invalid priority", () => {
-    const invalidPriority = "critical" as "low";
+    const invalidPriority = "urgent" as "low";
     expect(() => Bug.builder().setPriority(invalidPriority).build()).toThrow(
-      "Bug priority must be either 'low', 'medium', or 'high'.",
+      "Bug priority must be one of: low, medium, high, critical.",
+    );
+  });
+
+  it("accepts a component of the list, or none", () => {
+    expect(Bug.builder().setComponent("model").build().component).toBe("model");
+    expect(Bug.builder().setComponent("").build().component).toBeUndefined();
+  });
+
+  it("refuses a component outside the list", () => {
+    expect(() => Bug.builder().setComponent("kernel").build()).toThrow(
+      "Bug component must be one of: language, model, microservice, admin, other.",
     );
   });
 

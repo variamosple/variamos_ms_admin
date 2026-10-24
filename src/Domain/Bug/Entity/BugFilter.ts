@@ -7,5 +7,6 @@ export class BugFilter {
     public readonly managedRepos?: string[],
     // Bugs assigned to this account
     public readonly assigneeId?: string,
+    public readonly component?: string,
   ) {}
 }

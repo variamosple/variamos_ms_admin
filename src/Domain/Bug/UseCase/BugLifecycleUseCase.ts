@@ -4,6 +4,11 @@ import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import {
+  BUG_COMPONENT_LABELS,
+  type BugComponentValue,
+} from "#src/Domain/Bug/Entity/BugComponent.js";
+import type { BugPriorityValue } from "#src/Domain/Bug/Entity/BugPriority.js";
+import {
   canChangeStatus,
   IN_PROGRESS_LABEL,
   isIssueOpen,
@@ -24,8 +29,9 @@ interface StatusChange {
   adminEmail?: string;
   title?: string;
   description?: string;
-  priority?: "low" | "medium" | "high";
+  priority?: BugPriorityValue;
   category?: string;
+  component?: string;
   githubRepo?: string;
 }
 
@@ -110,6 +116,7 @@ export class BugLifecycleUseCase {
           data.description !== undefined ? data.description : bug.description,
         )
         .setPriority(data.priority !== undefined ? data.priority : bug.priority)
+        .setComponent(data.component || bug.component)
         .build();
     } catch (error) {
       const response = new ResponseModel<Bug>(transactionId);
@@ -138,6 +145,11 @@ export class BugLifecycleUseCase {
         `* Priority: "${bug.priority || "medium"}" -> "${data.priority}"`,
       );
     }
+    if (data.component && data.component !== bug.component) {
+      modifiedFields.push(
+        `* Component: "${bug.component || "None"}" -> "${data.component}"`,
+      );
+    }
     if (data.githubRepo && data.githubRepo !== bug.githubRepo) {
       modifiedFields.push(`* Target repository set to "${data.githubRepo}"`);
     }
@@ -146,6 +158,7 @@ export class BugLifecycleUseCase {
     if (data.description) bug.description = data.description;
     if (data.priority) bug.priority = data.priority;
     if (data.category) bug.category = data.category;
+    if (data.component) bug.component = data.component as BugComponentValue;
     if (data.githubRepo) bug.githubRepo = data.githubRepo;
 
     let gitIssueNumber: number | undefined;
@@ -169,6 +182,9 @@ export class BugLifecycleUseCase {
         }
         if (bug.category) {
           issueBody += `\n*Category: ${bug.category}*`;
+        }
+        if (bug.component) {
+          issueBody += `\n*Component: ${BUG_COMPONENT_LABELS[bug.component]}*`;
         }
 
         const attachments = bug.attachments as
@@ -270,6 +286,9 @@ export class BugLifecycleUseCase {
         description: data.description,
         priority: data.priority,
         category: data.category,
+        component: (data.component || undefined) as
+          | BugComponentValue
+          | undefined,
         githubRepo: data.githubRepo,
       }),
     );

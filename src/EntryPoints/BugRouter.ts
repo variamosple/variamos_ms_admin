@@ -13,6 +13,10 @@ import logger from "jet-logger";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import type { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import { BugFilter } from "#src/Domain/Bug/Entity/BugFilter.js";
+import {
+  type BugPriorityValue,
+  isBugPriority,
+} from "#src/Domain/Bug/Entity/BugPriority.js";
 import type { BugAssignmentUseCase } from "#src/Domain/Bug/UseCase/BugAssignmentUseCase.js";
 import type { BugAttachmentUseCase } from "#src/Domain/Bug/UseCase/BugAttachmentUseCase.js";
 import type { BugLifecycleUseCase } from "#src/Domain/Bug/UseCase/BugLifecycleUseCase.js";
@@ -132,7 +136,7 @@ export function createBugRouter(
     hasPermissions(["bugs::query"]),
     async (req: Request, res: Response) => {
       const transactionId = "queryBugs";
-      const { repo, status, priority, search, assignee } = req.query;
+      const { repo, status, priority, search, assignee, component } = req.query;
       try {
         const filter = new BugFilter(
           repo as string,
@@ -141,6 +145,7 @@ export function createBugRouter(
           search as string,
           undefined,
           typeof assignee === "string" && assignee ? assignee : undefined,
+          component as string,
         );
         const request = new RequestModel<BugFilter>(transactionId, filter);
         const response = await bugQueryUseCase.queryBugs(request);
@@ -161,13 +166,16 @@ export function createBugRouter(
     hasPermissions(["bugs::query"]),
     async (req: Request, res: Response) => {
       const transactionId = "queryLocalBugs";
-      const { repo, status, priority, search } = req.query;
+      const { repo, status, priority, search, component } = req.query;
       try {
         const filter = new BugFilter(
           repo as string,
           status as string,
           priority as string,
           search as string,
+          undefined,
+          undefined,
+          component as string,
         );
         const request = new RequestModel<BugFilter>(transactionId, filter);
         const response = await bugQueryUseCase.queryLocalBugs(request);
@@ -281,6 +289,7 @@ export function createBugRouter(
         description,
         priority,
         category,
+        component,
         githubRepo,
         reporterEmail,
       } = req.body as {
@@ -288,6 +297,7 @@ export function createBugRouter(
         description?: string;
         priority?: string;
         category?: string;
+        component?: string;
         githubRepo?: string;
         reporterEmail?: string;
       };
@@ -330,9 +340,8 @@ export function createBugRouter(
       }
 
       try {
-        const validPriorities = ["low", "medium", "high"];
-        const resolvedPriority = validPriorities.includes(priority || "")
-          ? (priority as "low" | "medium" | "high")
+        const resolvedPriority = isBugPriority(priority || "")
+          ? (priority as BugPriorityValue)
           : "medium";
 
         const payload = {
@@ -340,6 +349,7 @@ export function createBugRouter(
           description: description || "",
           priority: resolvedPriority,
           category: category || "",
+          component: component || undefined,
           githubRepo: githubRepo || undefined,
           createdById: adminId,
           reporterEmail: reporterEmail || undefined,
@@ -398,6 +408,7 @@ export function createBugRouter(
         description,
         priority,
         category,
+        component,
         githubRepo,
       } = req.body as {
         status?: string;
@@ -406,15 +417,15 @@ export function createBugRouter(
         description?: string;
         priority?: string;
         category?: string;
+        component?: string;
         githubRepo?: string;
       };
       const adminId = (req as RequestWithUser).user.id;
       const adminEmail = (req as RequestWithUser).user.email || "";
 
       try {
-        const validPriorities = ["low", "medium", "high"];
-        const resolvedPriority = validPriorities.includes(priority || "")
-          ? (priority as "low" | "medium" | "high")
+        const resolvedPriority = isBugPriority(priority || "")
+          ? (priority as BugPriorityValue)
           : undefined;
 
         const payload = {
@@ -427,6 +438,7 @@ export function createBugRouter(
           description: description || undefined,
           priority: resolvedPriority,
           category: category || undefined,
+          component: component || undefined,
           githubRepo: githubRepo || undefined,
         };
         const request = new RequestModel<typeof payload>(

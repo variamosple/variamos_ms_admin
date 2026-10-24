@@ -451,6 +451,68 @@ describe("BugLifecycleUseCase", () => {
       );
     });
 
+    it("sets the component on approval: audit note, issue body and stored value", async () => {
+      const bug = createMockBug("bug-123", "Title", "pending");
+      bug.priority = "high";
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug>("tx-1").withResponse(bug),
+      );
+      mockTokenResolver.resolveGitHubToken.mockResolvedValue("token");
+      mockIssueTracker.createIssue.mockResolvedValue(101);
+      mockBugRepository.updateStatus.mockResolvedValue(
+        new ResponseModel<Bug>("tx-1").withResponse(bug),
+      );
+
+      await useCase.updateStatus(
+        new RequestModel("tx-1", {
+          id: "bug-123",
+          status: "open",
+          adminId: "admin-123",
+          priority: "critical" as const,
+          component: "microservice",
+        }),
+      );
+
+      const noteCall = mockBugRepository.createNote.mock.calls[0][0];
+      expect(noteCall.data?.body).toContain(
+        '* Component: "None" -> "microservice"',
+      );
+      expect(noteCall.data?.body).toContain('* Priority: "high" -> "critical"');
+      const [, , body, labels] = mockIssueTracker.createIssue.mock.calls[0];
+      expect(body).toContain("\n*Priority: critical*");
+      expect(body).toContain("\n*Component: Microservice*");
+      expect(labels).toContain("critical");
+      expect(mockBugRepository.updateStatus).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            priority: "critical",
+            component: "microservice",
+          }),
+        }),
+      );
+    });
+
+    it("refuses a component outside the list before touching GitHub", async () => {
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug>("tx-1").withResponse(
+          createMockBug("bug-123", "Title", "pending"),
+        ),
+      );
+
+      const res = await useCase.updateStatus(
+        new RequestModel("tx-1", {
+          id: "bug-123",
+          status: "open",
+          adminId: "admin-123",
+          component: "kernel",
+        }),
+      );
+
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(mockIssueTracker.createIssue).not.toHaveBeenCalled();
+      expect(mockBugRepository.updateStatus).not.toHaveBeenCalled();
+    });
+
     it("should log audit comment with default fallback values when category or priority are initially missing", async () => {
       const bug = createMockBug("bug-123", "Title", "pending");
       bug.category = undefined;

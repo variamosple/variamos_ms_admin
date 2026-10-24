@@ -9,6 +9,8 @@ import { ConfigurationModel } from "#src/DataProviders/Configuration/Configurati
 import { MicroServiceAuditLogModel } from "#src/DataProviders/MicroService/MicroServiceAuditLogModel.js";
 import { MicroServiceDailyStatsModel } from "#src/DataProviders/MicroService/MicroServiceDailyStatsModel.js";
 import { MicroServiceHealthLogModel } from "#src/DataProviders/MicroService/MicroServiceHealthLogModel.js";
+import { BUG_COMPONENTS } from "#src/Domain/Bug/Entity/BugComponent.js";
+import { BUG_PRIORITIES } from "#src/Domain/Bug/Entity/BugPriority.js";
 import { BASELINE_TABLES, baseline } from "./0001-baseline.js";
 import { ACCOUNT_LOCKOUT_ROWS } from "./0002-account-lockout-keys.js";
 import { USER_MFA_TABLES } from "./0003-user-mfa.js";
@@ -163,6 +165,21 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
     }
   });
 
+  it("stores every priority and component of the domain, and no other component", async () => {
+    const insert = (priority: string, component: string | null) =>
+      sequelize.query(
+        `INSERT INTO "t07_fresh"."bugs" ("title", "description", "priority", "component")
+         VALUES ('t', 'd', :priority, :component)`,
+        { replacements: { priority, component } },
+      );
+
+    for (const priority of BUG_PRIORITIES) await insert(priority, null);
+    for (const component of BUG_COMPONENTS) await insert("medium", component);
+    await expect(insert("medium", "kernel")).rejects.toThrow(
+      "bugs_component_check",
+    );
+  });
+
   it("leaves an existing table and its rows untouched", async () => {
     await createSchema("t07_legacy");
     await sequelize.query(
@@ -194,13 +211,20 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
       `INSERT INTO "t07_prod"."configurations" ("key", "value", "type", "category", "target_services", "created_at", "updated_at")
        VALUES ('security.password.min_length', '12', 'number', 'security', '{admin}', now(), now())`,
     );
-    const before = await structureOf("t07_prod");
+    await sequelize.query(
+      `INSERT INTO "t07_prod"."bugs" ("title", "description", "priority")
+       VALUES ('Crash', 'On save', 'high')`,
+    );
+    const before = await structureOf("t07_prod", ["bugs"]);
+    const bugColumns = await columnsOf("t07_prod", "bugs");
 
     expect(await migrate("t07_prod")).toEqual(ALL_MIGRATIONS);
 
-    // The tables added after the baseline are new; the others are unchanged
+    // The tables added after the baseline are new; bugs only gains its
+    // component (0008); the others are unchanged
     expect(
       await structureOf("t07_prod", [
+        "bugs",
         ...USER_MFA_TABLES,
         TRUSTED_DEVICE_TABLE,
         ACTIVITY_LOG_TABLE,
@@ -208,6 +232,15 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         BUG_ASSIGNEES_TABLE,
       ]),
     ).toEqual(before);
+    expect(await columnsOf("t07_prod", "bugs")).toEqual(
+      [...bugColumns, "component"].sort(),
+    );
+    expect(
+      await sequelize.query(
+        `SELECT "title", "priority", "component" FROM "t07_prod"."bugs"`,
+        { type: QueryTypes.SELECT },
+      ),
+    ).toEqual([{ title: "Crash", priority: "high", component: null }]);
     expect(
       await sequelize.query(
         `SELECT "key", "value" FROM "t07_prod"."configurations" ORDER BY "key"`,

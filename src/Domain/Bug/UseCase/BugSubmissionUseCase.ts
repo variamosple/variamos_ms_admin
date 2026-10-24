@@ -1,5 +1,10 @@
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
+import {
+  BUG_COMPONENT_LABELS,
+  type BugComponentValue,
+} from "#src/Domain/Bug/Entity/BugComponent.js";
+import type { BugPriorityValue } from "#src/Domain/Bug/Entity/BugPriority.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
 import type { IUserRepository } from "#src/Domain/Bug/Repository/IUserRepository.js";
 import type { GitHubTokenResolver } from "#src/Domain/Bug/Service/GitHubTokenResolver.js";
@@ -18,8 +23,10 @@ import { ALLOWED_CATEGORIES } from "./BugQueryUseCase.js";
 interface BugSubmissionData {
   title: string;
   description: string;
-  priority: "low" | "medium" | "high";
+  priority: BugPriorityValue;
   category: string;
+  // Optional: the global report form does not send it
+  component?: string;
   githubRepo?: string;
   createdById?: string;
   reporterEmail?: string;
@@ -66,6 +73,7 @@ export class BugSubmissionUseCase {
         .setTitle(data.title)
         .setDescription(data.description)
         .setPriority(data.priority)
+        .setComponent(data.component)
         .build();
     } catch (error) {
       const response = new ResponseModel<Bug>(request.transactionId);
@@ -177,6 +185,9 @@ export class BugSubmissionUseCase {
           issueBody += `\n*Priority: ${data.priority}*`;
         }
         issueBody += `\n*Category: ${data.category}*`;
+        if (data.component) {
+          issueBody += `\n*Component: ${BUG_COMPONENT_LABELS[data.component as BugComponentValue]}*`;
+        }
         if (resolvedFile) {
           const fileUrl = `${this.githubConfig.getApiBaseUrl?.() || "http://localhost:4000"}${resolvedFile.filePath}`;
           issueBody += `\n\n### Attachments\n- [Attachment](${fileUrl}) (Type: ${resolvedFile.fileType})`;
@@ -220,6 +231,9 @@ export class BugSubmissionUseCase {
         description: data.description,
         priority: data.priority,
         category: data.category,
+        component: (data.component || undefined) as
+          | BugComponentValue
+          | undefined,
         githubRepo: data.githubRepo,
         createdById: resolvedCreatedById || "",
         resolvedFile,
