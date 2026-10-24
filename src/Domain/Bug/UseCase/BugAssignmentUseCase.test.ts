@@ -2,6 +2,7 @@ import logger from "jet-logger";
 import { type MockProxy, mock } from "vitest-mock-extended";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import { Bug, type BugUserRef } from "#src/Domain/Bug/Entity/Bug.js";
+import type { BugNote } from "#src/Domain/Bug/Entity/BugNote.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
 import type { IBugAssignmentNotifier } from "#src/Domain/Bug/Service/IBugAssignmentNotifier.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
@@ -51,7 +52,12 @@ describe("BugAssignmentUseCase", () => {
       ),
     );
     notifier.notifyAssigned.mockResolvedValue();
+    repository.createNote.mockResolvedValue(
+      new ResponseModel<BugNote>("tx").withResponse({} as BugNote),
+    );
   });
+
+  const noteBody = () => repository.createNote.mock.calls[0]?.[0].data?.body;
 
   it("lists the enabled accounts that can update bugs", async () => {
     await useCase.queryAssignableUsers(new RequestModel("tx"));
@@ -90,9 +96,42 @@ describe("BugAssignmentUseCase", () => {
     );
   });
 
+  it("notes the change in the bug timeline, by the administrator who made it", async () => {
+    await assign([BEN.id, ANA.id]);
+
+    expect(repository.createNote).toHaveBeenCalledTimes(1);
+    expect(repository.createNote).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          bugId: "b1",
+          body: "[Audit] Assigned to: Ana, Ben (was: Ana).",
+          authorId: "actor-1",
+        },
+      }),
+    );
+  });
+
+  it("notes a removal even when no one is added", async () => {
+    repository.findById.mockResolvedValue(
+      new ResponseModel<Bug | null>("tx").withResponse(bugAssignedTo(ANA, CAM)),
+    );
+
+    await assign([CAM.id]);
+
+    expect(noteBody()).toBe("[Audit] Assigned to: Cam (was: Ana, Cam).");
+    expect(notifier.notifyAssigned).not.toHaveBeenCalled();
+  });
+
+  it("notes nothing when the list does not change", async () => {
+    await assign([ANA.id]);
+
+    expect(repository.createNote).not.toHaveBeenCalled();
+  });
+
   it("clears the assignees without checking accounts nor notifying", async () => {
     const res = await assign([]);
 
+    expect(noteBody()).toBe("[Audit] Assigned to: nobody (was: Ana).");
     expect(res.data).toEqual([]);
     expect(repository.queryUsersWithPermission).not.toHaveBeenCalled();
     expect(notifier.notifyAssigned).not.toHaveBeenCalled();
@@ -169,6 +208,7 @@ describe("BugAssignmentUseCase", () => {
     expect(journal.record).toHaveBeenCalledWith(
       expect.objectContaining({ outcome: "failed" }),
     );
+    expect(repository.createNote).not.toHaveBeenCalled();
     expect(notifier.notifyAssigned).not.toHaveBeenCalled();
   });
 
@@ -182,6 +222,30 @@ describe("BugAssignmentUseCase", () => {
     expect(res.data).toEqual([ANA, CAM]);
     expect(warn).toHaveBeenCalledWith(
       "Bug assignment notification failed: service down",
+    );
+    warn.mockRestore();
+  });
+
+  it("keeps the saved assignment when the note fails", async () => {
+    const warn = vi.spyOn(logger, "warn").mockImplementation(() => logger);
+    repository.createNote.mockResolvedValue(
+      new ResponseModel<BugNote>("tx").withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      ),
+    );
+
+    const res = await assign([BEN.id]);
+
+    expect(res.errorCode).toBeUndefined();
+    expect(res.data).toEqual([BEN]);
+    expect(warn).toHaveBeenCalledWith(
+      "Bug assignment note failed: Internal server error",
+    );
+    expect(notifier.notifyAssigned).toHaveBeenCalledWith(
+      [BEN.id],
+      "Crash on save",
+      "actor-1",
     );
     warn.mockRestore();
   });

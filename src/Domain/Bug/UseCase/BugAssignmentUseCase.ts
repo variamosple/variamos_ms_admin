@@ -8,12 +8,16 @@ import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 
+const namesOf = (users?: BugUserRef[] | null) =>
+  users?.length ? users.map((user) => user.name).join(", ") : "nobody";
+
 // Only an administrator who can work on a bug may be assigned to it
 export const ASSIGNABLE_PERMISSION = "bugs::update";
 
 /**
- * Assignment of a bug to several administrators (T-23, EV-84 lot 3,
- * MA-BG-01). The new assignees are notified in the application.
+ * Assignment of a bug to several administrators (T-23, EV-84 lot 4,
+ * MA-BG-01). A change is noted in the bug timeline and the new assignees
+ * are notified in the application.
  */
 export class BugAssignmentUseCase {
   public constructor(
@@ -69,7 +73,8 @@ export class BugAssignmentUseCase {
       }
     }
 
-    const before = (bug.assignedAdmins ?? []).map((user) => user.id);
+    const previous = bug.assignedAdmins ?? [];
+    const before = previous.map((user) => user.id);
     const response = await withJournal(
       this.journal,
       {
@@ -91,8 +96,25 @@ export class BugAssignmentUseCase {
         ),
     );
 
+    if (response.errorCode) return response;
+
     const added = userIds.filter((id) => !before.includes(id));
-    if (!response.errorCode && added.length > 0) {
+    const removed = before.filter((id) => !userIds.includes(id));
+    if (added.length > 0 || removed.length > 0) {
+      // Shown in the bug timeline like a status change; names only, as
+      // the notes are read without bugs::update
+      const note = await this.bugRepository.createNote(
+        new RequestModel(transactionId, {
+          bugId: bug.id,
+          body: `[Audit] Assigned to: ${namesOf(response.data)} (was: ${namesOf(previous)}).`,
+          authorId: actorId,
+        }),
+      );
+      if (note.errorCode) {
+        logger.warn(`Bug assignment note failed: ${note.message}`);
+      }
+    }
+    if (added.length > 0) {
       // The assignment is saved: a notification failure is only logged
       await this.notifier
         .notifyAssigned(added, bug.title, actorId)
