@@ -12,11 +12,13 @@ import {
   MicroServiceDetailed,
 } from "#src/Domain/MicroService/Entity/MicroServiceDetailed.js";
 import type { MicroServiceFilter } from "#src/Domain/MicroService/Entity/MicroServiceFilter.js";
-import type {
-  HealthStatus,
-  MicroServiceHealthInfo,
-  MicroServiceUptimeSummary,
-  UptimeHistorySlot,
+import {
+  type HealthStatus,
+  type MicroServiceHealthInfo,
+  type MicroServiceStatusInfo,
+  type MicroServiceUptimeSummary,
+  resolveServiceStatus,
+  type UptimeHistorySlot,
 } from "#src/Domain/MicroService/Entity/MicroServiceHealth.js";
 import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 import { refuseConfigurationUpdate } from "#src/Domain/MicroService/Service/ConfigurationUpdateRule.js";
@@ -262,21 +264,14 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
             }),
           ]);
 
-          const isContainerExplicitlyStopped =
-            containerInfos.length > 0 &&
-            !containerInfos.some((c) => c.state === "running");
-
-          const status: HealthStatus = isContainerExplicitlyStopped
-            ? "DOWN"
-            : latestHealthLog
-              ? latestHealthLog.status
-              : containerInfos.some((c) => c.state === "running")
-                ? "UP"
-                : "DOWN";
+          const status = resolveServiceStatus(
+            containerInfos,
+            latestHealthLog?.status,
+          );
 
           // Without a persisted health log there is no measurement: leave the
           // fields undefined instead of showing a fabricated 0 ms.
-          const healthInfo: MicroServiceHealthInfo = {
+          const healthInfo: MicroServiceStatusInfo = {
             status,
             serviceName: def.name,
             responseTimeMs: latestHealthLog?.responseTimeMs,
@@ -377,23 +372,17 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         order: [["checked_at", "DESC"]],
       });
 
-      const isContainerExplicitlyStopped =
-        containerInfos.length > 0 &&
-        !containerInfos.some((c) => c.state === "running");
+      const status = resolveServiceStatus(
+        containerInfos,
+        latestHealthLog?.status,
+      );
 
-      const status: HealthStatus = isContainerExplicitlyStopped
-        ? "DOWN"
-        : latestHealthLog
-          ? latestHealthLog.status
-          : containerInfos.some((c) => c.state === "running")
-            ? "UP"
-            : "DOWN";
-
-      const healthInfo: MicroServiceHealthInfo = {
+      // As in the list: no fabricated time or date without a measurement
+      const healthInfo: MicroServiceStatusInfo = {
         status,
         serviceName: def.name,
-        responseTimeMs: latestHealthLog?.responseTimeMs ?? 0,
-        checkedAt: latestHealthLog?.checkedAt ?? new Date(),
+        responseTimeMs: latestHealthLog?.responseTimeMs,
+        checkedAt: latestHealthLog?.checkedAt,
       };
 
       const uptimeSummary = await this.calculateUptimeSummary(def.name);
@@ -402,7 +391,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         def.name,
         def.displayName,
         healthInfo,
-        containerInfos.length || 1,
+        containerInfos.length || (status === "UP" ? 1 : 0),
         containerInfos,
         uptimeSummary,
         def.targetUrl,
@@ -589,36 +578,6 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Failed to restart microservice container",
-      );
-    }
-    return response;
-  }
-
-  public async scaleMicroService(
-    request: RequestModel<{ serviceName: string; replicas: number }>,
-  ): Promise<ResponseModel<void>> {
-    const response = new ResponseModel<void>(request.transactionId);
-    if (!request.data?.serviceName) {
-      return response.withError(
-        DomainErrorCodes.INVALID_INPUT,
-        "Service name is required",
-      );
-    }
-    try {
-      const { serviceName, replicas } = request.data;
-      logger.info(`Scaling service ${serviceName} to ${replicas} replicas.`);
-
-      await MicroServiceAuditLogModel.create({
-        serviceName,
-        actionType: "SCALE_CHANGE",
-        details: { requestedReplicas: replicas },
-        performedBy: "admin",
-      });
-    } catch (error) {
-      logger.err(error);
-      response.withError(
-        DomainErrorCodes.SYSTEM_ERROR,
-        "Failed to scale microservice",
       );
     }
     return response;
@@ -940,7 +899,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
     if (logs.length === 0) {
       return {
         serviceName,
-        currentStatus: "UP",
+        currentStatus: "NO_DATA",
         uptime24hPercentage: 100,
         uptime30dPercentage: 100,
         averageResponseTimeMs: 0,
@@ -1012,7 +971,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
 
     return {
       serviceName,
-      currentStatus: logs[logs.length - 1]?.status ?? "UP",
+      currentStatus: logs[logs.length - 1]?.status ?? "NO_DATA",
       uptime24hPercentage: uptime24h,
       uptime30dPercentage: uptime30d,
       averageResponseTimeMs: avgLatency,

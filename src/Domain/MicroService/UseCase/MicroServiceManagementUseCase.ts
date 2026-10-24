@@ -3,7 +3,11 @@ import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { MicroServiceConfigItem } from "../Entity/MicroServiceConfigItem.js";
+import { isRunning } from "../Entity/MicroServiceHealth.js";
 import type { IMicroServiceRepository } from "../Repository/IMicroServiceRepository.js";
+
+export const SCALING_NOT_AVAILABLE =
+  "Scaling is not available: the number of replicas is set in the server's compose file.";
 
 export class MicroServiceManagementUseCase {
   public constructor(
@@ -31,7 +35,9 @@ export class MicroServiceManagementUseCase {
           queryResponse.message ?? "An unexpected error occurred",
         );
       }
-      if (queryResponse?.data && queryResponse.data.health.status === "UP") {
+      // Actions follow the container, not the health check: a running
+      // service that answers badly can still be stopped or restarted
+      if (queryResponse?.data && isRunning(queryResponse.data.containers)) {
         return defaultResponse.withError(
           DomainErrorCodes.INVALID_INPUT,
           "MicroService is not in exited state.",
@@ -63,7 +69,7 @@ export class MicroServiceManagementUseCase {
           queryResponse.message ?? "An unexpected error occurred",
         );
       }
-      if (queryResponse?.data && queryResponse.data.health.status !== "UP") {
+      if (queryResponse?.data && !isRunning(queryResponse.data.containers)) {
         return defaultResponse.withError(
           DomainErrorCodes.INVALID_INPUT,
           "MicroService is not in running state.",
@@ -95,7 +101,7 @@ export class MicroServiceManagementUseCase {
           queryResponse.message ?? "An unexpected error occurred",
         );
       }
-      if (queryResponse?.data && queryResponse.data.health.status !== "UP") {
+      if (queryResponse?.data && !isRunning(queryResponse.data.containers)) {
         return defaultResponse.withError(
           DomainErrorCodes.INVALID_INPUT,
           "MicroService is not in running state.",
@@ -106,23 +112,15 @@ export class MicroServiceManagementUseCase {
     return this.microServiceRepository.restartMicroService(request, actorId);
   }
 
+  // The replicas are set in the server's compose file: answering success
+  // without acting would mislead the operator (T-25, decision D3)
   public async scaleMicroService(
     request: RequestModel<{ serviceName: string; replicas: number }>,
   ): Promise<ResponseModel<void>> {
-    const defaultResponse = new ResponseModel<void>(request.transactionId);
-    if (!request.data?.serviceName || request.data.replicas === undefined) {
-      return defaultResponse.withError(
-        DomainErrorCodes.INVALID_INPUT,
-        "Service name and valid replicas count are required.",
-      );
-    }
-    if (request.data.replicas < 0 || request.data.replicas > 10) {
-      return defaultResponse.withError(
-        DomainErrorCodes.INVALID_INPUT,
-        "Replicas count must be between 0 and 10.",
-      );
-    }
-    return this.microServiceRepository.scaleMicroService(request);
+    return new ResponseModel<void>(request.transactionId).withError(
+      DomainErrorCodes.NOT_IMPLEMENTED,
+      SCALING_NOT_AVAILABLE,
+    );
   }
 
   public async updateConfiguration(

@@ -6,7 +6,11 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { MicroServiceDetailed } from "#src/Domain/MicroService/Entity/MicroServiceDetailed.js";
 import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 import { MicroServiceConfigItem } from "../Entity/MicroServiceConfigItem.js";
-import { MicroServiceManagementUseCase } from "./MicroServiceManagementUseCase.js";
+import type { ServiceStatus } from "../Entity/MicroServiceHealth.js";
+import {
+  MicroServiceManagementUseCase,
+  SCALING_NOT_AVAILABLE,
+} from "./MicroServiceManagementUseCase.js";
 
 const ACTOR = "operator@example.com";
 
@@ -19,9 +23,11 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
     useCase = new MicroServiceManagementUseCase(mockMicroServiceRepository);
   });
 
+  // Actions follow the container state; the health status is kept apart
   const createMockDetailed = (
     name: string,
-    status: "UP" | "DOWN" | "DEGRADED",
+    containerState: "running" | "exited",
+    status: ServiceStatus = containerState === "running" ? "UP" : "DOWN",
   ) => {
     return new MicroServiceDetailed(
       name,
@@ -33,7 +39,16 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
         checkedAt: new Date(),
       },
       1,
-      [],
+      [
+        {
+          id: `${name}-1`,
+          name,
+          state: containerState,
+          status: containerState,
+          created: new Date(),
+          labels: {},
+        },
+      ],
     );
   };
 
@@ -65,7 +80,7 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
     });
 
     test("should start microservice when state is DOWN/exited", async () => {
-      const mockService = createMockDetailed("ms-1", "DOWN");
+      const mockService = createMockDetailed("ms-1", "exited");
       mockMicroServiceRepository.queryByName.mockResolvedValue(
         new ResponseModel<MicroServiceDetailed>("tx-1").withResponse(
           mockService,
@@ -86,7 +101,7 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
     });
 
     test("should reject start if service is already UP", async () => {
-      const mockService = createMockDetailed("ms-1", "UP");
+      const mockService = createMockDetailed("ms-1", "running");
       mockMicroServiceRepository.queryByName.mockResolvedValue(
         new ResponseModel<MicroServiceDetailed>("tx-1").withResponse(
           mockService,
@@ -125,7 +140,7 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
     });
 
     test("should reject stop if service is not running", async () => {
-      const mockService = createMockDetailed("ms-1", "DOWN");
+      const mockService = createMockDetailed("ms-1", "exited");
       mockMicroServiceRepository.queryByName.mockResolvedValue(
         new ResponseModel<MicroServiceDetailed>("tx-stop").withResponse(
           mockService,
@@ -140,7 +155,7 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
     });
 
     test("should stop service when currently running", async () => {
-      const mockService = createMockDetailed("ms-1", "UP");
+      const mockService = createMockDetailed("ms-1", "running");
       mockMicroServiceRepository.queryByName.mockResolvedValue(
         new ResponseModel<MicroServiceDetailed>("tx-stop").withResponse(
           mockService,
@@ -171,7 +186,7 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
     });
 
     test("should restart service when currently running", async () => {
-      const mockService = createMockDetailed("ms-1", "UP");
+      const mockService = createMockDetailed("ms-1", "running");
       mockMicroServiceRepository.queryByName.mockResolvedValue(
         new ResponseModel<MicroServiceDetailed>("tx-restart").withResponse(
           mockService,
@@ -191,51 +206,67 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
     });
   });
 
+  describe("actions follow the container, not the health check", () => {
+    const answer = (service: MicroServiceDetailed) =>
+      mockMicroServiceRepository.queryByName.mockResolvedValue(
+        new ResponseModel<MicroServiceDetailed>("tx").withResponse(service),
+      );
+
+    test.each(["NO_DATA", "DOWN"] as const)(
+      "restarts and stops a running service whose status is %s",
+      async (status) => {
+        answer(createMockDetailed("ms-1", "running", status));
+        mockMicroServiceRepository.restartMicroService.mockResolvedValue(
+          new ResponseModel<void>("tx"),
+        );
+        mockMicroServiceRepository.stopMicroService.mockResolvedValue(
+          new ResponseModel<void>("tx"),
+        );
+        const req = new RequestModel<string>("tx", "ms-1");
+
+        expect((await useCase.restartMicroService(req, ACTOR)).errorCode).toBe(
+          undefined,
+        );
+        expect((await useCase.stopMicroService(req, ACTOR)).errorCode).toBe(
+          undefined,
+        );
+        expect((await useCase.startMicroService(req, ACTOR)).message).toBe(
+          "MicroService is not in exited state.",
+        );
+      },
+    );
+
+    test("starts a stopped service even if its last check was UP", async () => {
+      answer(createMockDetailed("ms-1", "exited", "UP"));
+      mockMicroServiceRepository.startMicroService.mockResolvedValue(
+        new ResponseModel<void>("tx"),
+      );
+      const req = new RequestModel<string>("tx", "ms-1");
+
+      expect((await useCase.startMicroService(req, ACTOR)).errorCode).toBe(
+        undefined,
+      );
+      expect((await useCase.restartMicroService(req, ACTOR)).message).toBe(
+        "MicroService is not in running state.",
+      );
+    });
+  });
+
   describe("scaleMicroService", () => {
-    test("should reject when serviceName is missing or replicas undefined", async () => {
-      const req = new RequestModel<{ serviceName: string; replicas: number }>(
-        "tx-scale",
-        // biome-ignore lint/suspicious/noExplicitAny: test defensive edge case
-        { serviceName: "", replicas: undefined as any },
-      );
+    test.each([3, 50])(
+      "refuses %i replicas as not implemented, without any write",
+      async (replicas) => {
+        const res = await useCase.scaleMicroService(
+          new RequestModel("tx-scale", { serviceName: "ms_lang", replicas }),
+        );
 
-      const res = await useCase.scaleMicroService(req);
-      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
-    });
-
-    test("should validate replicas count bounds", async () => {
-      const req = new RequestModel<{ serviceName: string; replicas: number }>(
-        "tx-scale",
-        {
-          serviceName: "ms_lang",
-          replicas: 15,
-        },
-      );
-
-      const res = await useCase.scaleMicroService(req);
-      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
-      expect(res.message).toBe("Replicas count must be between 0 and 10.");
-    });
-
-    test("should scale microservice when valid", async () => {
-      mockMicroServiceRepository.scaleMicroService.mockResolvedValue(
-        new ResponseModel<void>("tx-scale"),
-      );
-
-      const req = new RequestModel<{ serviceName: string; replicas: number }>(
-        "tx-scale",
-        {
-          serviceName: "ms_lang",
-          replicas: 3,
-        },
-      );
-
-      const res = await useCase.scaleMicroService(req);
-      expect(res.errorCode).toBeUndefined();
-      expect(mockMicroServiceRepository.scaleMicroService).toHaveBeenCalledWith(
-        req,
-      );
-    });
+        expect(res.errorCode).toBe(DomainErrorCodes.NOT_IMPLEMENTED);
+        expect(res.message).toBe(SCALING_NOT_AVAILABLE);
+        expect(SCALING_NOT_AVAILABLE).toBe(
+          "Scaling is not available: the number of replicas is set in the server's compose file.",
+        );
+      },
+    );
   });
 
   describe("updateConfiguration", () => {
