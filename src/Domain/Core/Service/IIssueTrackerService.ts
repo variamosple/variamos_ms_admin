@@ -42,5 +42,18 @@ export interface IIssueTrackerService {
     issueNumber: number,
     token: string,
   ): Promise<boolean>;
+  addLabels(
+    repo: string,
+    issueNumber: number,
+    labels: string[],
+    token: string,
+  ): Promise<boolean>;
+  /** Succeeds when the label is already absent. */
+  removeLabel(
+    repo: string,
+    issueNumber: number,
+    label: string,
+    token: string,
+  ): Promise<boolean>;
   getIssues(repo: string, token: string): Promise<GitHubIssue[] | null>;
 }

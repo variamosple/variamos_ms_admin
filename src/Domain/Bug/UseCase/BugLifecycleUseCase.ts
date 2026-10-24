@@ -1,6 +1,13 @@
 import logger from "jet-logger";
+import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
+import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
+import {
+  canChangeStatus,
+  IN_PROGRESS_LABEL,
+  isIssueOpen,
+} from "#src/Domain/Bug/Entity/BugStatus.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
 import type { GitHubTokenResolver } from "#src/Domain/Bug/Service/GitHubTokenResolver.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
@@ -9,6 +16,19 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { IIssueTrackerService } from "#src/Domain/Core/Service/IIssueTrackerService.js";
 import type { IStorageService } from "#src/Domain/Core/Service/IStorageService.js";
 
+interface StatusChange {
+  id: string;
+  status: string;
+  comment?: string;
+  adminId: string;
+  adminEmail?: string;
+  title?: string;
+  description?: string;
+  priority?: "low" | "medium" | "high";
+  category?: string;
+  githubRepo?: string;
+}
+
 export class BugLifecycleUseCase {
   public constructor(
     private readonly bugRepository: IBugRepository,
@@ -16,21 +36,11 @@ export class BugLifecycleUseCase {
     private readonly storageService: IStorageService,
     private readonly githubConfig: IBugTrackerConfig,
     private readonly tokenResolver: GitHubTokenResolver,
+    private readonly journal: IActivityJournal,
   ) {}
 
   public async updateStatus(
-    request: RequestModel<{
-      id: string;
-      status: string;
-      comment?: string;
-      adminId: string;
-      adminEmail?: string;
-      title?: string;
-      description?: string;
-      priority?: "low" | "medium" | "high";
-      category?: string;
-      githubRepo?: string;
-    }>,
+    request: RequestModel<StatusChange>,
   ): Promise<ResponseModel<Bug>> {
     const data = request.data;
     if (!data) {
@@ -63,6 +73,36 @@ export class BugLifecycleUseCase {
 
     const bug = bugResponse.data;
 
+    if (!canChangeStatus(bug.status, data.status)) {
+      const response = new ResponseModel<Bug>(request.transactionId);
+      return response.withErrorPromise(
+        DomainErrorCodes.INVALID_INPUT,
+        `A bug cannot go from "${bug.status}" to "${data.status}".`,
+      );
+    }
+
+    return withJournal(
+      this.journal,
+      {
+        actorId: request.actorId ?? data.adminId,
+        action: "bug.status.update",
+        entityType: "bug",
+        entityId: bug.id,
+        before: { status: bug.status },
+        after: { status: data.status },
+        transactionId: request.transactionId,
+      },
+      () => this.changeStatus(request.transactionId, data, bug),
+    );
+  }
+
+  private async changeStatus(
+    transactionId: string | undefined,
+    data: StatusChange,
+    bug: Bug,
+  ): Promise<ResponseModel<Bug>> {
+    const previousStatus = bug.status;
+
     try {
       Bug.builder()
         .setTitle(data.title !== undefined ? data.title : bug.title)
@@ -72,7 +112,7 @@ export class BugLifecycleUseCase {
         .setPriority(data.priority !== undefined ? data.priority : bug.priority)
         .build();
     } catch (error) {
-      const response = new ResponseModel<Bug>(request.transactionId);
+      const response = new ResponseModel<Bug>(transactionId);
       return response.withErrorPromise(
         DomainErrorCodes.INVALID_INPUT,
         (error as Error).message,
@@ -164,17 +204,35 @@ export class BugLifecycleUseCase {
           gitIssueNumber = issueNum;
           githubHtmlUrl = `https://github.com/${bug.githubRepo}/issues/${issueNum}`;
         } else {
-          const response = new ResponseModel<Bug>(request.transactionId);
+          const response = new ResponseModel<Bug>(transactionId);
           return response.withErrorPromise(
             DomainErrorCodes.INVALID_INPUT,
             "Failed to push bug to GitHub repository. Please verify repository existence and permissions.",
           );
         }
       } else {
-        const response = new ResponseModel<Bug>(request.transactionId);
+        const response = new ResponseModel<Bug>(transactionId);
         return response.withErrorPromise(
           DomainErrorCodes.INVALID_INPUT,
           "GitHub integration token is not configured.",
+        );
+      }
+    }
+
+    // The issue follows the status before the database does: when GitHub
+    // refuses, nothing changes, and a synchronization cannot undo the status
+    if (bug.gitIssueNumber && bug.githubRepo) {
+      const synced = await this.applyStatusOnGitHub(
+        bug.githubRepo,
+        bug.gitIssueNumber,
+        previousStatus,
+        data.status,
+      );
+      if (!synced) {
+        const response = new ResponseModel<Bug>(transactionId);
+        return response.withErrorPromise(
+          DomainErrorCodes.INVALID_INPUT,
+          "The GitHub issue could not be updated; the status was not changed.",
         );
       }
     }
@@ -186,14 +244,14 @@ export class BugLifecycleUseCase {
     if (data.status === "open" && modifiedFields.length > 0) {
       const auditBody = `[Audit] The administrator modified the following fields:\n${modifiedFields.join("\n")}${approvalCommentStr}`;
       await this.bugRepository.createNote(
-        new RequestModel(request.transactionId, {
+        new RequestModel(transactionId, {
           bugId: bug.id,
           body: auditBody,
         }),
       );
     } else if (data.status === "open") {
       await this.bugRepository.createNote(
-        new RequestModel(request.transactionId, {
+        new RequestModel(transactionId, {
           bugId: bug.id,
           body: `[Audit] The bug was approved and sent to GitHub. The fields were not modified by the administrator.${approvalCommentStr}`,
         }),
@@ -201,7 +259,7 @@ export class BugLifecycleUseCase {
     }
 
     const dbResponse = await this.bugRepository.updateStatus(
-      new RequestModel(request.transactionId, {
+      new RequestModel(transactionId, {
         id: data.id,
         status: data.status,
         comment: data.comment,
@@ -216,32 +274,50 @@ export class BugLifecycleUseCase {
       }),
     );
 
-    if (
-      dbResponse.data &&
-      bug.githubRepo &&
-      (bug.gitIssueNumber || gitIssueNumber)
-    ) {
-      const gitHubToken = await this.tokenResolver.resolveGitHubToken(
-        bug.githubRepo,
-      );
-      const resolvedIssueNumber = bug.gitIssueNumber || gitIssueNumber;
-      if (gitHubToken && resolvedIssueNumber) {
-        if (data.status === "closed") {
-          await this.issueTrackerService.closeIssue(
-            bug.githubRepo,
-            resolvedIssueNumber,
-            gitHubToken,
-          );
-        } else if (data.status === "open" && bug.gitIssueNumber) {
-          await this.issueTrackerService.reopenIssue(
-            bug.githubRepo,
-            resolvedIssueNumber,
-            gitHubToken,
-          );
-        }
-      }
-    }
     return dbResponse;
+  }
+
+  private async applyStatusOnGitHub(
+    repo: string,
+    issueNumber: number,
+    from: string,
+    to: string,
+  ): Promise<boolean> {
+    const token = await this.tokenResolver.resolveGitHubToken(repo);
+    if (!token) return false;
+
+    const wasOpen = isIssueOpen(from);
+    const willBeOpen = isIssueOpen(to);
+    if (wasOpen && !willBeOpen) {
+      if (
+        !(await this.issueTrackerService.closeIssue(repo, issueNumber, token))
+      )
+        return false;
+    } else if (!wasOpen && willBeOpen) {
+      if (
+        !(await this.issueTrackerService.reopenIssue(repo, issueNumber, token))
+      )
+        return false;
+    }
+
+    // The label only refines an open issue: a failure is logged by the
+    // service and does not block the status
+    if (to === "in_progress") {
+      await this.issueTrackerService.addLabels(
+        repo,
+        issueNumber,
+        [IN_PROGRESS_LABEL],
+        token,
+      );
+    } else if (from === "in_progress") {
+      await this.issueTrackerService.removeLabel(
+        repo,
+        issueNumber,
+        IN_PROGRESS_LABEL,
+        token,
+      );
+    }
+    return true;
   }
 
   public async rejectBug(

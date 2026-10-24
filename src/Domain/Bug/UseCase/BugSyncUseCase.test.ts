@@ -1,10 +1,12 @@
 import logger from "jet-logger";
 import { type MockProxy, mock } from "vitest-mock-extended";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
+import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
 import type { GitHubTokenResolver } from "#src/Domain/Bug/Service/GitHubTokenResolver.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { INTERNAL_ERROR_MESSAGE } from "#src/Domain/Core/Error/InternalErrorMessage.js";
 import type {
   GitHubIssueLabel,
@@ -30,7 +32,20 @@ describe("BugSyncUseCase", () => {
       mockGithubConfig,
       mockTokenResolver,
     );
+    // No local bug yet for the synchronized repositories
+    mockBugRepository.queryBugs.mockResolvedValue(
+      new ResponseModel<Bug[]>("tx-1").withResponse([]),
+    );
   });
+
+  const localBug = (issueNumber: number, status: string) =>
+    Bug.builder()
+      .setTitle("Local")
+      .setDescription("Local")
+      .setStatus(status)
+      .setGithubRepo("Repo1")
+      .setGitIssueNumber(issueNumber)
+      .build();
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -402,6 +417,70 @@ describe("BugSyncUseCase", () => {
         }),
       }),
     );
+  });
+
+  it("keeps the finer local statuses and follows a close or a reopen on GitHub", async () => {
+    mockGithubConfig.getGitHubToken.mockReturnValue("pat-token");
+    mockGithubConfig.getGitHubManagedRepos.mockReturnValue(["Repo1"]);
+    mockTokenResolver.resolveGitHubToken.mockResolvedValue("token");
+    mockBugRepository.queryBugs.mockResolvedValue(
+      new ResponseModel<Bug[]>("tx-1").withResponse([
+        localBug(1, "in_progress"),
+        localBug(2, "resolved"),
+        localBug(3, "in_progress"),
+        localBug(4, "closed"),
+      ]),
+    );
+    const issue = (number: number, state: string) => ({
+      number,
+      title: "Issue",
+      body: "Body",
+      state,
+      created_at: "2026-07-13T00:00:00Z",
+    });
+    mockIssueTracker.getIssues.mockResolvedValue([
+      issue(1, "open"),
+      issue(2, "closed"),
+      issue(3, "closed"),
+      issue(4, "open"),
+    ]);
+    mockBugRepository.saveOrUpdateBug.mockResolvedValue(
+      new ResponseModel<{ created: boolean; updated: boolean }>(
+        "tx-1",
+      ).withResponse({ created: false, updated: true }),
+    );
+
+    await useCase.syncBugs(new RequestModel<void>("tx-1"));
+
+    const saved = mockBugRepository.saveOrUpdateBug.mock.calls.map(
+      ([request]) => request.data?.status,
+    );
+    expect(saved).toEqual(["in_progress", "resolved", "closed", "open"]);
+  });
+
+  it("skips a repository whose local bugs cannot be read", async () => {
+    mockGithubConfig.getGitHubToken.mockReturnValue("pat-token");
+    mockGithubConfig.getGitHubManagedRepos.mockReturnValue(["Repo1"]);
+    mockTokenResolver.resolveGitHubToken.mockResolvedValue("token");
+    mockIssueTracker.getIssues.mockResolvedValue([
+      {
+        number: 1,
+        title: "Issue",
+        body: "Body",
+        state: "closed",
+        created_at: "2026-07-13T00:00:00Z",
+      },
+    ]);
+    mockBugRepository.queryBugs.mockResolvedValue(
+      new ResponseModel<Bug[]>("tx-1").withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Failed",
+      ),
+    );
+
+    await useCase.syncBugs(new RequestModel<void>("tx-1"));
+
+    expect(mockBugRepository.saveOrUpdateBug).not.toHaveBeenCalled();
   });
 
   it("should map issue state to open or closed status correctly", async () => {

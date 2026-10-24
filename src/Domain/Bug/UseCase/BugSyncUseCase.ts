@@ -1,6 +1,8 @@
 import logger from "jet-logger";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
+import { BugFilter } from "#src/Domain/Bug/Entity/BugFilter.js";
+import { statusFromGitHub } from "#src/Domain/Bug/Entity/BugStatus.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
 import type { GitHubTokenResolver } from "#src/Domain/Bug/Service/GitHubTokenResolver.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
@@ -57,6 +59,19 @@ export class BugSyncUseCase {
         const issues = await this.issueTrackerService.getIssues(repo, token);
         if (!issues) continue;
 
+        // Without the local statuses, a synchronization would bring In
+        // Progress or Resolved back to open or closed: the repository waits
+        const localStatuses = await this.localStatusesOf(
+          repo,
+          request.transactionId,
+        );
+        if (!localStatuses) {
+          logger.warn(
+            `Local bugs of ${repo} could not be read. Skipping its synchronization.`,
+          );
+          continue;
+        }
+
         for (const issue of issues) {
           if (issue.pull_request) continue;
 
@@ -100,7 +115,9 @@ export class BugSyncUseCase {
             .setDescription(issue.body || "No description provided.")
             .setPriority(priority)
             .setCategory(category)
-            .setStatus(issue.state === "closed" ? "closed" : "open")
+            .setStatus(
+              statusFromGitHub(issue.state, localStatuses.get(issue.number)),
+            )
             .setGithubRepo(repo)
             .setGitIssueNumber(issue.number)
             .setGithubCreator(issue.user?.login || "System")
@@ -130,5 +147,20 @@ export class BugSyncUseCase {
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;
+  }
+
+  private async localStatusesOf(
+    repo: string,
+    transactionId: string | undefined,
+  ): Promise<Map<number, string> | null> {
+    const response = await this.bugRepository.queryBugs(
+      new RequestModel(transactionId, new BugFilter(repo)),
+    );
+    if (response.errorCode || !response.data) return null;
+    const statuses = new Map<number, string>();
+    for (const bug of response.data) {
+      if (bug.gitIssueNumber) statuses.set(bug.gitIssueNumber, bug.status);
+    }
+    return statuses;
   }
 }

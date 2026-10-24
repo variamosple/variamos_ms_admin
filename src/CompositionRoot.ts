@@ -238,6 +238,7 @@ export const productionBugLifecycleUseCase = new BugLifecycleUseCase(
   DiskStorageServiceInstance,
   bugTrackerConfig,
   productionGitHubTokenResolver,
+  ActivityJournalInstance,
 );
 
 export const productionBugSyncUseCase = new BugSyncUseCase(
