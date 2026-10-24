@@ -35,6 +35,9 @@ jobs:
           tags: ${{vars.ACR_DOKCERHUB}}/${{secrets.ACRUSERNAME_DOKCERHUB}}/variamos_ms_admin:main
           file: ./Dockerfile
 
+      - name: Record the deployment start
+        run: echo "DEPLOY_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
+
       - name: Deploy changes into the server
         uses: appleboy/ssh-action@master
         with:
@@ -67,3 +70,29 @@ jobs:
             docker compose --env-file .env.aws.develop -f docker-compose-aws-develop-nginx.yml pull variamos_ms_admin
             docker compose --env-file .env.aws.develop -f docker-compose-aws-develop-nginx.yml up -d variamos_ms_admin
             docker image prune -f
+
+      # Alert only (T-25, decision D6): a red run on main warns whoever merged;
+      # nothing is rolled back. The new container must answer the /health
+      # contract with UP, and have started after the deployment began.
+      - name: Check the deployed service answers
+        env:
+          HEALTH_URL: https://app.variamos.com/variamos_ms_admin/health
+          SERVICE_NAME: variamos_ms_admin
+        run: |
+          deadline=$(( $(date +%s) + 300 ))
+          while :; do
+            body=$(curl -sS --max-time 10 "$HEALTH_URL" || true)
+            # A container left from before this deployment has a longer uptime
+            max_uptime=$(( $(date +%s) - DEPLOY_STARTED_AT + 60 ))
+            if echo "$body" | jq -e --arg name "$SERVICE_NAME" --argjson max "$max_uptime" \
+              '.serviceName == $name and .status == "UP" and .uptimeSeconds <= $max' >/dev/null 2>&1; then
+              echo "$SERVICE_NAME is UP: $(echo "$body" | jq -c '{status, version, uptimeSeconds}')"
+              exit 0
+            fi
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "::error::$SERVICE_NAME did not answer UP from the new container within 5 minutes"
+              echo "Last answer: $(echo "$body" | head -c 500)"
+              exit 1
+            fi
+            sleep 10
+          done
