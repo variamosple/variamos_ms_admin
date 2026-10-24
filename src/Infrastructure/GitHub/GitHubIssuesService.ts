@@ -92,7 +92,9 @@ export class GitHubIssuesService implements IIssueTrackerService {
     try {
       await axios.patch(
         url,
-        { state: "closed" },
+        // A bug is closed once fixed: "not planned" is not used, a rejected
+        // bug never reaches GitHub
+        { state: "closed", state_reason: "completed" },
         { headers: this.getHeaders(token) },
       );
       return true;
@@ -121,6 +123,46 @@ export class GitHubIssuesService implements IIssueTrackerService {
     } catch (error) {
       const err = error as GitHubError;
       logger.err(`GitHub error [reopenIssue] on ${repo}:`);
+      logger.err(err.response?.data || err.message || "Unknown error");
+      return false;
+    }
+  }
+
+  public async addLabels(
+    repo: string,
+    issueNumber: number,
+    labels: string[],
+    token: string,
+  ): Promise<boolean> {
+    const url = `https://api.github.com/repos/${repo}/issues/${issueNumber}/labels`;
+
+    try {
+      await axios.post(url, { labels }, { headers: this.getHeaders(token) });
+      return true;
+    } catch (error) {
+      const err = error as GitHubError;
+      logger.err(`GitHub error [addLabels] on ${repo}:`);
+      logger.err(err.response?.data || err.message || "Unknown error");
+      return false;
+    }
+  }
+
+  public async removeLabel(
+    repo: string,
+    issueNumber: number,
+    label: string,
+    token: string,
+  ): Promise<boolean> {
+    const url = `https://api.github.com/repos/${repo}/issues/${issueNumber}/labels/${encodeURIComponent(label)}`;
+
+    try {
+      await axios.delete(url, { headers: this.getHeaders(token) });
+      return true;
+    } catch (error) {
+      const err = error as GitHubError & { response?: { status?: number } };
+      // 404: the label was not on the issue, which is the expected end state
+      if (err.response?.status === 404) return true;
+      logger.err(`GitHub error [removeLabel] on ${repo}:`);
       logger.err(err.response?.data || err.message || "Unknown error");
       return false;
     }
