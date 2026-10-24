@@ -8,6 +8,8 @@ export enum DomainErrorCodes {
   MFA_REQUIRED = "MFA_REQUIRED",
   TOO_MANY_REQUESTS = "TOO_MANY_REQUESTS",
   UNAVAILABLE = "UNAVAILABLE",
+  // A feature the API exposes but does not provide; retrying will not help
+  NOT_IMPLEMENTED = "NOT_IMPLEMENTED",
   // A precise code, for a screen that reacts to this case (T-16)
   PASSWORD_REUSED = "PASSWORD_REUSED",
 }

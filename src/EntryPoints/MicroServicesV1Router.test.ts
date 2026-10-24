@@ -556,36 +556,26 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
   });
 
   describe("PUT /v1/micro-services/:name/scale", () => {
-    it("should return 200 when scaling succeeds", async () => {
-      const expectedResponse = new ResponseModel("scaleMicroService");
+    it("answers 501 with the reason: scaling is not provided (D3)", async () => {
       (
         MicroServiceManagementUseCase.prototype.scaleMicroService as vi.Mock
-      ).mockResolvedValue(expectedResponse);
+      ).mockResolvedValue(
+        new ResponseModel("scaleMicroService").withError(
+          DomainErrorCodes.NOT_IMPLEMENTED,
+          "Scaling is not available: the number of replicas is set in the server's compose file.",
+        ),
+      );
 
       const response = await supertest(app)
         .put("/v1/micro-services/ms-auth/scale")
         .send({ replicas: 3 });
 
-      expect(response.status).toBe(HttpStatusCodes.OK);
-    });
-
-    it("should return 400 when domain rejects invalid replicas count", async () => {
-      const expectedResponse = new ResponseModel("scaleMicroService").withError(
-        DomainErrorCodes.INVALID_INPUT,
-        "Replicas count must be between 0 and 10.",
-      );
-      (
-        MicroServiceManagementUseCase.prototype.scaleMicroService as vi.Mock
-      ).mockResolvedValue(expectedResponse);
-
-      const response = await supertest(app)
-        .put("/v1/micro-services/ms-auth/scale")
-        .send({ replicas: 50 });
-
-      expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
-      expect(response.body.message).toBe(
-        "Replicas count must be between 0 and 10.",
-      );
+      expect(response.status).toBe(HttpStatusCodes.NOT_IMPLEMENTED);
+      expect(response.body).toMatchObject({
+        errorCode: DomainErrorCodes.NOT_IMPLEMENTED,
+        message:
+          "Scaling is not available: the number of replicas is set in the server's compose file.",
+      });
     });
 
     it("should return 500 when scaling throws an unexpected error", async () => {

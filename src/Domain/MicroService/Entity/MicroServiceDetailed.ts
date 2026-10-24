@@ -1,6 +1,6 @@
 import type { Labels } from "./MicroService.js";
 import type {
-  MicroServiceHealthInfo,
+  MicroServiceStatusInfo,
   MicroServiceUptimeSummary,
 } from "./MicroServiceHealth.js";
 
@@ -17,7 +17,7 @@ export class MicroServiceDetailed {
   public constructor(
     public readonly serviceName: string,
     public readonly displayName: string,
-    public readonly health: MicroServiceHealthInfo,
+    public readonly health: MicroServiceStatusInfo,
     public readonly replicasCount: number,
     public readonly containers: ContainerInstanceInfo[],
     public readonly uptimeSummary?: MicroServiceUptimeSummary,

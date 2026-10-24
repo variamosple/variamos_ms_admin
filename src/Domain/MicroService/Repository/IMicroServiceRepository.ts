@@ -34,10 +34,6 @@ export interface IMicroServiceRepository {
     actorId: string,
   ): Promise<ResponseModel<void>>;
 
-  scaleMicroService(
-    request: RequestModel<{ serviceName: string; replicas: number }>,
-  ): Promise<ResponseModel<void>>;
-
   watchMicroServiceLogs(
     request: RequestModel<string>,
   ): Promise<ResponseModel<NodeJS.ReadableStream>>;
