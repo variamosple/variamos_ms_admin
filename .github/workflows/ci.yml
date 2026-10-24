@@ -66,7 +66,17 @@ jobs:
 
     - name: Run Docker container smoke test
       run: |
-        docker run -d --name test-app -p 4000:4000 backend-test
+        # Without its secrets, the image must refuse to start (EV-69)
+        code=0; timeout 60 docker run --rm backend-test || code=$?
+        if [ "$code" -ne 1 ]; then
+          echo "Error: without its secrets, the container must stop with code 1 (got $code)"
+          exit 1
+        fi
+        # With placeholder values, it must keep running (it waits for the database)
+        docker run -d --name test-app -p 4000:4000 \
+          -e DB_HOST=db -e DB_USER=ci -e DB_PASSWORD=ci -e DB_DATABASE=ci \
+          -e NOTIFICATION_INTERNAL_TOKEN=ci -e VARIAMOS_PRIVATE_KEY_PATH=ci.key \
+          backend-test
         sleep 5
         if [ "$(docker inspect -f '{{.State.Running}}' test-app)" != "true" ]; then
           echo "Error: Container crashed on startup!"

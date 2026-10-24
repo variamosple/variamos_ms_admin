@@ -10,7 +10,7 @@ export default {
   DB: {
     USER: process.env.DB_USER ?? "db_user_test",
     HOST: process.env.DB_HOST ?? "db_host_test",
-    PASSWORD: process.env.DB_PASSWORD ?? "db_password_test",
+    PASSWORD: process.env.DB_PASSWORD ?? "",
     DATABASE: process.env.DB_DATABASE ?? "db_database_test",
     PORT: process.env.DB_PORT ?? 5432,
     SSL: process.env.DB_SSL === "true",
@@ -80,7 +80,6 @@ export default {
   NOTIFICATION: {
     SERVICE_URL:
       process.env.NOTIFICATION_SERVICE_URL ?? "http://localhost:3000",
-    INTERNAL_TOKEN:
-      process.env.NOTIFICATION_INTERNAL_TOKEN ?? "dev-secret-token-12345678",
+    INTERNAL_TOKEN: process.env.NOTIFICATION_INTERNAL_TOKEN ?? "",
   },
 } as const;
