@@ -11,7 +11,7 @@
     "lint:diff:fix": "biome check --write --changed src/",
     "lint:fix": "biome check --write --unsafe src/",
     "fix:all": "biome check --write src/",
-    "start": "node --env-file=env/production.env ./dist/index.js --env=production",
+    "start": "node --env-file-if-exists=env/production.env ./dist/index.js --env=production",
     "dev": "node --env-file=env/development.env --conditions=variamos-dev --import tsx --watch src/index.ts",
     "test": "node --env-file=env/test.env ./node_modules/vitest/vitest.mjs run",
     "test:unit": "node --env-file=env/test.env ./node_modules/vitest/vitest.mjs run src/Domain",
