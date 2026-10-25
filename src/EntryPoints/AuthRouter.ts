@@ -74,17 +74,17 @@ export function createAuthRouter(
   const isExternalDomain = (host?: string): boolean =>
     !!host && !HOME_URL_HOST_REGEX.test(host);
 
-  const isAllowedOrigin = (origin: string): boolean => {
-    if ("null" === origin) {
-      return true;
-    }
+  const isAllowedOrigin = (origin: string): boolean =>
+    EnvVars.CORS.AllowedOriginsPatterns.findIndex((pattern) =>
+      pattern.test(origin),
+    ) !== -1;
 
-    return (
-      EnvVars.CORS.AllowedOriginsPatterns.findIndex((pattern) =>
-        pattern.test(origin),
-      ) !== -1
-    );
-  };
+  // A page to go back to after sign-in: a web address of an allowed site.
+  // A javascript: or data: address has the origin "null"; given to the
+  // browser, a javascript: one would run its script on the sign-in site.
+  const isAllowedRedirect = (redirect: URL): boolean =>
+    (redirect.protocol === "http:" || redirect.protocol === "https:") &&
+    isAllowedOrigin(redirect.origin);
 
   const getRedirectUrl = (
     transactionId: string,
@@ -116,7 +116,7 @@ export function createAuthRouter(
     try {
       const redirect = new URL(url);
 
-      return isAllowedOrigin(redirect.origin) ? redirect : undefined;
+      return isAllowedRedirect(redirect) ? redirect : undefined;
     } catch (error) {
       // The query string or fragment may carry a token: never log them
       const urlWithoutQuery = url.split(/[?#]/)[0]?.slice(0, 200);
@@ -886,7 +886,7 @@ export function createAuthRouter(
 
     try {
       const redirect = new URL(url);
-      isAllowed = isAllowedOrigin(redirect.origin);
+      isAllowed = isAllowedRedirect(redirect);
     } catch (error) {
       logger.err(`POST: ${AUTH_ROUTE}/redirects Invalid redirect URL:`);
       logger.err(error as Error);
