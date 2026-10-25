@@ -117,6 +117,41 @@ function maskReporterEmails(
   );
 }
 
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
+
+/** The page of a bug list, or null when the query string asks for none valid. */
+function pageOf(
+  query: Request["query"],
+): { pageNumber: number; pageSize: number } | null {
+  const read = (value: unknown, fallback: number, max: number) => {
+    if (value === undefined || value === "") return fallback;
+    const parsed = Number(value);
+    return typeof value === "string" &&
+      Number.isInteger(parsed) &&
+      parsed >= 1 &&
+      parsed <= max
+      ? parsed
+      : null;
+  };
+  const pageNumber = read(query.pageNumber, 1, Number.MAX_SAFE_INTEGER);
+  const pageSize = read(query.pageSize, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
+  return pageNumber === null || pageSize === null
+    ? null
+    : { pageNumber, pageSize };
+}
+
+function sendInvalidPage(res: Response, transactionId: string): void {
+  res
+    .status(HttpStatusCodes.BAD_REQUEST)
+    .json(
+      new ResponseModel(transactionId).withError(
+        DomainErrorCodes.INVALID_INPUT,
+        `pageNumber and pageSize are whole numbers from 1, pageSize at most ${MAX_PAGE_SIZE}.`,
+      ),
+    );
+}
+
 export function createBugRouter(
   bugSubmissionUseCase: BugSubmissionUseCase,
   bugLifecycleUseCase: BugLifecycleUseCase,
@@ -136,6 +171,11 @@ export function createBugRouter(
     hasPermissions(["bugs::query"]),
     async (req: Request, res: Response) => {
       const transactionId = "queryBugs";
+      const page = pageOf(req.query);
+      if (!page) {
+        sendInvalidPage(res, transactionId);
+        return;
+      }
       const { repo, status, priority, search, assignee, component } = req.query;
       try {
         const filter = new BugFilter(
@@ -146,6 +186,8 @@ export function createBugRouter(
           undefined,
           typeof assignee === "string" && assignee ? assignee : undefined,
           component as string,
+          page.pageNumber,
+          page.pageSize,
         );
         const request = new RequestModel<BugFilter>(transactionId, filter);
         const response = await bugQueryUseCase.queryBugs(request);
@@ -166,6 +208,11 @@ export function createBugRouter(
     hasPermissions(["bugs::query"]),
     async (req: Request, res: Response) => {
       const transactionId = "queryLocalBugs";
+      const page = pageOf(req.query);
+      if (!page) {
+        sendInvalidPage(res, transactionId);
+        return;
+      }
       const { repo, status, priority, search, component } = req.query;
       try {
         const filter = new BugFilter(
@@ -176,6 +223,8 @@ export function createBugRouter(
           undefined,
           undefined,
           component as string,
+          page.pageNumber,
+          page.pageSize,
         );
         const request = new RequestModel<BugFilter>(transactionId, filter);
         const response = await bugQueryUseCase.queryLocalBugs(request);
