@@ -1,5 +1,8 @@
 import axios from "axios";
 import logger from "jet-logger";
+import { Op } from "sequelize";
+import type { HealthLogStatistics } from "#src/DataProviders/MicroService/HealthLogStatistics.js";
+import { MicroServiceHealthLogModel } from "#src/DataProviders/MicroService/MicroServiceHealthLogModel.js";
 import type { ServiceDefinition } from "#src/DataProviders/MicroService/MicroServiceRepository.js";
 import type { MicroServiceHealthInfo } from "#src/Domain/MicroService/Entity/MicroServiceHealth.js";
 import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repository/IMicroServiceRepository.js";
@@ -169,5 +172,39 @@ describe("HealthCheckCollector.checkService", () => {
     expect(info.status).toBe("UP");
     expect(signals.length).toBeGreaterThan(1);
     expect(signals.every((signal) => signal.aborted)).toBe(true);
+  });
+});
+
+describe("HealthCheckCollector.runDailyAggregationAndPurge", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("saves the complete days still whole, then purges the older checks", async () => {
+    const aggregateDays = vi.fn().mockResolvedValue(58);
+    const destroy = vi
+      .spyOn(MicroServiceHealthLogModel, "destroy")
+      .mockResolvedValue(2880);
+    const collector = new HealthCheckCollector(
+      {} as IMicroServiceRepository,
+      30000,
+      4,
+      { aggregateDays } as unknown as HealthLogStatistics,
+    );
+
+    const outcome = await collector.runDailyAggregationAndPurge(
+      30,
+      new Date("2026-10-25T09:30:00.000Z"),
+    );
+
+    // 25 September is already partly purged; 25 October is not over
+    expect(aggregateDays).toHaveBeenCalledWith(
+      new Date("2026-09-26T00:00:00.000Z"),
+      new Date("2026-10-25T00:00:00.000Z"),
+    );
+    expect(destroy.mock.calls[0]?.[0]?.where).toEqual({
+      checkedAt: { [Op.lt]: new Date("2026-09-25T09:30:00.000Z") },
+    });
+    expect(outcome).toEqual({ aggregatedDays: 58, purgedLogs: 2880 });
   });
 });

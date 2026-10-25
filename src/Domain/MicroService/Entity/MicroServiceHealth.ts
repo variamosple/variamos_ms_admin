@@ -42,7 +42,8 @@ export interface MicroServiceStatusInfo
 
 export interface UptimeHistorySlot {
   timestamp: Date;
-  status: HealthStatus;
+  // NO_DATA: no check during the slot
+  status: ServiceStatus;
   responseTimeMs: number;
   uptimePercentage: number;
 }

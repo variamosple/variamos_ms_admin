@@ -155,6 +155,7 @@ describe("createMigrator", () => {
       "0006-admin-access-logs",
       "0007-bug-assignees",
       "0008-bug-severity-component",
+      "0009-health-log-indexes",
     ]);
   });
 });

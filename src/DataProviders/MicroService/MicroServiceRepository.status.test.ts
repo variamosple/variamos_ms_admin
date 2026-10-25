@@ -1,6 +1,8 @@
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { MicroServiceFilter } from "#src/Domain/MicroService/Entity/MicroServiceFilter.js";
 import { AesGcmSecretCipher } from "#src/Infrastructure/Security/AesGcmSecretCipher.js";
 import { SecretConfigurationValue } from "../Configuration/SecretConfigurationValue.js";
+import type { HealthLogStatistics } from "./HealthLogStatistics.js";
 import { MicroServiceHealthLogModel } from "./MicroServiceHealthLogModel.js";
 import { MicroServiceRepositoryImpl } from "./MicroServiceRepository.js";
 
@@ -21,6 +23,11 @@ describe("MicroServiceRepositoryImpl.queryByName status", () => {
     repository = new MicroServiceRepositoryImpl({
       socketPath: "/nonexistent/docker.sock",
       secrets: new SecretConfigurationValue(new AesGcmSecretCipher(null)),
+      // No check in the uptime period
+      statistics: {
+        uptimeCounts: vi.fn().mockResolvedValue(new Map()),
+        lastStatuses: vi.fn().mockResolvedValue(new Map()),
+      } as unknown as HealthLogStatistics,
     });
     // Discovery and Docker are replaced by one running container
     vi.spyOn(
@@ -41,7 +48,6 @@ describe("MicroServiceRepositoryImpl.queryByName status", () => {
       ).dockerConnection,
       "listContainers",
     ).mockResolvedValue([runningContainer]);
-    vi.spyOn(MicroServiceHealthLogModel, "findAll").mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -78,5 +84,59 @@ describe("MicroServiceRepositoryImpl.queryByName status", () => {
       responseTimeMs: 812,
       checkedAt,
     });
+  });
+});
+
+/** The list asks Docker and PostgreSQL once for all its services (EV-101). */
+describe("MicroServiceRepositoryImpl.queryMicroServices", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("lists the containers once and reads the uptime of every service in one go", async () => {
+    const container = (name: string) => ({
+      Id: `id-${name}`,
+      Names: [`/${name}`],
+      State: "running",
+      Status: "Up 2 hours",
+      Created: 1_700_000_000,
+      Labels: {
+        "variamos.service.monitored": "true",
+        "variamos.service.name": name,
+      },
+    });
+    const uptimeCounts = vi.fn().mockResolvedValue(new Map());
+    const repository = new MicroServiceRepositoryImpl({
+      socketPath: "/nonexistent/docker.sock",
+      secrets: new SecretConfigurationValue(new AesGcmSecretCipher(null)),
+      statistics: {
+        uptimeCounts,
+        lastStatuses: vi.fn().mockResolvedValue(new Map()),
+      } as unknown as HealthLogStatistics,
+    });
+    const listContainers = vi
+      .spyOn(
+        (
+          repository as unknown as {
+            dockerConnection: { listContainers: () => unknown };
+          }
+        ).dockerConnection,
+        "listContainers",
+      )
+      .mockResolvedValue([container("ms_auth"), container("ms_bugs")]);
+    vi.spyOn(MicroServiceHealthLogModel, "findOne").mockResolvedValue(null);
+
+    const { data } = await repository.queryMicroServices(
+      new RequestModel("tx", new MicroServiceFilter()),
+    );
+
+    expect(data?.map((service) => service.serviceName)).toEqual([
+      "ms_auth",
+      "ms_bugs",
+    ]);
+    expect(data?.map((service) => service.containers.length)).toEqual([1, 1]);
+    expect(listContainers).toHaveBeenCalledTimes(1);
+    expect(uptimeCounts).toHaveBeenCalledTimes(1);
+    expect(uptimeCounts.mock.calls[0]?.[0]).toEqual(["ms_auth", "ms_bugs"]);
   });
 });

@@ -13,20 +13,24 @@ import {
 } from "#src/Domain/MicroService/Entity/MicroServiceDetailed.js";
 import type { MicroServiceFilter } from "#src/Domain/MicroService/Entity/MicroServiceFilter.js";
 import {
-  type HealthStatus,
   type MicroServiceHealthInfo,
   type MicroServiceStatusInfo,
   type MicroServiceUptimeSummary,
   resolveServiceStatus,
-  type UptimeHistorySlot,
 } from "#src/Domain/MicroService/Entity/MicroServiceHealth.js";
 import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 import { refuseConfigurationUpdate } from "#src/Domain/MicroService/Service/ConfigurationUpdateRule.js";
+import {
+  buildUptimeSummary,
+  uptimeWindow,
+} from "#src/Domain/MicroService/Service/UptimeSummary.js";
+import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 import {
   ConfigurationModel,
   type ConfigurationValue,
 } from "../Configuration/Configuration.js";
 import type { SecretConfigurationValue } from "../Configuration/SecretConfigurationValue.js";
+import { HealthLogStatistics } from "./HealthLogStatistics.js";
 import { MicroServiceAuditLogModel } from "./MicroServiceAuditLogModel.js";
 import { MicroServiceHealthLogModel } from "./MicroServiceHealthLogModel.js";
 
@@ -69,15 +73,19 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
   };
 
   private readonly secrets: SecretConfigurationValue;
+  private readonly statistics: HealthLogStatistics;
 
   public constructor(config: {
     socketPath: string;
     secrets: SecretConfigurationValue;
+    statistics?: HealthLogStatistics;
   }) {
     this.dockerConnection = new Docker({
       socketPath: config.socketPath,
     });
     this.secrets = config.secrets;
+    this.statistics =
+      config.statistics ?? new HealthLogStatistics(VARIAMOS_ORM, DB_SCHEMA);
   }
 
   /** The value as text, in clear; the mask when a secret cannot be decrypted. */
@@ -107,13 +115,18 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
 
   /**
    * Discover service definitions dynamically from Docker containers using labels
-   * or compose metadata.
+   * or compose metadata. A caller that already listed the containers passes
+   * them: Docker is then not asked twice.
    */
-  public async discoverServiceDefinitions(): Promise<ServiceDefinition[]> {
+  public async discoverServiceDefinitions(
+    listedContainers?: Docker.ContainerInfo[],
+  ): Promise<ServiceDefinition[]> {
     try {
-      const containers = await this.dockerConnection.listContainers({
-        all: true,
-      });
+      const containers =
+        listedContainers ??
+        (await this.dockerConnection.listContainers({
+          all: true,
+        }));
       const discoveredMap = new Map<string, ServiceDefinition>();
 
       for (const c of containers) {
@@ -195,22 +208,33 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         logger.warn(`Docker listContainers warning: ${(err as Error).message}`);
       }
 
-      const discoveredDefs = await this.discoverServiceDefinitions();
-      const services: MicroServiceDetailed[] = [];
+      const nameFilter = filter?.name?.toLowerCase();
+      const discoveredDefs = (
+        await this.discoverServiceDefinitions(containers)
+      ).filter(
+        (def) =>
+          !nameFilter ||
+          def.displayName.toLowerCase().includes(nameFilter) ||
+          def.name.toLowerCase().includes(nameFilter),
+      );
       const matchedContainerIds = new Set<string>();
 
-      const serviceResults = await Promise.all(
-        discoveredDefs.map(async (def) => {
-          if (
-            filter?.name &&
-            !def.displayName
-              .toLowerCase()
-              .includes(filter.name.toLowerCase()) &&
-            !def.name.toLowerCase().includes(filter.name.toLowerCase())
-          ) {
-            return null;
-          }
+      // One query for the uptime of every listed service
+      const uptimeSummaries = new Map(
+        (
+          await this.uptimeSummaries(
+            discoveredDefs.map((def) => def.name),
+          ).catch((err) => {
+            logger.warn(
+              `Could not calculate uptime summaries: ${(err as Error).message}`,
+            );
+            return [];
+          })
+        ).map((summary) => [summary.serviceName, summary]),
+      );
 
+      const services = await Promise.all(
+        discoveredDefs.map(async (def) => {
           // Match containers belonging to this service by label, compose name or pattern
           const matchedContainers = containers.filter((c) => {
             const labels = c.Labels || {};
@@ -245,24 +269,16 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
             }),
           );
 
-          // Concurrently fetch latest health log and calculate uptime summary
-          const [latestHealthLog, uptimeSummary] = await Promise.all([
-            MicroServiceHealthLogModel.findOne({
-              where: { serviceName: def.name },
-              order: [["checked_at", "DESC"]],
-            }).catch((err) => {
-              logger.warn(
-                `Could not query latest health log: ${(err as Error).message}`,
-              );
-              return null;
-            }),
-            this.calculateUptimeSummary(def.name).catch((err) => {
-              logger.warn(
-                `Could not calculate uptime summary: ${(err as Error).message}`,
-              );
-              return undefined;
-            }),
-          ]);
+          const latestHealthLog = await MicroServiceHealthLogModel.findOne({
+            where: { serviceName: def.name },
+            order: [["checked_at", "DESC"]],
+          }).catch((err) => {
+            logger.warn(
+              `Could not query latest health log: ${(err as Error).message}`,
+            );
+            return null;
+          });
+          const uptimeSummary = uptimeSummaries.get(def.name);
 
           const status = resolveServiceStatus(
             containerInfos,
@@ -290,12 +306,6 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         }),
       );
 
-      for (const res of serviceResults) {
-        if (res) {
-          services.push(res);
-        }
-      }
-
       response.data = services;
       response.totalCount = services.length;
     } catch (error) {
@@ -319,7 +329,14 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
     const serviceName = request.data;
 
     try {
-      const discoveredDefs = await this.discoverServiceDefinitions();
+      let containers: Docker.ContainerInfo[] = [];
+      try {
+        containers = await this.dockerConnection.listContainers({ all: true });
+      } catch (err) {
+        logger.warn(`Docker connection warning: ${(err as Error).message}`);
+      }
+
+      const discoveredDefs = await this.discoverServiceDefinitions(containers);
       const def = discoveredDefs.find(
         (s) =>
           s.name.toLowerCase() === serviceName?.toLowerCase() ||
@@ -331,13 +348,6 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
           DomainErrorCodes.ENTITY_NOT_FOUND,
           `Service ${serviceName} not found`,
         );
-      }
-
-      let containers: Docker.ContainerInfo[] = [];
-      try {
-        containers = await this.dockerConnection.listContainers({ all: true });
-      } catch (err) {
-        logger.warn(`Docker connection warning: ${(err as Error).message}`);
       }
 
       const matchedContainers = containers.filter((c) => {
@@ -385,7 +395,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         checkedAt: latestHealthLog?.checkedAt,
       };
 
-      const uptimeSummary = await this.calculateUptimeSummary(def.name);
+      const [uptimeSummary] = await this.uptimeSummaries([def.name]);
 
       response.data = new MicroServiceDetailed(
         def.name,
@@ -634,8 +644,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
     }
     try {
       const { serviceName, days = 30 } = request.data;
-      const summary = await this.calculateUptimeSummary(serviceName, days);
-      response.data = summary;
+      [response.data] = await this.uptimeSummaries([serviceName], days);
     } catch (error) {
       logger.err(error);
       response.withError(
@@ -881,101 +890,23 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
     return response;
   }
 
-  private async calculateUptimeSummary(
-    serviceName: string,
-    days: number = 30,
-  ): Promise<MicroServiceUptimeSummary> {
-    const sinceDate = new Date();
-    sinceDate.setDate(sinceDate.getDate() - days);
-
-    const logs = await MicroServiceHealthLogModel.findAll({
-      where: {
-        serviceName,
-        checkedAt: { [Op.gte]: sinceDate },
-      },
-      order: [["checked_at", "ASC"]],
-    });
-
-    if (logs.length === 0) {
-      return {
-        serviceName,
-        currentStatus: "NO_DATA",
-        uptime24hPercentage: 100,
-        uptime30dPercentage: 100,
-        averageResponseTimeMs: 0,
-        history: [],
-      };
-    }
-
-    const upLogs = logs.filter((l) => l.status === "UP");
-    const uptime30d = Number(((upLogs.length / logs.length) * 100).toFixed(2));
-
-    const dayAgo = new Date();
-    dayAgo.setDate(dayAgo.getDate() - 1);
-    const recentLogs = logs.filter((l) => new Date(l.checkedAt) >= dayAgo);
-    const recentUpLogs = recentLogs.filter((l) => l.status === "UP");
-    const uptime24h =
-      recentLogs.length > 0
-        ? Number(((recentUpLogs.length / recentLogs.length) * 100).toFixed(2))
-        : 100;
-
-    const totalResponseTime = logs.reduce(
-      (acc, l) => acc + l.responseTimeMs,
-      0,
+  /** Uptime of the services over the last `days` days, computed by PostgreSQL. */
+  private async uptimeSummaries(
+    serviceNames: string[],
+    days = 30,
+  ): Promise<MicroServiceUptimeSummary[]> {
+    const window = uptimeWindow(days);
+    const [counts, lastStatuses] = await Promise.all([
+      this.statistics.uptimeCounts(serviceNames, window),
+      this.statistics.lastStatuses(serviceNames, window.since),
+    ]);
+    return serviceNames.map((name) =>
+      buildUptimeSummary(
+        name,
+        counts.get(name) ?? [],
+        lastStatuses.get(name),
+        window,
+      ),
     );
-    const avgLatency = Math.round(totalResponseTime / logs.length);
-
-    // Group logs into 30 slots for the UI bar
-    const slotsCount = 30;
-    const history: UptimeHistorySlot[] = [];
-    const stepMs = (Date.now() - sinceDate.getTime()) / slotsCount;
-
-    for (let i = 0; i < slotsCount; i++) {
-      const slotStart = new Date(sinceDate.getTime() + i * stepMs);
-      const slotEnd = new Date(sinceDate.getTime() + (i + 1) * stepMs);
-      const slotLogs = logs.filter(
-        (l) =>
-          new Date(l.checkedAt) >= slotStart && new Date(l.checkedAt) < slotEnd,
-      );
-
-      if (slotLogs.length === 0) {
-        history.push({
-          timestamp: slotStart,
-          status: "UP",
-          responseTimeMs: 0,
-          uptimePercentage: 100,
-        });
-      } else {
-        const slotUp = slotLogs.filter((l) => l.status === "UP");
-        const slotAvgLatency = Math.round(
-          slotLogs.reduce((acc, l) => acc + l.responseTimeMs, 0) /
-            slotLogs.length,
-        );
-        const slotStatus: HealthStatus =
-          slotUp.length === slotLogs.length
-            ? "UP"
-            : slotUp.length > 0
-              ? "DEGRADED"
-              : "DOWN";
-
-        history.push({
-          timestamp: slotStart,
-          status: slotStatus,
-          responseTimeMs: slotAvgLatency,
-          uptimePercentage: Number(
-            ((slotUp.length / slotLogs.length) * 100).toFixed(1),
-          ),
-        });
-      }
-    }
-
-    return {
-      serviceName,
-      currentStatus: logs[logs.length - 1]?.status ?? "NO_DATA",
-      uptime24hPercentage: uptime24h,
-      uptime30dPercentage: uptime30d,
-      averageResponseTimeMs: avgLatency,
-      history,
-    };
   }
 }
