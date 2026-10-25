@@ -39,6 +39,7 @@ export interface UptimeSlotCount {
   slot: number;
   checks: number;
   upChecks: number;
+  downChecks: number;
   latencySumMs: number;
   // Checks of the last 24 hours
   recentChecks: number;
@@ -82,14 +83,16 @@ export function buildUptimeSummary(
           uptimePercentage: 0,
         };
       }
+      // DOWN only when every check failed: a service that answers badly is
+      // degraded, not stopped
       return {
         timestamp,
         status:
           count.upChecks === count.checks
             ? "UP"
-            : count.upChecks > 0
-              ? "DEGRADED"
-              : "DOWN",
+            : count.downChecks === count.checks
+              ? "DOWN"
+              : "DEGRADED",
         responseTimeMs: Math.round(count.latencySumMs / count.checks),
         uptimePercentage: percentage(count.upChecks, count.checks, 1),
       };
