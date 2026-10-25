@@ -21,6 +21,10 @@ import {
 import { ACTIVITY_LOG_TABLE } from "./0005-admin-activity-logs.js";
 import { ACCESS_LOG_TABLE } from "./0006-admin-access-logs.js";
 import { BUG_ASSIGNEES_TABLE } from "./0007-bug-assignees.js";
+import {
+  DAILY_STATS_KEY,
+  HEALTH_LOG_INDEX,
+} from "./0009-health-log-indexes.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 import {
   ADMIN_MIGRATIONS,
@@ -215,7 +219,12 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
       `INSERT INTO "t07_prod"."bugs" ("title", "description", "priority")
        VALUES ('Crash', 'On save', 'high')`,
     );
-    const before = await structureOf("t07_prod", ["bugs"]);
+    // 0009 adds an index and a key to the health tables, tested on their own
+    const healthTables = [
+      "microservice_health_logs",
+      "microservice_daily_stats",
+    ];
+    const before = await structureOf("t07_prod", ["bugs", ...healthTables]);
     const bugColumns = await columnsOf("t07_prod", "bugs");
 
     expect(await migrate("t07_prod")).toEqual(ALL_MIGRATIONS);
@@ -225,6 +234,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
     expect(
       await structureOf("t07_prod", [
         "bugs",
+        ...healthTables,
         ...USER_MFA_TABLES,
         TRUSTED_DEVICE_TABLE,
         ACTIVITY_LOG_TABLE,
@@ -335,6 +345,51 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         },
       ),
     ).toEqual([{ value: 3, updated_by: "admin-1" }]);
+  });
+
+  it("keeps one daily row per service and day, the one counting the most checks", async () => {
+    await sequelize.query(`DROP SCHEMA IF EXISTS "t09_stats" CASCADE`);
+    await sequelize.query(`CREATE SCHEMA "t09_stats"`);
+    await sequelize.query(productionSchema("t09_stats"));
+    const insert = (service: string, day: string, checks: number) =>
+      sequelize.query(
+        `INSERT INTO "t09_stats"."microservice_daily_stats"
+           ("service_name", "stat_date", "uptime_percentage", "avg_latency_ms",
+            "total_checks", "successful_checks", "degraded_checks", "failed_checks")
+         VALUES (:service, :day, 100, 10, :checks, :checks, 0, 0)
+         RETURNING "id"`,
+        { replacements: { service, day, checks }, type: QueryTypes.SELECT },
+      );
+    // The day saved complete, then again after a partial purge, then
+    // complete once more
+    const [complete] = await insert("ms_a", "2026-10-01", 2880);
+    await insert("ms_a", "2026-10-01", 1500);
+    await insert("ms_a", "2026-10-01", 2880);
+    const [other] = await insert("ms_b", "2026-10-01", 2000);
+    const [nextDay] = await insert("ms_a", "2026-10-02", 2880);
+
+    await migrate("t09_stats");
+
+    expect(
+      await sequelize.query(
+        `SELECT "id" FROM "t09_stats"."microservice_daily_stats" ORDER BY "id"`,
+        { type: QueryTypes.SELECT },
+      ),
+    ).toEqual([complete, other, nextDay]);
+    await expect(insert("ms_a", "2026-10-02", 10)).rejects.toMatchObject({
+      parent: { constraint: DAILY_STATS_KEY },
+    });
+    expect(
+      await sequelize.query(
+        `SELECT "indexdef" FROM pg_indexes
+          WHERE "schemaname" = 't09_stats' AND "indexname" = :name`,
+        { replacements: { name: HEALTH_LOG_INDEX }, type: QueryTypes.SELECT },
+      ),
+    ).toEqual([
+      {
+        indexdef: expect.stringContaining("(service_name, checked_at)"),
+      },
+    ]);
   });
 
   it("gives a new database the same structure as production", async () => {

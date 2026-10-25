@@ -1,7 +1,7 @@
 import axios from "axios";
 import logger from "jet-logger";
 import { Op } from "sequelize";
-import { MicroServiceDailyStatsModel } from "#src/DataProviders/MicroService/MicroServiceDailyStatsModel.js";
+import { HealthLogStatistics } from "#src/DataProviders/MicroService/HealthLogStatistics.js";
 import { MicroServiceHealthLogModel } from "#src/DataProviders/MicroService/MicroServiceHealthLogModel.js";
 import type {
   MicroServiceRepositoryImpl,
@@ -9,6 +9,9 @@ import type {
 } from "#src/DataProviders/MicroService/MicroServiceRepository.js";
 import type { MicroServiceHealthInfo } from "#src/Domain/MicroService/Entity/MicroServiceHealth.js";
 import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repository/IMicroServiceRepository.js";
+import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Services checked at the same time: one mute service then costs one timeout
 // for the whole cycle, not one per service, without flooding the network.
@@ -55,6 +58,10 @@ export class HealthCheckCollector {
     private readonly microServiceRepository: IMicroServiceRepository,
     initialPollIntervalMs: number = 30000,
     private readonly concurrency: number = HEALTH_CHECK_CONCURRENCY,
+    private readonly statistics = new HealthLogStatistics(
+      VARIAMOS_ORM,
+      DB_SCHEMA,
+    ),
   ) {
     this.pollIntervalMs = initialPollIntervalMs;
   }
@@ -94,8 +101,7 @@ export class HealthCheckCollector {
       this.pollIntervalMs,
     );
 
-    // Run daily aggregation & purge once every 24 hours (86,400,000 ms)
-    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+    // Run daily aggregation & purge once every 24 hours
     this.runDailyAggregationAndPurge().catch((err) =>
       logger.err(
         `Daily health check aggregation failed on startup: ${(err as Error).message}`,
@@ -107,7 +113,7 @@ export class HealthCheckCollector {
           `Daily health check aggregation failed: ${(err as Error).message}`,
         ),
       );
-    }, TWENTY_FOUR_HOURS);
+    }, DAY_MS);
   }
 
   public stop(): void {
@@ -123,11 +129,17 @@ export class HealthCheckCollector {
   }
 
   /**
-   * Industry Standard Tiered Retention (Downsampling):
-   * 1. Consolidate raw health logs older than 1 day into microservice_daily_stats (daily uptime %, avg latency, checks).
-   * 2. Purge raw health logs older than 30 days to avoid PostgreSQL table bloat.
+   * Tiered retention:
+   * 1. Saves one row of daily statistics per service in
+   *    microservice_daily_stats for each complete day (UTC) not saved yet.
+   * 2. Purges raw health logs older than `retentionDays` days.
+   * Only days that start after the purge limit are aggregated: earlier
+   * purges may have removed part of an older day.
    */
-  public async runDailyAggregationAndPurge(retentionDays = 30): Promise<{
+  public async runDailyAggregationAndPurge(
+    retentionDays = 30,
+    now = new Date(),
+  ): Promise<{
     aggregatedDays: number;
     purgedLogs: number;
   }> {
@@ -139,99 +151,22 @@ export class HealthCheckCollector {
     let purgedLogs = 0;
 
     try {
-      // Find distinct dates and services for logs older than today (e.g., from yesterday backwards)
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const endOfYesterday = new Date(
-        yesterday.getFullYear(),
-        yesterday.getMonth(),
-        yesterday.getDate(),
-        23,
-        59,
-        59,
-        999,
+      const cutoffDate = new Date(now.getTime() - retentionDays * DAY_MS);
+      const firstCompleteDay = new Date(
+        Date.UTC(
+          cutoffDate.getUTCFullYear(),
+          cutoffDate.getUTCMonth(),
+          cutoffDate.getUTCDate() + 1,
+        ),
+      );
+      const today = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
       );
 
-      // Aggregate day by day for raw logs that haven't yet been aggregated
-      const rawLogs = await MicroServiceHealthLogModel.findAll({
-        where: {
-          checkedAt: {
-            [Op.lte]: endOfYesterday,
-          },
-        },
-        attributes: ["serviceName", "status", "responseTimeMs", "checkedAt"],
-        order: [["checkedAt", "ASC"]],
-      });
-
-      // Group by serviceName and statDate (YYYY-MM-DD)
-      const groups = new Map<
-        string,
-        {
-          serviceName: string;
-          statDate: string;
-          totalChecks: number;
-          successfulChecks: number;
-          degradedChecks: number;
-          failedChecks: number;
-          totalLatency: number;
-        }
-      >();
-
-      for (const log of rawLogs) {
-        const dateObj = new Date(log.checkedAt);
-        const statDate = dateObj.toISOString().split("T")[0];
-        const groupKey = `${log.serviceName}_${statDate}`;
-
-        let entry = groups.get(groupKey);
-        if (!entry) {
-          entry = {
-            serviceName: log.serviceName,
-            statDate,
-            totalChecks: 0,
-            successfulChecks: 0,
-            degradedChecks: 0,
-            failedChecks: 0,
-            totalLatency: 0,
-          };
-          groups.set(groupKey, entry);
-        }
-
-        entry.totalChecks += 1;
-        entry.totalLatency += log.responseTimeMs;
-        if (log.status === "UP") entry.successfulChecks += 1;
-        else if (log.status === "DEGRADED") entry.degradedChecks += 1;
-        else entry.failedChecks += 1;
-      }
-
-      // Upsert consolidated daily statistics
-      for (const group of groups.values()) {
-        const uptimePercentage =
-          group.totalChecks > 0
-            ? Number(
-                ((group.successfulChecks / group.totalChecks) * 100).toFixed(2),
-              )
-            : 100;
-        const avgLatencyMs =
-          group.totalChecks > 0
-            ? Math.round(group.totalLatency / group.totalChecks)
-            : 0;
-
-        await MicroServiceDailyStatsModel.upsert({
-          serviceName: group.serviceName,
-          statDate: group.statDate,
-          uptimePercentage,
-          avgLatencyMs,
-          totalChecks: group.totalChecks,
-          successfulChecks: group.successfulChecks,
-          degradedChecks: group.degradedChecks,
-          failedChecks: group.failedChecks,
-        });
-        aggregatedDays++;
-      }
-
-      // Purge raw health logs older than retentionDays (default: 30 days)
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+      aggregatedDays = await this.statistics.aggregateDays(
+        firstCompleteDay,
+        today,
+      );
 
       purgedLogs = await MicroServiceHealthLogModel.destroy({
         where: {
@@ -242,7 +177,7 @@ export class HealthCheckCollector {
       });
 
       logger.info(
-        `Daily health aggregation complete: ${aggregatedDays} daily stats saved/updated, ${purgedLogs} raw logs purged (> ${retentionDays} days).`,
+        `Daily health aggregation complete: ${aggregatedDays} daily stats saved, ${purgedLogs} raw logs purged (> ${retentionDays} days).`,
       );
     } catch (err) {
       logger.err(
