@@ -197,6 +197,48 @@ describe("BugRouter HTTP Integration Tests", () => {
       );
       expect(filters).toEqual(["admin-7", undefined]);
     });
+
+    it.each(["/bugs", "/bugs/local"])(
+      "%s asks for the first page of 20 bugs by default, or the page given",
+      async (path) => {
+        const query =
+          path === "/bugs"
+            ? mockBugQueryUseCase.queryBugs
+            : mockBugQueryUseCase.queryLocalBugs;
+        query.mockResolvedValue(
+          new ResponseModel<Bug[]>("tx-id").withResponse([], 45),
+        );
+
+        const res = await request(app).get(path);
+        await request(app).get(path).query({ pageNumber: 3, pageSize: 100 });
+
+        expect(res.body.totalCount).toBe(45);
+        expect(
+          query.mock.calls.map(([req]) => [
+            req.data?.pageNumber,
+            req.data?.pageSize,
+          ]),
+        ).toEqual([
+          [1, 20],
+          [3, 100],
+        ]);
+      },
+    );
+
+    it.each([
+      ["/bugs", { pageNumber: 0 }],
+      ["/bugs", { pageNumber: "two" }],
+      ["/bugs/local", { pageSize: 101 }],
+      ["/bugs/local", { pageSize: 1.5 }],
+      ["/bugs/local", { pageSize: ["10", "20"] }],
+    ])("%s answers 400 for the page %o", async (path, page) => {
+      const res = await request(app).get(path).query(page);
+
+      expect(res.status).toBe(400);
+      expect(res.body.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(mockBugQueryUseCase.queryBugs).not.toHaveBeenCalled();
+      expect(mockBugQueryUseCase.queryLocalBugs).not.toHaveBeenCalled();
+    });
   });
 
   describe("GET /bugs/assignable-users", () => {

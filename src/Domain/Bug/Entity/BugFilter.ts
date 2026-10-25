@@ -8,5 +8,8 @@ export class BugFilter {
     // Bugs assigned to this account
     public readonly assigneeId?: string,
     public readonly component?: string,
+    // Without a page, every matching bug (the GitHub sync reads them all)
+    public readonly pageNumber?: number,
+    public readonly pageSize?: number,
   ) {}
 }
