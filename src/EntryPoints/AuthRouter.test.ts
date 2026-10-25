@@ -373,7 +373,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       });
     });
 
-    it("should allow data URLs with null origin in getRedirectUrl", async () => {
+    it("never gives back a javascript: redirect, whose origin reads null", async () => {
       const mockToken = "valid-token";
       const mockUserPayload = {
         sub: "user-123",
@@ -398,13 +398,13 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       const response = await supertest(app)
         .get("/auth/session-info")
-        .set("Cookie", ["redirectTo=data:text/html,Hello"]);
+        .set("Cookie", ["redirectTo=javascript:alert(document.cookie)"]);
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       const body = response.body as TestSessionApiResponse & {
         data: { redirect?: string };
       };
-      expect(body.data.redirect).toBe("data:text/html,Hello");
+      expect(body.data.redirect).toBeUndefined();
     });
 
     it("should handle invalid url throwing error in getUrl and return undefined redirect", async () => {
@@ -1672,13 +1672,36 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       expect(response.headers["set-cookie"]).toBeUndefined();
     });
 
-    it("should authorize redirect origin if origin evaluates to null", async () => {
+    it.each([
+      "javascript:alert(document.cookie)",
+      "data:text/html,hello",
+      "file:///etc/passwd",
+    ])("does not keep %s, whose origin reads null", async (url) => {
       const response = await supertest(app)
         .post("/auth/redirects")
-        .send({ url: "data:text/html,hello" });
+        .send({ url });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(response.headers["set-cookie"]).toBeDefined();
+      expect(response.headers["set-cookie"]).toBeUndefined();
+    });
+
+    it("does not keep a non-web address even when every origin is allowed", async () => {
+      const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
+      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
+        value: [/.*/],
+        configurable: true,
+      });
+
+      const response = await supertest(app)
+        .post("/auth/redirects")
+        .send({ url: "javascript:alert(1)" });
+
+      expect(response.headers["set-cookie"]).toBeUndefined();
+
+      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
+        value: originalPatterns,
+        configurable: true,
+      });
     });
   });
 
@@ -2687,24 +2710,22 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       });
     });
 
-    it("should authorize redirect origin if origin evaluates to null (Line 48)", async () => {
+    it("keeps an https address of an allowed site as the redirect", async () => {
       const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
       Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: [],
+        value: [/^https:\/\/allowed-origin\.com$/],
         configurable: true,
       });
 
       const response = await supertest(app)
         .post("/auth/redirects")
-        .send({ url: "data:text/html,hello" });
+        .send({ url: "https://allowed-origin.com/#/users" });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       const cookies = parseCookies(response);
       const redirectCookie = cookies.find((c) => c.includes("redirectTo="));
-      expect(redirectCookie).toBeDefined();
-      const decodedCookie = decodeURIComponent(redirectCookie ?? "");
-      expect(decodedCookie.includes("redirectTo=data:text/html,hello")).toBe(
-        true,
+      expect(decodeURIComponent(redirectCookie ?? "")).toContain(
+        "redirectTo=https://allowed-origin.com/#/users",
       );
 
       Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
