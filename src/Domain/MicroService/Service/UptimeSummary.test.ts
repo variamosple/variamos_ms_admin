@@ -14,10 +14,13 @@ const count = (
   upChecks: number,
   latencySumMs: number,
   recent: { checks: number; up: number } = { checks: 0, up: 0 },
+  // Checks neither UP nor DOWN are DEGRADED
+  downChecks = checks - upChecks,
 ): UptimeSlotCount => ({
   slot,
   checks,
   upChecks,
+  downChecks,
   latencySumMs,
   recentChecks: recent.checks,
   recentUpChecks: recent.up,
@@ -91,6 +94,29 @@ describe("buildUptimeSummary", () => {
         responseTimeMs: 7,
         uptimePercentage: 100,
       },
+    ]);
+  });
+
+  it("shows a slot without a successful check as DOWN only when every check failed", () => {
+    const summary = buildUptimeSummary(
+      "ms_auth",
+      [
+        count(0, 2, 0, 10, undefined, 0),
+        count(1, 3, 0, 15, undefined, 1),
+        count(2, 2, 0, 10, undefined, 2),
+      ],
+      "DOWN",
+      window,
+    );
+
+    expect(
+      summary.history
+        .slice(0, 3)
+        .map(({ status, uptimePercentage }) => ({ status, uptimePercentage })),
+    ).toEqual([
+      { status: "DEGRADED", uptimePercentage: 0 },
+      { status: "DEGRADED", uptimePercentage: 0 },
+      { status: "DOWN", uptimePercentage: 0 },
     ]);
   });
 

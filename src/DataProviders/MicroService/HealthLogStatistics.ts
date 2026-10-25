@@ -36,6 +36,7 @@ export class HealthLogStatistics {
               width_bucket(checked_at, ARRAY[:slotEnds]::timestamp with time zone[]) AS "slot",
               count(*)::int AS "checks",
               count(*) FILTER (WHERE status = 'UP')::int AS "upChecks",
+              count(*) FILTER (WHERE status = 'DOWN')::int AS "downChecks",
               sum(response_time_ms)::float8 AS "latencySumMs",
               count(*) FILTER (WHERE checked_at >= :dayAgo)::int AS "recentChecks",
               count(*) FILTER (WHERE checked_at >= :dayAgo AND status = 'UP')::int
