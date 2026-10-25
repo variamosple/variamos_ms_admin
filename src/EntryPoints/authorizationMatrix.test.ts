@@ -94,6 +94,8 @@ const GUARDED: Record<string, string> = {
   "GET /bugs/assignable-users": "bugs::update",
   "PUT /bugs/:id/assignees": "bugs::update",
   "POST /v1/admin/notifications/dispatch": "admin::notifications::dispatch",
+  "POST /v1/admin/notifications/recipients/count":
+    "admin::notifications::dispatch",
   "GET /v1/activity-logs": "activity-logs::query",
   "GET /v1/access-logs": "activity-logs::query",
   "POST /v1/visits": SIGNED_IN,

@@ -12,6 +12,7 @@ import { actorOf } from "./actor.js";
 import { sendError } from "./errorResponse.js";
 
 const TRANSACTION_ID = "dispatchNotification";
+const COUNT_TRANSACTION_ID = "countNotificationRecipients";
 
 export const ADMIN_NOTIFICATIONS_V1_ROUTE = "/v1/admin/notifications";
 
@@ -25,8 +26,8 @@ interface DispatchRequest {
   body: string;
 }
 
-const invalid = (message: string) =>
-  new ResponseModel<void>(TRANSACTION_ID).withError(
+const invalid = (message: string, transactionId = TRANSACTION_ID) =>
+  new ResponseModel<void>(transactionId).withError(
     DomainErrorCodes.INVALID_INPUT,
     message,
   );
@@ -34,6 +35,7 @@ const invalid = (message: string) =>
 // Active, non-deleted accounts of the audience; an error answer otherwise
 async function recipientsOf(
   request: DispatchRequest,
+  transactionId = TRANSACTION_ID,
 ): Promise<string[] | ResponseModel<void>> {
   const { audience, roles, userIds } = request;
   if (audience === "broadcast") {
@@ -45,7 +47,10 @@ async function recipientsOf(
   }
   if (audience === "role") {
     if (!roles || roles.length === 0) {
-      return invalid("At least one role is required for role audience.");
+      return invalid(
+        "At least one role is required for role audience.",
+        transactionId,
+      );
     }
     const rolesData = await RoleModel.findAll({
       where: { name: roles },
@@ -69,17 +74,47 @@ async function recipientsOf(
   }
   if (audience === "users") {
     if (!userIds || userIds.length === 0) {
-      return invalid("At least one user ID is required for users audience.");
+      return invalid(
+        "At least one user ID is required for users audience.",
+        transactionId,
+      );
     }
     return userIds;
   }
-  return invalid("Invalid audience type.");
+  return invalid("Invalid audience type.", transactionId);
 }
 
 export function createAdminNotificationsRouter(
   journal: IActivityJournal,
 ): Router {
   const router = Router();
+
+  // How many accounts a dispatch would reach, for the confirmation shown
+  // before sending (UX-02); nothing is sent nor recorded
+  router.post(
+    "/recipients/count",
+    hasPermissions(["admin::notifications::dispatch"]),
+    async (req: Request, res) => {
+      try {
+        const recipients = await recipientsOf(
+          req.body as DispatchRequest,
+          COUNT_TRANSACTION_ID,
+        );
+        if (recipients instanceof ResponseModel) {
+          return res.status(HttpStatusCodes.BAD_REQUEST).json(recipients);
+        }
+        return res
+          .status(HttpStatusCodes.OK)
+          .json(
+            new ResponseModel<{ count: number }>(
+              COUNT_TRANSACTION_ID,
+            ).withResponse({ count: recipients.length }),
+          );
+      } catch (error: unknown) {
+        return sendError(res, error, COUNT_TRANSACTION_ID);
+      }
+    },
+  );
 
   router.post(
     "/dispatch",
