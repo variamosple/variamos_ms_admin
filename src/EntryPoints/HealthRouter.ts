@@ -1,11 +1,13 @@
 import os from "node:os";
 import { Router } from "express";
 import EnvVars from "#src/common/EnvVars.js";
-import VARIAMOS_ORM from "#src/Infrastructure/VariamosORM.js";
 
 export const HEALTH_ROUTE = "/health";
 
-export function createHealthRouter(): Router {
+/** Resolves when the database answers; the router bounds it to 1.5 s. */
+export type DatabaseCheck = () => Promise<void>;
+
+export function createHealthRouter(checkDatabase: DatabaseCheck): Router {
   const router = Router();
 
   router.get("/", async (_req, res) => {
@@ -16,7 +18,7 @@ export function createHealthRouter(): Router {
     try {
       const dbStart = Date.now();
       await Promise.race([
-        VARIAMOS_ORM.authenticate(),
+        checkDatabase(),
         new Promise<void>((_, reject) =>
           setTimeout(() => reject(new Error("DB check timeout")), 1500),
         ),

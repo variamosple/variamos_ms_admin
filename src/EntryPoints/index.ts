@@ -23,6 +23,7 @@ import type { UserMfaUseCase } from "#src/Domain/Mfa/UseCase/UserMfaUseCase.js";
 import type { MicroServiceManagementUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
 import type { MicroServiceQueryUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
 import type { INotificationAccessTokenIssuer } from "#src/Domain/Notification/INotificationAccessTokenIssuer.js";
+import type { NotificationDispatchUseCase } from "#src/Domain/Notification/UseCase/NotificationDispatchUseCase.js";
 import type { PermissionUseCase } from "#src/Domain/Permission/UseCase/PermissionUseCase.js";
 // Role & Permission Use Cases
 import type { RoleManagementUseCase } from "#src/Domain/Role/UseCase/RoleManagementUseCase.js";
@@ -54,7 +55,7 @@ import {
   COUNTRIES_V1_ROUTE,
   createCountriesRouter,
 } from "./CountriesV1Router.js";
-import { createHealthRouter } from "./HealthRouter.js";
+import { createHealthRouter, type DatabaseCheck } from "./HealthRouter.js";
 import {
   ACCESS_LOGS_V1_ROUTE,
   ACTIVITY_LOGS_V1_ROUTE,
@@ -133,6 +134,8 @@ export function createBaseRouter(
   activityJournal: IActivityJournal,
   accessJournal: IAccessJournal,
   journalQuery: JournalQueryUseCase,
+  notificationDispatch: NotificationDispatchUseCase,
+  checkDatabase: DatabaseCheck,
 ): Router {
   const baseRouter = Router();
 
@@ -185,7 +188,7 @@ export function createBaseRouter(
     bugUseCases.assignment,
   );
   const adminNotificationsV1Router =
-    createAdminNotificationsRouter(activityJournal);
+    createAdminNotificationsRouter(notificationDispatch);
   const notificationAccessV1Router = createNotificationAccessRouter(
     notificationAccessTokenIssuer,
     isAuthenticated,
@@ -213,7 +216,7 @@ export function createBaseRouter(
     createActivityLogsRouter(journalQuery),
   );
   baseRouter.use(ACCESS_LOGS_V1_ROUTE, createAccessLogsRouter(journalQuery));
-  baseRouter.use("/health", createHealthRouter());
+  baseRouter.use("/health", createHealthRouter(checkDatabase));
 
   baseRouter.get("/version", (_, res) => {
     try {

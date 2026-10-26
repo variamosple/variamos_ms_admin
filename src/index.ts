@@ -12,6 +12,7 @@ import {
   AccountLockoutInstance,
   ActivityJournalInstance,
   ConfigEventPublisherInstance,
+  checkDatabase,
   MicroServiceRepositoryInstance,
   productionAccessHierarchyUseCase,
   productionBugAssignmentUseCase,
@@ -29,6 +30,7 @@ import {
   productionMicroServiceManagementUseCase,
   productionMicroServiceQueryUseCase,
   productionNotificationAccessTokenIssuer,
+  productionNotificationDispatchUseCase,
   productionPermissionUseCase,
   productionRoleManagementUseCase,
   productionRolePermissionUseCase,
@@ -134,6 +136,8 @@ const baseRouter = createBaseRouter(
   ActivityJournalInstance,
   AccessJournalInstance,
   productionJournalQueryUseCase,
+  productionNotificationDispatchUseCase,
+  checkDatabase,
 );
 
 const app = createServer(baseRouter);
