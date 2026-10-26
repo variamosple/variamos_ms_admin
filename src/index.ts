@@ -13,6 +13,7 @@ import {
   ActivityJournalInstance,
   ConfigEventPublisherInstance,
   checkDatabase,
+  HealthLogStatisticsInstance,
   MicroServiceRepositoryInstance,
   productionAccessHierarchyUseCase,
   productionBugAssignmentUseCase,
@@ -144,6 +145,7 @@ const app = createServer(baseRouter);
 
 const healthCheckCollectorInstance = new HealthCheckCollector(
   MicroServiceRepositoryInstance,
+  HealthLogStatisticsInstance,
   EnvVars.MONITORING.HEALTH_CHECK_INTERVAL_MS,
 );
 MicroServiceRepositoryInstance.setHealthCollector(healthCheckCollectorInstance);
