@@ -12,8 +12,9 @@ export class ConfigEventPublisherImpl implements IConfigEventPublisher {
   }
 
   public async publishConfigUpdated(config: Configuration): Promise<void> {
+    // The value of a secret arrives decrypted: only its mask is written (T-13)
     logger.info(
-      `Event config.updated published: Key = ${config.key.getValue()}, Value = ${JSON.stringify(config.value)}`,
+      `Event config.updated published: Key = ${config.key.getValue()}, Value = ${JSON.stringify(config.getDisplayValue())}`,
     );
     for (const listener of this.listeners) {
       try {
