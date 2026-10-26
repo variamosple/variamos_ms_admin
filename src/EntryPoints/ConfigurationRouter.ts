@@ -1,5 +1,6 @@
 import { hasPermissions } from "@variamosple/variamos-security";
 import { type Request, Router } from "express";
+import EnvVars from "#src/common/EnvVars.js";
 import { isConfigurationApplied } from "#src/Domain/Configuration/Entity/AppliedConfigurationKeys.js";
 import type { ConfigurationUseCase } from "#src/Domain/Configuration/UseCase/ConfigurationUseCase.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
@@ -201,7 +202,7 @@ export function createConfigurationRouter(
     const hasAdminSubpath = referer.includes("/variamos_admin/");
 
     // Rewrite prod URLs to local dev server in development environment
-    if (process.env.NODE_ENV === "development") {
+    if (EnvVars.IsDevelopment) {
       const entries = [...(menuCopy.items ?? []), ...(menuCopy.options ?? [])];
       for (const item of entries) {
         if (item.location?.startsWith("https://app.variamos.com")) {

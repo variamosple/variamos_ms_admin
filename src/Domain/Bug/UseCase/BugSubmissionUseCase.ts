@@ -6,7 +6,6 @@ import {
 } from "#src/Domain/Bug/Entity/BugComponent.js";
 import type { BugPriorityValue } from "#src/Domain/Bug/Entity/BugPriority.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
-import type { IUserRepository } from "#src/Domain/Bug/Repository/IUserRepository.js";
 import type { GitHubTokenResolver } from "#src/Domain/Bug/Service/GitHubTokenResolver.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -18,6 +17,7 @@ import {
 import type { UploadedFile } from "#src/Domain/Core/File/UploadedFile.js";
 import type { IIssueTrackerService } from "#src/Domain/Core/Service/IIssueTrackerService.js";
 import type { IStorageService } from "#src/Domain/Core/Service/IStorageService.js";
+import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 import { ALLOWED_CATEGORIES } from "./BugQueryUseCase.js";
 
 interface BugSubmissionData {
@@ -41,7 +41,7 @@ interface StoredFile {
 export class BugSubmissionUseCase {
   public constructor(
     private readonly bugRepository: IBugRepository,
-    private readonly userRepository: IUserRepository,
+    private readonly userRepository: Pick<IUserRepository, "findSessionUser">,
     private readonly issueTrackerService: IIssueTrackerService,
     private readonly githubConfig: IBugTrackerConfig,
     private readonly tokenResolver: GitHubTokenResolver,

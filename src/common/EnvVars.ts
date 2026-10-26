@@ -5,6 +5,14 @@
 
 export default {
   NodeEnv: process.env.NODE_ENV ?? "",
+  // Read on each access: the tests switch NODE_ENV while the process runs
+  get IsDevelopment(): boolean {
+    return process.env.NODE_ENV === "development";
+  },
+  // Set by npm when the service starts through an npm script
+  get PackageVersion(): string {
+    return process.env.npm_package_version || "1.0.0";
+  },
   Port: process.env.PORT ?? 0,
   VERSION: "1.24.10.27.08",
   DB: {

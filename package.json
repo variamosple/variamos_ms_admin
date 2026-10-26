@@ -22,7 +22,7 @@
     "prepare": "husky",
     "check-arch": "dependency-cruiser --config .dependency-cruiser.cjs src/",
     "typecheck": "tsc --noEmit",
-    "find-deadcode": "knip",
+    "find-deadcode": "knip --tsConfig tsconfig.prod.json",
     "check-updates": "taze"
   },
   "engines": {
