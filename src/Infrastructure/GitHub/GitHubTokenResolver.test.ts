@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import axios from "axios";
 import logger from "jet-logger";
 import { type MockProxy, mock } from "vitest-mock-extended";
-import type { IBugTrackerConfig } from "../Config/IBugTrackerConfig.js";
+import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import { GitHubTokenResolver } from "./GitHubTokenResolver.js";
 
 vi.mock("axios");

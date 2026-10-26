@@ -28,7 +28,6 @@ import type { MfaSignInUseCase } from "#src/Domain/Mfa/UseCase/MfaSignInUseCase.
 import { Credentials } from "#src/Domain/User/Entity/Credentials.js";
 import { PasswordUpdate } from "#src/Domain/User/Entity/PasswordUpdate.js";
 import { PersonalInformationUpdate } from "#src/Domain/User/Entity/PersonalInformationUpdate.js";
-import type { SessionInfoResponse } from "#src/Domain/User/Entity/SessionInfoResponse.js";
 import type { SingInResponse } from "#src/Domain/User/Entity/SingInResponse.js";
 import { User } from "#src/Domain/User/Entity/User.js";
 import { UserRegistration } from "#src/Domain/User/Entity/UserRegistration.js";
@@ -39,6 +38,13 @@ import type { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase
 import { recordAccess } from "./accessJournal.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
+
+/** Body of GET /auth/session-info: an HTTP shape, not a domain entity. */
+interface SessionInfoResponse {
+  user: SessionUser;
+  authToken?: string;
+  redirect?: string;
+}
 
 export const AUTH_ROUTE = "/auth";
 

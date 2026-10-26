@@ -21,7 +21,6 @@ import { VisitRepositoryImpl } from "./DataProviders/Visit/VisitRepository.js";
 import { AccessHierarchyUseCase } from "./Domain/AccessControl/AccessHierarchyUseCase.js";
 import { JournalQueryUseCase } from "./Domain/Activity/JournalQueryUseCase.js";
 // Bug Use Cases
-import { GitHubTokenResolver } from "./Domain/Bug/Service/GitHubTokenResolver.js";
 import { BugAssignmentUseCase } from "./Domain/Bug/UseCase/BugAssignmentUseCase.js";
 import { BugAttachmentUseCase } from "./Domain/Bug/UseCase/BugAttachmentUseCase.js";
 import { BugLifecycleUseCase } from "./Domain/Bug/UseCase/BugLifecycleUseCase.js";
@@ -58,6 +57,7 @@ import { UserQueryUseCase } from "./Domain/User/UseCase/UserQueryUseCase.js";
 import { UserRoleUseCase } from "./Domain/User/UseCase/UserRoleUseCase.js";
 import { VisitUseCase } from "./Domain/Visit/UseCase/VisitUseCase.js";
 import { GitHubIssuesServiceInstance } from "./Infrastructure/GitHub/GitHubIssuesService.js";
+import { GitHubTokenResolver } from "./Infrastructure/GitHub/GitHubTokenResolver.js";
 import { MailServiceInstance } from "./Infrastructure/Mail/MailService.js";
 import { ConfigEventPublisherImpl } from "./Infrastructure/Messaging/ConfigEventPublisher.js";
 import { BugAssignmentNotifier } from "./Infrastructure/Notification/BugAssignmentNotifier.js";

@@ -6,7 +6,7 @@ import {
 } from "#src/Domain/Bug/Entity/BugComponent.js";
 import type { BugPriorityValue } from "#src/Domain/Bug/Entity/BugPriority.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
-import type { GitHubTokenResolver } from "#src/Domain/Bug/Service/GitHubTokenResolver.js";
+import type { IGitHubTokenProvider } from "#src/Domain/Bug/Service/IGitHubTokenProvider.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -44,7 +44,7 @@ export class BugSubmissionUseCase {
     private readonly userRepository: Pick<IUserRepository, "findSessionUser">,
     private readonly issueTrackerService: IIssueTrackerService,
     private readonly githubConfig: IBugTrackerConfig,
-    private readonly tokenResolver: GitHubTokenResolver,
+    private readonly tokenResolver: IGitHubTokenProvider,
     private readonly storageService: IStorageService,
   ) {}
 

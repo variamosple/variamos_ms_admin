@@ -1,15 +1,12 @@
 // Test files may reach any layer to build their doubles.
 const TESTS = '\\.(test|spec)\\.ts$';
 
-// Packages the domain still imports, removed by lot 3 of EV-98 (ports for the logger and the
-// GitHub client, session type moved out of the domain). Listed here so that no other domain
-// file starts importing them, and so that a new package is refused outright.
-const DOMAIN_PACKAGES_BASELINE = '^node_modules/(jet-logger|axios|@variamosple/variamos-security)/';
+// Package the domain still imports, removed by lot 3 of EV-98 (logger port). Listed here so
+// that no other domain file starts importing it, and so that a new package is refused outright.
+const DOMAIN_PACKAGES_BASELINE = '^node_modules/jet-logger/';
 const DOMAIN_PACKAGES_BASELINE_FILES = [
-  '^src/Domain/Bug/Service/GitHubTokenResolver\\.ts$',
   '^src/Domain/Bug/UseCase/Bug(Attachment|Query|Lifecycle|Sync|Assignment)UseCase\\.ts$',
   '^src/Domain/MicroService/UseCase/MicroServiceManagementUseCase\\.ts$',
-  '^src/Domain/User/Entity/SessionInfoResponse\\.ts$',
   '^src/Domain/User/Service/(PasswordResetToken|AccountLockout|PasswordPolicy)Service\\.ts$',
   '^src/Domain/User/UseCase/UserPasswordUseCase\\.ts$',
   '^src/Domain/Mfa/UseCase/(TrustedDevice|UserMfa|MfaReset|MfaSignIn)UseCase\\.ts$',

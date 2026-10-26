@@ -1,9 +1,10 @@
 import crypto from "node:crypto";
 import axios from "axios";
 import logger from "jet-logger";
-import type { IBugTrackerConfig } from "../Config/IBugTrackerConfig.js";
+import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
+import type { IGitHubTokenProvider } from "#src/Domain/Bug/Service/IGitHubTokenProvider.js";
 
-export class GitHubTokenResolver {
+export class GitHubTokenResolver implements IGitHubTokenProvider {
   public readonly tokenCache = new Map<
     string,
     { token: string; expiresAt: number }
