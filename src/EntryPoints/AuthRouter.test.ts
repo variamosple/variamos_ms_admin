@@ -166,6 +166,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       mock<IUserRepository>(),
       mock<IGuestRoleRepository>(),
       mock<ILogger>(),
+      mock<IMailService>(),
+      { adminHomeUri: "https://app.example.com" },
     );
     const mockUserPasswordUseCase = new UserPasswordUseCase(
       mock<IUserRepository>(),

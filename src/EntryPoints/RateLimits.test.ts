@@ -123,6 +123,41 @@ describe("rate limits", () => {
     );
   });
 
+  it("limits sign-ups per address e-mail, from any address", async () => {
+    const app = createApp({ value: 200 });
+    const { limit } = RATE_LIMITS.signUpPerEmail;
+    const body = { email: "Ana@Example.com" };
+
+    expect((await send(app, "/auth/sign-up", limit, body)).status).toBe(200);
+    expect(
+      (
+        await send(
+          app,
+          "/auth/sign-up",
+          1,
+          { email: "ana@example.com" },
+          "198.51.100.7",
+        )
+      ).status,
+    ).toBe(429);
+  });
+
+  it("limits sign-ups per address, whatever the e-mail", async () => {
+    const app = createApp({ value: 200 });
+    const { limit } = RATE_LIMITS.signUpPerAddress;
+    const signUp = (n: number, address = "203.0.113.1") =>
+      supertest(app)
+        .post("/auth/sign-up")
+        .set(from(address))
+        .send({ email: `student${n}@example.com` });
+
+    for (let n = 0; n < limit; n++) {
+      expect((await signUp(n)).status).toBe(200);
+    }
+    expect((await signUp(limit)).status).toBe(429);
+    expect((await signUp(limit, "198.51.100.7")).status).toBe(200);
+  });
+
   it.each([
     ["/auth/reset-password", RATE_LIMITS.resetPasswordPerAddress.limit],
     ["/auth/guest/sign-in", RATE_LIMITS.guestSignInPerAddress.limit],

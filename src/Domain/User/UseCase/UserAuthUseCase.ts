@@ -3,6 +3,7 @@ import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
+import type { IMailService } from "#src/Domain/Mail/IMailService.js";
 import type { IGuestRoleRepository } from "#src/Domain/Role/Repository/IGuestRoleRepository.js";
 import type { Credentials } from "#src/Domain/User/Entity/Credentials.js";
 import { User } from "#src/Domain/User/Entity/User.js";
@@ -14,11 +15,18 @@ import {
   type IPasswordPolicyProvider,
 } from "#src/Domain/User/Service/PasswordPolicyService.js";
 
+/** Where the notice to the owner of a taken address points. */
+export interface UserAuthUseCaseConfig {
+  adminHomeUri: string;
+}
+
 export class UserAuthUseCase {
   public constructor(
     private readonly userRepository: IUserRepository,
     private readonly roleRepository: IGuestRoleRepository,
     private readonly logger: ILogger,
+    private readonly mailService: Pick<IMailService, "sendExistingAccountMail">,
+    private readonly config: UserAuthUseCaseConfig,
     private readonly passwordPolicy: IPasswordPolicyProvider = DEFAULT_PASSWORD_POLICY_PROVIDER,
   ) {}
 
@@ -57,7 +65,26 @@ export class UserAuthUseCase {
       return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, refusal);
     }
 
-    return this.userRepository.signUp(request);
+    const signedUp = await this.userRepository.signUp(request);
+    if (signedUp.errorCode === DomainErrorCodes.DUPLICATE_ENTITY) {
+      // The answer stays neutral; the owner hears of it by mail. Not awaited,
+      // so that a taken address does not answer later than a free one.
+      void this.noticeExistingAccount(data.email);
+    }
+    return signedUp;
+  }
+
+  private async noticeExistingAccount(email: string): Promise<void> {
+    const home = this.config.adminHomeUri;
+    try {
+      await this.mailService.sendExistingAccountMail(
+        email,
+        `${home}/#/login`,
+        `${home}/#/forgot-password`,
+      );
+    } catch (error) {
+      this.logger.err(error);
+    }
   }
 
   public async signIn(

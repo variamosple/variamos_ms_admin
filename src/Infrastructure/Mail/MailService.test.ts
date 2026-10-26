@@ -78,6 +78,22 @@ describe("MailServiceImpl messages", () => {
     expect(html).toContain("turned off two-factor authentication");
     expect(html).toContain("The VariaMos Team");
   });
+
+  it("points the owner of an address to sign-in and recovery", async () => {
+    const service = new MailServiceImpl();
+    const send = vi.spyOn(service, "sendMail").mockResolvedValue(true);
+
+    await service.sendExistingAccountMail(
+      "cleo@example.com",
+      "https://app.example.com/#/login",
+      "https://app.example.com/#/forgot-password",
+    );
+
+    const [to, , html] = send.mock.calls[0] as [string, string, string];
+    expect(to).toBe("cleo@example.com");
+    expect(html).toContain('href="https://app.example.com/#/login"');
+    expect(html).toContain('href="https://app.example.com/#/forgot-password"');
+  });
 });
 
 describe("describeDuration", () => {
