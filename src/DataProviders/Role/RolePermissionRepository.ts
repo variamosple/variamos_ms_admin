@@ -171,6 +171,3 @@ export class RolePermissionRepositoryImpl
     return response;
   }
 }
-
-export const RolePermissionRepositoryInstance =
-  new RolePermissionRepositoryImpl();

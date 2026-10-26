@@ -169,32 +169,27 @@ function buildRouter(accessGuard: AccessGuard) {
   };
   let router: Router;
   try {
-    router = createBaseRouter(
-      mockDeep(),
-      mockDeep(),
-      mockDeep(),
-      mockDeep(),
-      mock(),
-      mock(),
-      mock(),
-      mock(),
-      mock(),
-      multer(),
-      mock(),
+    router = createBaseRouter({
+      users: mockDeep(),
+      bugs: mockDeep(),
+      microServices: mockDeep(),
+      roles: mockDeep(),
+      mfa: mockDeep(),
+      notifications: mockDeep(),
+      metrics: mock(),
+      permissions: mock(),
+      visits: mock(),
+      countries: mock(),
+      configuration: mock(),
+      upload: multer(),
       accessGuard,
-      new AccountLockout({
+      accountLockout: new AccountLockout({
         getPolicy: async () => AccountLockoutPolicy.DEFAULT,
       }),
-      mock(),
-      mock(),
-      mock(),
-      mock(),
-      mock(),
-      mock(),
-      mock(),
-      mock(),
-      mock(),
-    );
+      accessJournal: mock(),
+      journalQuery: mock(),
+      checkDatabase: mock(),
+    });
   } finally {
     proto.use = original;
   }

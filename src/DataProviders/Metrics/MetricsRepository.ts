@@ -178,5 +178,3 @@ export class MetricsRepositoryImpl
     return response;
   }
 }
-
-export const MetricsRepositoryInstance = new MetricsRepositoryImpl();

@@ -221,5 +221,3 @@ export class UserRoleRepositoryImpl
     return response;
   }
 }
-
-export const UserRoleRepositoryInstance = new UserRoleRepositoryImpl();

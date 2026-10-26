@@ -96,15 +96,15 @@ const productionUpload = multer({
   limits: { fileSize: MAX_ATTACHMENT_SIZE_BYTES, files: 1 },
 });
 
-const baseRouter = createBaseRouter(
-  {
+const baseRouter = createBaseRouter({
+  users: {
     auth: productionUserAuthUseCase,
     password: productionUserPasswordUseCase,
     management: productionUserManagementUseCase,
     query: productionUserQueryUseCase,
     role: productionUserRoleUseCase,
   },
-  {
+  bugs: {
     submission: productionBugSubmissionUseCase,
     lifecycle: productionBugLifecycleUseCase,
     sync: productionBugSyncUseCase,
@@ -112,34 +112,37 @@ const baseRouter = createBaseRouter(
     attachment: productionBugAttachmentUseCase,
     assignment: productionBugAssignmentUseCase,
   },
-  {
+  microServices: {
     query: productionMicroServiceQueryUseCase,
     management: productionMicroServiceManagementUseCase,
   },
-  {
+  roles: {
     management: productionRoleManagementUseCase,
     query: productionRoleQueryUseCase,
     permission: productionRolePermissionUseCase,
   },
-  productionMetricsQueryUseCase,
-  productionPermissionUseCase,
-  productionVisitUseCase,
-  productionCountriesQueryUseCase,
-  productionConfigurationUseCase,
-  productionUpload,
-  productionNotificationAccessTokenIssuer,
-  productionAccessHierarchyUseCase,
-  AccountLockoutInstance,
-  productionUserMfaUseCase,
-  productionMfaSignInUseCase,
-  productionMfaResetUseCase,
-  productionTrustedDeviceUseCase,
-  ActivityJournalInstance,
-  AccessJournalInstance,
-  productionJournalQueryUseCase,
-  productionNotificationDispatchUseCase,
+  mfa: {
+    user: productionUserMfaUseCase,
+    signIn: productionMfaSignInUseCase,
+    reset: productionMfaResetUseCase,
+    trustedDevices: productionTrustedDeviceUseCase,
+  },
+  notifications: {
+    accessTokenIssuer: productionNotificationAccessTokenIssuer,
+    dispatch: productionNotificationDispatchUseCase,
+  },
+  metrics: productionMetricsQueryUseCase,
+  permissions: productionPermissionUseCase,
+  visits: productionVisitUseCase,
+  countries: productionCountriesQueryUseCase,
+  configuration: productionConfigurationUseCase,
+  upload: productionUpload,
+  accessGuard: productionAccessHierarchyUseCase,
+  accountLockout: AccountLockoutInstance,
+  accessJournal: AccessJournalInstance,
+  journalQuery: productionJournalQueryUseCase,
   checkDatabase,
-);
+});
 
 const app = createServer(baseRouter);
 
