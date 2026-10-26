@@ -1,4 +1,5 @@
 import { TRUSTED_DEVICE_DAYS_KEY } from "#src/Domain/Mfa/UseCase/TrustedDeviceUseCase.js";
+import { PASSWORD_HASHING_COST_KEY } from "#src/Domain/User/Entity/PasswordHashingCost.js";
 import { ACCOUNT_LOCKOUT_KEYS } from "#src/Domain/User/Service/AccountLockoutService.js";
 import {
   PASSWORD_POLICY_KEYS,
@@ -16,6 +17,7 @@ export const APPLIED_CONFIGURATION_KEYS: ReadonlySet<string> = new Set([
   PASSWORD_RESET_EXPIRY_KEY,
   ...Object.values(ACCOUNT_LOCKOUT_KEYS),
   TRUSTED_DEVICE_DAYS_KEY,
+  PASSWORD_HASHING_COST_KEY,
 ]);
 
 export const isConfigurationApplied = (key: string): boolean =>

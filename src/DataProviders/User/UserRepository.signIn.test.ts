@@ -2,11 +2,14 @@ import bcrypt from "bcrypt";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { Credentials } from "#src/Domain/User/Entity/Credentials.js";
+import { BcryptPasswordHasher } from "#src/Infrastructure/Security/BcryptPasswordHasher.js";
 import { UserModel } from "./User.js";
 import { UserRepositoryImpl } from "./UserRepository.js";
 
 describe("UserRepositoryImpl.signIn account enumeration", () => {
-  const repository = new UserRepositoryImpl({ bcryptSaltRounds: 4 });
+  const repository = new UserRepositoryImpl(
+    new BcryptPasswordHasher({ getCost: async () => 4 }),
+  );
   const signIn = () =>
     repository.signIn(
       new RequestModel<Credentials>("signIn", {

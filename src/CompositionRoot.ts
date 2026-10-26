@@ -48,6 +48,7 @@ import {
   AccountLockout,
   AccountLockoutPolicyService,
 } from "./Domain/User/Service/AccountLockoutService.js";
+import { PasswordHashingCostService } from "./Domain/User/Service/PasswordHashingCostService.js";
 import { PasswordPolicyService } from "./Domain/User/Service/PasswordPolicyService.js";
 // User Use Cases
 import { UserAuthUseCase } from "./Domain/User/UseCase/UserAuthUseCase.js";
@@ -66,6 +67,7 @@ import {
   AesGcmSecretCipher,
   parseEncryptionKey,
 } from "./Infrastructure/Security/AesGcmSecretCipher.js";
+import { BcryptPasswordHasher } from "./Infrastructure/Security/BcryptPasswordHasher.js";
 import { DiskStorageServiceInstance } from "./Infrastructure/Storage/DiskStorageService.js";
 import VARIAMOS_ORM, { DB_SCHEMA } from "./Infrastructure/VariamosORM.js";
 
@@ -84,10 +86,6 @@ export const SecretConfigurationValueInstance = new SecretConfigurationValue(
 );
 
 // Repositories
-export const UserRepositoryInstance = new UserRepositoryImpl({
-  bcryptSaltRounds: EnvVars.Auth.APP.BCRYPT_SALT_ROUNDS,
-});
-
 export const MicroServiceRepositoryInstance = new MicroServiceRepositoryImpl({
   socketPath: EnvVars.DOCKER.SOCKET_PATH,
   secrets: SecretConfigurationValueInstance,
@@ -104,6 +102,15 @@ export const MetricsRepositoryInstance = new MetricsRepositoryImpl();
 export const BugRepositoryInstance = new BugRepositoryImpl();
 export const ConfigurationRepositoryInstance = new ConfigurationRepositoryImpl(
   SecretConfigurationValueInstance,
+);
+// security.bcrypt_salt_rounds, read at each hash; BCRYPT_SALT_ROUNDS as fallback
+export const UserRepositoryInstance = new UserRepositoryImpl(
+  new BcryptPasswordHasher(
+    new PasswordHashingCostService(
+      ConfigurationRepositoryInstance,
+      EnvVars.Auth.APP.BCRYPT_SALT_ROUNDS,
+    ),
+  ),
 );
 export const ConfigEventPublisherInstance = new ConfigEventPublisherImpl();
 // Administration operations (T-24): table admin_activity_logs, append-only

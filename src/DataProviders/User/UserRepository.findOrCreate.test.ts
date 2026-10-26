@@ -1,11 +1,14 @@
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { User } from "#src/Domain/User/Entity/User.js";
+import { BcryptPasswordHasher } from "#src/Infrastructure/Security/BcryptPasswordHasher.js";
 import { UserModel } from "./User.js";
 import { UserRepositoryImpl } from "./UserRepository.js";
 
 describe("UserRepositoryImpl.findOrCreateUser (Google sign-in)", () => {
-  const repository = new UserRepositoryImpl({ bcryptSaltRounds: 4 });
+  const repository = new UserRepositoryImpl(
+    new BcryptPasswordHasher({ getCost: async () => 4 }),
+  );
   const findOrCreate = () =>
     repository.findOrCreateUser(
       new RequestModel<User>("loginWithGoogle", {

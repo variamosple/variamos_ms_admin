@@ -1,9 +1,12 @@
 import bcrypt from "bcrypt";
+import { BcryptPasswordHasher } from "#src/Infrastructure/Security/BcryptPasswordHasher.js";
 import { UserModel } from "./User.js";
 import { UserRepositoryImpl } from "./UserRepository.js";
 
 describe("UserRepositoryImpl.verifyPassword", () => {
-  const repository = new UserRepositoryImpl({ bcryptSaltRounds: 4 });
+  const repository = new UserRepositoryImpl(
+    new BcryptPasswordHasher({ getCost: async () => 4 }),
+  );
 
   afterEach(() => {
     vi.restoreAllMocks();
