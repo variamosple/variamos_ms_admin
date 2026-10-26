@@ -44,12 +44,9 @@ module.exports = {
     },
     {
       name: 'infrastructure-does-not-use-dataproviders',
-      comment: 'Infrastructure adapters reach the data through domain ports. HealthCheckCollector is moved behind a port by lot 3 of EV-98.',
+      comment: 'Infrastructure adapters reach the data through domain ports.',
       severity: 'error',
-      from: {
-        path: '^src/Infrastructure',
-        pathNot: [TESTS, '^src/Infrastructure/Health/HealthCheckCollector\\.ts$']
-      },
+      from: { path: '^src/Infrastructure', pathNot: TESTS },
       to: { path: '^src/DataProviders' }
     },
     {

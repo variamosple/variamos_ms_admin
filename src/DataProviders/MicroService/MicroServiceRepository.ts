@@ -18,6 +18,7 @@ import {
   type MicroServiceUptimeSummary,
   resolveServiceStatus,
 } from "#src/Domain/MicroService/Entity/MicroServiceHealth.js";
+import type { ServiceDefinition } from "#src/Domain/MicroService/Entity/ServiceDefinition.js";
 import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 import { refuseConfigurationUpdate } from "#src/Domain/MicroService/Service/ConfigurationUpdateRule.js";
 import {
@@ -33,16 +34,6 @@ import type { SecretConfigurationValue } from "../Configuration/SecretConfigurat
 import { HealthLogStatistics } from "./HealthLogStatistics.js";
 import { MicroServiceAuditLogModel } from "./MicroServiceAuditLogModel.js";
 import { MicroServiceHealthLogModel } from "./MicroServiceHealthLogModel.js";
-
-export interface ServiceDefinition {
-  name: string;
-  displayName: string;
-  targetUrl: string;
-  containerNamePattern?: string;
-  containerIps?: string[];
-  defaultPort: number;
-  healthPath?: string;
-}
 
 /**
  * IP addresses of a container on every Docker network it is attached to.

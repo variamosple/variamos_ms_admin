@@ -1,15 +1,9 @@
 import axios from "axios";
 import logger from "jet-logger";
-import { Op } from "sequelize";
-import { HealthLogStatistics } from "#src/DataProviders/MicroService/HealthLogStatistics.js";
-import { MicroServiceHealthLogModel } from "#src/DataProviders/MicroService/MicroServiceHealthLogModel.js";
-import type {
-  MicroServiceRepositoryImpl,
-  ServiceDefinition,
-} from "#src/DataProviders/MicroService/MicroServiceRepository.js";
 import type { MicroServiceHealthInfo } from "#src/Domain/MicroService/Entity/MicroServiceHealth.js";
+import type { ServiceDefinition } from "#src/Domain/MicroService/Entity/ServiceDefinition.js";
+import type { IHealthLogArchive } from "#src/Domain/MicroService/Repository/IHealthLogArchive.js";
 import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repository/IMicroServiceRepository.js";
-import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -55,13 +49,13 @@ export class HealthCheckCollector {
   private pollIntervalMs: number;
 
   public constructor(
-    private readonly microServiceRepository: IMicroServiceRepository,
+    private readonly microServiceRepository: Pick<
+      IMicroServiceRepository,
+      "discoverServiceDefinitions" | "recordHealthCheck"
+    >,
+    private readonly healthLogs: IHealthLogArchive,
     initialPollIntervalMs: number = 30000,
     private readonly concurrency: number = HEALTH_CHECK_CONCURRENCY,
-    private readonly statistics = new HealthLogStatistics(
-      VARIAMOS_ORM,
-      DB_SCHEMA,
-    ),
   ) {
     this.pollIntervalMs = initialPollIntervalMs;
   }
@@ -163,18 +157,12 @@ export class HealthCheckCollector {
         Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
       );
 
-      aggregatedDays = await this.statistics.aggregateDays(
+      aggregatedDays = await this.healthLogs.aggregateDays(
         firstCompleteDay,
         today,
       );
 
-      purgedLogs = await MicroServiceHealthLogModel.destroy({
-        where: {
-          checkedAt: {
-            [Op.lt]: cutoffDate,
-          },
-        },
-      });
+      purgedLogs = await this.healthLogs.purgeChecksBefore(cutoffDate);
 
       logger.info(
         `Daily health aggregation complete: ${aggregatedDays} daily stats saved, ${purgedLogs} raw logs purged (> ${retentionDays} days).`,
@@ -202,12 +190,8 @@ export class HealthCheckCollector {
 
     try {
       // Dynamic service discovery from repository
-      let services: ServiceDefinition[] = [];
-      if ("discoverServiceDefinitions" in this.microServiceRepository) {
-        services = await (
-          this.microServiceRepository as MicroServiceRepositoryImpl
-        ).discoverServiceDefinitions();
-      }
+      const services =
+        await this.microServiceRepository.discoverServiceDefinitions();
 
       const targetServices = serviceName
         ? services.filter(

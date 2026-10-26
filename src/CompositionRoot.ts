@@ -11,6 +11,7 @@ import { CountriesRepositoryImpl } from "./DataProviders/Countries/CountriesRepo
 import { MetricsRepositoryImpl } from "./DataProviders/Metrics/MetricsRepository.js";
 import { TrustedDeviceRepositoryImpl } from "./DataProviders/Mfa/TrustedDeviceRepository.js";
 import { UserMfaRepositoryImpl } from "./DataProviders/Mfa/UserMfaRepository.js";
+import { HealthLogStatistics } from "./DataProviders/MicroService/HealthLogStatistics.js";
 import { MicroServiceRepositoryImpl } from "./DataProviders/MicroService/MicroServiceRepository.js";
 import { NotificationRecipientDirectory } from "./DataProviders/Notification/NotificationRecipientDirectory.js";
 import { PermissionRepositoryImpl } from "./DataProviders/Permission/PermissionRepository.js";
@@ -88,9 +89,16 @@ export const SecretConfigurationValueInstance = new SecretConfigurationValue(
 );
 
 // Repositories
+// Health check statistics and retention, read by the screens and the collector
+export const HealthLogStatisticsInstance = new HealthLogStatistics(
+  VARIAMOS_ORM,
+  DB_SCHEMA,
+);
+
 export const MicroServiceRepositoryInstance = new MicroServiceRepositoryImpl({
   socketPath: EnvVars.DOCKER.SOCKET_PATH,
   secrets: SecretConfigurationValueInstance,
+  statistics: HealthLogStatisticsInstance,
 });
 
 export const RoleRepositoryInstance = new RoleRepositoryImpl();
