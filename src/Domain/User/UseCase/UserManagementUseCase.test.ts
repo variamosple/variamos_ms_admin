@@ -2,6 +2,7 @@ import { type MockProxy, mock } from "vitest-mock-extended";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { PasswordUpdate } from "#src/Domain/User/Entity/PasswordUpdate.js";
 import { PersonalInformationUpdate } from "#src/Domain/User/Entity/PersonalInformationUpdate.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
@@ -12,11 +13,17 @@ const activityJournal = { record: vi.fn().mockResolvedValue(undefined) };
 
 describe("UserManagementUseCase", () => {
   let useCase: UserManagementUseCase;
+  let logger: MockProxy<ILogger>;
   let mockUserRepository: MockProxy<IUserRepository>;
 
   beforeEach(() => {
+    logger = mock<ILogger>();
     mockUserRepository = mock<IUserRepository>();
-    useCase = new UserManagementUseCase(mockUserRepository, activityJournal);
+    useCase = new UserManagementUseCase(
+      mockUserRepository,
+      activityJournal,
+      logger,
+    );
   });
 
   describe("enable", () => {

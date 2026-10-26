@@ -1,4 +1,3 @@
-import logger from "jet-logger";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import type { BugUserRef } from "#src/Domain/Bug/Entity/Bug.js";
@@ -7,6 +6,7 @@ import type { IBugAssignmentNotifier } from "#src/Domain/Bug/Service/IBugAssignm
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 
 const namesOf = (users?: BugUserRef[] | null) =>
   users?.length ? users.map((user) => user.name).join(", ") : "nobody";
@@ -24,6 +24,7 @@ export class BugAssignmentUseCase {
     private readonly bugRepository: IBugRepository,
     private readonly notifier: IBugAssignmentNotifier,
     private readonly journal: IActivityJournal,
+    private readonly logger: ILogger,
   ) {}
 
   public queryAssignableUsers(
@@ -111,7 +112,7 @@ export class BugAssignmentUseCase {
         }),
       );
       if (note.errorCode) {
-        logger.warn(`Bug assignment note failed: ${note.message}`);
+        this.logger.warn(`Bug assignment note failed: ${note.message}`);
       }
     }
     if (added.length > 0) {
@@ -119,7 +120,9 @@ export class BugAssignmentUseCase {
       await this.notifier
         .notifyAssigned(added, bug.title, actorId)
         .catch((error: Error) =>
-          logger.warn(`Bug assignment notification failed: ${error.message}`),
+          this.logger.warn(
+            `Bug assignment notification failed: ${error.message}`,
+          ),
         );
     }
     return response;

@@ -1,10 +1,13 @@
 import crypto from "node:crypto";
-import logger from "jet-logger";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { User } from "../Entity/User.js";
 import type { IUserRepository } from "../IUserRepository.js";
 
 export class PasswordResetTokenService {
-  public constructor(private userRepository: IUserRepository) {}
+  public constructor(
+    private userRepository: IUserRepository,
+    private readonly logger: ILogger,
+  ) {}
 
   /**
    * Validates user state, generates a recovery token, hashes it, saves it to the DB, and returns the raw token.
@@ -15,14 +18,14 @@ export class PasswordResetTokenService {
     auditContext: string,
   ): Promise<string> {
     if (!user.isEnabled) {
-      logger.warn(
+      this.logger.warn(
         `[${auditContext}] Failed: User account is disabled (ID: ${user.id}).`,
       );
       throw new Error("User account is disabled.");
     }
 
     if (user.isDeleted) {
-      logger.warn(
+      this.logger.warn(
         `[${auditContext}] Failed: User account is marked as deleted (ID: ${user.id}).`,
       );
       throw new Error("User account is deleted.");

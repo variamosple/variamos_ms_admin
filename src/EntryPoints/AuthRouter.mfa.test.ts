@@ -8,6 +8,7 @@ import type { IConfigurationRepository } from "#src/Domain/Configuration/Reposit
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { ISecretCipher } from "#src/Domain/Core/Secret/ISecretCipher.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { ITrustedDeviceRepository } from "#src/Domain/Mfa/Repository/ITrustedDeviceRepository.js";
 import type {
   IUserMfaRepository,
@@ -112,7 +113,11 @@ function setUp(mfaEnabled: boolean, trustedDeviceDays = 14) {
       value: trustedDeviceDays,
     } as never),
   );
-  const trustedDevices = new TrustedDeviceUseCase(devices, configuration);
+  const trustedDevices = new TrustedDeviceUseCase(
+    devices,
+    configuration,
+    mock<ILogger>(),
+  );
   const mfaSignIn = new MfaSignInUseCase(
     repository,
     {
@@ -122,6 +127,7 @@ function setUp(mfaEnabled: boolean, trustedDeviceDays = 14) {
     cipher,
     new PendingMfaSignIns(),
     trustedDevices,
+    mock<ILogger>(),
   );
 
   const app = express();

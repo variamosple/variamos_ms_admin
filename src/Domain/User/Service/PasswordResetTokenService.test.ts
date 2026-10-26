@@ -1,5 +1,5 @@
-import logger from "jet-logger";
 import { type MockProxy, mock } from "vitest-mock-extended";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { User } from "../Entity/User.js";
 import type { IUserRepository } from "../IUserRepository.js";
 import { PasswordResetTokenService } from "./PasswordResetTokenService.js";
@@ -7,10 +7,12 @@ import { PasswordResetTokenService } from "./PasswordResetTokenService.js";
 describe("PasswordResetTokenService", () => {
   let service: PasswordResetTokenService;
   let mockUserRepository: MockProxy<IUserRepository>;
+  let logger: MockProxy<ILogger>;
 
   beforeEach(() => {
     mockUserRepository = mock<IUserRepository>();
-    service = new PasswordResetTokenService(mockUserRepository);
+    logger = mock<ILogger>();
+    service = new PasswordResetTokenService(mockUserRepository, logger);
   });
 
   const mockUser = {
@@ -52,37 +54,33 @@ describe("PasswordResetTokenService", () => {
 
   it("should throw an error if user is disabled", async () => {
     const disabledUser = { ...mockUser, isEnabled: false } as User;
-    const loggerWarnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
 
     await expect(
       service.createResetToken(disabledUser, 3600000, "TEST CONTEXT"),
     ).rejects.toThrow("User account is disabled.");
 
-    expect(loggerWarnSpy).toHaveBeenCalledWith(
+    expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining("TEST CONTEXT"),
     );
-    expect(loggerWarnSpy).toHaveBeenCalledWith(
+    expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining("user-123"),
     );
     expect(mockUserRepository.savePasswordResetToken).not.toHaveBeenCalled();
-    loggerWarnSpy.mockRestore();
   });
 
   it("should throw an error if user is marked as deleted", async () => {
     const deletedUser = { ...mockUser, isDeleted: true } as User;
-    const loggerWarnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
 
     await expect(
       service.createResetToken(deletedUser, 3600000, "TEST CONTEXT"),
     ).rejects.toThrow("User account is deleted.");
 
-    expect(loggerWarnSpy).toHaveBeenCalledWith(
+    expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining("TEST CONTEXT"),
     );
-    expect(loggerWarnSpy).toHaveBeenCalledWith(
+    expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining("user-123"),
     );
     expect(mockUserRepository.savePasswordResetToken).not.toHaveBeenCalled();
-    loggerWarnSpy.mockRestore();
   });
 });

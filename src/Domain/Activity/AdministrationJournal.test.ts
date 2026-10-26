@@ -10,6 +10,7 @@ import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { SECRET_MASK } from "#src/Domain/Core/Secret/SecretMask.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
 import type { IUserMfaRepository } from "#src/Domain/Mfa/Repository/IUserMfaRepository.js";
 import { MfaResetUseCase } from "#src/Domain/Mfa/UseCase/MfaResetUseCase.js";
@@ -55,7 +56,7 @@ const users = (j: Journal) => {
   repo.enableUser.mockResolvedValue(ok());
   repo.disableUser.mockResolvedValue(ok());
   repo.deleteUser.mockResolvedValue(ok());
-  return new UserManagementUseCase(repo, j);
+  return new UserManagementUseCase(repo, j, mock<ILogger>());
 };
 const roles = (j: Journal) => {
   const repo = mock<IRoleRepository>();
@@ -121,7 +122,7 @@ const mfaReset = (j: Journal) => {
   );
   const mail = mock<IMailService>();
   mail.sendMfaResetMail.mockResolvedValue(true);
-  return new MfaResetUseCase(mfa, userRepo, mail, j);
+  return new MfaResetUseCase(mfa, userRepo, mail, j, mock<ILogger>());
 };
 const recoveryLink = (j: Journal) => {
   const userRepo = mock<IUserRepository>();
@@ -132,6 +133,7 @@ const recoveryLink = (j: Journal) => {
     mock<IMailService>(),
     { passwordResetExpiryInMs: 3_600_000, adminHomeUri: "http://ui" },
     j,
+    mock<ILogger>(),
   );
 };
 

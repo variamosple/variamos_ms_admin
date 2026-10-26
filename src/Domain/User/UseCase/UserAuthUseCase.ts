@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IGuestRoleRepository } from "#src/Domain/Role/Repository/IGuestRoleRepository.js";
 import type { Credentials } from "#src/Domain/User/Entity/Credentials.js";
 import { User } from "#src/Domain/User/Entity/User.js";
@@ -17,6 +18,7 @@ export class UserAuthUseCase {
   public constructor(
     private readonly userRepository: IUserRepository,
     private readonly roleRepository: IGuestRoleRepository,
+    private readonly logger: ILogger,
     private readonly passwordPolicy: IPasswordPolicyProvider = DEFAULT_PASSWORD_POLICY_PROVIDER,
   ) {}
 
@@ -47,6 +49,7 @@ export class UserAuthUseCase {
 
     const refusal = await checkNewPassword(
       this.passwordPolicy,
+      this.logger,
       data.password,
       "Sign-up",
     );

@@ -3,6 +3,7 @@ import { type MockProxy, mock } from "vitest-mock-extended";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { MicroServiceDetailed } from "#src/Domain/MicroService/Entity/MicroServiceDetailed.js";
 import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 import { MicroServiceConfigItem } from "../Entity/MicroServiceConfigItem.js";
@@ -16,11 +17,16 @@ const ACTOR = "operator@example.com";
 
 describe("MicroServiceManagementUseCase - Unit Tests", () => {
   let useCase: MicroServiceManagementUseCase;
+  let logger: MockProxy<ILogger>;
   let mockMicroServiceRepository: MockProxy<IMicroServiceRepository>;
 
   beforeEach(() => {
+    logger = mock<ILogger>();
     mockMicroServiceRepository = mock<IMicroServiceRepository>();
-    useCase = new MicroServiceManagementUseCase(mockMicroServiceRepository);
+    useCase = new MicroServiceManagementUseCase(
+      mockMicroServiceRepository,
+      logger,
+    );
   });
 
   // Actions follow the container state; the health status is kept apart

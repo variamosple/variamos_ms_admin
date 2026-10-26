@@ -1,4 +1,3 @@
-import logger from "jet-logger";
 import { type MockProxy, mock } from "vitest-mock-extended";
 import type { BugAttachment } from "#src/Domain/Bug/Entity/BugAttachment.js";
 import { BugNote } from "#src/Domain/Bug/Entity/BugNote.js";
@@ -7,6 +6,7 @@ import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { UploadedFile } from "#src/Domain/Core/File/UploadedFile.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IStorageService } from "#src/Domain/Core/Service/IStorageService.js";
 import { BugAttachmentUseCase } from "./BugAttachmentUseCase.js";
 
@@ -17,13 +17,19 @@ const HTML_BYTES = new TextEncoder().encode("<html><script>alert(1)</script>");
 
 describe("BugAttachmentUseCase", () => {
   let useCase: BugAttachmentUseCase;
+  let logger: MockProxy<ILogger>;
   let mockBugRepository: MockProxy<IBugRepository>;
   let mockStorageService: MockProxy<IStorageService>;
 
   beforeEach(() => {
+    logger = mock<ILogger>();
     mockBugRepository = mock<IBugRepository>();
     mockStorageService = mock<IStorageService>();
-    useCase = new BugAttachmentUseCase(mockBugRepository, mockStorageService);
+    useCase = new BugAttachmentUseCase(
+      mockBugRepository,
+      mockStorageService,
+      logger,
+    );
   });
 
   describe("addAttachment", () => {
@@ -188,7 +194,6 @@ describe("BugAttachmentUseCase", () => {
     });
 
     it("should proceed to delete from repository even if storage service fails to delete physical file", async () => {
-      const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
       const mockAttachment: BugAttachment = {
         id: 1,
         filePath: "/uploads/file.png",
@@ -213,12 +218,11 @@ describe("BugAttachmentUseCase", () => {
         "/uploads/file.png",
       );
       expect(mockBugRepository.deleteAttachment).toHaveBeenCalledWith(req);
-      expect(warnSpy).toHaveBeenCalledWith(
+      expect(logger.warn).toHaveBeenCalledWith(
         expect.stringContaining(
           "Failed to delete physical file: /uploads/file.png",
         ),
       );
-      warnSpy.mockRestore();
     });
 
     it("should not try to delete physical file if filePath is empty", async () => {

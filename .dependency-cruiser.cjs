@@ -1,17 +1,6 @@
 // Test files may reach any layer to build their doubles.
 const TESTS = '\\.(test|spec)\\.ts$';
 
-// Package the domain still imports, removed by lot 3 of EV-98 (logger port). Listed here so
-// that no other domain file starts importing it, and so that a new package is refused outright.
-const DOMAIN_PACKAGES_BASELINE = '^node_modules/jet-logger/';
-const DOMAIN_PACKAGES_BASELINE_FILES = [
-  '^src/Domain/Bug/UseCase/Bug(Attachment|Query|Lifecycle|Sync|Assignment)UseCase\\.ts$',
-  '^src/Domain/MicroService/UseCase/MicroServiceManagementUseCase\\.ts$',
-  '^src/Domain/User/Service/(PasswordResetToken|AccountLockout|PasswordPolicy)Service\\.ts$',
-  '^src/Domain/User/UseCase/UserPasswordUseCase\\.ts$',
-  '^src/Domain/Mfa/UseCase/(TrustedDevice|UserMfa|MfaReset|MfaSignIn)UseCase\\.ts$',
-];
-
 module.exports = {
   forbidden: [
     {
@@ -26,14 +15,7 @@ module.exports = {
       comment: 'The Domain depends on no npm package: a library goes behind a port implemented in Infrastructure. Node built-ins stay allowed.',
       severity: 'error',
       from: { path: '^src/Domain', pathNot: TESTS },
-      to: { dependencyTypesNot: ['local', 'core'], pathNot: DOMAIN_PACKAGES_BASELINE }
-    },
-    {
-      name: 'domain-packages-baseline',
-      comment: 'Only the files listed in DOMAIN_PACKAGES_BASELINE_FILES may still import the baseline packages.',
-      severity: 'error',
-      from: { path: '^src/Domain', pathNot: [TESTS, ...DOMAIN_PACKAGES_BASELINE_FILES] },
-      to: { path: DOMAIN_PACKAGES_BASELINE }
+      to: { dependencyTypesNot: ['local', 'core'] }
     },
     {
       name: 'entrypoints-go-through-the-domain',

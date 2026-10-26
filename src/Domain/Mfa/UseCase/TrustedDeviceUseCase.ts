@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
-import logger from "jet-logger";
 import type { IConfigurationRepository } from "#src/Domain/Configuration/Repository/IConfigurationRepository.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { ITrustedDeviceRepository } from "#src/Domain/Mfa/Repository/ITrustedDeviceRepository.js";
 
 export const TRUSTED_DEVICE_DAYS_KEY = "security.mfa.trusted_device_days";
@@ -36,6 +36,7 @@ export class TrustedDeviceUseCase {
       IConfigurationRepository,
       "queryByKey"
     >,
+    private readonly logger: ILogger,
   ) {}
 
   public async days(): Promise<number> {
@@ -57,7 +58,7 @@ export class TrustedDeviceUseCase {
         ? value
         : 0;
     } catch (error) {
-      logger.warn(
+      this.logger.warn(
         `Could not read ${TRUSTED_DEVICE_DAYS_KEY}: ${(error as Error).message}`,
       );
       return 0;
@@ -82,7 +83,7 @@ export class TrustedDeviceUseCase {
         days > 0 && (await this.repository.use(userId, hashOf(token), days))
       );
     } catch (error) {
-      logger.warn(
+      this.logger.warn(
         `[MFA] Trusted device check failed: ${(error as Error).message}`,
       );
       return false;

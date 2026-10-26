@@ -1,4 +1,3 @@
-import logger from "jet-logger";
 import type { BugAttachment } from "#src/Domain/Bug/Entity/BugAttachment.js";
 import type { BugNote } from "#src/Domain/Bug/Entity/BugNote.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
@@ -10,12 +9,14 @@ import {
   detectAllowedFileType,
 } from "#src/Domain/Core/File/AllowedFileType.js";
 import type { UploadedFile } from "#src/Domain/Core/File/UploadedFile.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IStorageService } from "#src/Domain/Core/Service/IStorageService.js";
 
 export class BugAttachmentUseCase {
   public constructor(
     private readonly bugRepository: IBugRepository,
     private readonly storageService: IStorageService,
+    private readonly logger: ILogger,
   ) {}
 
   public async addAttachment(
@@ -96,7 +97,7 @@ export class BugAttachmentUseCase {
       try {
         await this.storageService.deleteFile(filePath);
       } catch {
-        logger.warn(`Failed to delete physical file: ${filePath}`);
+        this.logger.warn(`Failed to delete physical file: ${filePath}`);
       }
     }
     return this.bugRepository.deleteAttachment(request);

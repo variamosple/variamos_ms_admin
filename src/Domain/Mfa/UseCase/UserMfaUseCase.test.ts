@@ -1,5 +1,7 @@
+import { mock } from "vitest-mock-extended";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { ISecretCipher } from "#src/Domain/Core/Secret/ISecretCipher.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { hashRecoveryCode } from "#src/Domain/Mfa/Entity/RecoveryCodes.js";
 import {
   base32Decode,
@@ -96,6 +98,7 @@ describe("UserMfaUseCase", () => {
       repository,
       userRepository,
       fakeCipher(),
+      mock<ILogger>(),
       () => now,
     );
   });
@@ -315,6 +318,7 @@ describe("UserMfaUseCase", () => {
       repository,
       userRepository,
       fakeCipher(false),
+      mock<ILogger>(),
     );
 
     expect((await withoutKey.status("t", USER)).data?.available).toBe(false);

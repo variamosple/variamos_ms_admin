@@ -1,7 +1,7 @@
-import logger from "jet-logger";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { ISecretCipher } from "#src/Domain/Core/Secret/ISecretCipher.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import {
   generateRecoveryCodes,
   hashRecoveryCode,
@@ -46,6 +46,7 @@ export class UserMfaUseCase {
     private readonly mfaRepository: IUserMfaRepository,
     private readonly userRepository: Pick<IUserRepository, "verifyPassword">,
     private readonly cipher: ISecretCipher,
+    private readonly logger: ILogger,
     private readonly now: () => number = Date.now,
   ) {}
 
@@ -153,7 +154,7 @@ export class UserMfaUseCase {
           "No two-factor enrollment is in progress.",
         );
       }
-      logger.info(`[MFA] Two-factor authentication on for user ${userId}`);
+      this.logger.info(`[MFA] Two-factor authentication on for user ${userId}`);
       return response.withResponse({ recoveryCodes });
     } catch (error) {
       return this.systemError(response, "confirmEnrollment", error);
@@ -189,7 +190,9 @@ export class UserMfaUseCase {
         return this.wrongCode(response);
       }
       await this.mfaRepository.remove(userId);
-      logger.info(`[MFA] Two-factor authentication off for user ${userId}`);
+      this.logger.info(
+        `[MFA] Two-factor authentication off for user ${userId}`,
+      );
       return response.withResponse(null);
     } catch (error) {
       return this.systemError(response, "disable", error);
@@ -218,7 +221,7 @@ export class UserMfaUseCase {
       hashRecoveryCode(code),
     );
     if (usedRecoveryCode) {
-      logger.info(`[MFA] Recovery code used by user ${record.userId}`);
+      this.logger.info(`[MFA] Recovery code used by user ${record.userId}`);
     }
     return usedRecoveryCode;
   }
@@ -242,7 +245,7 @@ export class UserMfaUseCase {
     operation: string,
     error: unknown,
   ): ResponseModel<T> {
-    logger.err(`[MFA] ${operation} failed: ${(error as Error).message}`);
+    this.logger.err(`[MFA] ${operation} failed: ${(error as Error).message}`);
     return response.withError(
       DomainErrorCodes.SYSTEM_ERROR,
       "Internal server error",
