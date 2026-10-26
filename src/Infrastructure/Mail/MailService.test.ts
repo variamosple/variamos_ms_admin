@@ -94,6 +94,23 @@ describe("MailServiceImpl messages", () => {
     expect(html).toContain('href="https://app.example.com/#/login"');
     expect(html).toContain('href="https://app.example.com/#/forgot-password"');
   });
+
+  it("sends a security alert whose text is never read as markup", async () => {
+    const service = new MailServiceImpl();
+    const send = vi.spyOn(service, "sendMail").mockResolvedValue(true);
+
+    await service.sendSecurityAlertMail(
+      "dana@example.com",
+      "Repeated failed sign-ins",
+      '10 failed sign-ins for address <script>"x"</script>.',
+    );
+
+    const [to, subject, html] = send.mock.calls[0] as [string, string, string];
+    expect(to).toBe("dana@example.com");
+    expect(subject).toBe("VariaMos - Security alert: Repeated failed sign-ins");
+    expect(html).toContain("&lt;script&gt;&quot;x&quot;&lt;/script&gt;");
+    expect(html).not.toContain("<script>");
+  });
 });
 
 describe("describeDuration", () => {

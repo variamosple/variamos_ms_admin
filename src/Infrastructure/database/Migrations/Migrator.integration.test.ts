@@ -257,6 +257,13 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         { type: QueryTypes.SELECT },
       ),
     ).toEqual([
+      { key: "security.alerts.cooldown_minutes", value: 60 },
+      { key: "security.alerts.failed_sign_ins.max_attempts", value: 10 },
+      { key: "security.alerts.failed_sign_ins.window_minutes", value: 15 },
+      { key: "security.alerts.mass_operations.max_operations", value: 20 },
+      { key: "security.alerts.mass_operations.window_minutes", value: 10 },
+      { key: "security.alerts.off_hours", value: "" },
+      { key: "security.alerts.timezone", value: "UTC" },
       { key: "security.lockout.duration_minutes", value: 15 },
       { key: "security.lockout.max_attempts", value: 10 },
       { key: "security.mfa.trusted_device_days", value: 14 },

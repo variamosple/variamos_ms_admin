@@ -1,3 +1,4 @@
+import { SECURITY_ALERT_KEYS } from "#src/Domain/Activity/SecurityAlertPolicy.js";
 import { TRUSTED_DEVICE_DAYS_KEY } from "#src/Domain/Mfa/UseCase/TrustedDeviceUseCase.js";
 import { HEALTH_CHECK_INTERVAL_KEY } from "#src/Domain/MicroService/Entity/HealthCheckInterval.js";
 import { PASSWORD_HASHING_COST_KEY } from "#src/Domain/User/Entity/PasswordHashingCost.js";
@@ -19,6 +20,7 @@ export const APPLIED_CONFIGURATION_KEYS: ReadonlySet<string> = new Set([
   ...Object.values(ACCOUNT_LOCKOUT_KEYS),
   TRUSTED_DEVICE_DAYS_KEY,
   PASSWORD_HASHING_COST_KEY,
+  ...Object.values(SECURITY_ALERT_KEYS),
 ]);
 
 export const isConfigurationApplied = (key: string): boolean =>

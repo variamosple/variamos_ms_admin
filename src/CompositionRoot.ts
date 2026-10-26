@@ -3,6 +3,7 @@ import multer from "multer";
 import EnvVars from "#src/common/EnvVars.js";
 import { MAX_ATTACHMENT_SIZE_BYTES } from "#src/Domain/Core/File/AllowedFileType.js";
 import { AccessHierarchyRepositoryImpl } from "./DataProviders/AccessControl/AccessHierarchyRepository.js";
+import { SecurityAlertRecipientRepository } from "./DataProviders/AccessControl/SecurityAlertRecipientRepository.js";
 import { AccessJournalRepositoryImpl } from "./DataProviders/Activity/AccessJournalRepository.js";
 import { ActivityJournalRepositoryImpl } from "./DataProviders/Activity/ActivityJournalRepository.js";
 import { JournalReaderRepositoryImpl } from "./DataProviders/Activity/JournalReaderRepository.js";
@@ -22,8 +23,17 @@ import { RoleRepositoryImpl } from "./DataProviders/Role/RoleRepository.js";
 import { UserRepositoryImpl } from "./DataProviders/User/UserRepository.js";
 import { UserRoleRepositoryImpl } from "./DataProviders/User/UserRoleRepository.js";
 import { VisitRepositoryImpl } from "./DataProviders/Visit/VisitRepository.js";
-import { AccessHierarchyUseCase } from "./Domain/AccessControl/AccessHierarchyUseCase.js";
+import {
+  AccessHierarchyUseCase,
+  TOP_PERMISSION,
+} from "./Domain/AccessControl/AccessHierarchyUseCase.js";
 import { JournalQueryUseCase } from "./Domain/Activity/JournalQueryUseCase.js";
+import { SecurityAlertPolicyService } from "./Domain/Activity/SecurityAlertPolicyService.js";
+import {
+  SecurityAlertDetector,
+  watchedAccessJournal,
+  watchedActivityJournal,
+} from "./Domain/Activity/SecurityAlerts.js";
 // Bug Use Cases
 import { BugAssignmentUseCase } from "./Domain/Bug/UseCase/BugAssignmentUseCase.js";
 import { BugAttachmentUseCase } from "./Domain/Bug/UseCase/BugAttachmentUseCase.js";
@@ -71,6 +81,7 @@ import { ConfigEventPublisherImpl } from "./Infrastructure/Messaging/ConfigEvent
 import { BugAssignmentNotifier } from "./Infrastructure/Notification/BugAssignmentNotifier.js";
 import { NotificationAccessTokenIssuer } from "./Infrastructure/Notification/NotificationAccessTokenIssuer.js";
 import { NotificationClientInstance } from "./Infrastructure/Notification/NotificationClient.js";
+import { SecurityAlertNotifier } from "./Infrastructure/Notification/SecurityAlertNotifier.js";
 import { followHealthCheckInterval } from "./Infrastructure/Scheduling/BackgroundJobs.js";
 import {
   AesGcmSecretCipher,
@@ -138,6 +149,27 @@ export const AccessJournalInstance = new AccessJournalRepositoryImpl(
   VARIAMOS_ORM,
   DB_SCHEMA,
 );
+// Security alerts (T-24, EV-88 lot D): both journals are watched; alerts go
+// to the accounts holding the top permission, in the app and by mail
+const SecurityAlertDetectorInstance = new SecurityAlertDetector(
+  new SecurityAlertPolicyService(ConfigurationRepositoryInstance, JetLogger),
+  new SecurityAlertRecipientRepository(TOP_PERMISSION),
+  new SecurityAlertNotifier(
+    NotificationClientInstance,
+    MailServiceInstance,
+    JetLogger,
+  ),
+  ActivityJournalInstance,
+  JetLogger,
+);
+const WatchedActivityJournal = watchedActivityJournal(
+  ActivityJournalInstance,
+  SecurityAlertDetectorInstance,
+);
+const WatchedAccessJournal = watchedAccessJournal(
+  AccessJournalInstance,
+  SecurityAlertDetectorInstance,
+);
 // Read-only pages of both journals (T-24 lot 3)
 const productionJournalQueryUseCase = new JournalQueryUseCase(
   new JournalReaderRepositoryImpl(VARIAMOS_ORM, DB_SCHEMA),
@@ -147,7 +179,7 @@ const productionJournalQueryUseCase = new JournalQueryUseCase(
 export const productionConfigurationUseCase = new ConfigurationUseCase(
   ConfigurationRepositoryInstance,
   ConfigEventPublisherInstance,
-  ActivityJournalInstance,
+  WatchedActivityJournal,
 );
 
 // User Use Case Instantiations
@@ -178,14 +210,14 @@ const productionUserPasswordUseCase = new UserPasswordUseCase(
     passwordResetExpiryInMs: EnvVars.Auth.APP.PASSWORD_RESET_EXPIRY_IN_MS,
     adminHomeUri: EnvVars.Auth.APP.ADMIN_HOME_URI,
   },
-  ActivityJournalInstance,
+  WatchedActivityJournal,
   JetLogger,
   PasswordPolicyServiceInstance,
 );
 
 const productionUserManagementUseCase = new UserManagementUseCase(
   UserRepositoryInstance,
-  ActivityJournalInstance,
+  WatchedActivityJournal,
   JetLogger,
   PasswordPolicyServiceInstance,
 );
@@ -227,7 +259,7 @@ const productionMfaResetUseCase = new MfaResetUseCase(
   userMfaRepository,
   UserRepositoryInstance,
   MailServiceInstance,
-  ActivityJournalInstance,
+  WatchedActivityJournal,
   JetLogger,
 );
 
@@ -235,7 +267,7 @@ const productionUserQueryUseCase = new UserQueryUseCase(UserRepositoryInstance);
 
 const productionUserRoleUseCase = new UserRoleUseCase(
   UserRoleRepositoryInstance,
-  ActivityJournalInstance,
+  WatchedActivityJournal,
 );
 
 // Bug Tracker Config
@@ -266,7 +298,7 @@ export const productionBugLifecycleUseCase = new BugLifecycleUseCase(
   DiskStorageServiceInstance,
   bugTrackerConfig,
   productionGitHubTokenResolver,
-  ActivityJournalInstance,
+  WatchedActivityJournal,
   JetLogger,
 );
 
@@ -287,7 +319,7 @@ const productionBugQueryUseCase = new BugQueryUseCase(
 const productionBugAssignmentUseCase = new BugAssignmentUseCase(
   BugRepositoryInstance,
   new BugAssignmentNotifier(NotificationClientInstance),
-  ActivityJournalInstance,
+  WatchedActivityJournal,
   JetLogger,
 );
 
@@ -301,7 +333,7 @@ const productionBugAttachmentUseCase = new BugAttachmentUseCase(
 const productionNotificationDispatchUseCase = new NotificationDispatchUseCase(
   new NotificationRecipientDirectory(),
   NotificationClientInstance,
-  ActivityJournalInstance,
+  WatchedActivityJournal,
 );
 
 /** Resolves when the database answers, for GET /health. */
@@ -310,19 +342,19 @@ const checkDatabase = (): Promise<void> => VARIAMOS_ORM.authenticate();
 // Other Use Case Instantiations
 const productionPermissionUseCase = new PermissionUseCase(
   PermissionRepositoryInstance,
-  ActivityJournalInstance,
+  WatchedActivityJournal,
 );
 
 const productionRoleManagementUseCase = new RoleManagementUseCase(
   RoleRepositoryInstance,
-  ActivityJournalInstance,
+  WatchedActivityJournal,
 );
 
 const productionRoleQueryUseCase = new RoleQueryUseCase(RoleRepositoryInstance);
 
 const productionRolePermissionUseCase = new RolePermissionUseCase(
   RolePermissionRepositoryInstance,
-  ActivityJournalInstance,
+  WatchedActivityJournal,
 );
 
 const productionAccessHierarchyUseCase = new AccessHierarchyUseCase(
@@ -417,7 +449,7 @@ export const productionRouterDependencies: BaseRouterDependencies = {
   upload: productionUpload,
   accessGuard: productionAccessHierarchyUseCase,
   accountLockout: AccountLockoutInstance,
-  accessJournal: AccessJournalInstance,
+  accessJournal: WatchedAccessJournal,
   journalQuery: productionJournalQueryUseCase,
   checkDatabase,
 };

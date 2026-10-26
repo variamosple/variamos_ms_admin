@@ -15,6 +15,18 @@ export function describeDuration(ms: number): string {
   return minutes === 1 ? "1 minute" : `${minutes} minutes`;
 }
 
+const HTML_ESCAPES: Record<string, string> = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&#39;",
+};
+
+/** Text placed in the HTML of a mail, never read as markup. */
+const escapeHtml = (text: string) =>
+  text.replace(/[&<>"']/g, (char) => HTML_ESCAPES[char]);
+
 /** The VariaMos frame of every e-mail: logo, signature and footer. */
 function renderMail(content: string): string {
   const logoUrl =
@@ -186,6 +198,28 @@ export class MailServiceImpl implements IMailService {
             </p>
             <p style="font-size: 15px; line-height: 1.6; color: #495057;">
               If it was not you, you can ignore this email: your account has not changed.
+            </p>
+
+`);
+    return this.sendMail(to, subject, html);
+  }
+
+  /**
+   * Sends a security alert to an account at the top of the role ladder
+   */
+  public async sendSecurityAlertMail(
+    to: string,
+    title: string,
+    body: string,
+  ): Promise<boolean> {
+    const subject = `VariaMos - Security alert: ${title}`;
+    const html = renderMail(`
+            <h2 style="color: #212529; font-size: 20px; margin-top: 0; font-weight: 600;">${escapeHtml(title)}</h2>
+            <p style="font-size: 15px; line-height: 1.6; color: #495057;">
+              ${escapeHtml(body)}
+            </p>
+            <p style="font-size: 15px; line-height: 1.6; color: #495057;">
+              The details are in the activity journal of the <strong>VariaMos</strong> administration. You receive this alert because your account can manage permissions.
             </p>
 
 `);
