@@ -1,5 +1,7 @@
 import logger from "jet-logger";
+import multer from "multer";
 import EnvVars from "#src/common/EnvVars.js";
+import { MAX_ATTACHMENT_SIZE_BYTES } from "#src/Domain/Core/File/AllowedFileType.js";
 import { AccessHierarchyRepositoryImpl } from "./DataProviders/AccessControl/AccessHierarchyRepository.js";
 import { AccessJournalRepositoryImpl } from "./DataProviders/Activity/AccessJournalRepository.js";
 import { ActivityJournalRepositoryImpl } from "./DataProviders/Activity/ActivityJournalRepository.js";
@@ -59,14 +61,17 @@ import { UserPasswordUseCase } from "./Domain/User/UseCase/UserPasswordUseCase.j
 import { UserQueryUseCase } from "./Domain/User/UseCase/UserQueryUseCase.js";
 import { UserRoleUseCase } from "./Domain/User/UseCase/UserRoleUseCase.js";
 import { VisitUseCase } from "./Domain/Visit/UseCase/VisitUseCase.js";
+import type { BaseRouterDependencies } from "./EntryPoints/index.js";
 import { GitHubIssuesServiceInstance } from "./Infrastructure/GitHub/GitHubIssuesService.js";
 import { GitHubTokenResolver } from "./Infrastructure/GitHub/GitHubTokenResolver.js";
+import { HealthCheckCollector } from "./Infrastructure/Health/HealthCheckCollector.js";
 import { JetLogger } from "./Infrastructure/Logging/JetLogger.js";
 import { MailServiceInstance } from "./Infrastructure/Mail/MailService.js";
 import { ConfigEventPublisherImpl } from "./Infrastructure/Messaging/ConfigEventPublisher.js";
 import { BugAssignmentNotifier } from "./Infrastructure/Notification/BugAssignmentNotifier.js";
 import { NotificationAccessTokenIssuer } from "./Infrastructure/Notification/NotificationAccessTokenIssuer.js";
 import { NotificationClientInstance } from "./Infrastructure/Notification/NotificationClient.js";
+import { followHealthCheckInterval } from "./Infrastructure/Scheduling/BackgroundJobs.js";
 import {
   AesGcmSecretCipher,
   parseEncryptionKey,
@@ -91,12 +96,12 @@ export const SecretConfigurationValueInstance = new SecretConfigurationValue(
 
 // Repositories
 // Health check statistics and retention, read by the screens and the collector
-export const HealthLogStatisticsInstance = new HealthLogStatistics(
+const HealthLogStatisticsInstance = new HealthLogStatistics(
   VARIAMOS_ORM,
   DB_SCHEMA,
 );
 
-export const MicroServiceRepositoryInstance = new MicroServiceRepositoryImpl({
+const MicroServiceRepositoryInstance = new MicroServiceRepositoryImpl({
   socketPath: EnvVars.DOCKER.SOCKET_PATH,
   secrets: SecretConfigurationValueInstance,
   statistics: HealthLogStatisticsInstance,
@@ -122,7 +127,7 @@ const UserRepositoryInstance = new UserRepositoryImpl(
     ),
   ),
 );
-export const ConfigEventPublisherInstance = new ConfigEventPublisherImpl();
+const ConfigEventPublisherInstance = new ConfigEventPublisherImpl();
 // Administration operations (T-24): table admin_activity_logs, append-only
 export const ActivityJournalInstance = new ActivityJournalRepositoryImpl(
   VARIAMOS_ORM,
@@ -134,7 +139,7 @@ export const AccessJournalInstance = new AccessJournalRepositoryImpl(
   DB_SCHEMA,
 );
 // Read-only pages of both journals (T-24 lot 3)
-export const productionJournalQueryUseCase = new JournalQueryUseCase(
+const productionJournalQueryUseCase = new JournalQueryUseCase(
   new JournalReaderRepositoryImpl(VARIAMOS_ORM, DB_SCHEMA),
 );
 
@@ -153,18 +158,18 @@ const PasswordPolicyServiceInstance = new PasswordPolicyService(
 );
 
 // security.lockout.* keys, read at each sign-in
-export const AccountLockoutInstance = new AccountLockout(
+const AccountLockoutInstance = new AccountLockout(
   new AccountLockoutPolicyService(ConfigurationRepositoryInstance, JetLogger),
 );
 
-export const productionUserAuthUseCase = new UserAuthUseCase(
+const productionUserAuthUseCase = new UserAuthUseCase(
   UserRepositoryInstance,
   RoleRepositoryInstance,
   JetLogger,
   PasswordPolicyServiceInstance,
 );
 
-export const productionUserPasswordUseCase = new UserPasswordUseCase(
+const productionUserPasswordUseCase = new UserPasswordUseCase(
   UserRepositoryInstance,
   MailServiceInstance,
   {
@@ -176,7 +181,7 @@ export const productionUserPasswordUseCase = new UserPasswordUseCase(
   PasswordPolicyServiceInstance,
 );
 
-export const productionUserManagementUseCase = new UserManagementUseCase(
+const productionUserManagementUseCase = new UserManagementUseCase(
   UserRepositoryInstance,
   ActivityJournalInstance,
   JetLogger,
@@ -194,20 +199,20 @@ if (!mfaEncryptionKey && EnvVars.Auth.APP.MFA_ENCRYPTION_KEY.trim()) {
 }
 const userMfaRepository = new UserMfaRepositoryImpl(VARIAMOS_ORM, DB_SCHEMA);
 const mfaSecretCipher = new AesGcmSecretCipher(mfaEncryptionKey);
-export const productionUserMfaUseCase = new UserMfaUseCase(
+const productionUserMfaUseCase = new UserMfaUseCase(
   userMfaRepository,
   UserRepositoryInstance,
   mfaSecretCipher,
   JetLogger,
 );
 // Browsers where the user chose not to be asked the code (lot 6)
-export const productionTrustedDeviceUseCase = new TrustedDeviceUseCase(
+const productionTrustedDeviceUseCase = new TrustedDeviceUseCase(
   new TrustedDeviceRepositoryImpl(VARIAMOS_ORM, DB_SCHEMA),
   ConfigurationRepositoryInstance,
   JetLogger,
 );
 // The code asked after the password, for accounts with a second factor
-export const productionMfaSignInUseCase = new MfaSignInUseCase(
+const productionMfaSignInUseCase = new MfaSignInUseCase(
   userMfaRepository,
   productionUserMfaUseCase,
   mfaSecretCipher,
@@ -216,7 +221,7 @@ export const productionMfaSignInUseCase = new MfaSignInUseCase(
   JetLogger,
 );
 // An administrator turns off the second factor of an account that lost it
-export const productionMfaResetUseCase = new MfaResetUseCase(
+const productionMfaResetUseCase = new MfaResetUseCase(
   userMfaRepository,
   UserRepositoryInstance,
   MailServiceInstance,
@@ -224,11 +229,9 @@ export const productionMfaResetUseCase = new MfaResetUseCase(
   JetLogger,
 );
 
-export const productionUserQueryUseCase = new UserQueryUseCase(
-  UserRepositoryInstance,
-);
+const productionUserQueryUseCase = new UserQueryUseCase(UserRepositoryInstance);
 
-export const productionUserRoleUseCase = new UserRoleUseCase(
+const productionUserRoleUseCase = new UserRoleUseCase(
   UserRoleRepositoryInstance,
   ActivityJournalInstance,
 );
@@ -246,7 +249,7 @@ const bugTrackerConfig = {
 const productionGitHubTokenResolver = new GitHubTokenResolver(bugTrackerConfig);
 
 // Bug Use Case Instantiations
-export const productionBugSubmissionUseCase = new BugSubmissionUseCase(
+const productionBugSubmissionUseCase = new BugSubmissionUseCase(
   BugRepositoryInstance,
   UserRepositoryInstance,
   GitHubIssuesServiceInstance,
@@ -273,70 +276,67 @@ export const productionBugSyncUseCase = new BugSyncUseCase(
   JetLogger,
 );
 
-export const productionBugQueryUseCase = new BugQueryUseCase(
+const productionBugQueryUseCase = new BugQueryUseCase(
   BugRepositoryInstance,
   bugTrackerConfig,
   JetLogger,
 );
 
-export const productionBugAssignmentUseCase = new BugAssignmentUseCase(
+const productionBugAssignmentUseCase = new BugAssignmentUseCase(
   BugRepositoryInstance,
   new BugAssignmentNotifier(NotificationClientInstance),
   ActivityJournalInstance,
   JetLogger,
 );
 
-export const productionBugAttachmentUseCase = new BugAttachmentUseCase(
+const productionBugAttachmentUseCase = new BugAttachmentUseCase(
   BugRepositoryInstance,
   DiskStorageServiceInstance,
   JetLogger,
 );
 
 // Notifications sent by an administrator (T-18 lot 3b)
-export const productionNotificationDispatchUseCase =
-  new NotificationDispatchUseCase(
-    new NotificationRecipientDirectory(),
-    NotificationClientInstance,
-    ActivityJournalInstance,
-  );
+const productionNotificationDispatchUseCase = new NotificationDispatchUseCase(
+  new NotificationRecipientDirectory(),
+  NotificationClientInstance,
+  ActivityJournalInstance,
+);
 
 /** Resolves when the database answers, for GET /health. */
-export const checkDatabase = (): Promise<void> => VARIAMOS_ORM.authenticate();
+const checkDatabase = (): Promise<void> => VARIAMOS_ORM.authenticate();
 
 // Other Use Case Instantiations
-export const productionPermissionUseCase = new PermissionUseCase(
+const productionPermissionUseCase = new PermissionUseCase(
   PermissionRepositoryInstance,
   ActivityJournalInstance,
 );
 
-export const productionRoleManagementUseCase = new RoleManagementUseCase(
+const productionRoleManagementUseCase = new RoleManagementUseCase(
   RoleRepositoryInstance,
   ActivityJournalInstance,
 );
 
-export const productionRoleQueryUseCase = new RoleQueryUseCase(
-  RoleRepositoryInstance,
-);
+const productionRoleQueryUseCase = new RoleQueryUseCase(RoleRepositoryInstance);
 
-export const productionRolePermissionUseCase = new RolePermissionUseCase(
+const productionRolePermissionUseCase = new RolePermissionUseCase(
   RolePermissionRepositoryInstance,
   ActivityJournalInstance,
 );
 
-export const productionAccessHierarchyUseCase = new AccessHierarchyUseCase(
+const productionAccessHierarchyUseCase = new AccessHierarchyUseCase(
   new AccessHierarchyRepositoryImpl(),
 );
 
-export const productionMetricsQueryUseCase = new MetricsQueryUseCase(
+const productionMetricsQueryUseCase = new MetricsQueryUseCase(
   MetricsRepositoryInstance,
 );
 
-export const productionVisitUseCase = new VisitUseCase(
+const productionVisitUseCase = new VisitUseCase(
   VisitRepositoryInstance,
   CountriesRepositoryInstance,
 );
 
-export const productionCountriesQueryUseCase = new CountriesQueryUseCase(
+const productionCountriesQueryUseCase = new CountriesQueryUseCase(
   CountriesRepositoryInstance,
 );
 
@@ -344,9 +344,78 @@ export const productionMicroServiceQueryUseCase = new MicroServiceQueryUseCase(
   MicroServiceRepositoryInstance,
 );
 
-export const productionMicroServiceManagementUseCase =
+const productionMicroServiceManagementUseCase =
   new MicroServiceManagementUseCase(MicroServiceRepositoryInstance, JetLogger);
 
 // Short-lived tokens for the notification service (ADR-0001)
-export const productionNotificationAccessTokenIssuer =
+const productionNotificationAccessTokenIssuer =
   new NotificationAccessTokenIssuer(EnvVars.NOTIFICATION.INTERNAL_TOKEN);
+
+// Uploads are kept in memory, within the size limit, until the use case has
+// checked the request and the file type; only then is the file written, under
+// a server-generated name (DiskStorageService).
+const productionUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_ATTACHMENT_SIZE_BYTES, files: 1 },
+});
+
+// Health checks of the services, started by the background jobs; the interval
+// follows the configuration screen
+export const HealthCheckCollectorInstance = new HealthCheckCollector(
+  MicroServiceRepositoryInstance,
+  HealthLogStatisticsInstance,
+  EnvVars.MONITORING.HEALTH_CHECK_INTERVAL_MS,
+);
+MicroServiceRepositoryInstance.setHealthCollector(HealthCheckCollectorInstance);
+ConfigEventPublisherInstance.addListener(
+  followHealthCheckInterval(HealthCheckCollectorInstance),
+);
+
+// What the routers need (T-18 lot 4a)
+export const productionRouterDependencies: BaseRouterDependencies = {
+  users: {
+    auth: productionUserAuthUseCase,
+    password: productionUserPasswordUseCase,
+    management: productionUserManagementUseCase,
+    query: productionUserQueryUseCase,
+    role: productionUserRoleUseCase,
+  },
+  bugs: {
+    submission: productionBugSubmissionUseCase,
+    lifecycle: productionBugLifecycleUseCase,
+    sync: productionBugSyncUseCase,
+    query: productionBugQueryUseCase,
+    attachment: productionBugAttachmentUseCase,
+    assignment: productionBugAssignmentUseCase,
+  },
+  microServices: {
+    query: productionMicroServiceQueryUseCase,
+    management: productionMicroServiceManagementUseCase,
+  },
+  roles: {
+    management: productionRoleManagementUseCase,
+    query: productionRoleQueryUseCase,
+    permission: productionRolePermissionUseCase,
+  },
+  mfa: {
+    user: productionUserMfaUseCase,
+    signIn: productionMfaSignInUseCase,
+    reset: productionMfaResetUseCase,
+    trustedDevices: productionTrustedDeviceUseCase,
+  },
+  notifications: {
+    accessTokenIssuer: productionNotificationAccessTokenIssuer,
+    dispatch: productionNotificationDispatchUseCase,
+  },
+  metrics: productionMetricsQueryUseCase,
+  permissions: productionPermissionUseCase,
+  visits: productionVisitUseCase,
+  countries: productionCountriesQueryUseCase,
+  configuration: productionConfigurationUseCase,
+  upload: productionUpload,
+  accessGuard: productionAccessHierarchyUseCase,
+  accountLockout: AccountLockoutInstance,
+  accessJournal: AccessJournalInstance,
+  journalQuery: productionJournalQueryUseCase,
+  checkDatabase,
+};

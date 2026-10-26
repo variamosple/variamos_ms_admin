@@ -1,4 +1,5 @@
 import { TRUSTED_DEVICE_DAYS_KEY } from "#src/Domain/Mfa/UseCase/TrustedDeviceUseCase.js";
+import { HEALTH_CHECK_INTERVAL_KEY } from "#src/Domain/MicroService/Entity/HealthCheckInterval.js";
 import { PASSWORD_HASHING_COST_KEY } from "#src/Domain/User/Entity/PasswordHashingCost.js";
 import { ACCOUNT_LOCKOUT_KEYS } from "#src/Domain/User/Service/AccountLockoutService.js";
 import {
@@ -12,7 +13,7 @@ import {
  * does not believe a protection is on when it is not (T-20).
  */
 export const APPLIED_CONFIGURATION_KEYS: ReadonlySet<string> = new Set([
-  "monitoring.health_check_interval_seconds",
+  HEALTH_CHECK_INTERVAL_KEY,
   ...Object.values(PASSWORD_POLICY_KEYS),
   PASSWORD_RESET_EXPIRY_KEY,
   ...Object.values(ACCOUNT_LOCKOUT_KEYS),
