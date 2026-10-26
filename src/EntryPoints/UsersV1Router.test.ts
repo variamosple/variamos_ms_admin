@@ -8,6 +8,7 @@ import { mock } from "vitest-mock-extended";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { User } from "#src/Domain/User/Entity/User.js";
 import { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
 import { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
@@ -74,10 +75,12 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
       mock<IMailService>(),
       mock<UserPasswordUseCaseConfig>(),
       mock<IActivityJournal>(),
+      mock<ILogger>(),
     );
     const mockUserManagementUseCase = new UserManagementUseCase(
       mock<IUserRepository>(),
       mock<IActivityJournal>(),
+      mock<ILogger>(),
     );
     const mockUserRolesRouter = express.Router();
     app.use(

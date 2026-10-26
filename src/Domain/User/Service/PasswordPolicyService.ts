@@ -1,6 +1,6 @@
-import logger from "jet-logger";
 import type { IConfigurationRepository } from "#src/Domain/Configuration/Repository/IConfigurationRepository.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { PasswordPolicy } from "#src/Domain/User/Entity/PasswordPolicy.js";
 
 export const PASSWORD_POLICY_KEYS = {
@@ -31,6 +31,7 @@ export const DEFAULT_PASSWORD_POLICY_PROVIDER: IPasswordPolicyProvider = {
 export class PasswordPolicyService implements IPasswordPolicyProvider {
   public constructor(
     private readonly configurationRepository: IConfigurationRepository,
+    private readonly logger: ILogger,
   ) {}
 
   private async read(key: string): Promise<unknown> {
@@ -40,7 +41,7 @@ export class PasswordPolicyService implements IPasswordPolicyProvider {
       );
       return response.errorCode ? undefined : response.data?.value;
     } catch (error) {
-      logger.warn(`Could not read ${key}: ${(error as Error).message}`);
+      this.logger.warn(`Could not read ${key}: ${(error as Error).message}`);
       return undefined;
     }
   }
@@ -72,6 +73,7 @@ export class PasswordPolicyService implements IPasswordPolicyProvider {
 /** Checks a new password against the configured policy; logs a refusal. */
 export async function checkNewPassword(
   provider: IPasswordPolicyProvider,
+  logger: ILogger,
   password: string,
   context: string,
 ): Promise<string | null> {

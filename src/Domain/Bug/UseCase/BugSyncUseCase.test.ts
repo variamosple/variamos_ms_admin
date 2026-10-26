@@ -1,4 +1,3 @@
-import logger from "jet-logger";
 import { type MockProxy, mock } from "vitest-mock-extended";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
@@ -12,16 +11,19 @@ import type {
   GitHubIssueLabel,
   IIssueTrackerService,
 } from "#src/Domain/Core/Service/IIssueTrackerService.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { BugSyncUseCase } from "./BugSyncUseCase.js";
 
 describe("BugSyncUseCase", () => {
   let useCase: BugSyncUseCase;
+  let logger: MockProxy<ILogger>;
   let mockBugRepository: MockProxy<IBugRepository>;
   let mockIssueTracker: MockProxy<IIssueTrackerService>;
   let mockGithubConfig: MockProxy<IBugTrackerConfig>;
   let mockTokenResolver: MockProxy<IGitHubTokenProvider>;
 
   beforeEach(() => {
+    logger = mock<ILogger>();
     mockBugRepository = mock<IBugRepository>();
     mockIssueTracker = mock<IIssueTrackerService>();
     mockGithubConfig = mock<IBugTrackerConfig>();
@@ -31,6 +33,7 @@ describe("BugSyncUseCase", () => {
       mockIssueTracker,
       mockGithubConfig,
       mockTokenResolver,
+      logger,
     );
     // No local bug yet for the synchronized repositories
     mockBugRepository.queryBugs.mockResolvedValue(
@@ -81,17 +84,15 @@ describe("BugSyncUseCase", () => {
       }),
     );
 
-    const loggerInfoSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
-
     const req = new RequestModel<void>("tx-1");
     const res = await useCase.syncBugs(req);
 
     expect(res.errorCode).toBeUndefined();
     expect(mockBugRepository.saveOrUpdateBug).toHaveBeenCalled();
-    expect(loggerInfoSpy).toHaveBeenCalledWith(
+    expect(logger.info).toHaveBeenCalledWith(
       "Starting bugs sync for repos: VariaMos/VariaMosAdmin",
     );
-    expect(loggerInfoSpy).toHaveBeenCalledWith(
+    expect(logger.info).toHaveBeenCalledWith(
       "Synchronization finished: Created 1 and Updated 0 bugs.",
     );
   });
@@ -159,14 +160,13 @@ describe("BugSyncUseCase", () => {
       .mockResolvedValueOnce("token2");
 
     mockIssueTracker.getIssues.mockResolvedValue([]);
-    const loggerWarnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
 
     const req = new RequestModel<void>("tx-1");
     await useCase.syncBugs(req);
 
     expect(mockTokenResolver.resolveGitHubToken).toHaveBeenCalledTimes(2);
     expect(mockIssueTracker.getIssues).toHaveBeenCalledTimes(1); // called only for Repo2
-    expect(loggerWarnSpy).toHaveBeenCalledWith(
+    expect(logger.warn).toHaveBeenCalledWith(
       "GitHub token could not be resolved for repo: Repo1. Skipping.",
     );
   });
@@ -697,11 +697,9 @@ describe("BugSyncUseCase", () => {
       }),
     );
 
-    const loggerErrSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
-
     await useCase.syncBugs(new RequestModel<void>("tx-1"));
 
-    expect(loggerErrSpy).not.toHaveBeenCalled();
+    expect(logger.err).not.toHaveBeenCalled();
 
     expect(mockBugRepository.saveOrUpdateBug).toHaveBeenNthCalledWith(
       1,
@@ -782,11 +780,9 @@ describe("BugSyncUseCase", () => {
         new ResponseModel<{ created: boolean; updated: boolean }>("tx-1"),
       );
 
-    const loggerInfoSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
-
     await useCase.syncBugs(new RequestModel<void>("tx-1"));
 
-    expect(loggerInfoSpy).toHaveBeenCalledWith(
+    expect(logger.info).toHaveBeenCalledWith(
       "Synchronization finished: Created 1 and Updated 1 bugs.",
     );
   });

@@ -1,10 +1,10 @@
 import crypto from "node:crypto";
-import logger from "jet-logger";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
 import type { PasswordPolicy } from "#src/Domain/User/Entity/PasswordPolicy.js";
 import type {
@@ -40,9 +40,10 @@ export class UserPasswordUseCase {
     private readonly mailService: IMailService,
     private readonly config: UserPasswordUseCaseConfig,
     private readonly journal: IActivityJournal,
+    private readonly logger: ILogger,
     private readonly passwordPolicy: IPasswordPolicyProvider = DEFAULT_PASSWORD_POLICY_PROVIDER,
   ) {
-    this.tokenService = new PasswordResetTokenService(userRepository);
+    this.tokenService = new PasswordResetTokenService(userRepository, logger);
   }
 
   /**
@@ -92,7 +93,7 @@ export class UserPasswordUseCase {
     try {
       const user = await this.userRepository.getUserByEmail(email);
       if (!user) {
-        logger.warn("[PASSWORD RESET ATTEMPT] Failed: Email not found.");
+        this.logger.warn("[PASSWORD RESET ATTEMPT] Failed: Email not found.");
         return;
       }
 
@@ -119,13 +120,13 @@ export class UserPasswordUseCase {
         expiryMs,
       );
       if (!emailSent) {
-        logger.err(
+        this.logger.err(
           "[PASSWORD RESET ATTEMPT] Failed: recovery e-mail not sent.",
         );
       }
     } catch (error) {
-      logger.err("Error sending the password reset link:");
-      logger.err(error as Error);
+      this.logger.err("Error sending the password reset link:");
+      this.logger.err(error as Error);
     }
   }
 
@@ -177,8 +178,8 @@ export class UserPasswordUseCase {
 
       return response;
     } catch (error) {
-      logger.err("Error verifying reset token:");
-      logger.err(error as Error);
+      this.logger.err("Error verifying reset token:");
+      this.logger.err(error as Error);
       return response.withErrorPromise(
         DomainErrorCodes.SYSTEM_ERROR,
         "Error verifying reset token",
@@ -204,6 +205,7 @@ export class UserPasswordUseCase {
 
       const refusal = await checkNewPassword(
         this.passwordPolicy,
+        this.logger,
         password,
         "Password reset",
       );
@@ -242,8 +244,8 @@ export class UserPasswordUseCase {
 
       return response;
     } catch (error) {
-      logger.err("Error resetting password:");
-      logger.err(error as Error);
+      this.logger.err("Error resetting password:");
+      this.logger.err(error as Error);
       return response.withErrorPromise(
         DomainErrorCodes.SYSTEM_ERROR,
         "Error resetting password",
@@ -298,7 +300,7 @@ export class UserPasswordUseCase {
 
       const targetUser = targetUserResponse.data;
       if (!targetUser) {
-        logger.warn(
+        this.logger.warn(
           `[ADMIN PASSWORD RESET ATTEMPT] Failed: Admin (ID: ${adminId}) tried to generate a recovery link for a User (ID: ${userId}) but user was not found.`,
         );
         return response;
@@ -319,7 +321,7 @@ export class UserPasswordUseCase {
         throw error;
       }
 
-      logger.info(
+      this.logger.info(
         `[AUDIT] Admin (ID: ${adminId}) generated a password reset link for User (ID: ${userId})`,
       );
 
@@ -328,8 +330,8 @@ export class UserPasswordUseCase {
       };
       return response;
     } catch (error) {
-      logger.err("Error generating recovery link:");
-      logger.err(error as Error);
+      this.logger.err("Error generating recovery link:");
+      this.logger.err(error as Error);
       return response.withErrorPromise(
         DomainErrorCodes.SYSTEM_ERROR,
         "Error generating recovery link",

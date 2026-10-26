@@ -1,4 +1,3 @@
-import logger from "jet-logger";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import { BugFilter } from "#src/Domain/Bug/Entity/BugFilter.js";
@@ -11,6 +10,7 @@ import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { INTERNAL_ERROR_MESSAGE } from "#src/Domain/Core/Error/InternalErrorMessage.js";
 import type { IIssueTrackerService } from "#src/Domain/Core/Service/IIssueTrackerService.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { ALLOWED_CATEGORIES } from "./BugQueryUseCase.js";
 
 export class BugSyncUseCase {
@@ -19,6 +19,7 @@ export class BugSyncUseCase {
     private readonly issueTrackerService: IIssueTrackerService,
     private readonly githubConfig: IBugTrackerConfig,
     private readonly tokenResolver: IGitHubTokenProvider,
+    private readonly logger: ILogger,
   ) {}
 
   public async syncBugs(
@@ -34,7 +35,7 @@ export class BugSyncUseCase {
       const hasPatConfig = !!patToken;
 
       if (!hasAppConfig && !hasPatConfig) {
-        logger.warn(
+        this.logger.warn(
           "GitHub token is not defined in environment variables. Synchronization aborted.",
         );
         return response.withError(
@@ -44,7 +45,7 @@ export class BugSyncUseCase {
       }
 
       const repos = this.githubConfig.getGitHubManagedRepos();
-      logger.info(`Starting bugs sync for repos: ${repos.join(", ")}`);
+      this.logger.info(`Starting bugs sync for repos: ${repos.join(", ")}`);
 
       let totalCreated = 0;
       let totalUpdated = 0;
@@ -52,7 +53,7 @@ export class BugSyncUseCase {
       for (const repo of repos) {
         const token = await this.tokenResolver.resolveGitHubToken(repo);
         if (!token) {
-          logger.warn(
+          this.logger.warn(
             `GitHub token could not be resolved for repo: ${repo}. Skipping.`,
           );
           continue;
@@ -67,7 +68,7 @@ export class BugSyncUseCase {
           request.transactionId,
         );
         if (!localStatuses) {
-          logger.warn(
+          this.logger.warn(
             `Local bugs of ${repo} could not be read. Skipping its synchronization.`,
           );
           continue;
@@ -149,12 +150,12 @@ export class BugSyncUseCase {
         }
       }
 
-      logger.info(
+      this.logger.info(
         `Synchronization finished: Created ${totalCreated} and Updated ${totalUpdated} bugs.`,
       );
     } catch (error) {
       const err = error as Error;
-      logger.err(err);
+      this.logger.err(err);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;

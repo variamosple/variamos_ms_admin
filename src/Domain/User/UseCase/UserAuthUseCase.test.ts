@@ -2,6 +2,7 @@ import { type MockProxy, mock } from "vitest-mock-extended";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { Permission } from "#src/Domain/Permission/Entity/Permission.js";
 import { Role } from "#src/Domain/Role/Entity/Role.js";
 import type { IGuestRoleRepository } from "#src/Domain/Role/Repository/IGuestRoleRepository.js";
@@ -13,13 +14,19 @@ import { UserAuthUseCase } from "./UserAuthUseCase.js";
 
 describe("UserAuthUseCase", () => {
   let useCase: UserAuthUseCase;
+  let logger: MockProxy<ILogger>;
   let mockUserRepository: MockProxy<IUserRepository>;
   let mockRoleRepository: MockProxy<IGuestRoleRepository>;
 
   beforeEach(() => {
+    logger = mock<ILogger>();
     mockUserRepository = mock<IUserRepository>();
     mockRoleRepository = mock<IGuestRoleRepository>();
-    useCase = new UserAuthUseCase(mockUserRepository, mockRoleRepository);
+    useCase = new UserAuthUseCase(
+      mockUserRepository,
+      mockRoleRepository,
+      logger,
+    );
   });
 
   describe("signUp", () => {

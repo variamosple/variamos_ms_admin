@@ -1,8 +1,8 @@
-import logger from "jet-logger";
 import { type MockProxy, mock } from "vitest-mock-extended";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
 import type { User } from "#src/Domain/User/Entity/User.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
@@ -17,6 +17,7 @@ const activityJournal = { record: vi.fn().mockResolvedValue(undefined) };
 
 describe("UserPasswordUseCase", () => {
   let useCase: UserPasswordUseCase;
+  let logger: MockProxy<ILogger>;
   let mockUserRepository: MockProxy<IUserRepository>;
   let mockMailService: MockProxy<IMailService>;
 
@@ -40,6 +41,7 @@ describe("UserPasswordUseCase", () => {
   } as User;
 
   beforeEach(() => {
+    logger = mock<ILogger>();
     mockUserRepository = mock<IUserRepository>();
     mockMailService = mock<IMailService>();
     useCase = new UserPasswordUseCase(
@@ -47,6 +49,7 @@ describe("UserPasswordUseCase", () => {
       mockMailService,
       mockConfig,
       activityJournal,
+      logger,
     );
   });
 
@@ -116,7 +119,6 @@ describe("UserPasswordUseCase", () => {
     });
 
     it("answers success when the e-mail fails, and logs the failure", async () => {
-      const errSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
       mockUserRepository.getUserByEmail.mockResolvedValue(mockUser);
       const createTokenSpy = vi
         .spyOn(PasswordResetTokenService.prototype, "createResetToken")
@@ -128,12 +130,11 @@ describe("UserPasswordUseCase", () => {
 
       expect(res.errorCode).toBeUndefined();
       await vi.waitFor(() =>
-        expect(errSpy).toHaveBeenCalledWith(
+        expect(logger.err).toHaveBeenCalledWith(
           "[PASSWORD RESET ATTEMPT] Failed: recovery e-mail not sent.",
         ),
       );
       createTokenSpy.mockRestore();
-      errSpy.mockRestore();
     });
 
     it("answers before the account lookup ends", async () => {
@@ -303,6 +304,7 @@ describe("UserPasswordUseCase", () => {
         mockMailService,
         { ...mockConfig, passwordResetExpiryInMs: configured },
         activityJournal,
+        logger,
       );
       mockUserRepository.getUserByEmail.mockResolvedValue(mockUser);
       const createTokenSpy = vi
@@ -337,9 +339,6 @@ describe("UserPasswordUseCase", () => {
       const createTokenSpy = vi
         .spyOn(PasswordResetTokenService.prototype, "createResetToken")
         .mockResolvedValue("generated-token");
-      const loggerInfoSpy = vi
-        .spyOn(logger, "info")
-        .mockImplementation(() => {});
 
       const req = new RequestModel("tx-1", {
         userId: "user-123",
@@ -357,14 +356,13 @@ describe("UserPasswordUseCase", () => {
         mockConfig.passwordResetExpiryInMs,
         "ADMIN PASSWORD RESET ATTEMPT",
       );
-      expect(loggerInfoSpy).toHaveBeenCalledWith(
+      expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining("admin-456"),
       );
-      expect(loggerInfoSpy).toHaveBeenCalledWith(
+      expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining("user-123"),
       );
       createTokenSpy.mockRestore();
-      loggerInfoSpy.mockRestore();
     });
 
     it("should return empty response if target user is not found", async () => {
@@ -375,9 +373,6 @@ describe("UserPasswordUseCase", () => {
         PasswordResetTokenService.prototype,
         "createResetToken",
       );
-      const loggerWarnSpy = vi
-        .spyOn(logger, "warn")
-        .mockImplementation(() => {});
 
       const req = new RequestModel("tx-1", {
         userId: "user-123",
@@ -388,14 +383,13 @@ describe("UserPasswordUseCase", () => {
       expect(res.errorCode).toBeUndefined();
       expect(res.data).toBeUndefined();
       expect(createTokenSpy).not.toHaveBeenCalled();
-      expect(loggerWarnSpy).toHaveBeenCalledWith(
+      expect(logger.warn).toHaveBeenCalledWith(
         expect.stringContaining("admin-456"),
       );
-      expect(loggerWarnSpy).toHaveBeenCalledWith(
+      expect(logger.warn).toHaveBeenCalledWith(
         expect.stringContaining("user-123"),
       );
       createTokenSpy.mockRestore();
-      loggerWarnSpy.mockRestore();
     });
 
     it("should return empty response if token service throws error", async () => {
@@ -474,7 +468,6 @@ describe("UserPasswordUseCase", () => {
     });
 
     it("logs, without returning it, an error of the token service", async () => {
-      const errSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
       mockUserRepository.getUserByEmail.mockResolvedValue(mockUser);
       const createTokenSpy = vi
         .spyOn(PasswordResetTokenService.prototype, "createResetToken")
@@ -485,12 +478,11 @@ describe("UserPasswordUseCase", () => {
 
       expect(res.errorCode).toBeUndefined();
       await vi.waitFor(() =>
-        expect(errSpy).toHaveBeenCalledWith(
+        expect(logger.err).toHaveBeenCalledWith(
           "Error sending the password reset link:",
         ),
       );
       createTokenSpy.mockRestore();
-      errSpy.mockRestore();
     });
 
     it("should return error in verifyToken when token is empty", async () => {

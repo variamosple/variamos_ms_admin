@@ -1,4 +1,3 @@
-import logger from "jet-logger";
 import { type MockProxy, mock } from "vitest-mock-extended";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import { Bug, type BugUserRef } from "#src/Domain/Bug/Entity/Bug.js";
@@ -8,6 +7,7 @@ import type { IBugAssignmentNotifier } from "#src/Domain/Bug/Service/IBugAssignm
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import {
   ASSIGNABLE_PERMISSION,
   BugAssignmentUseCase,
@@ -22,6 +22,7 @@ describe("BugAssignmentUseCase", () => {
   let notifier: MockProxy<IBugAssignmentNotifier>;
   let journal: MockProxy<IActivityJournal>;
   let useCase: BugAssignmentUseCase;
+  let logger: MockProxy<ILogger>;
 
   const bugAssignedTo = (...assignees: BugUserRef[]) =>
     Bug.builder()
@@ -35,10 +36,11 @@ describe("BugAssignmentUseCase", () => {
     useCase.setAssignees(new RequestModel("tx", { bugId, userIds }, "actor-1"));
 
   beforeEach(() => {
+    logger = mock<ILogger>();
     repository = mock<IBugRepository>();
     notifier = mock<IBugAssignmentNotifier>();
     journal = mock<IActivityJournal>();
-    useCase = new BugAssignmentUseCase(repository, notifier, journal);
+    useCase = new BugAssignmentUseCase(repository, notifier, journal, logger);
 
     repository.findById.mockResolvedValue(
       new ResponseModel<Bug | null>("tx").withResponse(bugAssignedTo(ANA)),
@@ -213,21 +215,18 @@ describe("BugAssignmentUseCase", () => {
   });
 
   it("keeps the saved assignment when the notification fails", async () => {
-    const warn = vi.spyOn(logger, "warn").mockImplementation(() => logger);
     notifier.notifyAssigned.mockRejectedValue(new Error("service down"));
 
     const res = await assign([ANA.id, CAM.id]);
 
     expect(res.errorCode).toBeUndefined();
     expect(res.data).toEqual([ANA, CAM]);
-    expect(warn).toHaveBeenCalledWith(
+    expect(logger.warn).toHaveBeenCalledWith(
       "Bug assignment notification failed: service down",
     );
-    warn.mockRestore();
   });
 
   it("keeps the saved assignment when the note fails", async () => {
-    const warn = vi.spyOn(logger, "warn").mockImplementation(() => logger);
     repository.createNote.mockResolvedValue(
       new ResponseModel<BugNote>("tx").withError(
         DomainErrorCodes.SYSTEM_ERROR,
@@ -239,7 +238,7 @@ describe("BugAssignmentUseCase", () => {
 
     expect(res.errorCode).toBeUndefined();
     expect(res.data).toEqual([BEN]);
-    expect(warn).toHaveBeenCalledWith(
+    expect(logger.warn).toHaveBeenCalledWith(
       "Bug assignment note failed: Internal server error",
     );
     expect(notifier.notifyAssigned).toHaveBeenCalledWith(
@@ -247,6 +246,5 @@ describe("BugAssignmentUseCase", () => {
       "Crash on save",
       "actor-1",
     );
-    warn.mockRestore();
   });
 });

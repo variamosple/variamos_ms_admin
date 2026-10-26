@@ -2,6 +2,7 @@ import type { Mock } from "vitest";
 import { mock } from "vitest-mock-extended";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { ISecretCipher } from "#src/Domain/Core/Secret/ISecretCipher.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type {
   IUserMfaRepository,
   UserMfaRecord,
@@ -60,6 +61,7 @@ describe("MfaSignInUseCase", () => {
       cipher,
       new PendingMfaSignIns(() => now),
       trustedDevices,
+      mock<ILogger>(),
       () => now,
     );
   });

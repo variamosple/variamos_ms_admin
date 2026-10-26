@@ -61,6 +61,7 @@ import { UserRoleUseCase } from "./Domain/User/UseCase/UserRoleUseCase.js";
 import { VisitUseCase } from "./Domain/Visit/UseCase/VisitUseCase.js";
 import { GitHubIssuesServiceInstance } from "./Infrastructure/GitHub/GitHubIssuesService.js";
 import { GitHubTokenResolver } from "./Infrastructure/GitHub/GitHubTokenResolver.js";
+import { JetLogger } from "./Infrastructure/Logging/JetLogger.js";
 import { MailServiceInstance } from "./Infrastructure/Mail/MailService.js";
 import { ConfigEventPublisherImpl } from "./Infrastructure/Messaging/ConfigEventPublisher.js";
 import { BugAssignmentNotifier } from "./Infrastructure/Notification/BugAssignmentNotifier.js";
@@ -149,16 +150,18 @@ export const productionConfigurationUseCase = new ConfigurationUseCase(
 // security.password.* keys, read at each sign-up, change and reset
 export const PasswordPolicyServiceInstance = new PasswordPolicyService(
   ConfigurationRepositoryInstance,
+  JetLogger,
 );
 
 // security.lockout.* keys, read at each sign-in
 export const AccountLockoutInstance = new AccountLockout(
-  new AccountLockoutPolicyService(ConfigurationRepositoryInstance),
+  new AccountLockoutPolicyService(ConfigurationRepositoryInstance, JetLogger),
 );
 
 export const productionUserAuthUseCase = new UserAuthUseCase(
   UserRepositoryInstance,
   RoleRepositoryInstance,
+  JetLogger,
   PasswordPolicyServiceInstance,
 );
 
@@ -170,12 +173,14 @@ export const productionUserPasswordUseCase = new UserPasswordUseCase(
     adminHomeUri: EnvVars.Auth.APP.ADMIN_HOME_URI,
   },
   ActivityJournalInstance,
+  JetLogger,
   PasswordPolicyServiceInstance,
 );
 
 export const productionUserManagementUseCase = new UserManagementUseCase(
   UserRepositoryInstance,
   ActivityJournalInstance,
+  JetLogger,
   PasswordPolicyServiceInstance,
 );
 
@@ -194,11 +199,13 @@ export const productionUserMfaUseCase = new UserMfaUseCase(
   userMfaRepository,
   UserRepositoryInstance,
   mfaSecretCipher,
+  JetLogger,
 );
 // Browsers where the user chose not to be asked the code (lot 6)
 export const productionTrustedDeviceUseCase = new TrustedDeviceUseCase(
   new TrustedDeviceRepositoryImpl(VARIAMOS_ORM, DB_SCHEMA),
   ConfigurationRepositoryInstance,
+  JetLogger,
 );
 // The code asked after the password, for accounts with a second factor
 export const productionMfaSignInUseCase = new MfaSignInUseCase(
@@ -207,6 +214,7 @@ export const productionMfaSignInUseCase = new MfaSignInUseCase(
   mfaSecretCipher,
   new PendingMfaSignIns(),
   productionTrustedDeviceUseCase,
+  JetLogger,
 );
 // An administrator turns off the second factor of an account that lost it
 export const productionMfaResetUseCase = new MfaResetUseCase(
@@ -214,6 +222,7 @@ export const productionMfaResetUseCase = new MfaResetUseCase(
   UserRepositoryInstance,
   MailServiceInstance,
   ActivityJournalInstance,
+  JetLogger,
 );
 
 export const productionUserQueryUseCase = new UserQueryUseCase(
@@ -256,6 +265,7 @@ export const productionBugLifecycleUseCase = new BugLifecycleUseCase(
   bugTrackerConfig,
   productionGitHubTokenResolver,
   ActivityJournalInstance,
+  JetLogger,
 );
 
 export const productionBugSyncUseCase = new BugSyncUseCase(
@@ -263,22 +273,26 @@ export const productionBugSyncUseCase = new BugSyncUseCase(
   GitHubIssuesServiceInstance,
   bugTrackerConfig,
   productionGitHubTokenResolver,
+  JetLogger,
 );
 
 export const productionBugQueryUseCase = new BugQueryUseCase(
   BugRepositoryInstance,
   bugTrackerConfig,
+  JetLogger,
 );
 
 export const productionBugAssignmentUseCase = new BugAssignmentUseCase(
   BugRepositoryInstance,
   new BugAssignmentNotifier(NotificationClientInstance),
   ActivityJournalInstance,
+  JetLogger,
 );
 
 export const productionBugAttachmentUseCase = new BugAttachmentUseCase(
   BugRepositoryInstance,
   DiskStorageServiceInstance,
+  JetLogger,
 );
 
 // Notifications sent by an administrator (T-18 lot 3b)
@@ -334,7 +348,7 @@ export const productionMicroServiceQueryUseCase = new MicroServiceQueryUseCase(
 );
 
 export const productionMicroServiceManagementUseCase =
-  new MicroServiceManagementUseCase(MicroServiceRepositoryInstance);
+  new MicroServiceManagementUseCase(MicroServiceRepositoryInstance, JetLogger);
 
 // Short-lived tokens for the notification service (ADR-0001)
 export const productionNotificationAccessTokenIssuer =

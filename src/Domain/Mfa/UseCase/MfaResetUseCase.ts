@@ -1,9 +1,9 @@
-import logger from "jet-logger";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
 import type { IUserMfaRepository } from "#src/Domain/Mfa/Repository/IUserMfaRepository.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
@@ -31,6 +31,7 @@ export class MfaResetUseCase {
     private readonly userRepository: Pick<IUserRepository, "queryById">,
     private readonly mailService: Pick<IMailService, "sendMfaResetMail">,
     private readonly journal: IActivityJournal,
+    private readonly logger: ILogger,
   ) {}
 
   public async status(
@@ -90,7 +91,7 @@ export class MfaResetUseCase {
       }
 
       await this.mfaRepository.remove(userId);
-      logger.info(
+      this.logger.info(
         `[MFA] Two-factor authentication of user ${userId} turned off by administrator ${adminId}`,
       );
 
@@ -98,7 +99,7 @@ export class MfaResetUseCase {
         .sendMfaResetMail(user.data.email)
         .catch(() => false);
       if (!emailSent) {
-        logger.warn(`[MFA] User ${userId} could not be told of the reset`);
+        this.logger.warn(`[MFA] User ${userId} could not be told of the reset`);
       }
       return response.withResponse({ emailSent });
     } catch (error) {
@@ -111,7 +112,7 @@ export class MfaResetUseCase {
     operation: string,
     error: unknown,
   ): ResponseModel<T> {
-    logger.err(`[MFA] ${operation} failed: ${(error as Error).message}`);
+    this.logger.err(`[MFA] ${operation} failed: ${(error as Error).message}`);
     return response.withError(
       DomainErrorCodes.SYSTEM_ERROR,
       "Internal server error",

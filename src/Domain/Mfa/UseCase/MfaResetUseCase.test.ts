@@ -1,7 +1,7 @@
-import logger from "jet-logger";
 import { mock } from "vitest-mock-extended";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
 import type {
   IUserMfaRepository,
@@ -38,26 +38,18 @@ function setUp(record: UserMfaRecord | null) {
   );
   const mailService = mock<IMailService>();
   mailService.sendMfaResetMail.mockResolvedValue(true);
+  const logger = mock<ILogger>();
   const useCase = new MfaResetUseCase(
     mfaRepository,
     userRepository,
     mailService,
     activityJournal,
+    logger,
   );
-  return { useCase, mfaRepository, userRepository, mailService };
+  return { useCase, mfaRepository, userRepository, mailService, logger };
 }
 
 describe("MfaResetUseCase", () => {
-  beforeEach(() => {
-    vi.spyOn(logger, "info").mockImplementation(() => logger);
-    vi.spyOn(logger, "warn").mockImplementation(() => logger);
-    vi.spyOn(logger, "err").mockImplementation(() => logger);
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   describe("status", () => {
     it.each([
       ["on", ON, true],
@@ -83,7 +75,7 @@ describe("MfaResetUseCase", () => {
 
   describe("reset", () => {
     it("turns the factor off, logs who did it and tells the owner", async () => {
-      const { useCase, mfaRepository, mailService } = setUp(ON);
+      const { useCase, mfaRepository, mailService, logger } = setUp(ON);
 
       const response = await useCase.reset("t", "user-2", "admin-1");
 
@@ -92,7 +84,7 @@ describe("MfaResetUseCase", () => {
       expect(mailService.sendMfaResetMail).toHaveBeenCalledWith(
         "bea@example.com",
       );
-      expect(JSON.stringify(vi.mocked(logger.info).mock.calls)).toContain(
+      expect(JSON.stringify(logger.info.mock.calls)).toContain(
         "user-2 turned off by administrator admin-1",
       );
       expect(activityJournal.record).toHaveBeenLastCalledWith(
@@ -137,7 +129,7 @@ describe("MfaResetUseCase", () => {
       ["refuses", () => Promise.resolve(false)],
       ["throws", () => Promise.reject(new Error("smtp down"))],
     ])("still turns the factor off when the mail %s", async (_label, send) => {
-      const { useCase, mfaRepository, mailService } = setUp(ON);
+      const { useCase, mfaRepository, mailService, logger } = setUp(ON);
       mailService.sendMfaResetMail.mockImplementation(send);
 
       const response = await useCase.reset("t", "user-2", "admin-1");

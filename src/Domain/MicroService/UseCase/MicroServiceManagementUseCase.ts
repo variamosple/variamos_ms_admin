@@ -1,7 +1,7 @@
-import logger from "jet-logger";
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { MicroServiceConfigItem } from "../Entity/MicroServiceConfigItem.js";
 import { isRunning } from "../Entity/MicroServiceHealth.js";
 import type { IMicroServiceRepository } from "../Repository/IMicroServiceRepository.js";
@@ -12,6 +12,7 @@ export const SCALING_NOT_AVAILABLE =
 export class MicroServiceManagementUseCase {
   public constructor(
     private readonly microServiceRepository: IMicroServiceRepository,
+    private readonly logger: ILogger,
   ) {}
 
   public async startMicroService(
@@ -159,7 +160,7 @@ export class MicroServiceManagementUseCase {
       }
       return defaultResponse;
     } catch (error) {
-      logger.err(error as Error);
+      this.logger.err(error as Error);
       return defaultResponse.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Failed to trigger health checks.",

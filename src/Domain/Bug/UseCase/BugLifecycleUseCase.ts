@@ -1,4 +1,3 @@
-import logger from "jet-logger";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
@@ -19,6 +18,7 @@ import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { IIssueTrackerService } from "#src/Domain/Core/Service/IIssueTrackerService.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IStorageService } from "#src/Domain/Core/Service/IStorageService.js";
 
 interface StatusChange {
@@ -43,6 +43,7 @@ export class BugLifecycleUseCase {
     private readonly githubConfig: IBugTrackerConfig,
     private readonly tokenResolver: IGitHubTokenProvider,
     private readonly journal: IActivityJournal,
+    private readonly logger: ILogger,
   ) {}
 
   public async updateStatus(
@@ -449,7 +450,7 @@ export class BugLifecycleUseCase {
 
       const expiredBugs = expiredResponse.data || [];
       if (expiredBugs.length === 0) return;
-      logger.info(
+      this.logger.info(
         `Found ${expiredBugs.length} expired rejected bugs to purge.`,
       );
 
@@ -491,10 +492,10 @@ export class BugLifecycleUseCase {
           }),
         );
       }
-      logger.info("Expired rejected bugs purging complete.");
+      this.logger.info("Expired rejected bugs purging complete.");
     } catch (error) {
       const err = error as Error;
-      logger.err(`Failed to purge expired rejected bugs: ${err.message}`);
+      this.logger.err(`Failed to purge expired rejected bugs: ${err.message}`);
     }
   }
 }

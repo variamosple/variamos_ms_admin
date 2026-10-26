@@ -52,6 +52,7 @@ import EnvVars from "#src/common/EnvVars.js";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
 import type { MfaSignInUseCase } from "#src/Domain/Mfa/UseCase/MfaSignInUseCase.js";
 import type { IGuestRoleRepository } from "#src/Domain/Role/Repository/IGuestRoleRepository.js";
@@ -164,16 +165,19 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     const mockUserAuthUseCase = new UserAuthUseCase(
       mock<IUserRepository>(),
       mock<IGuestRoleRepository>(),
+      mock<ILogger>(),
     );
     const mockUserPasswordUseCase = new UserPasswordUseCase(
       mock<IUserRepository>(),
       mock<IMailService>(),
       mock<UserPasswordUseCaseConfig>(),
       mock<IActivityJournal>(),
+      mock<ILogger>(),
     );
     const mockUserManagementUseCase = new UserManagementUseCase(
       mock<IUserRepository>(),
       mock<IActivityJournal>(),
+      mock<ILogger>(),
     );
     const mockUserQueryUseCase = new UserQueryUseCase(mock<IUserRepository>());
     app.use(

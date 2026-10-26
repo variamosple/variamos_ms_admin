@@ -1,5 +1,4 @@
-import logger from "jet-logger";
-import { mock } from "vitest-mock-extended";
+import { type MockProxy, mock } from "vitest-mock-extended";
 import {
   Configuration,
   ConfigurationKey,
@@ -7,6 +6,7 @@ import {
 import type { IConfigurationRepository } from "#src/Domain/Configuration/Repository/IConfigurationRepository.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { AccountLockoutPolicy } from "#src/Domain/User/Entity/AccountLockoutPolicy.js";
 import {
   AccountLockout,
@@ -40,10 +40,11 @@ function repositoryWith(values: Record<string, unknown>) {
 }
 
 describe("AccountLockoutPolicyService", () => {
+  let logger: MockProxy<ILogger>;
+
   beforeEach(() => {
-    vi.spyOn(logger, "warn").mockImplementation(() => {});
+    logger = mock<ILogger>();
   });
-  afterEach(() => vi.restoreAllMocks());
 
   it("reads the security.lockout.* keys", async () => {
     const service = new AccountLockoutPolicyService(
@@ -51,6 +52,7 @@ describe("AccountLockoutPolicyService", () => {
         "security.lockout.max_attempts": 5,
         "security.lockout.duration_minutes": 30,
       }),
+      logger,
     );
 
     expect(await service.getPolicy()).toMatchObject({
@@ -62,6 +64,7 @@ describe("AccountLockoutPolicyService", () => {
   it("takes the default for a missing key", async () => {
     const service = new AccountLockoutPolicyService(
       repositoryWith({ "security.lockout.max_attempts": 5 }),
+      logger,
     );
 
     expect(await service.getPolicy()).toMatchObject({
@@ -75,7 +78,7 @@ describe("AccountLockoutPolicyService", () => {
     repository.queryByKey.mockRejectedValue(new Error("connection lost"));
 
     expect(
-      await new AccountLockoutPolicyService(repository).getPolicy(),
+      await new AccountLockoutPolicyService(repository, logger).getPolicy(),
     ).toMatchObject({ maxAttempts: 10, durationMinutes: 15 });
   });
 });
