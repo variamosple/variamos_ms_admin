@@ -1,5 +1,4 @@
 import logger from "jet-logger";
-import { MAX_ATTACHMENT_SIZE_BYTES } from "#src/Domain/Core/File/AllowedFileType.js";
 import "./pre-start.js"; // Must be the first import
 
 import {
@@ -7,67 +6,33 @@ import {
   validateRolesAndPermissions,
 } from "@variamosple/variamos-security";
 import EnvVars from "#src/common/EnvVars.js";
+import { missingRequiredSecrets } from "#src/common/requiredSecrets.js";
 import {
   AccessJournalInstance,
-  AccountLockoutInstance,
   ActivityJournalInstance,
-  ConfigEventPublisherInstance,
-  checkDatabase,
-  HealthLogStatisticsInstance,
-  MicroServiceRepositoryInstance,
-  productionAccessHierarchyUseCase,
-  productionBugAssignmentUseCase,
-  productionBugAttachmentUseCase,
+  HealthCheckCollectorInstance,
   productionBugLifecycleUseCase,
-  productionBugQueryUseCase,
-  productionBugSubmissionUseCase,
   productionBugSyncUseCase,
   productionConfigurationUseCase,
-  productionCountriesQueryUseCase,
-  productionJournalQueryUseCase,
-  productionMetricsQueryUseCase,
-  productionMfaResetUseCase,
-  productionMfaSignInUseCase,
-  productionMicroServiceManagementUseCase,
   productionMicroServiceQueryUseCase,
-  productionNotificationAccessTokenIssuer,
-  productionNotificationDispatchUseCase,
-  productionPermissionUseCase,
-  productionRoleManagementUseCase,
-  productionRolePermissionUseCase,
-  productionRoleQueryUseCase,
-  productionTrustedDeviceUseCase,
-  productionUserAuthUseCase,
-  productionUserManagementUseCase,
-  productionUserMfaUseCase,
-  productionUserPasswordUseCase,
-  productionUserQueryUseCase,
-  productionUserRoleUseCase,
-  productionVisitUseCase,
+  productionRouterDependencies,
   SecretConfigurationValueInstance,
 } from "./CompositionRoot.js";
+import { registerBugAssociations } from "./DataProviders/Bug/BugAssociations.js";
 import { encryptPlainSecrets } from "./DataProviders/Configuration/EncryptPlainSecrets.js";
-import { RequestModel } from "./Domain/Core/Entity/RequestModel.js";
 import {
   attachContainerLogsWebSocket,
   CONTAINER_LOGS_PERMISSION,
 } from "./EntryPoints/ContainerLogsWebSocket.js";
 import { createBaseRouter } from "./EntryPoints/index.js";
+import { startJournalPurge } from "./Infrastructure/Activity/JournalPurge.js";
 import {
   runMigrations,
   waitForDatabase,
 } from "./Infrastructure/database/Migrations/Migrator.js";
-import { HealthCheckCollector } from "./Infrastructure/Health/HealthCheckCollector.js";
+import { startBackgroundJobs } from "./Infrastructure/Scheduling/BackgroundJobs.js";
 import VARIAMOS_ORM, { DB_SCHEMA } from "./Infrastructure/VariamosORM.js";
 import { createServer } from "./server.js";
-import "./DataProviders/Bug/BugAssociations.js";
-
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import multer from "multer";
-import { missingRequiredSecrets } from "#src/common/requiredSecrets.js";
-import { startJournalPurge } from "./Infrastructure/Activity/JournalPurge.js";
 
 // Without these secrets the server would run on empty or known values, or on
 // test credentials: in production, it does not start (EV-69)
@@ -79,89 +44,10 @@ if (missingSecrets.length > 0) {
   process.exit(1);
 }
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// The relations of the bug models, before any query that includes them
+registerBugAssociations();
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, "./public/uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-// Uploads are kept in memory, within the size limit, until the use case has
-// checked the request and the file type; only then is the file written, under
-// a server-generated name (DiskStorageService).
-const productionUpload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_ATTACHMENT_SIZE_BYTES, files: 1 },
-});
-
-const baseRouter = createBaseRouter({
-  users: {
-    auth: productionUserAuthUseCase,
-    password: productionUserPasswordUseCase,
-    management: productionUserManagementUseCase,
-    query: productionUserQueryUseCase,
-    role: productionUserRoleUseCase,
-  },
-  bugs: {
-    submission: productionBugSubmissionUseCase,
-    lifecycle: productionBugLifecycleUseCase,
-    sync: productionBugSyncUseCase,
-    query: productionBugQueryUseCase,
-    attachment: productionBugAttachmentUseCase,
-    assignment: productionBugAssignmentUseCase,
-  },
-  microServices: {
-    query: productionMicroServiceQueryUseCase,
-    management: productionMicroServiceManagementUseCase,
-  },
-  roles: {
-    management: productionRoleManagementUseCase,
-    query: productionRoleQueryUseCase,
-    permission: productionRolePermissionUseCase,
-  },
-  mfa: {
-    user: productionUserMfaUseCase,
-    signIn: productionMfaSignInUseCase,
-    reset: productionMfaResetUseCase,
-    trustedDevices: productionTrustedDeviceUseCase,
-  },
-  notifications: {
-    accessTokenIssuer: productionNotificationAccessTokenIssuer,
-    dispatch: productionNotificationDispatchUseCase,
-  },
-  metrics: productionMetricsQueryUseCase,
-  permissions: productionPermissionUseCase,
-  visits: productionVisitUseCase,
-  countries: productionCountriesQueryUseCase,
-  configuration: productionConfigurationUseCase,
-  upload: productionUpload,
-  accessGuard: productionAccessHierarchyUseCase,
-  accountLockout: AccountLockoutInstance,
-  accessJournal: AccessJournalInstance,
-  journalQuery: productionJournalQueryUseCase,
-  checkDatabase,
-});
-
-const app = createServer(baseRouter);
-
-const healthCheckCollectorInstance = new HealthCheckCollector(
-  MicroServiceRepositoryInstance,
-  HealthLogStatisticsInstance,
-  EnvVars.MONITORING.HEALTH_CHECK_INTERVAL_MS,
-);
-MicroServiceRepositoryInstance.setHealthCollector(healthCheckCollectorInstance);
-
-// Listen to dynamic configuration updates to reconfigure collector live
-ConfigEventPublisherInstance.addListener((config) => {
-  if (config.key.getValue() === "monitoring.health_check_interval_seconds") {
-    const seconds = Number(config.value);
-    if (!Number.isNaN(seconds) && seconds > 0) {
-      healthCheckCollectorInstance.setIntervalMs(seconds * 1000);
-    }
-  }
-});
+const app = createServer(createBaseRouter(productionRouterDependencies));
 
 const SERVER_START_MSG = `Express server started on port: ${EnvVars.Port.toString()}`;
 
@@ -204,59 +90,12 @@ if (SecretConfigurationValueInstance.canEncrypt()) {
 const server = app.listen(EnvVars.Port, async () => {
   initKeyStore().then();
   logger.info(SERVER_START_MSG);
-
-  try {
-    // Check if monitoring.health_check_interval_seconds exists in DB config
-    try {
-      const configRes = await productionConfigurationUseCase.queryByKey(
-        new RequestModel(undefined, "monitoring.health_check_interval_seconds"),
-      );
-      if (configRes.data?.value) {
-        const val = Number(configRes.data.value);
-        if (!Number.isNaN(val) && val > 0) {
-          healthCheckCollectorInstance.setIntervalMs(val * 1000);
-        }
-      }
-    } catch {
-      // Configuration key might not exist initially, fallback remains EnvVars
-    }
-
-    // Start periodic HealthCheckCollector
-    healthCheckCollectorInstance.start();
-
-    // Purge expired rejected bugs (older than 7 days) on startup
-    await productionBugLifecycleUseCase.purgeExpiredRejectedBugs();
-  } catch (e) {
-    const err = e as Error;
-    logger.err(`Failed to start background tasks: ${err.message}`);
-  }
-
-  // Run periodic bugs sync every 15 minutes
-  const SYNC_INTERVAL = 15 * 60 * 1000;
-  setInterval(async () => {
-    try {
-      logger.info("Executing periodic bugs synchronization...");
-      const request = new RequestModel<void>("periodicSyncBugs");
-      await productionBugSyncUseCase.syncBugs(request);
-    } catch (e) {
-      const err = e as Error;
-      logger.err(`Failed to execute periodic bugs sync: ${err.message}`);
-    }
-  }, SYNC_INTERVAL);
-
-  // Run periodic expired bugs purge (default: every 24 hours)
-  const PURGE_INTERVAL = 24 * 60 * 60 * 1000;
-  setInterval(async () => {
-    try {
-      logger.info("Executing periodic expired bugs purge...");
-      await productionBugLifecycleUseCase.purgeExpiredRejectedBugs();
-    } catch (e) {
-      const err = e as Error;
-      logger.err(
-        `Failed to execute periodic expired bugs purge: ${err.message}`,
-      );
-    }
-  }, PURGE_INTERVAL);
+  await startBackgroundJobs({
+    collector: HealthCheckCollectorInstance,
+    configuration: productionConfigurationUseCase,
+    bugLifecycle: productionBugLifecycleUseCase,
+    bugSync: productionBugSyncUseCase,
+  });
 });
 
 attachContainerLogsWebSocket(server, {
