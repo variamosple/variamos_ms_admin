@@ -1,5 +1,6 @@
 import os from "node:os";
 import { Router } from "express";
+import EnvVars from "#src/common/EnvVars.js";
 import VARIAMOS_ORM from "#src/Infrastructure/VariamosORM.js";
 
 export const HEALTH_ROUTE = "/health";
@@ -46,7 +47,7 @@ export function createHealthRouter(): Router {
     res.status(overallStatus === "UP" ? 200 : 503).json({
       status: overallStatus,
       serviceName: "variamos_ms_admin",
-      version: process.env.npm_package_version || "1.0.0",
+      version: EnvVars.PackageVersion,
       uptimeSeconds: Math.floor(process.uptime()),
       timestamp: new Date().toISOString(),
       responseTimeMs: Date.now() - startTime,

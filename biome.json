@@ -34,5 +34,23 @@
       "semicolons": "always",
       "arrowParentheses": "always"
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "src/**",
+        "!src/common/EnvVars.ts",
+        "!src/index.ts",
+        "!**/*.test.ts",
+        "!**/*.spec.ts"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noProcessEnv": "error"
+          }
+        }
+      }
+    }
+  ]
 }

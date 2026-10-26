@@ -1,0 +1,6 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "project": ["src/**/*.ts"],
+  // Sequelize loads the PostgreSQL driver by name ("dialect": "postgres"), which knip cannot see
+  "ignoreDependencies": ["pg"]
+}

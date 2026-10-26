@@ -2,7 +2,6 @@ import { type MockProxy, mock } from "vitest-mock-extended";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
-import type { IUserRepository } from "#src/Domain/Bug/Repository/IUserRepository.js";
 import type { GitHubTokenResolver } from "#src/Domain/Bug/Service/GitHubTokenResolver.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -10,6 +9,7 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { IIssueTrackerService } from "#src/Domain/Core/Service/IIssueTrackerService.js";
 import type { IStorageService } from "#src/Domain/Core/Service/IStorageService.js";
 import { User } from "#src/Domain/User/Entity/User.js";
+import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 import { BugSubmissionUseCase } from "./BugSubmissionUseCase.js";
 
 const PNG_BYTES = new Uint8Array([
