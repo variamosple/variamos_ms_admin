@@ -3,7 +3,7 @@ import { type MockProxy, mock } from "vitest-mock-extended";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
-import type { GitHubTokenResolver } from "#src/Domain/Bug/Service/GitHubTokenResolver.js";
+import type { IGitHubTokenProvider } from "#src/Domain/Bug/Service/IGitHubTokenProvider.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -19,13 +19,13 @@ describe("BugSyncUseCase", () => {
   let mockBugRepository: MockProxy<IBugRepository>;
   let mockIssueTracker: MockProxy<IIssueTrackerService>;
   let mockGithubConfig: MockProxy<IBugTrackerConfig>;
-  let mockTokenResolver: MockProxy<GitHubTokenResolver>;
+  let mockTokenResolver: MockProxy<IGitHubTokenProvider>;
 
   beforeEach(() => {
     mockBugRepository = mock<IBugRepository>();
     mockIssueTracker = mock<IIssueTrackerService>();
     mockGithubConfig = mock<IBugTrackerConfig>();
-    mockTokenResolver = mock<GitHubTokenResolver>();
+    mockTokenResolver = mock<IGitHubTokenProvider>();
     useCase = new BugSyncUseCase(
       mockBugRepository,
       mockIssueTracker,

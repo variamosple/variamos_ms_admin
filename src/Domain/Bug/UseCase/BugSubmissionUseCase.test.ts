@@ -2,7 +2,7 @@ import { type MockProxy, mock } from "vitest-mock-extended";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
-import type { GitHubTokenResolver } from "#src/Domain/Bug/Service/GitHubTokenResolver.js";
+import type { IGitHubTokenProvider } from "#src/Domain/Bug/Service/IGitHubTokenProvider.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -23,7 +23,7 @@ describe("BugSubmissionUseCase", () => {
   let mockUserRepository: MockProxy<IUserRepository>;
   let mockIssueTracker: MockProxy<IIssueTrackerService>;
   let mockGithubConfig: MockProxy<IBugTrackerConfig>;
-  let mockTokenResolver: MockProxy<GitHubTokenResolver>;
+  let mockTokenResolver: MockProxy<IGitHubTokenProvider>;
   let mockStorageService: MockProxy<IStorageService>;
 
   beforeEach(() => {
@@ -31,7 +31,7 @@ describe("BugSubmissionUseCase", () => {
     mockUserRepository = mock<IUserRepository>();
     mockIssueTracker = mock<IIssueTrackerService>();
     mockGithubConfig = mock<IBugTrackerConfig>();
-    mockTokenResolver = mock<GitHubTokenResolver>();
+    mockTokenResolver = mock<IGitHubTokenProvider>();
     mockStorageService = mock<IStorageService>();
     mockStorageService.saveFile.mockResolvedValue("/uploads/generated.png");
     useCase = new BugSubmissionUseCase(

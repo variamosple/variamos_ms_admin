@@ -4,7 +4,7 @@ import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js"
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
-import type { GitHubTokenResolver } from "#src/Domain/Bug/Service/GitHubTokenResolver.js";
+import type { IGitHubTokenProvider } from "#src/Domain/Bug/Service/IGitHubTokenProvider.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -18,7 +18,7 @@ describe("BugLifecycleUseCase", () => {
   let mockIssueTracker: MockProxy<IIssueTrackerService>;
   let mockStorageService: MockProxy<IStorageService>;
   let mockGithubConfig: MockProxy<IBugTrackerConfig>;
-  let mockTokenResolver: MockProxy<GitHubTokenResolver>;
+  let mockTokenResolver: MockProxy<IGitHubTokenProvider>;
   let mockJournal: MockProxy<IActivityJournal>;
 
   beforeEach(() => {
@@ -26,7 +26,7 @@ describe("BugLifecycleUseCase", () => {
     mockIssueTracker = mock<IIssueTrackerService>();
     mockStorageService = mock<IStorageService>();
     mockGithubConfig = mock<IBugTrackerConfig>();
-    mockTokenResolver = mock<GitHubTokenResolver>();
+    mockTokenResolver = mock<IGitHubTokenProvider>();
     mockJournal = mock<IActivityJournal>();
     useCase = new BugLifecycleUseCase(
       mockBugRepository,
