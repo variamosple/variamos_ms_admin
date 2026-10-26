@@ -183,5 +183,3 @@ export class PermissionRepositoryImpl
     return response;
   }
 }
-
-export const PermissionRepositoryInstance = new PermissionRepositoryImpl();

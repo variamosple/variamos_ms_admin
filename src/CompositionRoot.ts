@@ -102,20 +102,19 @@ export const MicroServiceRepositoryInstance = new MicroServiceRepositoryImpl({
   statistics: HealthLogStatisticsInstance,
 });
 
-export const RoleRepositoryInstance = new RoleRepositoryImpl();
-export const RolePermissionRepositoryInstance =
-  new RolePermissionRepositoryImpl();
-export const UserRoleRepositoryInstance = new UserRoleRepositoryImpl();
-export const PermissionRepositoryInstance = new PermissionRepositoryImpl();
-export const VisitRepositoryInstance = new VisitRepositoryImpl();
-export const CountriesRepositoryInstance = new CountriesRepositoryImpl();
-export const MetricsRepositoryInstance = new MetricsRepositoryImpl();
-export const BugRepositoryInstance = new BugRepositoryImpl();
-export const ConfigurationRepositoryInstance = new ConfigurationRepositoryImpl(
+const RoleRepositoryInstance = new RoleRepositoryImpl();
+const RolePermissionRepositoryInstance = new RolePermissionRepositoryImpl();
+const UserRoleRepositoryInstance = new UserRoleRepositoryImpl();
+const PermissionRepositoryInstance = new PermissionRepositoryImpl();
+const VisitRepositoryInstance = new VisitRepositoryImpl();
+const CountriesRepositoryInstance = new CountriesRepositoryImpl();
+const MetricsRepositoryInstance = new MetricsRepositoryImpl();
+const BugRepositoryInstance = new BugRepositoryImpl();
+const ConfigurationRepositoryInstance = new ConfigurationRepositoryImpl(
   SecretConfigurationValueInstance,
 );
 // security.bcrypt_salt_rounds, read at each hash; BCRYPT_SALT_ROUNDS as fallback
-export const UserRepositoryInstance = new UserRepositoryImpl(
+const UserRepositoryInstance = new UserRepositoryImpl(
   new BcryptPasswordHasher(
     new PasswordHashingCostService(
       ConfigurationRepositoryInstance,
@@ -148,7 +147,7 @@ export const productionConfigurationUseCase = new ConfigurationUseCase(
 
 // User Use Case Instantiations
 // security.password.* keys, read at each sign-up, change and reset
-export const PasswordPolicyServiceInstance = new PasswordPolicyService(
+const PasswordPolicyServiceInstance = new PasswordPolicyService(
   ConfigurationRepositoryInstance,
   JetLogger,
 );
@@ -244,9 +243,7 @@ const bugTrackerConfig = {
 };
 
 // GitHub Token Resolver
-export const productionGitHubTokenResolver = new GitHubTokenResolver(
-  bugTrackerConfig,
-);
+const productionGitHubTokenResolver = new GitHubTokenResolver(bugTrackerConfig);
 
 // Bug Use Case Instantiations
 export const productionBugSubmissionUseCase = new BugSubmissionUseCase(

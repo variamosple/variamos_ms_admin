@@ -88,5 +88,3 @@ export class CountriesRepositoryImpl
     return response;
   }
 }
-
-export const CountriesRepositoryInstance = new CountriesRepositoryImpl();

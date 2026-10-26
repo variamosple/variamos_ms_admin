@@ -47,5 +47,3 @@ export class VisitRepositoryImpl
     return response;
   }
 }
-
-export const VisitRepositoryInstance = new VisitRepositoryImpl();

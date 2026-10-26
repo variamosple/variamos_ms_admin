@@ -246,5 +246,3 @@ export class RoleRepositoryImpl
     return response;
   }
 }
-
-export const RoleRepositoryInstance = new RoleRepositoryImpl();
