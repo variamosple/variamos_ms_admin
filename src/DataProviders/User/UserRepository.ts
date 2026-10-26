@@ -355,6 +355,9 @@ export class UserRepositoryImpl
         );
       }
 
+      // Hashed before the check, so that a taken address does not answer
+      // faster than a free one (the sign-up answer is the same for both)
+      const hashedPassword = await this.passwordHasher.hash(password);
       const dbUser = await UserModel.findOne({
         where: { email },
       });
@@ -363,7 +366,6 @@ export class UserRepositoryImpl
         logger.warn("User already registered");
         return response.withError(DomainErrorCodes.DUPLICATE_ENTITY, "");
       }
-      const hashedPassword = await this.passwordHasher.hash(password);
 
       const newUser = await UserModel.create({
         user: name,

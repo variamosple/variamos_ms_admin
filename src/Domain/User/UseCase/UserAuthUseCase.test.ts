@@ -3,6 +3,7 @@ import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
+import type { IMailService } from "#src/Domain/Mail/IMailService.js";
 import { Permission } from "#src/Domain/Permission/Entity/Permission.js";
 import { Role } from "#src/Domain/Role/Entity/Role.js";
 import type { IGuestRoleRepository } from "#src/Domain/Role/Repository/IGuestRoleRepository.js";
@@ -17,15 +18,19 @@ describe("UserAuthUseCase", () => {
   let logger: MockProxy<ILogger>;
   let mockUserRepository: MockProxy<IUserRepository>;
   let mockRoleRepository: MockProxy<IGuestRoleRepository>;
+  let mailService: MockProxy<IMailService>;
 
   beforeEach(() => {
     logger = mock<ILogger>();
     mockUserRepository = mock<IUserRepository>();
     mockRoleRepository = mock<IGuestRoleRepository>();
+    mailService = mock<IMailService>();
     useCase = new UserAuthUseCase(
       mockUserRepository,
       mockRoleRepository,
       logger,
+      mailService,
+      { adminHomeUri: "https://app.example.com" },
     );
   });
 
@@ -93,6 +98,51 @@ describe("UserAuthUseCase", () => {
       const req = new RequestModel<UserRegistration>("tx-1", reg);
       const res = await useCase.signUp(req);
       expect(res.data).toBe(mockUser);
+      expect(mailService.sendExistingAccountMail).not.toHaveBeenCalled();
+    });
+
+    describe("with a taken address (UX-33)", () => {
+      const registration = () =>
+        new RequestModel<UserRegistration>(
+          "tx-1",
+          UserRegistration.builder()
+            .setName("Name")
+            .setEmail("taken@e.com")
+            .setPassword("Password123!")
+            .setPasswordConfirmation("Password123!")
+            .build(),
+        );
+
+      beforeEach(() => {
+        mockUserRepository.signUp.mockResolvedValue(
+          new ResponseModel<User>("tx-1").withError(
+            DomainErrorCodes.DUPLICATE_ENTITY,
+            "",
+          ),
+        );
+      });
+
+      it("tells the owner by mail, with links to sign in and recover", async () => {
+        const res = await useCase.signUp(registration());
+
+        expect(res.errorCode).toBe(DomainErrorCodes.DUPLICATE_ENTITY);
+        expect(mailService.sendExistingAccountMail).toHaveBeenCalledWith(
+          "taken@e.com",
+          "https://app.example.com/#/login",
+          "https://app.example.com/#/forgot-password",
+        );
+      });
+
+      it("answers the same when the mail fails", async () => {
+        mailService.sendExistingAccountMail.mockRejectedValue(
+          new Error("SMTP down"),
+        );
+
+        const res = await useCase.signUp(registration());
+        await vi.waitFor(() => expect(logger.err).toHaveBeenCalled());
+
+        expect(res.errorCode).toBe(DomainErrorCodes.DUPLICATE_ENTITY);
+      });
     });
   });
 

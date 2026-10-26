@@ -39,6 +39,8 @@ describe("configured password policy in the use cases", () => {
       users,
       mock<IGuestRoleRepository>(),
       mock<ILogger>(),
+      mock<IMailService>(),
+      { adminHomeUri: "https://app.example.com" },
       strict,
     );
 

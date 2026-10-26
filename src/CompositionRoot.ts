@@ -166,6 +166,8 @@ const productionUserAuthUseCase = new UserAuthUseCase(
   UserRepositoryInstance,
   RoleRepositoryInstance,
   JetLogger,
+  MailServiceInstance,
+  { adminHomeUri: EnvVars.Auth.APP.ADMIN_HOME_URI },
   PasswordPolicyServiceInstance,
 );
 

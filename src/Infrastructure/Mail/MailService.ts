@@ -165,6 +165,32 @@ export class MailServiceImpl implements IMailService {
 `);
     return this.sendMail(to, subject, html);
   }
+
+  /**
+   * Tells the owner of an address that someone tried to create an account
+   * with it
+   */
+  public async sendExistingAccountMail(
+    to: string,
+    signInLink: string,
+    forgotPasswordLink: string,
+  ): Promise<boolean> {
+    const subject = "VariaMos - Sign-up attempt with your address";
+    const html = renderMail(`
+            <h2 style="color: #212529; font-size: 20px; margin-top: 0; font-weight: 600;">Hello,</h2>
+            <p style="font-size: 15px; line-height: 1.6; color: #495057;">
+              Someone tried to create a <strong>VariaMos</strong> account with this email address. You already have an account, so no new account was created.
+            </p>
+            <p style="font-size: 15px; line-height: 1.6; color: #495057;">
+              If it was you, <a href="${signInLink}" style="color: #0d6efd;">sign in</a> with your account, or <a href="${forgotPasswordLink}" style="color: #0d6efd;">choose a new password</a> if you no longer remember it.
+            </p>
+            <p style="font-size: 15px; line-height: 1.6; color: #495057;">
+              If it was not you, you can ignore this email: your account has not changed.
+            </p>
+
+`);
+    return this.sendMail(to, subject, html);
+  }
 }
 
 export const MailServiceInstance = new MailServiceImpl();
