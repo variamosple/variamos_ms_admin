@@ -25,18 +25,17 @@ export class MetricsRepositoryImpl
   extends BaseRepository
   implements IMetricsRepository
 {
-  private metrics: Metric[] = [];
-
-  public constructor() {
-    super();
-    void this.loadMetrics();
-  }
-
-  private async loadMetrics() {
-    logger.info("Refreshing metrics...");
+  /**
+   * Reads the metric definitions and their data at each call, so that the
+   * dashboard shows today's figures, not those of the last restart.
+   */
+  public async getMetrics(
+    request: RequestModel<void>,
+  ): Promise<ResponseModel<Metric[]>> {
+    const response = new ResponseModel<Metric[]>(request.transactionId);
 
     try {
-      this.metrics = await VARIAMOS_ORM.query(
+      response.data = await VARIAMOS_ORM.query(
         `SELECT ${DB_SCHEMA}.get_metrics() AS data`,
         {
           type: QueryTypes.SELECT,
@@ -69,22 +68,6 @@ export class MetricsRepositoryImpl
               .build(),
         );
       });
-
-      logger.info("Metrics refreshed...");
-    } catch (error) {
-      const err = error as Error;
-      logger.err("Error in loadMetrics:");
-      logger.err(err);
-    }
-  }
-
-  public getMetrics(
-    request: RequestModel<void>,
-  ): Promise<ResponseModel<Metric[]>> {
-    const response = new ResponseModel<Metric[]>(request.transactionId);
-
-    try {
-      response.data = [...this.metrics];
     } catch (error) {
       const err = error as Error;
       logger.err("Error in getMetrics:");
@@ -95,7 +78,7 @@ export class MetricsRepositoryImpl
       );
     }
 
-    return Promise.resolve(response);
+    return response;
   }
 
   public async queryMetric(
