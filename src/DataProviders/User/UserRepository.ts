@@ -1,5 +1,3 @@
-import crypto from "node:crypto";
-import bcrypt from "bcrypt";
 import logger from "jet-logger";
 import { Op, QueryTypes, type Transaction, type WhereOptions } from "sequelize";
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
@@ -15,6 +13,7 @@ import type {
   IUserRepository,
   PasswordResetOutcome,
 } from "#src/Domain/User/IUserRepository.js";
+import type { IPasswordHasher } from "#src/Domain/User/Service/IPasswordHasher.js";
 import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 import { BaseRepository } from "../BaseRepository.js";
 import { CountryModel } from "../Countries/Country.js";
@@ -30,12 +29,8 @@ export class UserRepositoryImpl
   extends BaseRepository
   implements IUserRepository
 {
-  private readonly bcryptSaltRounds: number;
-  private dummyHashPromise?: Promise<string>;
-
-  public constructor(config: { bcryptSaltRounds: number }) {
+  public constructor(private readonly passwordHasher: IPasswordHasher) {
     super();
-    this.bcryptSaltRounds = config.bcryptSaltRounds;
   }
 
   public async queryUsers(
@@ -263,15 +258,6 @@ export class UserRepositoryImpl
     return response;
   }
 
-  /** A hash of a random value, compared when no account can sign in. */
-  private dummyHash(): Promise<string> {
-    this.dummyHashPromise ??= bcrypt.hash(
-      crypto.randomUUID(),
-      this.bcryptSaltRounds,
-    );
-    return this.dummyHashPromise;
-  }
-
   public async signIn(
     request: RequestModel<Credentials>,
   ): Promise<ResponseModel<User>> {
@@ -303,11 +289,11 @@ export class UserRepositoryImpl
       const canSignIn =
         !!dbUser?.password && dbUser.isEnabled && !dbUser.isDeleted;
 
-      // Unknown and disabled accounts pay the same bcrypt cost as a wrong
+      // Unknown and disabled accounts pay the same hashing cost as a wrong
       // password: the response time does not reveal whether an account exists.
-      const passwordMatch = await bcrypt.compare(
+      const passwordMatch = await this.passwordHasher.verify(
         password,
-        canSignIn ? (dbUser.password as string) : await this.dummyHash(),
+        canSignIn ? (dbUser.password as string) : null,
       );
 
       if (!canSignIn || !passwordMatch) {
@@ -377,7 +363,7 @@ export class UserRepositoryImpl
         logger.warn("User already registered");
         return response.withError(DomainErrorCodes.DUPLICATE_ENTITY, "");
       }
-      const hashedPassword = await bcrypt.hash(password, 10);
+      const hashedPassword = await this.passwordHasher.hash(password);
 
       const newUser = await UserModel.create({
         user: name,
@@ -625,9 +611,9 @@ export class UserRepositoryImpl
         );
       }
 
-      const passwordMatch = await bcrypt.compare(
+      const passwordMatch = await this.passwordHasher.verify(
         passwordUpdate.getCurrentPassword(),
-        dbUser.password ?? "",
+        dbUser.password ?? null,
       );
 
       if (!passwordMatch) {
@@ -637,9 +623,8 @@ export class UserRepositoryImpl
         );
       }
 
-      const newHashedPassword = await bcrypt.hash(
+      const newHashedPassword = await this.passwordHasher.hash(
         passwordUpdate.getNewPassword(),
-        10,
       );
 
       await VARIAMOS_ORM.transaction(async (transaction) => {
@@ -684,9 +669,9 @@ export class UserRepositoryImpl
     const dbUser = await UserModel.findOne({ where: { id: userId } });
     const canSignIn =
       !!dbUser?.password && dbUser.isEnabled && !dbUser.isDeleted;
-    const passwordMatch = await bcrypt.compare(
+    const passwordMatch = await this.passwordHasher.verify(
       password,
-      canSignIn ? (dbUser.password as string) : await this.dummyHash(),
+      canSignIn ? (dbUser.password as string) : null,
     );
     return canSignIn === true && passwordMatch;
   }
@@ -817,16 +802,15 @@ export class UserRepositoryImpl
         return "inactive_account";
       }
 
-      if (await bcrypt.compare(passwordPlain, dbUser.password || "")) {
+      if (
+        await this.passwordHasher.verify(passwordPlain, dbUser.password || null)
+      ) {
         // Rolled back: the link stays usable for another password
         await transaction.rollback();
         return "same_password";
       }
 
-      const passwordHash = await bcrypt.hash(
-        passwordPlain,
-        this.bcryptSaltRounds,
-      );
+      const passwordHash = await this.passwordHasher.hash(passwordPlain);
       await UserModel.update(
         { password: passwordHash },
         { where: { id: userId }, transaction },

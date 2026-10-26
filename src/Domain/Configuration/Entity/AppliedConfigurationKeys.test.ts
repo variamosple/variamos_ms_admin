@@ -10,6 +10,7 @@ describe("isConfigurationApplied", () => {
     "security.password.reset_expiry",
     "security.lockout.max_attempts",
     "security.lockout.duration_minutes",
+    "security.bcrypt_salt_rounds",
   ])("%s is read by the code", (key) => {
     expect(isConfigurationApplied(key)).toBe(true);
   });
@@ -17,7 +18,6 @@ describe("isConfigurationApplied", () => {
   it.each([
     "security.mfa.global_enabled",
     "security.cookie.max_age",
-    "security.bcrypt_salt_rounds",
     "general.site_name",
     "notification.smtp.host",
   ])("%s has no effect yet", (key) => {
