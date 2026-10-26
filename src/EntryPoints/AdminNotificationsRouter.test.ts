@@ -2,8 +2,10 @@ import express from "express";
 import supertest from "supertest";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import { NotificationRecipientDirectory } from "#src/DataProviders/Notification/NotificationRecipientDirectory.js";
 import { RoleModel } from "#src/DataProviders/Role/Role.js";
 import { UserModel } from "#src/DataProviders/User/User.js";
+import { NotificationDispatchUseCase } from "#src/Domain/Notification/UseCase/NotificationDispatchUseCase.js";
 import { NotificationClientInstance } from "#src/Infrastructure/Notification/NotificationClient.js";
 import { createAdminNotificationsRouter } from "./AdminNotificationsRouter.js";
 
@@ -60,7 +62,14 @@ describe("AdminNotificationsRouter Integration Tests", () => {
     });
     app.use(
       "/v1/admin/notifications",
-      createAdminNotificationsRouter(activityJournal),
+      // The real use case and adapters, over the mocked models and client
+      createAdminNotificationsRouter(
+        new NotificationDispatchUseCase(
+          new NotificationRecipientDirectory(),
+          NotificationClientInstance,
+          activityJournal,
+        ),
+      ),
     );
   });
 

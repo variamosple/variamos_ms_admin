@@ -192,6 +192,8 @@ function buildRouter(accessGuard: AccessGuard) {
       mock(),
       mock(),
       mock(),
+      mock(),
+      mock(),
     );
   } finally {
     proto.use = original;

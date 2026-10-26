@@ -1,24 +1,17 @@
 import axios from "axios";
 import logger from "jet-logger";
 import EnvVars from "#src/common/EnvVars.js";
+import type {
+  INotificationDispatcher,
+  NotificationPayload,
+} from "#src/Domain/Notification/INotificationDispatcher.js";
 
-export interface DispatchNotificationPayload {
-  recipients: {
-    userIds?: string[];
-    roles?: string[];
-  };
-  templateKey: string;
-  variables: Record<string, unknown>;
-  metadata?: Record<string, unknown>;
-  actorId?: string | null;
-}
-
-export class NotificationClient {
+export class NotificationClient implements INotificationDispatcher {
   private readonly baseUrl = EnvVars.NOTIFICATION.SERVICE_URL;
   private readonly internalToken = EnvVars.NOTIFICATION.INTERNAL_TOKEN;
 
   public async dispatchNotification(
-    payload: DispatchNotificationPayload,
+    payload: NotificationPayload,
   ): Promise<void> {
     try {
       await axios.post(`${this.baseUrl}/notifications`, payload, {

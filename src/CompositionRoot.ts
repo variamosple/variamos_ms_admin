@@ -12,6 +12,7 @@ import { MetricsRepositoryImpl } from "./DataProviders/Metrics/MetricsRepository
 import { TrustedDeviceRepositoryImpl } from "./DataProviders/Mfa/TrustedDeviceRepository.js";
 import { UserMfaRepositoryImpl } from "./DataProviders/Mfa/UserMfaRepository.js";
 import { MicroServiceRepositoryImpl } from "./DataProviders/MicroService/MicroServiceRepository.js";
+import { NotificationRecipientDirectory } from "./DataProviders/Notification/NotificationRecipientDirectory.js";
 import { PermissionRepositoryImpl } from "./DataProviders/Permission/PermissionRepository.js";
 import { RolePermissionRepositoryImpl } from "./DataProviders/Role/RolePermissionRepository.js";
 import { RoleRepositoryImpl } from "./DataProviders/Role/RoleRepository.js";
@@ -38,6 +39,7 @@ import { TrustedDeviceUseCase } from "./Domain/Mfa/UseCase/TrustedDeviceUseCase.
 import { UserMfaUseCase } from "./Domain/Mfa/UseCase/UserMfaUseCase.js";
 import { MicroServiceManagementUseCase } from "./Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
 import { MicroServiceQueryUseCase } from "./Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
+import { NotificationDispatchUseCase } from "./Domain/Notification/UseCase/NotificationDispatchUseCase.js";
 // Permission & Role Use Cases
 import { PermissionUseCase } from "./Domain/Permission/UseCase/PermissionUseCase.js";
 import { RoleManagementUseCase } from "./Domain/Role/UseCase/RoleManagementUseCase.js";
@@ -270,6 +272,17 @@ export const productionBugAttachmentUseCase = new BugAttachmentUseCase(
   BugRepositoryInstance,
   DiskStorageServiceInstance,
 );
+
+// Notifications sent by an administrator (T-18 lot 3b)
+export const productionNotificationDispatchUseCase =
+  new NotificationDispatchUseCase(
+    new NotificationRecipientDirectory(),
+    NotificationClientInstance,
+    ActivityJournalInstance,
+  );
+
+/** Resolves when the database answers, for GET /health. */
+export const checkDatabase = (): Promise<void> => VARIAMOS_ORM.authenticate();
 
 // Other Use Case Instantiations
 export const productionPermissionUseCase = new PermissionUseCase(

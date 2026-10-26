@@ -37,12 +37,9 @@ module.exports = {
     },
     {
       name: 'entrypoints-go-through-the-domain',
-      comment: 'Routers call use cases; they do not reach the ORM models, repositories or infrastructure clients. The two routers listed are moved behind use cases by lot 3 of EV-98.',
+      comment: 'Routers call use cases; they do not reach the ORM models, repositories or infrastructure clients.',
       severity: 'error',
-      from: {
-        path: '^src/EntryPoints',
-        pathNot: [TESTS, '^src/EntryPoints/(HealthRouter|AdminNotificationsRouter)\\.ts$']
-      },
+      from: { path: '^src/EntryPoints', pathNot: TESTS },
       to: { path: '^src/Infrastructure|^src/DataProviders' }
     },
     {
