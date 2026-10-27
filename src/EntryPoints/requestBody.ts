@@ -1,4 +1,4 @@
-import type { Request, Response } from "express";
+import type { Request, RequestHandler, Response } from "express";
 import { z } from "zod";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -16,6 +16,14 @@ export const SECRET_MAX = 1024;
  * refuse it with their usual message.
  */
 export const text = (max: number) => z.string().max(max).default("");
+
+/** Text that may be missing, for a route that treats a missing field apart. */
+export const optionalText = (max: number) => z.string().max(max).optional();
+
+/** A database id: a positive integer, sent as a number or as digits. */
+export const numericId = z
+  .union([z.number().int().positive(), z.string().regex(/^\d{1,15}$/)])
+  .optional();
 
 /**
  * Reads the body of a request against its schema (EV-97 lot 6). The schema
@@ -43,3 +51,16 @@ export function readBody<S extends z.ZodType>(
     );
   return undefined;
 }
+
+/**
+ * readBody as a middleware, for a route whose access check reads the body
+ * before the handler: the request goes on with the checked body only.
+ */
+export const validBody =
+  (schema: z.ZodType, transactionId: string): RequestHandler =>
+  (req, res, next) => {
+    const body = readBody(schema, req, res, transactionId);
+    if (body === undefined) return;
+    req.body = body;
+    next();
+  };

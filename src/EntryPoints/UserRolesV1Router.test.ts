@@ -190,6 +190,18 @@ describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
     });
 
+    // Number([5]) is 5: a list passed the id checks of the access guard
+    // and of the route, and reached the use case (EV-97 lot 6b)
+    it("refuses a role id sent as a list, before the use case", async () => {
+      const response = await supertest(app)
+        .post("/v1/users/user-123/roles")
+        .send({ roleId: [5] });
+
+      expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
+      expect(response.body.message).toBe('The field "roleId" is invalid.');
+      expect(UserRoleUseCase.prototype.createUserRole).not.toHaveBeenCalled();
+    });
+
     it("should return error status code when create fails", async () => {
       const expectedResponse = new ResponseModel("createUserRole").withError(
         DomainErrorCodes.DUPLICATE_ENTITY,

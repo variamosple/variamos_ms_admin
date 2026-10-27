@@ -8,8 +8,10 @@ import { Permission } from "#src/Domain/Permission/Entity/Permission.js";
 import { PermissionFilter } from "#src/Domain/Permission/Entity/PermissionFilter.js";
 import type { PermissionUseCase } from "#src/Domain/Permission/UseCase/PermissionUseCase.js";
 import { actorOf } from "./actor.js";
+import { nameBody } from "./adminRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
+import { validBody } from "./requestBody.js";
 
 export const PERMISSIONS_V1_ROUTE = "/v1/permissions";
 
@@ -48,6 +50,7 @@ export function createPermissionsRouter(
   permissionsV1Router.post(
     "/",
     hasPermissions(["permissions::create"]),
+    validBody(nameBody, "createPermission"),
     async (req, res) => {
       const transactionId = "createPermission";
       const { name } = req.body as { name?: string };
@@ -161,6 +164,7 @@ export function createPermissionsRouter(
   permissionsV1Router.put(
     "/:permissionId",
     hasPermissions(["permissions::update"]),
+    validBody(nameBody, "updatePermission"),
     async (req: Request<{ permissionId: string }>, res) => {
       const transactionId = "updatePermission";
       const permissionId = req.params.permissionId;

@@ -29,8 +29,14 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { MAX_ATTACHMENT_SIZE_BYTES } from "#src/Domain/Core/File/AllowedFileType.js";
 import type { UploadedFile } from "#src/Domain/Core/File/UploadedFile.js";
 import { actorOf } from "./actor.js";
+import {
+  bugCreateBody,
+  bugNoteBody,
+  bugStatusBody,
+} from "./adminRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
+import { validBody } from "./requestBody.js";
 
 /**
  * Factory function to create Bug Router with decoupled dependency injection
@@ -331,6 +337,7 @@ export function createBugRouter(
   router.post(
     "/",
     acceptSingleFile(upload, "createBug"),
+    validBody(bugCreateBody, "createBug"),
     async (req: Request, res: Response) => {
       const transactionId = "createBug";
       const {
@@ -447,6 +454,7 @@ export function createBugRouter(
     "/:id/status",
     authMiddleware,
     hasPermissions(["bugs::update"]),
+    validBody(bugStatusBody, "updateStatus"),
     async (req: Request<{ id: string }>, res: Response) => {
       const transactionId = "updateStatus";
       const { id } = req.params;
@@ -650,6 +658,7 @@ export function createBugRouter(
     "/:id/notes",
     authMiddleware,
     hasPermissions(["bugs::update"]),
+    validBody(bugNoteBody, "createBugNote"),
     async (req: Request<{ id: string }>, res: Response) => {
       const transactionId = "createBugNote";
       const { id } = req.params;

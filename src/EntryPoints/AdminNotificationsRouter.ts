@@ -8,7 +8,12 @@ import type {
   NotificationDispatchUseCase,
 } from "#src/Domain/Notification/UseCase/NotificationDispatchUseCase.js";
 import { actorOf } from "./actor.js";
+import {
+  notificationAudienceBody,
+  notificationDispatchBody,
+} from "./adminRequestBodies.js";
 import { sendError } from "./errorResponse.js";
+import { validBody } from "./requestBody.js";
 
 const TRANSACTION_ID = "dispatchNotification";
 const COUNT_TRANSACTION_ID = "countNotificationRecipients";
@@ -27,6 +32,7 @@ export function createAdminNotificationsRouter(
   router.post(
     "/recipients/count",
     hasPermissions(["admin::notifications::dispatch"]),
+    validBody(notificationAudienceBody, COUNT_TRANSACTION_ID),
     async (req: Request, res) => {
       try {
         const response = await notifications.countRecipients(
@@ -51,6 +57,7 @@ export function createAdminNotificationsRouter(
   router.post(
     "/dispatch",
     hasPermissions(["admin::notifications::dispatch"]),
+    validBody(notificationDispatchBody, TRANSACTION_ID),
     async (req: Request, res) => {
       try {
         const response = await notifications.dispatch(
