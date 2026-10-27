@@ -46,7 +46,7 @@
     "express-rate-limit": "^8.7.1",
     "google-auth-library": "^11.3.1",
     "helmet": "^8.3.0",
-    "jet-logger": "^2.2.3",
+    "jet-logger": "^3.0.3",
     "jose": "^6.2.13",
     "morgan": "^1.12.1",
     "multer": "^2.4.0",
