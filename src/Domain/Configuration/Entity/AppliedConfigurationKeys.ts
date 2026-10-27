@@ -13,7 +13,7 @@ import {
  * no effect yet; the configuration screen says so, so that an administrator
  * does not believe a protection is on when it is not (T-20).
  */
-export const APPLIED_CONFIGURATION_KEYS: ReadonlySet<string> = new Set([
+const APPLIED_CONFIGURATION_KEYS: ReadonlySet<string> = new Set([
   HEALTH_CHECK_INTERVAL_KEY,
   ...Object.values(PASSWORD_POLICY_KEYS),
   PASSWORD_RESET_EXPIRY_KEY,

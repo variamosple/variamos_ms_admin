@@ -13,7 +13,7 @@ import { validBody } from "./requestBody.js";
 
 export const CONFIGURATION_V1_ROUTE = "/v1/configurations";
 
-export type ConfigurationValueDto =
+type ConfigurationValueDto =
   | string
   | number
   | boolean

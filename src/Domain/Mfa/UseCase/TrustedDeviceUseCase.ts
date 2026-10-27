@@ -7,7 +7,7 @@ import type { ITrustedDeviceRepository } from "#src/Domain/Mfa/Repository/ITrust
 export const TRUSTED_DEVICE_DAYS_KEY = "security.mfa.trusted_device_days";
 
 /** Accepted values of the key; 0 always asks the code. */
-export const TRUSTED_DEVICE_DAYS_BOUNDS = { min: 0, max: 90 } as const;
+const TRUSTED_DEVICE_DAYS_BOUNDS = { min: 0, max: 90 } as const;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
