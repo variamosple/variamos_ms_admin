@@ -6,8 +6,10 @@ import type { ConfigurationUseCase } from "#src/Domain/Configuration/UseCase/Con
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import type { Menu } from "#src/Domain/Menu/Entity/Menu.js";
+import { configurationUpdateBody } from "./adminRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
+import { validBody } from "./requestBody.js";
 
 export const CONFIGURATION_V1_ROUTE = "/v1/configurations";
 
@@ -292,6 +294,7 @@ export function createConfigurationRouter(
   configurationV1Router.put(
     "/:key",
     hasPermissions(["configurations::update"]),
+    validBody(configurationUpdateBody, "updateConfiguration"),
     async (req: Request<{ key: string }>, res) => {
       const transactionId = "updateConfiguration";
       const key = req.params.key;

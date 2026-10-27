@@ -7,8 +7,13 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { MicroServiceFilter } from "#src/Domain/MicroService/Entity/MicroServiceFilter.js";
 import type { MicroServiceManagementUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
 import type { MicroServiceQueryUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
+import {
+  microServiceCheckBody,
+  microServiceConfigurationBody,
+} from "./adminRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
+import { validBody } from "./requestBody.js";
 
 export const MICRO_SERVICES_V1_ROUTE = "/v1/micro-services";
 
@@ -61,6 +66,7 @@ export function createMicroServicesRouter(
   microServicesV1Router.post(
     "/check",
     hasPermissions(["micro-services::query"]),
+    validBody(microServiceCheckBody, "triggerMicroServicesHealthCheck"),
     async (req, res) => {
       const transactionId = "triggerMicroServicesHealthCheck";
       const { serviceName } = (req.body || {}) as { serviceName?: string };
@@ -155,6 +161,7 @@ export function createMicroServicesRouter(
   microServicesV1Router.put(
     "/:name/configurations/:key",
     hasPermissions(["micro-services::update"]),
+    validBody(microServiceConfigurationBody, "updateMicroServiceConfiguration"),
     async (req: Request<{ name: string; key: string }>, res) => {
       const transactionId = "updateMicroServiceConfiguration";
       const { name, key } = req.params;

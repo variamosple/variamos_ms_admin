@@ -110,6 +110,20 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
   });
 
   describe("POST /v1/roles/:roleId/permissions", () => {
+    it("refuses a permission id sent as a list, before the use case", async () => {
+      const response = await supertest(app)
+        .post("/v1/roles/1/permissions")
+        .send({ permissionId: [2] });
+
+      expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
+      expect(response.body.message).toBe(
+        'The field "permissionId" is invalid.',
+      );
+      expect(
+        RolePermissionUseCase.prototype.createRolePermission,
+      ).not.toHaveBeenCalled();
+    });
+
     it("should return 201 on success", async () => {
       const mockRolePerm = new RolePermission(1, 2);
       const expectedResponse = new ResponseModel(

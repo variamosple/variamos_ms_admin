@@ -8,8 +8,10 @@ import { UserRole } from "#src/Domain/User/Entity/UserRole.js";
 import { UserRoleFilter } from "#src/Domain/User/Entity/UserRoleFilter.js";
 import type { UserRoleUseCase } from "#src/Domain/User/UseCase/UserRoleUseCase.js";
 import { actorOf } from "./actor.js";
+import { userRoleBody } from "./adminRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
+import { validBody } from "./requestBody.js";
 import {
   type AccessGuard,
   requireAccess,
@@ -78,6 +80,7 @@ export function createUserRolesRouter(
   router.post(
     "/",
     hasPermissions(["roles::assign"]),
+    validBody(userRoleBody, "createUserRole"),
     requireAccess(accessGuard, (req) => {
       const roleId = toId((req.body as { roleId?: unknown })?.roleId);
       const userId = toUserId(req.params.userId);
