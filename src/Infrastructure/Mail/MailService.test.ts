@@ -1,4 +1,5 @@
 import logger from "jet-logger";
+import nodemailer from "nodemailer";
 import EnvVars from "#src/common/EnvVars.js";
 import { describeDuration, MailServiceImpl } from "./MailService.js";
 
@@ -110,6 +111,25 @@ describe("MailServiceImpl messages", () => {
     expect(subject).toBe("VariaMos - Security alert: Repeated failed sign-ins");
     expect(html).toContain("&lt;script&gt;&quot;x&quot;&lt;/script&gt;");
     expect(html).not.toContain("<script>");
+  });
+});
+
+describe("MailServiceImpl transport", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("refuses to send in clear text or below TLS 1.2", () => {
+    const createTransport = vi.spyOn(nodemailer, "createTransport");
+
+    new MailServiceImpl();
+
+    expect(createTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requireTLS: true,
+        tls: { minVersion: "TLSv1.2" },
+      }),
+    );
   });
 });
 

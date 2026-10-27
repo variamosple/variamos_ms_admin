@@ -72,6 +72,10 @@ export class MailServiceImpl implements IMailService {
     host: EnvVars.SMTP.HOST,
     port: EnvVars.SMTP.PORT,
     secure: EnvVars.SMTP.PORT === 465, // true for port 465 (SSL), false for other ports (TLS/STARTTLS)
+    // Never in clear text: a server that does not offer STARTTLS is refused
+    // rather than sent the credentials and the reset links (EV-75 lot 3)
+    requireTLS: true,
+    tls: { minVersion: "TLSv1.2" },
     auth:
       EnvVars.SMTP.USER && EnvVars.SMTP.PASSWORD
         ? {
