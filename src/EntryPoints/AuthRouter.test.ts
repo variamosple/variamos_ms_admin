@@ -1536,22 +1536,14 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       );
     });
 
-    it("passes an empty token when the body holds no string token", async () => {
-      (UserPasswordUseCase.prototype.verifyToken as vi.Mock).mockResolvedValue(
-        new ResponseModel("verifyToken").withError(
-          DomainErrorCodes.INVALID_INPUT,
-          "Token is required.",
-        ),
-      );
-
+    it("refuses a token that is not text, before the use case", async () => {
       const response = await supertest(app)
         .post("/auth/verify-token")
         .send({ token: { $ne: "" } });
 
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
-      expect(UserPasswordUseCase.prototype.verifyToken).toHaveBeenCalledWith(
-        expect.objectContaining({ data: "" }),
-      );
+      expect(response.body.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(UserPasswordUseCase.prototype.verifyToken).not.toHaveBeenCalled();
     });
   });
 
