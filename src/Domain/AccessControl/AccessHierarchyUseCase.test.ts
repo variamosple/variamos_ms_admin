@@ -237,6 +237,10 @@ describe("AccessHierarchyUseCase", () => {
         "removing another permission from it",
         { kind: "remove-permission", roleId: 1, permissionId: 11 },
       ],
+      [
+        "adding the top permission to it",
+        { kind: "add-permission", roleId: 1, permissionId: 12 },
+      ],
     ])("does not block %s", async (_label, check) => {
       await expect(authorize("admin", check)).resolves.toBeUndefined();
     });
