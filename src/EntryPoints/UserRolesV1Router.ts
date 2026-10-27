@@ -31,20 +31,8 @@ export function createUserRolesRouter(
     async (req: Request<{ userId: string }>, res) => {
       const transactionId = "queryUserRoles";
       const { pageNumber, pageSize } = req.query;
-      const userId =
-        req.headers["x-test-no-user-id"] === "true" ? "" : req.params.userId;
+      const { userId } = req.params;
       try {
-        if (!userId) {
-          return res
-            .status(HttpStatusCodes.BAD_REQUEST)
-            .json(
-              new ResponseModel<void>(transactionId).withError(
-                DomainErrorCodes.INVALID_INPUT,
-                "userId is required.",
-              ),
-            );
-        }
-
         const filter: UserRoleFilter = UserRoleFilter.builder()
           .setUserId(userId)
           .setPageNumber(Number(pageNumber))
@@ -68,20 +56,8 @@ export function createUserRolesRouter(
     async (req: Request<{ userId: string }>, res) => {
       const transactionId = "queryUserRolesDetails";
       const { pageNumber, pageSize } = req.query;
-      const userId =
-        req.headers["x-test-no-user-id"] === "true" ? "" : req.params.userId;
+      const { userId } = req.params;
       try {
-        if (!userId) {
-          return res
-            .status(HttpStatusCodes.BAD_REQUEST)
-            .json(
-              new ResponseModel<void>(transactionId).withError(
-                DomainErrorCodes.INVALID_INPUT,
-                "userId is required.",
-              ),
-            );
-        }
-
         const filter: UserRoleFilter = UserRoleFilter.builder()
           .setUserId(userId)
           .setPageNumber(Number(pageNumber))
@@ -109,8 +85,7 @@ export function createUserRolesRouter(
     }),
     async (req: Request<{ userId: string }>, res) => {
       const transactionId = "createUserRole";
-      const userId =
-        req.headers["x-test-no-user-id"] === "true" ? "" : req.params.userId;
+      const { userId } = req.params;
       const { roleId } = req.body as { roleId?: string };
       try {
         if (!userId || !roleId || Number.isNaN(Number(roleId))) {
@@ -157,8 +132,7 @@ export function createUserRolesRouter(
     }),
     async (req: Request<{ userId: string; roleId: string }>, res) => {
       const transactionId = "deleteUserRole";
-      const userId =
-        req.headers["x-test-no-user-id"] === "true" ? "" : req.params.userId;
+      const { userId } = req.params;
       const { roleId } = req.params;
       try {
         if (!userId || !roleId || Number.isNaN(Number(roleId))) {

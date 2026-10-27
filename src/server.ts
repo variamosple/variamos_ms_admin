@@ -32,6 +32,8 @@ import { createUploadsRouter } from "#src/EntryPoints/UploadsRouter.js";
 
 export function createServer(baseRouter: Router) {
   const app = express();
+  // helmet removes it too; disabled here so that it never comes back
+  app.disable("x-powered-by");
 
   // nginx, on the Docker network, appends the client address to
   // X-Forwarded-For: trust private hops only, so req.ip is the client and an
@@ -78,10 +80,9 @@ export function createServer(baseRouter: Router) {
     app.use(morgan("dev"));
   }
 
-  // Security
-  if (EnvVars.NodeEnv === NodeEnvs.Production.valueOf()) {
-    app.use(helmet());
-  }
+  // Security headers in every environment, so that development and the
+  // tests run with what production sends (EV-75 lot 4)
+  app.use(helmet());
 
   // Uploaded files are served by a dedicated route, never as static content
   const uploadsDir = path.join(__dirname, "public/uploads");
