@@ -13,7 +13,7 @@ export const CONTAINER_LOGS_PERMISSION = "micro-services::query";
 const MAX_SERVICE_ID_LENGTH = 128;
 const POLICY_VIOLATION = 1008;
 
-export interface ContainerLogsAccess {
+interface ContainerLogsAccess {
   errorCode?: unknown;
   data?: { exp?: number } | null;
 }

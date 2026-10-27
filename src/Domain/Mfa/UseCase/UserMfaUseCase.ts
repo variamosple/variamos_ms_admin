@@ -18,7 +18,7 @@ import type {
 } from "#src/Domain/Mfa/Repository/IUserMfaRepository.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 
-export const MFA_ISSUER = "VariaMos";
+const MFA_ISSUER = "VariaMos";
 
 export interface MfaStatus {
   /** False while no encryption key is configured. */
