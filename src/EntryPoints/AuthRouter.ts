@@ -14,10 +14,10 @@ import {
   Router,
 } from "express";
 import { OAuth2Client } from "google-auth-library";
-import logger from "jet-logger";
 import { describeError } from "#src/common/describeError.js";
 import EnvVars from "#src/common/EnvVars.js";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import logger from "#src/common/logger.js";
 import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
 import type { Nullable } from "#src/Domain/Core/Entity/Nullable.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";

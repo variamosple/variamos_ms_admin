@@ -3,7 +3,7 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import VARIAMOS_ORM from "#src/Infrastructure/VariamosORM.js";
 import { MetricsRepositoryImpl } from "./MetricsRepository.js";
 
-vi.mock("jet-logger");
+vi.mock("#src/common/logger.js");
 
 const definitionsWith = (visits: number) => [
   {

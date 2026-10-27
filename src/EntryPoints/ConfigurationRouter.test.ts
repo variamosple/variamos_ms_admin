@@ -1,8 +1,8 @@
 import express from "express";
-import logger from "jet-logger";
 import supertest from "supertest";
 import { mock } from "vitest-mock-extended";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import logger from "#src/common/logger.js";
 import {
   Configuration,
   ConfigurationKey,

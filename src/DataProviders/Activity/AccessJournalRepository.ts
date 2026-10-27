@@ -1,5 +1,5 @@
-import logger from "jet-logger";
 import { QueryTypes, type Sequelize } from "sequelize";
+import logger from "#src/common/logger.js";
 import type {
   AccessEntry,
   KnownAccount,

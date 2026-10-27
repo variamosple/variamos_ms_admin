@@ -1,4 +1,4 @@
-import logger from "jet-logger";
+import logger from "#src/common/logger.js";
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";

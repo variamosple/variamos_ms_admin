@@ -1,5 +1,5 @@
-import logger from "jet-logger";
 import type { WhereOptions } from "sequelize";
+import logger from "#src/common/logger.js";
 import {
   Configuration,
   ConfigurationKey,

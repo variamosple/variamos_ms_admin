@@ -1,6 +1,6 @@
-import logger from "jet-logger";
 import multer from "multer";
 import EnvVars from "#src/common/EnvVars.js";
+import logger from "#src/common/logger.js";
 import { MAX_ATTACHMENT_SIZE_BYTES } from "#src/Domain/Core/File/AllowedFileType.js";
 import { AccessHierarchyRepositoryImpl } from "./DataProviders/AccessControl/AccessHierarchyRepository.js";
 import { SecurityAlertRecipientRepository } from "./DataProviders/AccessControl/SecurityAlertRecipientRepository.js";

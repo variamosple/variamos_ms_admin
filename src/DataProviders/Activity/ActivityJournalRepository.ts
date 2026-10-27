@@ -1,5 +1,5 @@
-import logger from "jet-logger";
 import type { Sequelize } from "sequelize";
+import logger from "#src/common/logger.js";
 import type { ActivityEntry } from "#src/Domain/Activity/ActivityEntry.js";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import type { IJournalPurge } from "#src/Domain/Activity/IJournalPurge.js";

@@ -1,6 +1,6 @@
-import logger from "jet-logger";
 import { Sequelize } from "sequelize";
 import EnvVars from "#src/common/EnvVars.js";
+import logger from "#src/common/logger.js";
 import { NodeEnvs } from "#src/common/misc.js";
 
 // Generated SQL holds values written inline (e-mail addresses, identifiers):

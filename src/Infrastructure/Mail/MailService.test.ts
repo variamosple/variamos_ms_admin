@@ -1,6 +1,6 @@
-import logger from "jet-logger";
 import nodemailer from "nodemailer";
 import EnvVars from "#src/common/EnvVars.js";
+import logger from "#src/common/logger.js";
 import { describeDuration, MailServiceImpl } from "./MailService.js";
 
 describe("MailServiceImpl logging", () => {

@@ -1,4 +1,4 @@
-import logger from "jet-logger";
+import logger from "#src/common/logger.js";
 import type { MigrationContext, SchemaMigration } from "./MigrationContext.js";
 
 export const ACTIVITY_LOG_TABLE = "admin_activity_logs";

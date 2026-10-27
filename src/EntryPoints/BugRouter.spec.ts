@@ -43,9 +43,9 @@ vi.mock("@variamosple/variamos-security", () => ({
 
 import cookieParser from "cookie-parser";
 import express, { type RequestHandler } from "express";
-import logger from "jet-logger";
 import multer from "multer";
 import request from "supertest";
+import logger from "#src/common/logger.js";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import { BugAttachment } from "#src/Domain/Bug/Entity/BugAttachment.js";
 import { BugNote } from "#src/Domain/Bug/Entity/BugNote.js";

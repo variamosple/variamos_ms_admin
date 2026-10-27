@@ -1,5 +1,5 @@
 import axios from "axios";
-import logger from "jet-logger";
+import logger from "#src/common/logger.js";
 import type {
   GitHubIssue,
   IIssueTrackerService,

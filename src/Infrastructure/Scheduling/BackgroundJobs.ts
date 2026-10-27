@@ -1,4 +1,4 @@
-import logger from "jet-logger";
+import logger from "#src/common/logger.js";
 import type { BugLifecycleUseCase } from "#src/Domain/Bug/UseCase/BugLifecycleUseCase.js";
 import type { BugSyncUseCase } from "#src/Domain/Bug/UseCase/BugSyncUseCase.js";
 import type { Configuration } from "#src/Domain/Configuration/Entity/Configuration.js";

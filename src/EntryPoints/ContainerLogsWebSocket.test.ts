@@ -1,8 +1,8 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { PassThrough } from "node:stream";
-import logger from "jet-logger";
 import { WebSocket } from "ws";
+import logger from "#src/common/logger.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import {
   attachContainerLogsWebSocket,

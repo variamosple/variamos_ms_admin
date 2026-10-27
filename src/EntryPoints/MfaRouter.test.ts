@@ -1,7 +1,7 @@
 import express, { type RequestHandler } from "express";
-import logger from "jet-logger";
 import request from "supertest";
 import { mock } from "vitest-mock-extended";
+import logger from "#src/common/logger.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { UserMfaUseCase } from "#src/Domain/Mfa/UseCase/UserMfaUseCase.js";

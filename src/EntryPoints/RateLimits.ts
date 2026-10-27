@@ -1,7 +1,7 @@
 import type { Request, RequestHandler, Response, Router } from "express";
 import { ipKeyGenerator, type Options, rateLimit } from "express-rate-limit";
-import logger from "jet-logger";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import logger from "#src/common/logger.js";
 import { maskEmail } from "#src/common/maskEmail.js";
 import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";

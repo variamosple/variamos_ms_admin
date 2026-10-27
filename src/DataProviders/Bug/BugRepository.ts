@@ -1,5 +1,5 @@
-import logger from "jet-logger";
 import { Op, QueryTypes, type Transaction, type WhereOptions } from "sequelize";
+import logger from "#src/common/logger.js";
 import { Bug, type BugUserRef } from "#src/Domain/Bug/Entity/Bug.js";
 import { BugAttachment } from "#src/Domain/Bug/Entity/BugAttachment.js";
 import type { BugComponentValue } from "#src/Domain/Bug/Entity/BugComponent.js";

@@ -1,5 +1,5 @@
 import axios from "axios";
-import logger from "jet-logger";
+import logger from "#src/common/logger.js";
 import type { MicroServiceHealthInfo } from "#src/Domain/MicroService/Entity/MicroServiceHealth.js";
 import type { ServiceDefinition } from "#src/Domain/MicroService/Entity/ServiceDefinition.js";
 import type { IHealthLogArchive } from "#src/Domain/MicroService/Repository/IHealthLogArchive.js";
