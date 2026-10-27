@@ -36,8 +36,22 @@ import type { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagem
 import type { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
 import type { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
 import { recordAccess } from "./accessJournal.js";
+import {
+  forgotPasswordBody,
+  googleCallbackBody,
+  guestSignInBody,
+  passwordUpdateBody,
+  personalInformationBody,
+  redirectBody,
+  resetPasswordBody,
+  signInBody,
+  signInMfaBody,
+  signUpBody,
+  verifyTokenBody,
+} from "./authRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
+import { readBody } from "./requestBody.js";
 
 /** Body of GET /auth/session-info: an HTTP shape, not a domain entity. */
 interface SessionInfoResponse {
@@ -347,7 +361,9 @@ export function createAuthRouter(
   authRouter.post("/sign-in", async (req, res) => {
     const transactionId = "signIn";
     const response = new ResponseModel<SingInResponse>(transactionId);
-    const { email, password } = (req.body || {}) as Record<string, string>;
+    const body = readBody(signInBody, req, res, transactionId);
+    if (!body) return;
+    const { email, password } = body;
 
     try {
       if (!email || !password) {
@@ -444,10 +460,9 @@ export function createAuthRouter(
     const pendingToken = req.cookies?.[MFA_PENDING_COOKIE] as
       | string
       | undefined;
-    const { code, rememberDevice } = (req.body || {}) as Record<
-      string,
-      unknown
-    >;
+    const body = readBody(signInMfaBody, req, res, transactionId);
+    if (!body) return;
+    const { code, rememberDevice } = body;
     const clearPending = () =>
       res.clearCookie(MFA_PENDING_COOKIE, getCookieOptions({ maxAge: false }));
 
@@ -551,8 +566,9 @@ export function createAuthRouter(
 
   authRouter.post("/sign-up", async (req, res) => {
     const transactionId = "signUp";
-    const { name, email, password, passwordConfirmation } = (req.body ||
-      {}) as Record<string, string>;
+    const body = readBody(signUpBody, req, res, transactionId);
+    if (!body) return;
+    const { name, email, password, passwordConfirmation } = body;
     const successfulResponse = new ResponseModel<void>(
       transactionId,
       undefined,
@@ -640,7 +656,9 @@ export function createAuthRouter(
 
   authRouter.post("/google/callback", async (req, res) => {
     const transactionId = "loginWithGoogle";
-    const { credential } = (req.body || {}) as Record<string, string>;
+    const body = readBody(googleCallbackBody, req, res, transactionId);
+    if (!body) return;
+    const { credential } = body;
     try {
       const user = await validateGoogleCode(credential);
 
@@ -768,9 +786,13 @@ export function createAuthRouter(
     async (req, res) => {
       const transactionId = "updateMyAccountInformation";
       const user = req.user as SessionUser;
-      const personalInformation = (req.body || {}) as {
-        countryCode?: string | null;
-      };
+      const personalInformation = readBody(
+        personalInformationBody,
+        req,
+        res,
+        transactionId,
+      );
+      if (!personalInformation) return;
 
       try {
         const personalInformationUpdate = PersonalInformationUpdate.builder()
@@ -801,8 +823,9 @@ export function createAuthRouter(
     async (req, res) => {
       const transactionId = "passwordUpdate";
       const user = req.user as SessionUser;
-      const { currentPassword, newPassword, passwordConfirmation } =
-        (req.body || {}) as Record<string, string>;
+      const body = readBody(passwordUpdateBody, req, res, transactionId);
+      if (!body) return;
+      const { currentPassword, newPassword, passwordConfirmation } = body;
       try {
         const passwordUpdate = PasswordUpdate.builder()
           .setId(user.id)
@@ -827,7 +850,9 @@ export function createAuthRouter(
 
   authRouter.post("/guest/sign-in", async (req, res) => {
     const transactionId = "signInAsGuest";
-    const { guestId } = (req.body || {}) as Record<string, string>;
+    const body = readBody(guestSignInBody, req, res, transactionId);
+    if (!body) return;
+    const { guestId } = body;
 
     try {
       const response = new ResponseModel<SingInResponse>(transactionId);
@@ -881,7 +906,9 @@ export function createAuthRouter(
 
   authRouter.post("/redirects", (request, res) => {
     const response = new ResponseModel<void>("setRedirect");
-    const { url } = (request.body || {}) as Record<string, string>;
+    const body = readBody(redirectBody, request, res, "setRedirect");
+    if (!body) return;
+    const { url } = body;
 
     if (!url) {
       res.status(200).json(response);
@@ -917,7 +944,9 @@ export function createAuthRouter(
 
   authRouter.post("/forgot-password", async (req, res) => {
     const transactionId = "forgotPassword";
-    const { email = "" } = (req.body || {}) as Record<string, string>;
+    const body = readBody(forgotPasswordBody, req, res, transactionId);
+    if (!body) return;
+    const { email } = body;
 
     try {
       const forgotPasswordResponse = await userPasswordUseCase.requestReset(
@@ -961,19 +990,19 @@ export function createAuthRouter(
     }
   };
 
-  authRouter.post("/verify-token", (req, res) =>
-    verifyToken((req.body as { token?: unknown } | undefined)?.token, res),
-  );
+  authRouter.post("/verify-token", (req, res) => {
+    const body = readBody(verifyTokenBody, req, res, "verifyToken");
+    if (body) return verifyToken(body.token, res);
+  });
   authRouter.get("/verify-token", (req, res) =>
     verifyToken(req.query?.token, res),
   );
 
   authRouter.post("/reset-password", async (req, res) => {
     const transactionId = "resetPassword";
-    const { token = "", password = "" } = (req.body || {}) as Record<
-      string,
-      string
-    >;
+    const body = readBody(resetPasswordBody, req, res, transactionId);
+    if (!body) return;
+    const { token, password } = body;
 
     try {
       const resetResponse = await userPasswordUseCase.resetPassword(
