@@ -45,11 +45,11 @@ import {
 } from "@variamosple/variamos-security";
 import cookieParser from "cookie-parser";
 import express from "express";
-import logger from "jet-logger";
 import supertest from "supertest";
 import { mock } from "vitest-mock-extended";
 import EnvVars from "#src/common/EnvVars.js";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import logger from "#src/common/logger.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";

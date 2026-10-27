@@ -1,7 +1,7 @@
-import logger from "jet-logger";
 /* cspell:disable */
 import nodemailer from "nodemailer";
 import EnvVars from "#src/common/EnvVars.js";
+import logger from "#src/common/logger.js";
 import { maskEmail } from "#src/common/maskEmail.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
 

@@ -1,4 +1,4 @@
-import logger from "jet-logger";
+import logger from "#src/common/logger.js";
 import type { MigrationContext, SchemaMigration } from "./MigrationContext.js";
 
 // Frozen copy of BUG_COMPONENTS at the time of this migration: a later

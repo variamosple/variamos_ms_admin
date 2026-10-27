@@ -1,12 +1,12 @@
 import crypto from "node:crypto";
 import axios from "axios";
-import logger from "jet-logger";
 import { type MockProxy, mock } from "vitest-mock-extended";
+import logger from "#src/common/logger.js";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import { GitHubTokenResolver } from "./GitHubTokenResolver.js";
 
 vi.mock("axios");
-vi.mock("jet-logger");
+vi.mock("#src/common/logger.js");
 vi.mock("crypto", async () => {
   const actual = await vi.importActual<
     typeof import("crypto") & { default: typeof import("crypto") }

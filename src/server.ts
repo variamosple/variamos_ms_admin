@@ -17,12 +17,12 @@ import express, {
   type Router,
 } from "express";
 import helmet from "helmet";
-import logger from "jet-logger";
 import morgan from "morgan";
 import { RouteError } from "#src/common/classes.js";
 import { describeError } from "#src/common/describeError.js";
 import EnvVars from "#src/common/EnvVars.js";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import logger from "#src/common/logger.js";
 import { NodeEnvs } from "#src/common/misc.js";
 import {
   errorResponse,

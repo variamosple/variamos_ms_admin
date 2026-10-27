@@ -1,4 +1,4 @@
-import logger from "jet-logger";
+import logger from "#src/common/logger.js";
 import "./pre-start.js"; // Must be the first import
 
 import {

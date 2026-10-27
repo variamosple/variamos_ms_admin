@@ -36,7 +36,16 @@ module.exports = {
       comment: 'Data Providers must not import infrastructure utilities from common.',
       severity: 'error',
       from: { path: '^src/DataProviders' },
-      to: { path: '^src/common' }
+      // The logger replaces jet-logger, a package this layer already used
+      // directly; it holds no configuration or utility
+      to: { path: '^src/common', pathNot: '^src/common/logger\\.ts$' }
+    },
+    {
+      name: 'logs-go-through-the-common-logger',
+      comment: 'jet-logger prints objects in full since version 3 (request headers, SQL parameters): code logs through src/common/logger.ts, which writes text only.',
+      severity: 'error',
+      from: { pathNot: '^src/common/logger\\.(ts|spec\\.ts)$' },
+      to: { path: '^node_modules/jet-logger/' }
     },
     {
       name: 'no-circular-dependencies',

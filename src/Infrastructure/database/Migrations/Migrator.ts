@@ -1,6 +1,6 @@
-import logger from "jet-logger";
 import type { Sequelize } from "sequelize";
 import { SequelizeStorage, Umzug } from "umzug";
+import logger from "#src/common/logger.js";
 import { baseline } from "./0001-baseline.js";
 import { accountLockoutKeys } from "./0002-account-lockout-keys.js";
 import { userMfa } from "./0003-user-mfa.js";

@@ -1,11 +1,11 @@
-import logger from "jet-logger";
+import logger from "#src/common/logger.js";
 import {
   Configuration,
   ConfigurationKey,
 } from "#src/Domain/Configuration/Entity/Configuration.js";
 import { ConfigEventPublisherImpl } from "./ConfigEventPublisher.js";
 
-vi.mock("jet-logger");
+vi.mock("#src/common/logger.js");
 
 const configurationOf = (key: string, value: string, isSecret: boolean) =>
   Configuration.builder()

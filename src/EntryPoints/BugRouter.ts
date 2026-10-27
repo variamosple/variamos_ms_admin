@@ -9,8 +9,8 @@ import {
   type Response,
   Router,
 } from "express";
-import logger from "jet-logger";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import logger from "#src/common/logger.js";
 import type { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import { BugFilter } from "#src/Domain/Bug/Entity/BugFilter.js";
 import {

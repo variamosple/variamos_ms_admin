@@ -1,7 +1,7 @@
 import express, { type RequestHandler } from "express";
-import logger from "jet-logger";
 import request from "supertest";
 import { mock } from "vitest-mock-extended";
+import logger from "#src/common/logger.js";
 import type { AccessCheck } from "#src/Domain/AccessControl/AccessCheck.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";

@@ -1,7 +1,7 @@
 import express, { Router } from "express";
-import logger from "jet-logger";
 import supertest from "supertest";
 import { mock } from "vitest-mock-extended";
+import logger from "#src/common/logger.js";
 import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
 import { AccountLockoutPolicy } from "#src/Domain/User/Entity/AccountLockoutPolicy.js";
 import { AccountLockout } from "#src/Domain/User/Service/AccountLockoutService.js";

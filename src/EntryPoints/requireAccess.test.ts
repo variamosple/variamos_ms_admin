@@ -1,6 +1,6 @@
 import express from "express";
-import logger from "jet-logger";
 import supertest from "supertest";
+import logger from "#src/common/logger.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import {

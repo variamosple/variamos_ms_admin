@@ -11,7 +11,7 @@ import {
   startBackgroundJobs,
 } from "./BackgroundJobs.js";
 
-vi.mock("jet-logger");
+vi.mock("#src/common/logger.js");
 
 const MINUTE_MS = 60 * 1000;
 

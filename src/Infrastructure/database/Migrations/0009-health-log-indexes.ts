@@ -1,4 +1,4 @@
-import logger from "jet-logger";
+import logger from "#src/common/logger.js";
 import type { MigrationContext, SchemaMigration } from "./MigrationContext.js";
 
 export const HEALTH_LOG_INDEX = "microservice_health_logs_service_checked_idx";

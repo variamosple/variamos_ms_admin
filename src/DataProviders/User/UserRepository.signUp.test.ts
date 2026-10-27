@@ -6,7 +6,7 @@ import type { IPasswordHasher } from "#src/Domain/User/Service/IPasswordHasher.j
 import { UserModel } from "./User.js";
 import { UserRepositoryImpl } from "./UserRepository.js";
 
-vi.mock("jet-logger");
+vi.mock("#src/common/logger.js");
 
 /**
  * The sign-up answer is the same for a taken address and a free one (UX-33):

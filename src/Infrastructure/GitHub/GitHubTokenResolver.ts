@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import axios from "axios";
-import logger from "jet-logger";
+import logger from "#src/common/logger.js";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import type { IGitHubTokenProvider } from "#src/Domain/Bug/Service/IGitHubTokenProvider.js";
 

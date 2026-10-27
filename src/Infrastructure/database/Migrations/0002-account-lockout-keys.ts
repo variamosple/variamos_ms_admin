@@ -1,5 +1,5 @@
-import logger from "jet-logger";
 import { QueryTypes } from "sequelize";
+import logger from "#src/common/logger.js";
 import type { MigrationContext, SchemaMigration } from "./MigrationContext.js";
 
 // Values as of 2026-10-18 (EV-87 lot 4): a migration never changes once
