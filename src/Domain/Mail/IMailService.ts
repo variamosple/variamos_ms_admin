@@ -15,4 +15,10 @@ export interface IMailService {
     signInLink: string,
     forgotPasswordLink: string,
   ): Promise<boolean>;
+  /** Sends a security alert to an account at the top of the role ladder. */
+  sendSecurityAlertMail(
+    to: string,
+    title: string,
+    body: string,
+  ): Promise<boolean>;
 }

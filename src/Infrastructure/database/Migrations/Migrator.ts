@@ -10,6 +10,7 @@ import { adminAccessLogs } from "./0006-admin-access-logs.js";
 import { bugAssignees } from "./0007-bug-assignees.js";
 import { bugSeverityComponent } from "./0008-bug-severity-component.js";
 import { healthLogIndexes } from "./0009-health-log-indexes.js";
+import { securityAlertKeys } from "./0010-security-alert-keys.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 
 // Applied in order at start-up, each one once; append new migrations here
@@ -23,6 +24,7 @@ export const ADMIN_MIGRATIONS: SchemaMigration[] = [
   bugAssignees,
   bugSeverityComponent,
   healthLogIndexes,
+  securityAlertKeys,
 ];
 
 // The schema is shared with other services: a name of our own

@@ -1,5 +1,9 @@
 import type { Sequelize } from "sequelize";
 import { describe, expect, it, vi } from "vitest";
+import {
+  SECURITY_ALERT_KEYS,
+  SecurityAlertPolicy,
+} from "#src/Domain/Activity/SecurityAlertPolicy.js";
 import { AccountLockoutPolicy } from "#src/Domain/User/Entity/AccountLockoutPolicy.js";
 import { ACCOUNT_LOCKOUT_KEYS } from "#src/Domain/User/Service/AccountLockoutService.js";
 import { BASELINE_TABLES, baseline } from "./0001-baseline.js";
@@ -7,6 +11,10 @@ import {
   ACCOUNT_LOCKOUT_ROWS,
   accountLockoutKeys,
 } from "./0002-account-lockout-keys.js";
+import {
+  SECURITY_ALERT_ROWS,
+  securityAlertKeys,
+} from "./0010-security-alert-keys.js";
 import {
   ADMIN_MIGRATIONS,
   createMigrator,
@@ -136,6 +144,50 @@ describe("account lockout keys migration", () => {
   });
 });
 
+describe("security alert keys migration", () => {
+  it("adds every key the code reads, with its defaults", () => {
+    const policy = SecurityAlertPolicy.fromConfiguration(
+      Object.fromEntries(
+        Object.entries(SECURITY_ALERT_KEYS).map(([name, key]) => [
+          name,
+          SECURITY_ALERT_ROWS.find((row) => row.key === key)?.value,
+        ]),
+      ),
+    );
+
+    expect(SECURITY_ALERT_ROWS.map(({ key }) => key).sort()).toEqual(
+      Object.values(SECURITY_ALERT_KEYS).sort(),
+    );
+    expect(policy).toEqual(SecurityAlertPolicy.DEFAULT);
+  });
+
+  it("never overwrites a key, in the configured schema", async () => {
+    const { sequelize, statements } = fakeSequelize([]);
+
+    await securityAlertKeys.up({
+      name: securityAlertKeys.name,
+      context: { sequelize, schema: "custom" },
+    });
+
+    expect(statements).toHaveLength(SECURITY_ALERT_ROWS.length);
+    for (const sql of statements) {
+      expect(sql).toContain('INSERT INTO "custom"."configurations"');
+      expect(sql).toContain('ON CONFLICT ("key") DO NOTHING');
+    }
+  });
+
+  it("refuses to be reverted", async () => {
+    const { sequelize } = fakeSequelize([]);
+
+    await expect(
+      securityAlertKeys.down?.({
+        name: securityAlertKeys.name,
+        context: { sequelize, schema: "custom" },
+      }),
+    ).rejects.toThrow("cannot be reverted");
+  });
+});
+
 describe("createMigrator", () => {
   it.each(["", "  "])("refuses an empty schema (%j)", (schema) => {
     const { sequelize } = fakeSequelize([]);
@@ -156,6 +208,7 @@ describe("createMigrator", () => {
       "0007-bug-assignees",
       "0008-bug-severity-component",
       "0009-health-log-indexes",
+      "0010-security-alert-keys",
     ]);
   });
 });
