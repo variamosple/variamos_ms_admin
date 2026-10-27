@@ -1,4 +1,4 @@
-export interface Replacements {
+interface Replacements {
   [key: string]:
     | string
     | number

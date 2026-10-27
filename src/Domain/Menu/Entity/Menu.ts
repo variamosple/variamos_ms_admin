@@ -1,32 +1,32 @@
-export type NavigationTarget =
+type NavigationTarget =
   | "newWindow"
   | "sameWindow"
   | "parentContainer"
   | "rootContainer";
 
-export interface MenuItemBase {
+interface MenuItemBase {
   title: string;
   allowedRoles?: string[];
   allowedPermissions?: string[];
   target?: NavigationTarget;
 }
 
-export interface MenuSubItem extends MenuItemBase {
+interface MenuSubItem extends MenuItemBase {
   location: string;
 }
 
-export interface SubMenu {
+interface SubMenu {
   accessibleFrom: string;
   items: MenuSubItem[];
 }
 
-export interface MenuItem extends MenuItemBase {
+interface MenuItem extends MenuItemBase {
   type: "location" | "dropdown";
   location?: string;
   children?: MenuSubItem[];
 }
 
-export interface MenuOption extends MenuItemBase {
+interface MenuOption extends MenuItemBase {
   accessibleFrom?: string;
   location: string;
 }

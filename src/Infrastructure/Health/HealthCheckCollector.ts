@@ -9,7 +9,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Services checked at the same time: one mute service then costs one timeout
 // for the whole cycle, not one per service, without flooding the network.
-export const HEALTH_CHECK_CONCURRENCY = 4;
+const HEALTH_CHECK_CONCURRENCY = 4;
 
 /**
  * Runs `task` on every item with at most `limit` tasks at the same time and

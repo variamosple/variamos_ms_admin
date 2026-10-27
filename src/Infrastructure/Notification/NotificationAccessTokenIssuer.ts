@@ -12,7 +12,7 @@ export const NOTIFICATION_TOKEN_AUDIENCE = "variamos_ms_notifications";
 const KEY_SALT = "variamos-notifications";
 const KEY_INFO = "user-access-token:v1";
 
-export const NOTIFICATION_TOKEN_TTL_SECONDS = 15 * 60;
+const NOTIFICATION_TOKEN_TTL_SECONDS = 15 * 60;
 
 /**
  * Signing key derived from the internal token both services already share:

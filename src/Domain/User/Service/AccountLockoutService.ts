@@ -54,7 +54,7 @@ export class AccountLockoutPolicyService
 }
 
 /** Reported once the failure that locks the account is recorded. */
-export interface AccountLocked {
+interface AccountLocked {
   attempts: number;
   durationMinutes: number;
 }

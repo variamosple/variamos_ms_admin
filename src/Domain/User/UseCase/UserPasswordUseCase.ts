@@ -24,7 +24,7 @@ export interface UserPasswordUseCaseConfig {
 }
 
 /** A reset link is valid for one hour at most, whatever the configuration. */
-export const MAX_PASSWORD_RESET_EXPIRY_MS = 60 * 60 * 1000;
+const MAX_PASSWORD_RESET_EXPIRY_MS = 60 * 60 * 1000;
 
 const RESET_REFUSALS: Record<Exclude<PasswordResetOutcome, "reset">, string> = {
   invalid_token: "Invalid token.",
