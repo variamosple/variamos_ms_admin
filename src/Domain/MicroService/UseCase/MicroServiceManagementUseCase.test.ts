@@ -74,6 +74,62 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
     );
   };
 
+  describe("activity journal of the container actions", () => {
+    test.each([
+      ["startMicroService", "micro-service.start", "exited"],
+      ["stopMicroService", "micro-service.stop", "running"],
+      ["restartMicroService", "micro-service.restart", "running"],
+    ] as const)(
+      "%s is recorded with its author",
+      async (method, action, state) => {
+        mockMicroServiceRepository.queryByName.mockResolvedValue(
+          new ResponseModel<MicroServiceDetailed>("tx-1").withResponse(
+            createMockDetailed("ms-1", state),
+          ),
+        );
+        mockMicroServiceRepository[method].mockResolvedValue(
+          new ResponseModel<void>("tx-1"),
+        );
+
+        await useCase[method](new RequestModel<string>("tx-1", "ms-1"), ACTOR);
+
+        expect(journal.record).toHaveBeenCalledWith(
+          expect.objectContaining({
+            actorId: ACTOR,
+            action,
+            entityType: "micro-service",
+            entityId: "ms-1",
+            outcome: "success",
+          }),
+        );
+      },
+    );
+
+    test("a refused action is recorded as failed", async () => {
+      mockMicroServiceRepository.queryByName.mockResolvedValue(
+        new ResponseModel<MicroServiceDetailed>("tx-1").withResponse(
+          createMockDetailed("ms-1", "exited"),
+        ),
+      );
+
+      await useCase.restartMicroService(
+        new RequestModel<string>("tx-1", "ms-1"),
+        ACTOR,
+      );
+
+      expect(journal.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "micro-service.restart",
+          outcome: "failed",
+          errorCode: String(DomainErrorCodes.INVALID_INPUT),
+        }),
+      );
+      expect(
+        mockMicroServiceRepository.restartMicroService,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
   describe("startMicroService", () => {
     test("should return BAD_REQUEST if microservice id is missing", async () => {
       const req = new RequestModel<string>("tx-1", undefined);

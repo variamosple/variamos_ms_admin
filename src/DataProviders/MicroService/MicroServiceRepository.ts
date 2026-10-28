@@ -478,14 +478,8 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         performedBy: actorId,
       });
 
-      await MicroServiceHealthLogModel.create({
-        serviceName: request.data,
-        status: "UP",
-        responseTimeMs: 50,
-        checkedAt: new Date(),
-      }).catch((err) => {
-        logger.warn(`Could not log health UP: ${(err as Error).message}`);
-      });
+      // No health line here: whether the service came back is for the next
+      // real check to say, never an UP written without a measurement (EV-86)
     } catch (error) {
       logger.err(error);
       response.withError(
@@ -570,14 +564,8 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         performedBy: actorId,
       });
 
-      await MicroServiceHealthLogModel.create({
-        serviceName: request.data,
-        status: "UP",
-        responseTimeMs: 50,
-        checkedAt: new Date(),
-      }).catch((err) => {
-        logger.warn(`Could not log health UP: ${(err as Error).message}`);
-      });
+      // No health line here: whether the service came back is for the next
+      // real check to say, never an UP written without a measurement (EV-86)
     } catch (error) {
       logger.err(error);
       response.withError(

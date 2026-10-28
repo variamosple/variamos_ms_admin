@@ -57,4 +57,16 @@ describe("MicroServiceRepositoryImpl audit actor", () => {
       );
     },
   );
+
+  it.each(["startMicroService", "restartMicroService"] as const)(
+    "%s records no health line without a measurement",
+    async (method) => {
+      await repository[method](
+        new RequestModel("tx", "variamos_ms_languages"),
+        "operator@example.com",
+      );
+
+      expect(MicroServiceHealthLogModel.create).not.toHaveBeenCalled();
+    },
+  );
 });
