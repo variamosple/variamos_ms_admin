@@ -115,7 +115,6 @@ const PUBLIC = new Set([
   "POST /auth/forgot-password",
   "POST /auth/reset-password",
   "POST /auth/verify-token",
-  "GET /auth/verify-token",
   "GET /auth/password-policy",
   // Reads its own token; answers 401 itself without one
   "GET /auth/session-info",

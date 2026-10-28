@@ -1447,7 +1447,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
   });
 
-  describe("GET /auth/verify-token", () => {
+  describe("POST /auth/verify-token, answers", () => {
     it("should return 200 and verifyResponse on success", async () => {
       const expectedResponse = new ResponseModel(
         "verifyToken",
@@ -1459,8 +1459,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       );
 
       const response = await supertest(app)
-        .get("/auth/verify-token")
-        .query({ token: "valid-token" });
+        .post("/auth/verify-token")
+        .send({ token: "valid-token" });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(mapDomainErrorToHttpStatus).not.toHaveBeenCalled();
@@ -1476,8 +1476,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       );
 
       const response = await supertest(app)
-        .get("/auth/verify-token")
-        .query({ token: "expired-token" });
+        .post("/auth/verify-token")
+        .send({ token: "expired-token" });
 
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
     });
@@ -1488,10 +1488,19 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       );
 
       const response = await supertest(app)
-        .get("/auth/verify-token")
-        .query({ token: "token" });
+        .post("/auth/verify-token")
+        .send({ token: "token" });
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+    });
+
+    it("no longer reads a token from the URL", async () => {
+      const response = await supertest(app)
+        .get("/auth/verify-token")
+        .query({ token: "valid-token" });
+
+      expect(response.status).toBe(HttpStatusCodes.NOT_FOUND);
+      expect(UserPasswordUseCase.prototype.verifyToken).not.toHaveBeenCalled();
     });
   });
 
@@ -2436,7 +2445,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       loggerSpy.mockRestore();
     });
 
-    it("should verify transactionId in verifyToken call (Line 646) and query token gets passed (Line 647)", async () => {
+    it("should verify transactionId in verifyToken call and pass the body token", async () => {
       const expectedResponse = new ResponseModel("verifyToken").withResponse(
         null,
       );
@@ -2444,7 +2453,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         expectedResponse,
       );
 
-      await supertest(app).get("/auth/verify-token").query({ token: "test" });
+      await supertest(app).post("/auth/verify-token").send({ token: "test" });
 
       expect(UserPasswordUseCase.prototype.verifyToken).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -2464,8 +2473,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       );
 
       const response = await supertest(app)
-        .get("/auth/verify-token")
-        .query({ token: "expired" });
+        .post("/auth/verify-token")
+        .send({ token: "expired" });
 
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
     });
@@ -2476,7 +2485,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         new Error("Verify throw"),
       );
 
-      await supertest(app).get("/auth/verify-token").query({ token: "token" });
+      await supertest(app).post("/auth/verify-token").send({ token: "token" });
 
       expectSafeErrorLog(loggerSpy);
       loggerSpy.mockRestore();
