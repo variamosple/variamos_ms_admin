@@ -16,6 +16,8 @@ const VARIAMOS_ORM = new Sequelize(
   EnvVars.DB.PASSWORD,
   {
     host: EnvVars.DB.HOST,
+    // Read but ignored before EV-79 lot 3: the connection always used 5432
+    port: EnvVars.DB.PORT,
     dialect: "postgres",
     logging: logSql,
     pool: {

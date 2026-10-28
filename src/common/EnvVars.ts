@@ -22,7 +22,7 @@ export default {
     HOST: process.env.DB_HOST ?? "db_host_test",
     PASSWORD: process.env.DB_PASSWORD ?? "",
     DATABASE: process.env.DB_DATABASE ?? "db_database_test",
-    PORT: process.env.DB_PORT ?? 5432,
+    PORT: numberFromEnv(process.env.DB_PORT, 5432),
     SSL: process.env.DB_SSL === "true",
     SCHEMA: process.env.DB_SCHEMA ?? "variamos",
   },
