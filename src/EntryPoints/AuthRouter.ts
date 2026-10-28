@@ -965,17 +965,15 @@ export function createAuthRouter(
     }
   });
 
-  // POST keeps the token out of URLs and access logs; GET stays while
-  // clients that still send the token in the query string are replaced.
-  const verifyToken = async (token: unknown, res: Response) => {
+  // The token travels in the body, out of URLs and access logs (EV-74)
+  authRouter.post("/verify-token", async (req, res) => {
     const transactionId = "verifyToken";
+    const body = readBody(verifyTokenBody, req, res, transactionId);
+    if (!body) return;
 
     try {
       const verifyResponse = await userPasswordUseCase.verifyToken(
-        new RequestModel<string>(
-          transactionId,
-          typeof token === "string" ? token : "",
-        ),
+        new RequestModel<string>(transactionId, body.token),
       );
 
       if (verifyResponse.errorCode) {
@@ -988,15 +986,7 @@ export function createAuthRouter(
     } catch (err) {
       sendError(res, err, transactionId);
     }
-  };
-
-  authRouter.post("/verify-token", (req, res) => {
-    const body = readBody(verifyTokenBody, req, res, "verifyToken");
-    if (body) return verifyToken(body.token, res);
   });
-  authRouter.get("/verify-token", (req, res) =>
-    verifyToken(req.query?.token, res),
-  );
 
   authRouter.post("/reset-password", async (req, res) => {
     const transactionId = "resetPassword";
