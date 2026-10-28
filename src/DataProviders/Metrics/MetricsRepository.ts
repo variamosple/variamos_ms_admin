@@ -9,16 +9,24 @@ import type { IMetricsRepository } from "#src/Domain/Metrics/Repository/IMetrics
 import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 import { BaseRepository } from "../BaseRepository.js";
 
+// Keyed by the ids that get_metrics() gives the dashboard, which sends them
+// back to filter a chart; the functions are those of get_metrics.sql
 const METRICS_FUNCTIONS = new Map<string, string>([
-  ["visitsByDay", `${DB_SCHEMA}.get_visits_by_day()`],
-  ["visitsByUser", `${DB_SCHEMA}.get_visits_by_user()`],
-  ["operationsCount", `${DB_SCHEMA}.get_operations_count()`],
-  ["activeUsers", `${DB_SCHEMA}.get_active_users()`],
-  ["activeUsersCount", `${DB_SCHEMA}.get_active_users_count()`],
-  ["operationsBySystem", `${DB_SCHEMA}.get_operations_by_system()`],
-  ["averageExecutionTime", `${DB_SCHEMA}.get_average_execution_time()`],
-  ["errorRate", `${DB_SCHEMA}.get_error_rate()`],
-  ["errorRateBySystem", `${DB_SCHEMA}.get_error_rate_by_system()`],
+  [
+    "daily_visits",
+    `${DB_SCHEMA}.get_daily_visits_metrics(:startDate, :endDate)`,
+  ],
+  [
+    "daily_unique_visits",
+    `${DB_SCHEMA}.get_daily_unique_visits_metrics(:startDate, :endDate)`,
+  ],
+  [
+    "monthly_visits",
+    `${DB_SCHEMA}.get_monthly_visits_metrics(:startDate, :endDate)`,
+  ],
+  // These two take no period: they answer as on the dashboard
+  ["yearly_visits", `${DB_SCHEMA}.get_yearly_visits_metrics()`],
+  ["top_visited_pages", `${DB_SCHEMA}.get_top_visited_pages_metrics()`],
 ]);
 
 export class MetricsRepositoryImpl
