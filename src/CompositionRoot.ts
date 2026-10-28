@@ -384,6 +384,7 @@ const productionMicroServiceManagementUseCase =
     JetLogger,
     ConfigurationRepositoryInstance,
     ConfigEventPublisherInstance,
+    WatchedActivityJournal,
   );
 
 // Short-lived tokens for the notification service (ADR-0001)
