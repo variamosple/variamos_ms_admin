@@ -285,7 +285,12 @@ export class HealthCheckCollector {
             signal: pendingRequests.signal,
           });
 
-          if (response.status >= 200 && response.status < 300) {
+          // A service that declares itself DEGRADED often answers 503 with
+          // it (semantic_translator does): it answered, so it is not DOWN
+          if (
+            (response.status >= 200 && response.status < 300) ||
+            response.data?.status === "DEGRADED"
+          ) {
             return { response, latency: Date.now() - reqStart };
           }
           throw new Error(`HTTP status ${response.status}`);
