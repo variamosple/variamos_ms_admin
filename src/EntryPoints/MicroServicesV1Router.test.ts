@@ -3,6 +3,7 @@ import express from "express";
 import supertest from "supertest";
 import { mock } from "vitest-mock-extended";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import type { IConfigEventPublisher } from "#src/Domain/Configuration/Event/IConfigEventPublisher.js";
 import type { IConfigurationRepository } from "#src/Domain/Configuration/Repository/IConfigurationRepository.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -56,6 +57,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
       mock<ILogger>(),
       mock<IConfigurationRepository>(),
       mock<IConfigEventPublisher>(),
+      mock<IActivityJournal>(),
     );
     app.use(
       "/v1/micro-services",
