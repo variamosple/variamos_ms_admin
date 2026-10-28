@@ -11,6 +11,10 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // for the whole cycle, not one per service, without flooding the network.
 const HEALTH_CHECK_CONCURRENCY = 4;
 
+// A service that answers slower than this is DEGRADED, not UP (EV-86 lot 2);
+// one that does not answer within the 5 s timeout is DOWN
+export const DEGRADED_LATENCY_MS = 2000;
+
 /**
  * Runs `task` on every item with at most `limit` tasks at the same time and
  * returns the outcomes in the order of the items. A failure does not stop
@@ -289,7 +293,8 @@ export class HealthCheckCollector {
       );
 
       status =
-        successfulResult.response.data?.status === "DEGRADED"
+        successfulResult.response.data?.status === "DEGRADED" ||
+        successfulResult.latency > DEGRADED_LATENCY_MS
           ? "DEGRADED"
           : "UP";
       responseTimeMs = successfulResult.latency;

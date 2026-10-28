@@ -5,6 +5,7 @@ import type { ServiceDefinition } from "#src/Domain/MicroService/Entity/ServiceD
 import type { IHealthLogArchive } from "#src/Domain/MicroService/Repository/IHealthLogArchive.js";
 import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 import {
+  DEGRADED_LATENCY_MS,
   HealthCheckCollector,
   mapWithConcurrency,
 } from "./HealthCheckCollector.js";
@@ -179,6 +180,58 @@ describe("HealthCheckCollector.checkService", () => {
     expect(info.status).toBe("UP");
     expect(signals.length).toBeGreaterThan(1);
     expect(signals.every((signal) => signal.aborted)).toBe(true);
+  });
+});
+
+describe("HealthCheckCollector.checkService latency threshold", () => {
+  const service = {
+    name: "variamos_ms_languages",
+    displayName: "Languages",
+    defaultPort: 4000,
+    healthPath: "/health",
+    containerIps: ["10.0.0.1"],
+  } as ServiceDefinition;
+
+  const checkAnsweringAfter = async (latencyMs: number, body = {}) => {
+    vi.useFakeTimers();
+    vi.spyOn(axios, "get").mockImplementation(
+      () =>
+        new Promise((resolve) =>
+          setTimeout(() => resolve({ status: 200, data: body }), latencyMs),
+        ),
+    );
+    const repo = {
+      recordHealthCheck: vi.fn().mockResolvedValue(undefined),
+    } as unknown as IMicroServiceRepository;
+    const pending = new HealthCheckCollector(repo, noArchive).checkService(
+      service,
+    );
+    await vi.advanceTimersByTimeAsync(latencyMs);
+    return pending;
+  };
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("keeps a service that answers at the threshold UP", async () => {
+    const info = await checkAnsweringAfter(DEGRADED_LATENCY_MS);
+
+    expect(info.status).toBe("UP");
+  });
+
+  it("marks a service slower than the threshold DEGRADED", async () => {
+    const info = await checkAnsweringAfter(DEGRADED_LATENCY_MS + 1);
+
+    expect(info.status).toBe("DEGRADED");
+    expect(info.responseTimeMs).toBe(DEGRADED_LATENCY_MS + 1);
+  });
+
+  it("keeps a fast service that declares itself degraded DEGRADED", async () => {
+    const info = await checkAnsweringAfter(10, { status: "DEGRADED" });
+
+    expect(info.status).toBe("DEGRADED");
   });
 });
 
