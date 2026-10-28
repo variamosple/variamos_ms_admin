@@ -1,5 +1,11 @@
 import { describe, expect, test, vi } from "vitest";
 import { type MockProxy, mock } from "vitest-mock-extended";
+import {
+  Configuration,
+  ConfigurationKey,
+} from "#src/Domain/Configuration/Entity/Configuration.js";
+import type { IConfigEventPublisher } from "#src/Domain/Configuration/Event/IConfigEventPublisher.js";
+import type { IConfigurationRepository } from "#src/Domain/Configuration/Repository/IConfigurationRepository.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -19,13 +25,19 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
   let useCase: MicroServiceManagementUseCase;
   let logger: MockProxy<ILogger>;
   let mockMicroServiceRepository: MockProxy<IMicroServiceRepository>;
+  let configurations: MockProxy<IConfigurationRepository>;
+  let configEvents: MockProxy<IConfigEventPublisher>;
 
   beforeEach(() => {
     logger = mock<ILogger>();
     mockMicroServiceRepository = mock<IMicroServiceRepository>();
+    configurations = mock<IConfigurationRepository>();
+    configEvents = mock<IConfigEventPublisher>();
     useCase = new MicroServiceManagementUseCase(
       mockMicroServiceRepository,
       logger,
+      configurations,
+      configEvents,
     );
   });
 
@@ -295,6 +307,9 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
     });
 
     test("should delegate configuration update to repository", async () => {
+      configurations.queryByKey.mockResolvedValue(
+        new ResponseModel<Configuration>("tx-cfg"),
+      );
       const configItem = new MicroServiceConfigItem(
         1,
         "ms-1",
@@ -320,6 +335,73 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
       const res = await useCase.updateConfiguration(req);
       expect(res.errorCode).toBeUndefined();
       expect(res.data).toEqual(configItem);
+    });
+
+    const updateRequest = () =>
+      new RequestModel("tx-cfg", {
+        serviceName: "ms-1",
+        key: "monitoring.health_check_interval_ms",
+        value: "60000",
+        operatorId: "op-1",
+      });
+
+    test("publishes config.updated with the stored configuration", async () => {
+      mockMicroServiceRepository.updateConfiguration.mockResolvedValue(
+        new ResponseModel<MicroServiceConfigItem>("tx-cfg"),
+      );
+      const stored = Configuration.builder()
+        .setKey(new ConfigurationKey("monitoring.health_check_interval_ms"))
+        .setValue(60000)
+        .setType("number")
+        .setTargetServices(["ms-1"])
+        .build();
+      configurations.queryByKey.mockResolvedValue(
+        new ResponseModel<Configuration>("tx-cfg").withResponse(stored),
+      );
+
+      await useCase.updateConfiguration(updateRequest());
+
+      expect(configurations.queryByKey).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: "monitoring.health_check_interval_ms",
+        }),
+      );
+      expect(configEvents.publishConfigUpdated).toHaveBeenCalledWith(stored);
+    });
+
+    test("publishes nothing when the update is refused", async () => {
+      mockMicroServiceRepository.updateConfiguration.mockResolvedValue(
+        new ResponseModel<MicroServiceConfigItem>("tx-cfg").withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Value for key 'monitoring.health_check_interval_ms' must be a number.",
+        ),
+      );
+
+      const res = await useCase.updateConfiguration(updateRequest());
+
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(configurations.queryByKey).not.toHaveBeenCalled();
+      expect(configEvents.publishConfigUpdated).not.toHaveBeenCalled();
+    });
+
+    test("keeps the update and logs a warning when the key cannot be read back", async () => {
+      mockMicroServiceRepository.updateConfiguration.mockResolvedValue(
+        new ResponseModel<MicroServiceConfigItem>("tx-cfg"),
+      );
+      configurations.queryByKey.mockResolvedValue(
+        new ResponseModel<Configuration>("tx-cfg").withError(
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Database unavailable",
+        ),
+      );
+
+      const res = await useCase.updateConfiguration(updateRequest());
+
+      expect(res.errorCode).toBeUndefined();
+      expect(configEvents.publishConfigUpdated).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining("monitoring.health_check_interval_ms"),
+      );
     });
   });
 
