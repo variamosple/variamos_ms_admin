@@ -843,7 +843,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
     try {
       const logs = await MicroServiceAuditLogModel.findAll({
         where: { serviceName },
-        order: [["created_at", "DESC"]],
+        order: [["createdAt", "DESC"]],
         limit,
       });
       // Older entries stored secret values in clear: mask them on the way out
