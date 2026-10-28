@@ -1,6 +1,9 @@
 import type { ActivityValues } from "#src/Domain/Activity/ActivityEntry.js";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
-import { withJournal } from "#src/Domain/Activity/withJournal.js";
+import {
+  type ActivityDescription,
+  withJournal,
+} from "#src/Domain/Activity/withJournal.js";
 import type { Configuration } from "#src/Domain/Configuration/Entity/Configuration.js";
 import type { IConfigEventPublisher } from "#src/Domain/Configuration/Event/IConfigEventPublisher.js";
 import type { IConfigurationRepository } from "#src/Domain/Configuration/Repository/IConfigurationRepository.js";
@@ -28,6 +31,17 @@ export class MicroServiceManagementUseCase {
   ) {}
 
   public async startMicroService(
+    request: RequestModel<string>,
+    actorId: string,
+  ): Promise<ResponseModel<void>> {
+    return withJournal(
+      this.journal,
+      this.actionOn("micro-service.start", request, actorId),
+      () => this.applyStartMicroService(request, actorId),
+    );
+  }
+
+  private async applyStartMicroService(
     request: RequestModel<string>,
     actorId: string,
   ): Promise<ResponseModel<void>> {
@@ -65,6 +79,17 @@ export class MicroServiceManagementUseCase {
     request: RequestModel<string>,
     actorId: string,
   ): Promise<ResponseModel<void>> {
+    return withJournal(
+      this.journal,
+      this.actionOn("micro-service.stop", request, actorId),
+      () => this.applyStopMicroService(request, actorId),
+    );
+  }
+
+  private async applyStopMicroService(
+    request: RequestModel<string>,
+    actorId: string,
+  ): Promise<ResponseModel<void>> {
     const defaultResponse = new ResponseModel<void>(request.transactionId);
     if (!request.data) {
       return defaultResponse.withError(
@@ -97,6 +122,17 @@ export class MicroServiceManagementUseCase {
     request: RequestModel<string>,
     actorId: string,
   ): Promise<ResponseModel<void>> {
+    return withJournal(
+      this.journal,
+      this.actionOn("micro-service.restart", request, actorId),
+      () => this.applyRestartMicroService(request, actorId),
+    );
+  }
+
+  private async applyRestartMicroService(
+    request: RequestModel<string>,
+    actorId: string,
+  ): Promise<ResponseModel<void>> {
     const defaultResponse = new ResponseModel<void>(request.transactionId);
     if (!request.data) {
       return defaultResponse.withError(
@@ -123,6 +159,22 @@ export class MicroServiceManagementUseCase {
     }
 
     return this.microServiceRepository.restartMicroService(request, actorId);
+  }
+
+  // Start, stop and restart appear in the activity journal with their real
+  // author, as the other administration operations (EV-86 lot 3)
+  private actionOn(
+    action: string,
+    request: RequestModel<string>,
+    actorId: string,
+  ): ActivityDescription {
+    return {
+      actorId,
+      action,
+      entityType: "micro-service",
+      entityId: request.data,
+      transactionId: request.transactionId,
+    };
   }
 
   // The replicas are set in the server's compose file: answering success
