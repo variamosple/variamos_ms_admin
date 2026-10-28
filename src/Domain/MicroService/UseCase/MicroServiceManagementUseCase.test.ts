@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from "vitest";
 import { type MockProxy, mock } from "vitest-mock-extended";
+import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import {
   Configuration,
   ConfigurationKey,
@@ -27,17 +28,20 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
   let mockMicroServiceRepository: MockProxy<IMicroServiceRepository>;
   let configurations: MockProxy<IConfigurationRepository>;
   let configEvents: MockProxy<IConfigEventPublisher>;
+  let journal: MockProxy<IActivityJournal>;
 
   beforeEach(() => {
     logger = mock<ILogger>();
     mockMicroServiceRepository = mock<IMicroServiceRepository>();
     configurations = mock<IConfigurationRepository>();
     configEvents = mock<IConfigEventPublisher>();
+    journal = mock<IActivityJournal>();
     useCase = new MicroServiceManagementUseCase(
       mockMicroServiceRepository,
       logger,
       configurations,
       configEvents,
+      journal,
     );
   });
 
@@ -340,48 +344,144 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
     const updateRequest = () =>
       new RequestModel("tx-cfg", {
         serviceName: "ms-1",
-        key: "monitoring.health_check_interval_ms",
-        value: "60000",
+        key: "monitoring.health_check_interval_seconds",
+        value: "120",
         operatorId: "op-1",
       });
+
+    const KEY = "monitoring.health_check_interval_seconds";
+    const storedWith = (value: number) =>
+      new ResponseModel<Configuration>("tx-cfg").withResponse(
+        Configuration.builder()
+          .setKey(new ConfigurationKey(KEY))
+          .setValue(value)
+          .setType("number")
+          .setTargetServices(["ms-1"])
+          .build(),
+      );
 
     test("publishes config.updated with the stored configuration", async () => {
       mockMicroServiceRepository.updateConfiguration.mockResolvedValue(
         new ResponseModel<MicroServiceConfigItem>("tx-cfg"),
       );
-      const stored = Configuration.builder()
-        .setKey(new ConfigurationKey("monitoring.health_check_interval_ms"))
-        .setValue(60000)
-        .setType("number")
-        .setTargetServices(["ms-1"])
-        .build();
-      configurations.queryByKey.mockResolvedValue(
-        new ResponseModel<Configuration>("tx-cfg").withResponse(stored),
-      );
+      const after = storedWith(120);
+      configurations.queryByKey
+        .mockResolvedValueOnce(storedWith(60))
+        .mockResolvedValueOnce(after);
 
       await useCase.updateConfiguration(updateRequest());
 
       expect(configurations.queryByKey).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: "monitoring.health_check_interval_ms",
-        }),
+        expect.objectContaining({ data: KEY }),
       );
-      expect(configEvents.publishConfigUpdated).toHaveBeenCalledWith(stored);
+      expect(configEvents.publishConfigUpdated).toHaveBeenCalledWith(
+        after.data,
+      );
     });
 
-    test("publishes nothing when the update is refused", async () => {
+    test("records the change in the activity journal", async () => {
+      mockMicroServiceRepository.updateConfiguration.mockResolvedValue(
+        new ResponseModel<MicroServiceConfigItem>("tx-cfg"),
+      );
+      configurations.queryByKey
+        .mockResolvedValueOnce(storedWith(60))
+        .mockResolvedValueOnce(storedWith(120));
+
+      await useCase.updateConfiguration(updateRequest());
+
+      expect(journal.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actorId: "op-1",
+          action: "configuration.update",
+          entityType: "configuration",
+          entityId: KEY,
+          outcome: "success",
+          before: { value: 60 },
+          after: { value: 120 },
+        }),
+      );
+    });
+
+    test("records a created key with no previous value", async () => {
+      mockMicroServiceRepository.updateConfiguration.mockResolvedValue(
+        new ResponseModel<MicroServiceConfigItem>("tx-cfg"),
+      );
+      configurations.queryByKey
+        .mockResolvedValueOnce(
+          new ResponseModel<Configuration>("tx-cfg").withError(
+            DomainErrorCodes.ENTITY_NOT_FOUND,
+            "Configuration not found",
+          ),
+        )
+        .mockResolvedValueOnce(storedWith(120));
+
+      await useCase.updateConfiguration(updateRequest());
+
+      expect(journal.record).toHaveBeenCalledWith(
+        expect.objectContaining({ before: null, after: { value: 120 } }),
+      );
+    });
+
+    test("records only the masked value of a secret", async () => {
+      const secretKey = "notification.smtp.password";
+      const secret = (value: string) =>
+        new ResponseModel<Configuration>("tx-cfg").withResponse(
+          Configuration.builder()
+            .setKey(new ConfigurationKey(secretKey))
+            .setValue(value)
+            .setIsSecret(true)
+            .setTargetServices(["ms-1"])
+            .build(),
+        );
+      mockMicroServiceRepository.updateConfiguration.mockResolvedValue(
+        new ResponseModel<MicroServiceConfigItem>("tx-cfg"),
+      );
+      configurations.queryByKey
+        .mockResolvedValueOnce(secret("old-password"))
+        .mockResolvedValueOnce(secret("new-password"));
+
+      await useCase.updateConfiguration(
+        new RequestModel("tx-cfg", {
+          serviceName: "ms-1",
+          key: secretKey,
+          value: "new-password",
+          operatorId: "op-1",
+        }),
+      );
+
+      const recorded = JSON.stringify(journal.record.mock.calls);
+      expect(recorded).not.toContain("old-password");
+      expect(recorded).not.toContain("new-password");
+      expect(journal.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          before: { value: "********" },
+          after: { value: "********" },
+        }),
+      );
+    });
+
+    test("publishes nothing and records the refusal when the update is refused", async () => {
       mockMicroServiceRepository.updateConfiguration.mockResolvedValue(
         new ResponseModel<MicroServiceConfigItem>("tx-cfg").withError(
           DomainErrorCodes.INVALID_INPUT,
-          "Value for key 'monitoring.health_check_interval_ms' must be a number.",
+          `Value for key '${KEY}' must be a number.`,
         ),
       );
+      configurations.queryByKey.mockResolvedValue(storedWith(60));
 
       const res = await useCase.updateConfiguration(updateRequest());
 
       expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
-      expect(configurations.queryByKey).not.toHaveBeenCalled();
+      expect(configurations.queryByKey).toHaveBeenCalledTimes(1);
       expect(configEvents.publishConfigUpdated).not.toHaveBeenCalled();
+      expect(journal.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          outcome: "failed",
+          errorCode: String(DomainErrorCodes.INVALID_INPUT),
+          before: null,
+          after: null,
+        }),
+      );
     });
 
     test("keeps the update and logs a warning when the key cannot be read back", async () => {
@@ -400,7 +500,7 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
       expect(res.errorCode).toBeUndefined();
       expect(configEvents.publishConfigUpdated).not.toHaveBeenCalled();
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining("monitoring.health_check_interval_ms"),
+        expect.stringContaining("monitoring.health_check_interval_seconds"),
       );
     });
   });

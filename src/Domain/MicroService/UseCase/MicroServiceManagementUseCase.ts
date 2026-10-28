@@ -1,3 +1,7 @@
+import type { ActivityValues } from "#src/Domain/Activity/ActivityEntry.js";
+import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
+import { withJournal } from "#src/Domain/Activity/withJournal.js";
+import type { Configuration } from "#src/Domain/Configuration/Entity/Configuration.js";
 import type { IConfigEventPublisher } from "#src/Domain/Configuration/Event/IConfigEventPublisher.js";
 import type { IConfigurationRepository } from "#src/Domain/Configuration/Repository/IConfigurationRepository.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
@@ -20,6 +24,7 @@ export class MicroServiceManagementUseCase {
       "queryByKey"
     >,
     private readonly configEventPublisher: IConfigEventPublisher,
+    private readonly journal: IActivityJournal,
   ) {}
 
   public async startMicroService(
@@ -139,6 +144,34 @@ export class MicroServiceManagementUseCase {
       operatorId: string;
     }>,
   ): Promise<ResponseModel<MicroServiceConfigItem>> {
+    // Recorded as from the configuration page, display values only (EV-70)
+    let change: { before: ActivityValues | null; after: ActivityValues };
+    return withJournal(
+      this.journal,
+      {
+        actorId: request.data?.operatorId,
+        action: "configuration.update",
+        entityType: "configuration",
+        entityId: request.data?.key,
+        transactionId: request.transactionId,
+      },
+      () =>
+        this.applyConfigurationUpdate(request, (before, after) => {
+          change = { before, after };
+        }),
+      () => change ?? {},
+    );
+  }
+
+  private async applyConfigurationUpdate(
+    request: RequestModel<{
+      serviceName: string;
+      key: string;
+      value: string;
+      operatorId: string;
+    }>,
+    onChange: (before: ActivityValues | null, after: ActivityValues) => void,
+  ): Promise<ResponseModel<MicroServiceConfigItem>> {
     const defaultResponse = new ResponseModel<MicroServiceConfigItem>(
       request.transactionId,
     );
@@ -153,30 +186,36 @@ export class MicroServiceManagementUseCase {
       );
     }
     const { key } = request.data;
+    const before = await this.readConfiguration(request.transactionId, key);
     const response =
       await this.microServiceRepository.updateConfiguration(request);
-    if (!response.errorCode) {
-      await this.publishConfigUpdated(request.transactionId, key);
-    }
-    return response;
-  }
+    if (response.errorCode) return response;
 
-  // As after an update from the configuration page, so that what follows a
-  // key (the health check interval) sees the new value (EV-70)
-  private async publishConfigUpdated(
-    transactionId: string | undefined,
-    key: string,
-  ): Promise<void> {
-    const updated = await this.configurationRepository.queryByKey(
-      new RequestModel(transactionId, key),
-    );
-    if (updated.data) {
-      await this.configEventPublisher.publishConfigUpdated(updated.data);
+    const updated = await this.readConfiguration(request.transactionId, key);
+    if (updated) {
+      onChange(before ? { value: before.getDisplayValue() } : null, {
+        value: updated.getDisplayValue(),
+      });
+      // As after an update from the configuration page, so that what follows
+      // a key (the health check interval) sees the new value
+      await this.configEventPublisher.publishConfigUpdated(updated);
     } else {
       this.logger.warn(
         `Event config.updated not published: configuration '${key}' could not be read back.`,
       );
     }
+    return response;
+  }
+
+  /** The stored configuration, or null when the key does not exist yet. */
+  private async readConfiguration(
+    transactionId: string | undefined,
+    key: string,
+  ): Promise<Configuration | null> {
+    const stored = await this.configurationRepository.queryByKey(
+      new RequestModel(transactionId, key),
+    );
+    return stored.data ?? null;
   }
 
   public async triggerHealthChecks(
