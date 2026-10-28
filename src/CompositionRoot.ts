@@ -379,7 +379,12 @@ export const productionMicroServiceQueryUseCase = new MicroServiceQueryUseCase(
 );
 
 const productionMicroServiceManagementUseCase =
-  new MicroServiceManagementUseCase(MicroServiceRepositoryInstance, JetLogger);
+  new MicroServiceManagementUseCase(
+    MicroServiceRepositoryInstance,
+    JetLogger,
+    ConfigurationRepositoryInstance,
+    ConfigEventPublisherInstance,
+  );
 
 // Short-lived tokens for the notification service (ADR-0001)
 const productionNotificationAccessTokenIssuer =

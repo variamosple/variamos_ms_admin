@@ -20,7 +20,11 @@ import {
 } from "#src/Domain/MicroService/Entity/MicroServiceHealth.js";
 import type { ServiceDefinition } from "#src/Domain/MicroService/Entity/ServiceDefinition.js";
 import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repository/IMicroServiceRepository.js";
-import { refuseConfigurationUpdate } from "#src/Domain/MicroService/Service/ConfigurationUpdateRule.js";
+import {
+  type ConfigurationValueType,
+  readConfigurationValue,
+  refuseConfigurationUpdate,
+} from "#src/Domain/MicroService/Service/ConfigurationUpdateRule.js";
 import {
   buildUptimeSummary,
   uptimeWindow,
@@ -748,25 +752,14 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         return response.withError(refusal.errorCode, refusal.message);
       }
 
-      let parsedValue: ConfigurationValue = value;
-      let detectedType: "string" | "number" | "boolean" | "object" | "array" =
-        "string";
-
-      try {
-        parsedValue = JSON.parse(value);
-        if (typeof parsedValue === "number") detectedType = "number";
-        else if (typeof parsedValue === "boolean") detectedType = "boolean";
-        else if (Array.isArray(parsedValue)) detectedType = "array";
-        else if (typeof parsedValue === "object" && parsedValue !== null)
-          detectedType = "object";
-        else parsedValue = value;
-      } catch {
-        parsedValue = value;
-      }
-
       let config: ConfigurationModel;
 
       if (existing) {
+        // The refusal above has checked that the value matches the key's type
+        const parsedValue = readConfigurationValue(
+          value,
+          existing.type,
+        ) as ConfigurationValue;
         // A secret is never written in clear (T-13)
         if (existing.isSecret && !this.secrets.canEncrypt()) {
           return response.withError(
@@ -786,6 +779,19 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         });
         config = existing;
       } else {
+        let parsedValue: ConfigurationValue = value;
+        let detectedType: ConfigurationValueType = "string";
+        try {
+          parsedValue = JSON.parse(value);
+          if (typeof parsedValue === "number") detectedType = "number";
+          else if (typeof parsedValue === "boolean") detectedType = "boolean";
+          else if (Array.isArray(parsedValue)) detectedType = "array";
+          else if (typeof parsedValue === "object" && parsedValue !== null)
+            detectedType = "object";
+          else parsedValue = value;
+        } catch {
+          parsedValue = value;
+        }
         config = await ConfigurationModel.create({
           key,
           value: parsedValue,
