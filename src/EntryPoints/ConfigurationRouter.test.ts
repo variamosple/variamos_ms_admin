@@ -82,6 +82,30 @@ describe("ConfigurationRouter Integration Tests", () => {
       );
     });
 
+    it("shows the Admin entry to whoever may open one of its pages (EV-96)", async () => {
+      const response = await supertest(app).get("/v1/configurations/menu");
+
+      const { items, subMenu } = (response.body as MenuApiResponse).data;
+      const adminEntry = items.find((item) => item.title === "Admin");
+      const adminPages = subMenu.find(
+        (menu) => menu.accessibleFrom === "/variamos_admin/",
+      );
+      const pagePermissions = new Set(
+        adminPages?.items.flatMap((page) => page.allowedPermissions ?? []),
+      );
+      expect(new Set(adminEntry?.allowedPermissions)).toEqual(pagePermissions);
+      // The pages that the former list left out
+      expect(adminEntry?.allowedPermissions).toEqual(
+        expect.arrayContaining([
+          "admin::languages::query",
+          "admin::projects::query",
+          "admin::models::query",
+          "admin::notifications::dispatch",
+          "activity-logs::query",
+        ]),
+      );
+    });
+
     it("should rewrite URLs to localhost in development environment", async () => {
       process.env.NODE_ENV = "development";
 
