@@ -29,7 +29,8 @@ export class PermissionRepositoryImpl
         `
             SELECT COUNT(1)
             FROM ${DB_SCHEMA}.permission
-            WHERE (:name IS NULL OR name ILIKE '%' || :name || '%');
+            WHERE (:name IS NULL OR name ILIKE '%' || :name || '%'
+                   OR CAST(id AS TEXT) = :name);
         `,
         { type: QueryTypes.SELECT, replacements },
       ).then((result) => {
@@ -37,11 +38,15 @@ export class PermissionRepositoryImpl
         return +rows[0]?.count || 0;
       });
 
-      const where: WhereOptions<PermissionAttributes> = {};
-
-      if (filter.name) {
-        where.name = { [Op.iLike]: `%${replacements.name}%` };
-      }
+      // A part of the name, or the exact id
+      const byName: WhereOptions<PermissionAttributes> = {
+        name: { [Op.iLike]: `%${replacements.name}%` },
+      };
+      const where: WhereOptions<PermissionAttributes> = !filter.name
+        ? {}
+        : /^\d+$/.test(filter.name)
+          ? { [Op.or]: [byName, { id: Number(filter.name) }] }
+          : byName;
 
       const pageSize = filter.pageSize ?? 10;
       const pageNumber = filter.pageNumber ?? 1;
@@ -51,7 +56,10 @@ export class PermissionRepositoryImpl
         where,
         limit: pageSize,
         offset,
-        order: [["name", "ASC"]],
+        order: [
+          [filter.sortBy, filter.sortOrder.toUpperCase()],
+          ["id", "ASC"],
+        ],
       }).then((response) =>
         response.map(({ id, name }) => new Permission(id, name)),
       );

@@ -74,6 +74,34 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
       );
     });
 
+    it("passes the search to the use case (EV-31)", async () => {
+      (
+        RolePermissionUseCase.prototype.queryRolePermissions as vi.Mock
+      ).mockResolvedValue(
+        new ResponseModel("queryRolePermissions").withResponse([]),
+      );
+
+      await supertest(app)
+        .get("/v1/roles/1/permissions")
+        .query({ search: "users" });
+      expect(
+        RolePermissionUseCase.prototype.queryRolePermissions,
+      ).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ roleId: 1, search: "users" }),
+        }),
+      );
+
+      await supertest(app).get("/v1/roles/1/permissions");
+      expect(
+        RolePermissionUseCase.prototype.queryRolePermissions,
+      ).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ search: null }),
+        }),
+      );
+    });
+
     it("should return 400 when roleId is invalid", async () => {
       const response = await supertest(app).get(
         "/v1/roles/invalid-id/permissions",

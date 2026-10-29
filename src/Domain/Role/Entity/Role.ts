@@ -6,8 +6,8 @@ export class Role {
   public readonly name: string;
   public readonly permissions?: Permission[];
 
-  private static readonly ROLE_NAME_REGEX =
-    /^[A-Z][a-z]*(?:\s[A-Za-z][a-z]*)*$/;
+  // "Test role": a capital on the first word only, words split by one space
+  private static readonly ROLE_NAME_REGEX = /^[A-Z][a-z]*(?:\s[a-z]+)*$/;
 
   public constructor(
     id: Nullable<number>,
@@ -16,7 +16,7 @@ export class Role {
   ) {
     if (!name || !Role.ROLE_NAME_REGEX.test(name)) {
       throw new Error(
-        "Role name must start with an uppercase letter, and subsequent words must start with a letter.",
+        "Role name must start with an uppercase letter, followed by lowercase words separated by single spaces (e.g. 'Test role').",
       );
     }
     this.id = id;
