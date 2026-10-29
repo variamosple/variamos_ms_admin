@@ -39,6 +39,78 @@ export interface ConfigurationResponseDto {
   updatedAt?: Date;
 }
 
+// The pages of the administration, in the order of its sub-menu
+const ADMIN_PAGES: Menu["subMenu"][number]["items"] = [
+  {
+    title: "Users",
+    location: "/users",
+    allowedPermissions: ["users::query"],
+  },
+  {
+    title: "Roles",
+    location: "/roles",
+    allowedPermissions: ["roles::query"],
+  },
+  {
+    title: "Permission",
+    location: "/permissions",
+    allowedPermissions: ["permissions::query"],
+  },
+  {
+    title: "Languages",
+    location: "/languages",
+    allowedPermissions: ["admin::languages::query"],
+  },
+  {
+    title: "Projects",
+    location: "/projects",
+    allowedPermissions: ["admin::projects::query"],
+  },
+  {
+    title: "Models",
+    location: "/models",
+    allowedPermissions: ["admin::models::query"],
+  },
+  {
+    title: "Metrics",
+    location: "/metrics",
+    allowedPermissions: ["metrics::query"],
+  },
+  {
+    title: "Monitoring",
+    location: "/monitoring",
+    allowedPermissions: ["micro-services::query"],
+  },
+  {
+    title: "Bugs",
+    location: "/bugs",
+    allowedPermissions: ["bugs::query"],
+  },
+  {
+    title: "Configurations",
+    location: "/configurations",
+    allowedPermissions: ["configurations::query"],
+  },
+  {
+    title: "Notifications",
+    location: "/admin/notifications",
+    allowedPermissions: ["admin::notifications::dispatch"],
+  },
+  {
+    title: "Journal",
+    location: "/journal",
+    allowedPermissions: ["activity-logs::query"],
+  },
+];
+
+/**
+ * The "Admin" entry is shown to whoever may open at least one of its pages:
+ * its permissions are those of its pages, so that they cannot diverge (EV-96).
+ */
+const ADMIN_ENTRY_PERMISSIONS = [
+  ...new Set(ADMIN_PAGES.flatMap((page) => page.allowedPermissions ?? [])),
+];
+
 const MENU: Menu = {
   items: [
     {
@@ -50,15 +122,7 @@ const MENU: Menu = {
       title: "Admin",
       type: "location",
       location: "https://app.variamos.com/variamos_admin/",
-      allowedPermissions: [
-        "users::query",
-        "roles::query",
-        "permissions::query",
-        "metrics::query",
-        "micro-services::query",
-        "bugs::query",
-        "configurations::query",
-      ],
+      allowedPermissions: ADMIN_ENTRY_PERMISSIONS,
     },
     {
       title: "Languages",
@@ -75,68 +139,7 @@ const MENU: Menu = {
   subMenu: [
     {
       accessibleFrom: "/variamos_admin/",
-      items: [
-        {
-          title: "Users",
-          location: "/users",
-          allowedPermissions: ["users::query"],
-        },
-        {
-          title: "Roles",
-          location: "/roles",
-          allowedPermissions: ["roles::query"],
-        },
-        {
-          title: "Permission",
-          location: "/permissions",
-          allowedPermissions: ["permissions::query"],
-        },
-        {
-          title: "Languages",
-          location: "/languages",
-          allowedPermissions: ["admin::languages::query"],
-        },
-        {
-          title: "Projects",
-          location: "/projects",
-          allowedPermissions: ["admin::projects::query"],
-        },
-        {
-          title: "Models",
-          location: "/models",
-          allowedPermissions: ["admin::models::query"],
-        },
-        {
-          title: "Metrics",
-          location: "/metrics",
-          allowedPermissions: ["metrics::query"],
-        },
-        {
-          title: "Monitoring",
-          location: "/monitoring",
-          allowedPermissions: ["micro-services::query"],
-        },
-        {
-          title: "Bugs",
-          location: "/bugs",
-          allowedPermissions: ["bugs::query"],
-        },
-        {
-          title: "Configurations",
-          location: "/configurations",
-          allowedPermissions: ["configurations::query"],
-        },
-        {
-          title: "Notifications",
-          location: "/admin/notifications",
-          allowedPermissions: ["admin::notifications::dispatch"],
-        },
-        {
-          title: "Journal",
-          location: "/journal",
-          allowedPermissions: ["activity-logs::query"],
-        },
-      ],
+      items: ADMIN_PAGES,
     },
   ],
   options: [
