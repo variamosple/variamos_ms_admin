@@ -110,6 +110,8 @@ describe("MfaRouter", () => {
     [`${MFA_ROUTE}/enrollment`, { password: 42 }],
     [`${MFA_ROUTE}/enrollment`, { password: "x".repeat(129) }],
     [`${MFA_ROUTE}/enrollment/confirm`, { code: "" }],
+    [`${MFA_ROUTE}/enrollment/confirm`, { code: "   " }],
+    [`${MFA_ROUTE}/enrollment`, { password: "  " }],
     [`${MFA_ROUTE}/disable`, { password: "x" }],
     [`${MFA_ROUTE}/disable`, { code: "123456" }],
   ])("refuses %s with %j", async (path, body) => {
@@ -186,6 +188,31 @@ describe("MfaRouter", () => {
     expect(refused.status).toBe(429);
     expect(refused.body.errorCode).toBe("TOO_MANY_REQUESTS");
     expect(other.status).toBe(200);
+  });
+
+  it("counts the failures of each account apart, in the same service", async () => {
+    useCase.confirmEnrollment.mockResolvedValue(
+      failed(DomainErrorCodes.INVALID_INPUT, "The code is incorrect."),
+    );
+    // One router, so one limiter: the account is read from the request
+    const guard = (): RequestHandler => (req, _res, next) => {
+      (req as { user?: unknown }).user = { ...ANA, id: req.get("x-user") };
+      next();
+    };
+    const app = express();
+    app.use(express.json());
+    app.use(MFA_ROUTE, createMfaRouter(useCase, trustedDevices, guard));
+    const confirm = (user: string) =>
+      request(app)
+        .post(`${MFA_ROUTE}/enrollment/confirm`)
+        .set("x-user", user)
+        .send({ code: "000000" });
+    for (let i = 0; i < RATE_LIMITS.mfaFailuresPerAccount.limit; i++) {
+      await confirm("user-1");
+    }
+
+    expect((await confirm("user-1")).status).toBe(429);
+    expect((await confirm("user-2")).status).toBe(400);
   });
 
   it("does not count successful requests", async () => {

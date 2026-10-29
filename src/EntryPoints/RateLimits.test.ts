@@ -88,6 +88,31 @@ describe("rate limits", () => {
     expect(last.status).toBe(200);
   });
 
+  it("lets a whole room behind one address sign in, beyond the failure limit", async () => {
+    const app = createApp({ value: 200 });
+    const { limit } = RATE_LIMITS.signInPerAddress;
+    for (let i = 0; i < limit; i++) {
+      await send(app, "/auth/sign-in", 1, { email: `student${i}@example.com` });
+    }
+
+    const next = await send(app, "/auth/sign-in", 1, {
+      email: "late@example.com",
+    });
+
+    expect(next.status).toBe(200);
+  });
+
+  it("limits wrong sign-in codes per address, and only the wrong ones", async () => {
+    const { limit } = RATE_LIMITS.signInMfaPerAddress;
+    const wrong = createApp({ value: 400 });
+    await send(wrong, "/auth/sign-in/mfa", limit, { code: "000000" });
+    const right = createApp({ value: 200 });
+    await send(right, "/auth/sign-in/mfa", limit, { code: "123456" });
+
+    expect((await send(wrong, "/auth/sign-in/mfa", 1)).status).toBe(429);
+    expect((await send(right, "/auth/sign-in/mfa", 1)).status).toBe(200);
+  });
+
   it("limits sign-in failures per address across accounts", async () => {
     const app = createApp({ value: 400 });
     const { limit } = RATE_LIMITS.signInPerAddress;
@@ -121,6 +146,25 @@ describe("rate limits", () => {
     expect((await send(app, "/auth/forgot-password", 1, body)).status).toBe(
       429,
     );
+  });
+
+  it("limits recovery e-mails per address e-mail, from any address", async () => {
+    const app = createApp({ value: 200 });
+    const { limit } = RATE_LIMITS.forgotPasswordPerEmail;
+    const body = { email: "ana@example.com" };
+    for (let i = 0; i < limit; i++) {
+      await send(app, "/auth/forgot-password", 1, body, `198.51.100.${i + 1}`);
+    }
+
+    const refused = await send(
+      app,
+      "/auth/forgot-password",
+      1,
+      body,
+      "198.51.100.200",
+    );
+
+    expect(refused.status).toBe(429);
   });
 
   it("limits sign-ups per address e-mail, from any address", async () => {
