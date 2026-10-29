@@ -59,10 +59,7 @@ describe("ConfigurationRouter Integration Tests", () => {
   });
 
   describe("GET /v1/configurations/menu", () => {
-    const originalEnv = process.env.NODE_ENV;
-
     afterEach(() => {
-      process.env.NODE_ENV = originalEnv;
       vi.restoreAllMocks();
     });
 
@@ -107,7 +104,7 @@ describe("ConfigurationRouter Integration Tests", () => {
     });
 
     it("should rewrite URLs to localhost in development environment", async () => {
-      process.env.NODE_ENV = "development";
+      vi.stubEnv("NODE_ENV", "development");
 
       const response = await supertest(app).get("/v1/configurations/menu");
 
@@ -122,7 +119,7 @@ describe("ConfigurationRouter Integration Tests", () => {
     });
 
     it("should rewrite Admin location and options location when referer has /variamos_admin/ in non-development env", async () => {
-      process.env.NODE_ENV = "test";
+      vi.stubEnv("NODE_ENV", "test");
 
       const response = await supertest(app)
         .get("/v1/configurations/menu")
@@ -155,7 +152,7 @@ describe("ConfigurationRouter Integration Tests", () => {
       ["Languages", "https://app.variamos.com/variamos_languages/"],
       ["no referer", undefined],
     ])("opens My account in the admin from %s", async (_from, referer) => {
-      process.env.NODE_ENV = "test";
+      vi.stubEnv("NODE_ENV", "test");
 
       expect(await myAccountFrom(referer)).toBe(
         "https://app.variamos.com/variamos_admin/#/my-account",
@@ -163,7 +160,7 @@ describe("ConfigurationRouter Integration Tests", () => {
     });
 
     it("points My account to the local admin in development", async () => {
-      process.env.NODE_ENV = "development";
+      vi.stubEnv("NODE_ENV", "development");
 
       expect(await myAccountFrom("http://localhost:3000/")).toBe(
         "http://localhost:3000/variamos_admin/#/my-account",

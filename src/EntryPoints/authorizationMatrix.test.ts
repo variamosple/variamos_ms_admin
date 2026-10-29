@@ -267,6 +267,15 @@ describe("authorization of every route (T-17 lot 2)", () => {
     without: new Map(),
   };
 
+  // The configuration restores the environment before each test
+  // (unstubEnvs): the keys and the token lifetime are stubbed again then
+  const keyEnv: Record<string, string> = {};
+  const stubKeyEnv = () => {
+    for (const [name, value] of Object.entries(keyEnv)) {
+      vi.stubEnv(name, value);
+    }
+  };
+
   beforeAll(async () => {
     // A key pair of this test only, read the way production reads its own
     const { privateKey, publicKey } = generateKeyPairSync("rsa", {
@@ -282,10 +291,11 @@ describe("authorization of every route (T-17 lot 2)", () => {
       publicPath,
       publicKey.export({ type: "spki", format: "pem" }),
     );
-    vi.stubEnv("VARIAMOS_PRIVATE_KEY_PATH", privatePath);
-    vi.stubEnv("VARIAMOS_PUBLIC_KEY_PATH", publicPath);
+    keyEnv.VARIAMOS_PRIVATE_KEY_PATH = privatePath;
+    keyEnv.VARIAMOS_PUBLIC_KEY_PATH = publicPath;
     // Tokens valid for ten minutes, whatever the environment file says
-    vi.stubEnv("VARIAMOS_JWT_EXP_IN_SECONDS", "600");
+    keyEnv.VARIAMOS_JWT_EXP_IN_SECONDS = "600";
+    stubKeyEnv();
     await initKeyStore();
 
     tokens.all = await tokenFor(PERMISSIONS);
@@ -300,8 +310,9 @@ describe("authorization of every route (T-17 lot 2)", () => {
     vi.spyOn(console, "info").mockImplementation(() => {});
   });
 
+  beforeEach(stubKeyEnv);
+
   afterAll(() => {
-    vi.unstubAllEnvs();
     rmSync(keyDir, { recursive: true, force: true });
   });
 

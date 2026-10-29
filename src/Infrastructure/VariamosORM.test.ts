@@ -1,7 +1,6 @@
 // Sequelize connects only on the first query: building it opens nothing
 describe("VariamosORM", () => {
   afterEach(() => {
-    vi.unstubAllEnvs();
     vi.resetModules();
   });
 
