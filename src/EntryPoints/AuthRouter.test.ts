@@ -834,6 +834,33 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       },
     );
 
+    it("records a sign-in that failed on the server as such, not as a wrong password", async () => {
+      accessJournal.accountByEmail.mockResolvedValueOnce({
+        id: "user-7",
+        active: true,
+      });
+      (UserAuthUseCase.prototype.signIn as vi.Mock).mockResolvedValue(
+        new ResponseModel("signIn").withError(
+          DomainErrorCodes.SYSTEM_ERROR,
+          "An unexpected error occurred.",
+        ),
+      );
+
+      await supertest(app)
+        .post("/auth/sign-in")
+        .send({ email: "john@example.com", password: "Right-pass-1" });
+
+      await vi.waitFor(() =>
+        expect(accessJournal.record).toHaveBeenCalledWith(
+          expect.objectContaining({
+            event: "sign-in",
+            outcome: "failed",
+            reason: "system_error",
+          }),
+        ),
+      );
+    });
+
     it("should redirect to external allowed redirect origin on successful sign in", async () => {
       const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
       Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
@@ -1323,6 +1350,26 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
           }),
         ),
       );
+    });
+
+    it("records a Google sign-in once, even when the session fails after it", async () => {
+      (UserAuthUseCase.prototype.findOrCreate as vi.Mock).mockResolvedValue(
+        new ResponseModel("loginWithGoogle").withResponse(
+          User.builder().setId("user-123").setEmail("john@example.com").build(),
+        ),
+      );
+      vi.mocked(createJwt).mockRejectedValue(new Error("signing failed"));
+
+      await supertest(app)
+        .post("/auth/google/callback")
+        .send({ credential: "mock-google-id-token" });
+
+      await vi.waitFor(() =>
+        expect(accessJournal.record).toHaveBeenCalledWith(
+          expect.objectContaining({ event: "sign-in.google" }),
+        ),
+      );
+      expect(accessJournal.record).toHaveBeenCalledOnce();
     });
 
     it("records a Google sign-in that fails on the token", async () => {

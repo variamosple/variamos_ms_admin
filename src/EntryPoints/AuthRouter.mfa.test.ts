@@ -243,6 +243,28 @@ describe("sign-in with a second factor", () => {
     expect(right.status).toBe(200);
   });
 
+  it("lets the user retry a wrong code, and ends a sign-in that cannot go on", async () => {
+    const { app } = setUp(true);
+    const pending = pendingCookieOf(await signIn(app));
+
+    const wrong = await supertest(app)
+      .post("/auth/sign-in/mfa")
+      .set("Cookie", pending)
+      .send({ code: "000000" })
+      .expect(400);
+    const expired = await supertest(app)
+      .post("/auth/sign-in/mfa")
+      .set("Cookie", `${MFA_PENDING_COOKIE}=unknown`)
+      .send({ code: RIGHT_CODE })
+      .expect(401);
+
+    // A wrong code keeps the pending cookie; a lost sign-in clears it
+    expect(cookieNamed(wrong, MFA_PENDING_COOKIE)).toBeUndefined();
+    expect(cookieNamed(expired, MFA_PENDING_COOKIE)).toMatch(
+      /Expires=Thu, 01 Jan 1970/,
+    );
+  });
+
   it("records the password step, a wrong code and the right code", async () => {
     const { app } = setUp(true);
     const pending = pendingCookieOf(await signIn(app));
@@ -302,14 +324,17 @@ describe("sign-in with a second factor", () => {
     expect(createJwt).not.toHaveBeenCalled();
   });
 
-  it.each([{}, { code: "" }, { code: 123456 }, { code: "1".repeat(33) }])(
-    "refuses the body %j",
-    async (body) => {
-      const { app } = setUp(true);
+  it.each([
+    {},
+    { code: "" },
+    { code: "   " },
+    { code: 123456 },
+    { code: "1".repeat(33) },
+  ])("refuses the body %j", async (body) => {
+    const { app } = setUp(true);
 
-      await supertest(app).post("/auth/sign-in/mfa").send(body).expect(400);
-    },
-  );
+    await supertest(app).post("/auth/sign-in/mfa").send(body).expect(400);
+  });
 
   it("refuses an account disabled since the password", async () => {
     const { app, query } = setUp(true);
