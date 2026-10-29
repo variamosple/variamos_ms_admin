@@ -25,12 +25,19 @@ export function createPermissionsRouter(
     hasPermissions(["permissions::query"]),
     async (req, res) => {
       const transactionId = "queryPermissions";
-      const { pageNumber, pageSize, name = null } = req.query;
+      const {
+        pageNumber,
+        pageSize,
+        name = null,
+        sortBy,
+        sortOrder,
+      } = req.query;
       try {
         const filter: PermissionFilter = PermissionFilter.builder()
           .setName(name as string)
           .setPageNumber(Number(pageNumber))
           .setPageSize(Number(pageSize))
+          .setSort(sortBy, sortOrder)
           .build();
 
         const request = new RequestModel<PermissionFilter>(

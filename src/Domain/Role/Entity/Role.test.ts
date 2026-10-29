@@ -10,16 +10,20 @@ describe("Role Entity - Unit Tests", () => {
     expect(role2.id).toBe(2);
     expect(role2.name).toBe("Super admin");
 
-    const role3 = new Role(3, "Super Admin");
-    expect(role3.name).toBe("Super Admin");
+    const role3 = new Role(3, "Product line designer");
+    expect(role3.name).toBe("Product line designer");
   });
 
   it("should throw an error for empty names or invalid formatting", () => {
     const expectedError =
-      "Role name must start with an uppercase letter, and subsequent words must start with a letter.";
+      "Role name must start with an uppercase letter, followed by lowercase words separated by single spaces (e.g. 'Test role').";
     expect(() => new Role(1, "")).toThrow(expectedError);
     expect(() => new Role(1, "   ")).toThrow(expectedError);
     expect(() => new Role(1, "admin")).toThrow(expectedError);
     expect(() => new Role(1, "GUEST")).toThrow(expectedError);
+    // A capital on the first word only (EV-31)
+    expect(() => new Role(1, "Super Admin")).toThrow(expectedError);
+    expect(() => new Role(1, "Test  role")).toThrow(expectedError);
+    expect(() => new Role(1, "Test role ")).toThrow(expectedError);
   });
 });

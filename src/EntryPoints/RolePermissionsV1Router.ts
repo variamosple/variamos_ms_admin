@@ -27,7 +27,7 @@ export function createRolePermissionsRouter(
     hasPermissions(["roles::query"]),
     async (req: Request<{ roleId: string }>, res) => {
       const transactionId = "queryRolePermissions";
-      const { pageNumber, pageSize } = req.query;
+      const { pageNumber, pageSize, search } = req.query;
       const roleId = req.params.roleId;
       try {
         if (!roleId || Number.isNaN(Number(roleId))) {
@@ -45,6 +45,7 @@ export function createRolePermissionsRouter(
           .setRoleId(Number.parseInt(roleId, 10))
           .setPageNumber(Number(pageNumber))
           .setPageSize(Number(pageSize))
+          .setSearch(typeof search === "string" && search ? search : null)
           .build();
 
         const request = new RequestModel<RolePermissionFilter>(
