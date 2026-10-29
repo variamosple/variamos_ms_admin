@@ -25,13 +25,21 @@ export function createUsersRouter(
 
   router.get("/", hasPermissions(["users::query"]), async (req, res) => {
     const transactionId = "queryUsers";
-    const { pageNumber, pageSize, name = null, search = null } = req.query;
+    const {
+      pageNumber,
+      pageSize,
+      name = null,
+      search = null,
+      sortBy,
+      sortOrder,
+    } = req.query;
     try {
       const filter: UserFilter = UserFilter.builder()
         .setSearch(search as string)
         .setName(name as string)
         .setPageNumber(Number(pageNumber))
         .setPageSize(Number(pageSize))
+        .setSort(sortBy, sortOrder)
         .build();
 
       const request = new RequestModel<UserFilter>(transactionId, filter);

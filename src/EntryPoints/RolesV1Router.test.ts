@@ -77,6 +77,38 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
       );
     });
 
+    it("passes the sort by id or name to the query (EV-95)", async () => {
+      (RoleQueryUseCase.prototype.queryRoles as vi.Mock).mockResolvedValue(
+        new ResponseModel("queryRoles").withResponse([]),
+      );
+
+      await supertest(app)
+        .get("/v1/roles")
+        .query({ sortBy: "id", sortOrder: "desc" });
+
+      expect(RoleQueryUseCase.prototype.queryRoles).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ sortBy: "id", sortOrder: "desc" }),
+        }),
+      );
+    });
+
+    it("sorts by name, ascending, when the sort is unknown (EV-95)", async () => {
+      (RoleQueryUseCase.prototype.queryRoles as vi.Mock).mockResolvedValue(
+        new ResponseModel("queryRoles").withResponse([]),
+      );
+
+      await supertest(app)
+        .get("/v1/roles")
+        .query({ sortBy: "name; DROP TABLE role", sortOrder: "up" });
+
+      expect(RoleQueryUseCase.prototype.queryRoles).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ sortBy: "name", sortOrder: "asc" }),
+        }),
+      );
+    });
+
     it("should return error status code when query fails", async () => {
       const expectedResponse = new ResponseModel("queryRoles").withError(
         DomainErrorCodes.INVALID_INPUT,
