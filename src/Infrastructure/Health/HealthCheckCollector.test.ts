@@ -228,6 +228,38 @@ describe("HealthCheckCollector.checkService latency threshold", () => {
     expect(info.responseTimeMs).toBe(DEGRADED_LATENCY_MS + 1);
   });
 
+  it("reads a 503 that declares DEGRADED as DEGRADED, not DOWN", async () => {
+    vi.spyOn(axios, "get").mockResolvedValue({
+      status: 503,
+      data: { status: "DEGRADED" },
+    });
+    const repo = {
+      recordHealthCheck: vi.fn().mockResolvedValue(undefined),
+    } as unknown as IMicroServiceRepository;
+
+    const info = await new HealthCheckCollector(repo, noArchive).checkService(
+      service,
+    );
+
+    expect(info.status).toBe("DEGRADED");
+  });
+
+  it("keeps a 503 without a health body DOWN", async () => {
+    vi.spyOn(axios, "get").mockResolvedValue({
+      status: 503,
+      data: "<html>Service Unavailable</html>",
+    });
+    const repo = {
+      recordHealthCheck: vi.fn().mockResolvedValue(undefined),
+    } as unknown as IMicroServiceRepository;
+
+    const info = await new HealthCheckCollector(repo, noArchive).checkService(
+      service,
+    );
+
+    expect(info.status).toBe("DOWN");
+  });
+
   it("keeps a fast service that declares itself degraded DEGRADED", async () => {
     const info = await checkAnsweringAfter(10, { status: "DEGRADED" });
 
