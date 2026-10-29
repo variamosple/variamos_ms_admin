@@ -150,6 +150,41 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
       expect(body.data[0].id).toBe("1");
     });
 
+    it("passes the sort of a list column to the query (EV-95)", async () => {
+      (UserQueryUseCase.prototype.queryList as vi.Mock).mockResolvedValue(
+        new ResponseModel("queryUsers").withResponse([]),
+      );
+
+      await supertest(app)
+        .get("/v1/users")
+        .query({ sortBy: "lastLogin", sortOrder: "desc" });
+
+      expect(UserQueryUseCase.prototype.queryList).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            sortBy: "lastLogin",
+            sortOrder: "desc",
+          }),
+        }),
+      );
+    });
+
+    it("sorts by name, ascending, when the sort is unknown (EV-95)", async () => {
+      (UserQueryUseCase.prototype.queryList as vi.Mock).mockResolvedValue(
+        new ResponseModel("queryUsers").withResponse([]),
+      );
+
+      await supertest(app)
+        .get("/v1/users")
+        .query({ sortBy: "password", sortOrder: "up" });
+
+      expect(UserQueryUseCase.prototype.queryList).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ sortBy: "name", sortOrder: "asc" }),
+        }),
+      );
+    });
+
     it("should return error status code when query fails", async () => {
       const expectedResponse = new ResponseModel("queryUsers").withError(
         DomainErrorCodes.INVALID_INPUT,

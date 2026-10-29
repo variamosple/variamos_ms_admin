@@ -51,7 +51,10 @@ export class RoleRepositoryImpl
         where,
         limit: pageSize,
         offset: (pageNumber - 1) * pageSize,
-        order: [["name", "ASC"]],
+        order: [
+          [filter.sortBy, filter.sortOrder.toUpperCase()],
+          ["id", "ASC"],
+        ],
       }).then((res) => res.map(({ id, name }) => new Role(id, name)));
     } catch (error) {
       const err = error as Error;

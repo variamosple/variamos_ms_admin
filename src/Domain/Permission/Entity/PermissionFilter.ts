@@ -1,9 +1,12 @@
 import type { Nullable } from "#src/Domain/Core/Entity/Nullable.js";
 import { PagedModel } from "#src/Domain/Core/Entity/PagedModel.js";
+import {
+  type SortOrder,
+  toSortOrder,
+} from "#src/Domain/Core/Entity/SortOrder.js";
 
 const PERMISSION_SORT_FIELDS = ["id", "name"] as const;
 export type PermissionSortField = (typeof PERMISSION_SORT_FIELDS)[number];
-export type SortOrder = "asc" | "desc";
 
 export class PermissionFilter extends PagedModel {
   public constructor(
@@ -65,7 +68,7 @@ class PermissionFilterBuilder {
   /** Sorts by id or name, ascending or descending; anything else: by name */
   public setSort(sortBy: unknown, sortOrder: unknown): PermissionFilterBuilder {
     this.sortBy = PERMISSION_SORT_FIELDS.find((field) => field === sortBy);
-    this.sortOrder = sortOrder === "desc" ? "desc" : "asc";
+    this.sortOrder = toSortOrder(sortOrder);
     return this;
   }
 

@@ -1,5 +1,12 @@
 import type { Nullable } from "#src/Domain/Core/Entity/Nullable.js";
 import { PagedModel } from "#src/Domain/Core/Entity/PagedModel.js";
+import {
+  type SortOrder,
+  toSortOrder,
+} from "#src/Domain/Core/Entity/SortOrder.js";
+
+const ROLE_SORT_FIELDS = ["id", "name"] as const;
+export type RoleSortField = (typeof ROLE_SORT_FIELDS)[number];
 
 export class RoleFilter extends PagedModel {
   public constructor(
@@ -7,6 +14,8 @@ export class RoleFilter extends PagedModel {
     public name?: Nullable<string>,
     pageNumber?: number,
     pageSize?: number,
+    public sortBy: RoleSortField = "name",
+    public sortOrder: SortOrder = "asc",
   ) {
     super(pageNumber, pageSize);
   }
@@ -21,6 +30,8 @@ export class RoleFilter extends PagedModel {
       builder.name,
       builder.pageNumber,
       builder.pageSize,
+      builder.sortBy,
+      builder.sortOrder,
     );
   }
 }
@@ -30,6 +41,8 @@ class RoleFilterBuilder {
   public name: Nullable<string>;
   public pageNumber?: number;
   public pageSize?: number;
+  public sortBy?: RoleSortField;
+  public sortOrder?: SortOrder;
 
   public setId(id: number): RoleFilterBuilder {
     this.id = id;
@@ -48,6 +61,13 @@ class RoleFilterBuilder {
 
   public setPageSize(pageSize: number): RoleFilterBuilder {
     this.pageSize = pageSize;
+    return this;
+  }
+
+  /** Sorts by id or name, ascending or descending; anything else: by name */
+  public setSort(sortBy: unknown, sortOrder: unknown): RoleFilterBuilder {
+    this.sortBy = ROLE_SORT_FIELDS.find((field) => field === sortBy);
+    this.sortOrder = toSortOrder(sortOrder);
     return this;
   }
 

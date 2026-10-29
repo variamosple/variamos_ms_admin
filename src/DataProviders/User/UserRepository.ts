@@ -74,7 +74,12 @@ export class UserRepositoryImpl
         where,
         limit: pageSize,
         offset: (pageNumber - 1) * pageSize,
-        order: [["name", "ASC"]],
+        // Never signed in users last in both directions; the id keeps the
+        // pages stable between equal values
+        order: [
+          [filter.sortBy, `${filter.sortOrder.toUpperCase()} NULLS LAST`],
+          ["id", "ASC"],
+        ],
       }).then((res) =>
         res.map(
           ({

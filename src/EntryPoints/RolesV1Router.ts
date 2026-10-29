@@ -28,12 +28,13 @@ export function createRolesRouter(
 
   rolesV1Router.get("/", hasPermissions(["roles::query"]), async (req, res) => {
     const transactionId = "queryRoles";
-    const { pageNumber, pageSize, name = null } = req.query;
+    const { pageNumber, pageSize, name = null, sortBy, sortOrder } = req.query;
     try {
       const filter: RoleFilter = RoleFilter.builder()
         .setName(name as string)
         .setPageNumber(Number(pageNumber))
         .setPageSize(Number(pageSize))
+        .setSort(sortBy, sortOrder)
         .build();
 
       const request = new RequestModel<RoleFilter>(transactionId, filter);
