@@ -1,4 +1,8 @@
 import { SECURITY_ALERT_KEYS } from "#src/Domain/Activity/SecurityAlertPolicy.js";
+import {
+  BUG_SYNC_INTERVAL_KEY,
+  REJECTED_BUG_RETENTION_KEY,
+} from "#src/Domain/Bug/Entity/BugSchedule.js";
 import { TRUSTED_DEVICE_DAYS_KEY } from "#src/Domain/Mfa/UseCase/TrustedDeviceUseCase.js";
 import { HEALTH_CHECK_INTERVAL_KEY } from "#src/Domain/MicroService/Entity/HealthCheckInterval.js";
 import { PASSWORD_HASHING_COST_KEY } from "#src/Domain/User/Entity/PasswordHashingCost.js";
@@ -21,6 +25,8 @@ const APPLIED_CONFIGURATION_KEYS: ReadonlySet<string> = new Set([
   TRUSTED_DEVICE_DAYS_KEY,
   PASSWORD_HASHING_COST_KEY,
   ...Object.values(SECURITY_ALERT_KEYS),
+  BUG_SYNC_INTERVAL_KEY,
+  REJECTED_BUG_RETENTION_KEY,
 ]);
 
 export const isConfigurationApplied = (key: string): boolean =>

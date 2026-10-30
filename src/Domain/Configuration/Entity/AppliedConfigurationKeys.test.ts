@@ -11,6 +11,8 @@ describe("isConfigurationApplied", () => {
     "security.lockout.max_attempts",
     "security.lockout.duration_minutes",
     "security.bcrypt_salt_rounds",
+    "bugs.sync_interval_minutes",
+    "bugs.rejected_retention_days",
   ])("%s is read by the code", (key) => {
     expect(isConfigurationApplied(key)).toBe(true);
   });

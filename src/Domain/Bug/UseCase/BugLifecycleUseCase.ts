@@ -13,6 +13,7 @@ import {
   isIssueOpen,
 } from "#src/Domain/Bug/Entity/BugStatus.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
+import type { IBugScheduleProvider } from "#src/Domain/Bug/Service/BugScheduleService.js";
 import type { IGitHubTokenProvider } from "#src/Domain/Bug/Service/IGitHubTokenProvider.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -44,6 +45,10 @@ export class BugLifecycleUseCase {
     private readonly tokenResolver: IGitHubTokenProvider,
     private readonly journal: IActivityJournal,
     private readonly logger: ILogger,
+    private readonly schedule: Pick<
+      IBugScheduleProvider,
+      "getRejectedRetentionDays"
+    >,
   ) {}
 
   public async updateStatus(
@@ -441,7 +446,10 @@ export class BugLifecycleUseCase {
   public async purgeExpiredRejectedBugs(): Promise<void> {
     try {
       const thresholdDate = new Date();
-      thresholdDate.setDate(thresholdDate.getDate() - 7);
+      thresholdDate.setDate(
+        thresholdDate.getDate() -
+          (await this.schedule.getRejectedRetentionDays()),
+      );
 
       const transactionId = "purgeExpiredBugs";
       const expiredResponse = await this.bugRepository.findExpiredRejectedBugs(

@@ -97,6 +97,33 @@ describe("BugSyncUseCase", () => {
     );
   });
 
+  it("shares a running synchronization rather than starting a second one", async () => {
+    mockGithubConfig.getGitHubToken.mockReturnValue("pat");
+    mockGithubConfig.getGitHubManagedRepos.mockReturnValue(["Repo1"]);
+    mockTokenResolver.resolveGitHubToken.mockResolvedValue("mock-token");
+    let answerGitHub: (issues: []) => void = () => {};
+    mockIssueTracker.getIssues.mockReturnValue(
+      new Promise((resolve) => {
+        answerGitHub = resolve;
+      }),
+    );
+
+    const first = useCase.syncBugs(new RequestModel<void>("periodicSyncBugs"));
+    const second = useCase.syncBugs(new RequestModel<void>("syncBugs"));
+    await vi.waitFor(() =>
+      expect(mockIssueTracker.getIssues).toHaveBeenCalled(),
+    );
+    answerGitHub([]);
+
+    expect(await second).toBe(await first);
+    expect(mockIssueTracker.getIssues).toHaveBeenCalledOnce();
+
+    mockIssueTracker.getIssues.mockResolvedValue([]);
+    await useCase.syncBugs(new RequestModel<void>("syncBugs"));
+
+    expect(mockIssueTracker.getIssues).toHaveBeenCalledTimes(2);
+  });
+
   it("should return error if github token/app configs are not defined", async () => {
     mockGithubConfig.getGitHubAppId = vi.fn().mockReturnValue(undefined);
     mockGithubConfig.getGitHubPrivateKey = vi.fn().mockReturnValue(undefined);

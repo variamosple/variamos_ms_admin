@@ -34,6 +34,11 @@ import {
   watchedAccessJournal,
   watchedActivityJournal,
 } from "./Domain/Activity/SecurityAlerts.js";
+import { bugSyncIntervalMsOf } from "./Domain/Bug/Entity/BugSchedule.js";
+import {
+  BugScheduleService,
+  type IBugScheduleProvider,
+} from "./Domain/Bug/Service/BugScheduleService.js";
 // Bug Use Cases
 import { BugAssignmentUseCase } from "./Domain/Bug/UseCase/BugAssignmentUseCase.js";
 import { BugAttachmentUseCase } from "./Domain/Bug/UseCase/BugAttachmentUseCase.js";
@@ -42,6 +47,7 @@ import { BugQueryUseCase } from "./Domain/Bug/UseCase/BugQueryUseCase.js";
 import { BugSubmissionUseCase } from "./Domain/Bug/UseCase/BugSubmissionUseCase.js";
 import { BugSyncUseCase } from "./Domain/Bug/UseCase/BugSyncUseCase.js";
 import { ConfigurationUseCase } from "./Domain/Configuration/UseCase/ConfigurationUseCase.js";
+import { RequestModel } from "./Domain/Core/Entity/RequestModel.js";
 import { CountriesQueryUseCase } from "./Domain/Countries/UseCase/CountriesQueryUseCase.js";
 // Other Use Cases
 import { MetricsQueryUseCase } from "./Domain/Metrics/UseCase/MetricsQueryUseCase.js";
@@ -82,7 +88,11 @@ import { BugAssignmentNotifier } from "./Infrastructure/Notification/BugAssignme
 import { NotificationAccessTokenIssuer } from "./Infrastructure/Notification/NotificationAccessTokenIssuer.js";
 import { NotificationClientInstance } from "./Infrastructure/Notification/NotificationClient.js";
 import { SecurityAlertNotifier } from "./Infrastructure/Notification/SecurityAlertNotifier.js";
-import { followHealthCheckInterval } from "./Infrastructure/Scheduling/BackgroundJobs.js";
+import {
+  followBugSyncInterval,
+  followHealthCheckInterval,
+} from "./Infrastructure/Scheduling/BackgroundJobs.js";
+import { RepeatingTask } from "./Infrastructure/Scheduling/RepeatingTask.js";
 import {
   AesGcmSecretCipher,
   parseEncryptionKey,
@@ -292,6 +302,11 @@ const productionBugSubmissionUseCase = new BugSubmissionUseCase(
   DiskStorageServiceInstance,
 );
 
+// Bug tracker schedule, read from the configuration screen (EV-18)
+const BugScheduleServiceInstance = new BugScheduleService(
+  ConfigurationRepositoryInstance,
+);
+
 export const productionBugLifecycleUseCase = new BugLifecycleUseCase(
   BugRepositoryInstance,
   GitHubIssuesServiceInstance,
@@ -300,9 +315,10 @@ export const productionBugLifecycleUseCase = new BugLifecycleUseCase(
   productionGitHubTokenResolver,
   WatchedActivityJournal,
   JetLogger,
+  BugScheduleServiceInstance,
 );
 
-export const productionBugSyncUseCase = new BugSyncUseCase(
+const productionBugSyncUseCase = new BugSyncUseCase(
   BugRepositoryInstance,
   GitHubIssuesServiceInstance,
   bugTrackerConfig,
@@ -410,6 +426,17 @@ MicroServiceRepositoryInstance.setHealthCollector(HealthCheckCollectorInstance);
 ConfigEventPublisherInstance.addListener(
   followHealthCheckInterval(HealthCheckCollectorInstance),
 );
+
+// Bugs synchronization with GitHub, started by the background jobs at the
+// configured interval; a change on the configuration screen moves it at once
+export const BugSyncTask = new RepeatingTask(
+  "Periodic bugs synchronization",
+  () => productionBugSyncUseCase.syncBugs(new RequestModel("periodicSyncBugs")),
+  bugSyncIntervalMsOf(undefined),
+);
+ConfigEventPublisherInstance.addListener(followBugSyncInterval(BugSyncTask));
+export const productionBugSchedule: IBugScheduleProvider =
+  BugScheduleServiceInstance;
 
 // What the routers need (T-18 lot 4a)
 export const productionRouterDependencies: BaseRouterDependencies = {
