@@ -33,10 +33,22 @@ import {
   PASSWORD_RESET_EXPIRY_KEY,
 } from "#src/Domain/User/Service/PasswordPolicyService.js";
 
-/** What a key accepts, said in the refusal of another value. */
+/**
+ * What a key accepts, sent to the configuration screen so that its form
+ * matches (EV-18 lot C): a sentence, the bounds of a number, or the format
+ * of a text the form can help with.
+ */
+export interface AcceptedConfigurationValues {
+  text: string;
+  min?: number;
+  max?: number;
+  unit?: string;
+  format?: "timeZone" | "timeSpan";
+}
+
 interface ConfigurationRule {
   accepts: (value: unknown) => boolean;
-  expected: string;
+  accepted: AcceptedConfigurationValues;
 }
 
 const wholeNumber = (
@@ -48,12 +60,17 @@ const wholeNumber = (
     Number.isInteger(value) &&
     value >= min &&
     value <= max,
-  expected: `a whole number of ${unit} from ${min} to ${max}`,
+  accepted: {
+    text: `a whole number of ${unit} from ${min} to ${max}`,
+    min,
+    max,
+    unit,
+  },
 });
 
 const flag: ConfigurationRule = {
   accepts: (value) => typeof value === "boolean",
-  expected: "true or false",
+  accepted: { text: "true or false" },
 };
 
 /**
@@ -123,14 +140,20 @@ const APPLIED_CONFIGURATION_RULES: ReadonlyMap<string, ConfigurationRule> =
       SECURITY_ALERT_KEYS.offHours,
       {
         accepts: isAcceptedOffHours,
-        expected: 'a span such as "20:00-07:00", or nothing to turn it off',
+        accepted: {
+          text: 'a span such as "20:00-07:00", or nothing to turn it off',
+          format: "timeSpan",
+        },
       },
     ],
     [
       SECURITY_ALERT_KEYS.timeZone,
       {
         accepts: isKnownTimeZone,
-        expected: 'a time zone name such as "America/Bogota"',
+        accepted: {
+          text: 'a time zone name such as "America/Bogota"',
+          format: "timeZone",
+        },
       },
     ],
     [
@@ -157,5 +180,11 @@ export const refusalOfConfigurationValue = (
   const rule = APPLIED_CONFIGURATION_RULES.get(key);
   return !rule || rule.accepts(value)
     ? null
-    : `Configuration '${key}' expects ${rule.expected}.`;
+    : `Configuration '${key}' expects ${rule.accepted.text}.`;
 };
+
+/** What a key the code reads accepts; undefined for any other key. */
+export const acceptedValuesOf = (
+  key: string,
+): AcceptedConfigurationValues | undefined =>
+  APPLIED_CONFIGURATION_RULES.get(key)?.accepted;

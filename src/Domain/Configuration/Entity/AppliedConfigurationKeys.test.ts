@@ -1,4 +1,5 @@
 import {
+  acceptedValuesOf,
   isConfigurationApplied,
   refusalOfConfigurationValue,
 } from "./AppliedConfigurationKeys.js";
@@ -99,5 +100,29 @@ describe("refusalOfConfigurationValue", () => {
 
   it("lets any value through for a key that no code reads", () => {
     expect(refusalOfConfigurationValue("general.site_name", 42)).toBeNull();
+  });
+});
+
+describe("acceptedValuesOf", () => {
+  it("gives the bounds of a number, the format of a text, or a sentence", () => {
+    expect(acceptedValuesOf("bugs.sync_interval_minutes")).toEqual({
+      text: "a whole number of minutes from 5 to 1440",
+      min: 5,
+      max: 1440,
+      unit: "minutes",
+    });
+    expect(acceptedValuesOf("security.alerts.timezone")?.format).toBe(
+      "timeZone",
+    );
+    expect(acceptedValuesOf("security.alerts.off_hours")?.format).toBe(
+      "timeSpan",
+    );
+    expect(acceptedValuesOf("security.password.require_numbers")).toEqual({
+      text: "true or false",
+    });
+  });
+
+  it("gives nothing for a key that no code reads", () => {
+    expect(acceptedValuesOf("general.site_name")).toBeUndefined();
   });
 });
