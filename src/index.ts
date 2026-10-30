@@ -10,9 +10,10 @@ import { missingRequiredSecrets } from "#src/common/requiredSecrets.js";
 import {
   AccessJournalInstance,
   ActivityJournalInstance,
+  BugSyncTask,
   HealthCheckCollectorInstance,
   productionBugLifecycleUseCase,
-  productionBugSyncUseCase,
+  productionBugSchedule,
   productionConfigurationUseCase,
   productionMicroServiceQueryUseCase,
   productionRouterDependencies,
@@ -94,7 +95,8 @@ const server = app.listen(EnvVars.Port, async () => {
     collector: HealthCheckCollectorInstance,
     configuration: productionConfigurationUseCase,
     bugLifecycle: productionBugLifecycleUseCase,
-    bugSync: productionBugSyncUseCase,
+    bugSchedule: productionBugSchedule,
+    bugSyncTask: BugSyncTask,
   });
 });
 

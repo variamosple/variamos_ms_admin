@@ -14,6 +14,8 @@ import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { ALLOWED_CATEGORIES } from "./BugQueryUseCase.js";
 
 export class BugSyncUseCase {
+  private running: Promise<ResponseModel<void>> | null = null;
+
   public constructor(
     private readonly bugRepository: IBugRepository,
     private readonly issueTrackerService: IIssueTrackerService,
@@ -22,7 +24,21 @@ export class BugSyncUseCase {
     private readonly logger: ILogger,
   ) {}
 
-  public async syncBugs(
+  /**
+   * One synchronization at a time (EV-18): a call made while one runs, from
+   * the schedule or the sync button, gets the result of the running one
+   * rather than reading GitHub a second time and creating the same bugs.
+   */
+  public syncBugs(request: RequestModel<void>): Promise<ResponseModel<void>> {
+    if (!this.running) {
+      this.running = this.synchronize(request).finally(() => {
+        this.running = null;
+      });
+    }
+    return this.running;
+  }
+
+  private async synchronize(
     request: RequestModel<void>,
   ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);

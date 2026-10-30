@@ -21,6 +21,7 @@ describe("BugLifecycleUseCase", () => {
   let mockGithubConfig: MockProxy<IBugTrackerConfig>;
   let mockTokenResolver: MockProxy<IGitHubTokenProvider>;
   let mockJournal: MockProxy<IActivityJournal>;
+  let retentionDays = 7;
 
   beforeEach(() => {
     logger = mock<ILogger>();
@@ -38,6 +39,7 @@ describe("BugLifecycleUseCase", () => {
       mockTokenResolver,
       mockJournal,
       logger,
+      { getRejectedRetentionDays: async () => retentionDays },
     );
   });
 
@@ -223,6 +225,27 @@ describe("BugLifecycleUseCase", () => {
   });
 
   describe("purgeExpiredRejectedBugs", () => {
+    afterEach(() => {
+      retentionDays = 7;
+    });
+
+    it("purges the rejected bugs older than the configured retention", async () => {
+      retentionDays = 30;
+      mockBugRepository.findExpiredRejectedBugs.mockResolvedValue(
+        new ResponseModel<Bug[]>("tx-id").withResponse([]),
+      );
+
+      await useCase.purgeExpiredRejectedBugs();
+
+      const threshold = mockBugRepository.findExpiredRejectedBugs.mock
+        .calls[0]?.[0].data as Date;
+      const expected = new Date();
+      expected.setDate(expected.getDate() - 30);
+      expect(Math.abs(threshold.getTime() - expected.getTime())).toBeLessThan(
+        5000,
+      );
+    });
+
     it("should process purge for expired bugs and delete attachments", async () => {
       const expiredBug = createMockBug("999", "Old rejected bug", "rejected");
       expiredBug.attachments = [

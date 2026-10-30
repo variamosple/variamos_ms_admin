@@ -1,4 +1,5 @@
 import { mock } from "vitest-mock-extended";
+import { BUG_SYNC_INTERVAL_KEY } from "#src/Domain/Bug/Entity/BugSchedule.js";
 import {
   Configuration,
   ConfigurationKey,
@@ -7,6 +8,7 @@ import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { HEALTH_CHECK_INTERVAL_KEY } from "#src/Domain/MicroService/Entity/HealthCheckInterval.js";
 import {
   type BackgroundJobs,
+  followBugSyncInterval,
   followHealthCheckInterval,
   startBackgroundJobs,
 } from "./BackgroundJobs.js";
@@ -29,7 +31,8 @@ function jobsReading(configured: Promise<ResponseModel<Configuration>>) {
     collector: { setIntervalMs: vi.fn(), start: vi.fn() },
     configuration: { queryByKey: vi.fn(() => configured) },
     bugLifecycle: mock<BackgroundJobs["bugLifecycle"]>(),
-    bugSync: mock<BackgroundJobs["bugSync"]>(),
+    bugSchedule: { getSyncIntervalMs: vi.fn(async () => 60 * MINUTE_MS) },
+    bugSyncTask: { setIntervalMs: vi.fn(), start: vi.fn() },
   };
   jobs.bugLifecycle.purgeExpiredRejectedBugs.mockResolvedValue();
   return jobs;
@@ -73,23 +76,39 @@ describe("background jobs", () => {
     expect(jobs.collector.start).toHaveBeenCalledOnce();
   });
 
-  it("syncs every 15 minutes and purges every 24 hours, past a failed run", async () => {
+  it("starts the bugs sync at the configured interval, then purges every 24 hours", async () => {
     const jobs = jobsReading(
       Promise.resolve(new ResponseModel<Configuration>("t")),
     );
-    jobs.bugSync.syncBugs
-      .mockRejectedValueOnce(new Error("GitHub down"))
-      .mockResolvedValue(new ResponseModel("t"));
+    jobs.bugLifecycle.purgeExpiredRejectedBugs
+      .mockRejectedValueOnce(new Error("disk full"))
+      .mockResolvedValue();
 
     await startBackgroundJobs(jobs);
-    await vi.advanceTimersByTimeAsync(30 * MINUTE_MS);
 
-    expect(jobs.bugSync.syncBugs).toHaveBeenCalledTimes(2);
-    expect(jobs.bugLifecycle.purgeExpiredRejectedBugs).toHaveBeenCalledOnce();
+    expect(jobs.bugSyncTask.setIntervalMs).toHaveBeenCalledWith(60 * MINUTE_MS);
+    expect(jobs.bugSyncTask.start).toHaveBeenCalledOnce();
+    expect(
+      jobs.bugSyncTask.setIntervalMs.mock.invocationCallOrder[0],
+    ).toBeLessThan(jobs.bugSyncTask.start.mock.invocationCallOrder[0] ?? 0);
 
     await vi.advanceTimersByTimeAsync(24 * 60 * MINUTE_MS);
-
     expect(jobs.bugLifecycle.purgeExpiredRejectedBugs).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(24 * 60 * MINUTE_MS);
+    expect(jobs.bugLifecycle.purgeExpiredRejectedBugs).toHaveBeenCalledTimes(3);
+  });
+
+  it("follows a change of the bugs sync interval only", () => {
+    const task = { setIntervalMs: vi.fn() };
+    const onChange = followBugSyncInterval(task);
+
+    onChange(configurationOf(HEALTH_CHECK_INTERVAL_KEY, 30));
+    expect(task.setIntervalMs).not.toHaveBeenCalled();
+
+    onChange(configurationOf(BUG_SYNC_INTERVAL_KEY, 60));
+    expect(task.setIntervalMs).toHaveBeenCalledWith(60 * MINUTE_MS);
+    onChange(configurationOf(BUG_SYNC_INTERVAL_KEY, 1));
+    expect(task.setIntervalMs).toHaveBeenLastCalledWith(15 * MINUTE_MS);
   });
 
   it("follows a change of the interval key only, with a positive value", () => {

@@ -4,6 +4,7 @@ import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { refusalOfConfigurationValue } from "../Entity/AppliedConfigurationKeys.js";
 import type {
   Configuration,
   ConfigurationValue,
@@ -103,7 +104,13 @@ export class ConfigurationUseCase {
       );
     }
 
-    // 3. Mutate domain entity state (validates type invariants and readonly flag)
+    // 3. A value the code would replace by its default is refused (EV-18)
+    const refusal = refusalOfConfigurationValue(key, value);
+    if (refusal) {
+      return response.withError(DomainErrorCodes.INVALID_INPUT, refusal);
+    }
+
+    // 4. Mutate domain entity state (validates type invariants and readonly flag)
     const before = configuration.getDisplayValue();
     try {
       configuration.updateValue(value, operatorId);
@@ -112,7 +119,7 @@ export class ConfigurationUseCase {
       return response.withError(DomainErrorCodes.INVALID_INPUT, err.message);
     }
 
-    // 4. Persist updated configuration
+    // 5. Persist updated configuration
     const updateRequest = new RequestModel(transactionId, {
       key,
       value,
@@ -125,7 +132,7 @@ export class ConfigurationUseCase {
       onChange(before, configuration.getDisplayValue());
     }
 
-    // 5. Publish config updated event on success
+    // 6. Publish config updated event on success
     if (!updateResponse.errorCode && updateResponse.data) {
       await this.configEventPublisher.publishConfigUpdated(updateResponse.data);
     }

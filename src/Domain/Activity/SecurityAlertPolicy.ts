@@ -11,7 +11,7 @@ export const SECURITY_ALERT_KEYS = {
 } as const;
 
 /** Accepted bounds of the configured numbers; outside them, the default. */
-const SECURITY_ALERT_BOUNDS = {
+export const SECURITY_ALERT_BOUNDS = {
   failedSignInsMax: { min: 3, max: 1000 },
   massOperationsMax: { min: 5, max: 1000 },
   windowMinutes: { min: 1, max: 1440 },
@@ -42,7 +42,7 @@ const parseOffHours = (value: unknown, timeZone: string): OffHours | null => {
     : { startMinute, endMinute, timeZone };
 };
 
-const isKnownTimeZone = (value: unknown): value is string => {
+export const isKnownTimeZone = (value: unknown): value is string => {
   if (typeof value !== "string" || value === "") return false;
   try {
     new Intl.DateTimeFormat("en", { timeZone: value });
@@ -51,6 +51,10 @@ const isKnownTimeZone = (value: unknown): value is string => {
     return false;
   }
 };
+
+/** Empty (the rule is off) or a span such as "20:00-07:00". */
+export const isAcceptedOffHours = (value: unknown): boolean =>
+  value === "" || parseOffHours(value, "UTC") !== null;
 
 /**
  * Security alerts (EV-88 lot D, T-24): repeated failed sign-ins on an

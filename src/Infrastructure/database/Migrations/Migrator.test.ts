@@ -4,6 +4,14 @@ import {
   SECURITY_ALERT_KEYS,
   SecurityAlertPolicy,
 } from "#src/Domain/Activity/SecurityAlertPolicy.js";
+import {
+  BUG_SYNC_INTERVAL_KEY,
+  bugSyncIntervalMsOf,
+  isAcceptedBugSyncInterval,
+  isAcceptedRejectedBugRetention,
+  REJECTED_BUG_RETENTION_KEY,
+  rejectedBugRetentionDaysOf,
+} from "#src/Domain/Bug/Entity/BugSchedule.js";
 import { AccountLockoutPolicy } from "#src/Domain/User/Entity/AccountLockoutPolicy.js";
 import { ACCOUNT_LOCKOUT_KEYS } from "#src/Domain/User/Service/AccountLockoutService.js";
 import { BASELINE_TABLES, baseline } from "./0001-baseline.js";
@@ -15,6 +23,10 @@ import {
   SECURITY_ALERT_ROWS,
   securityAlertKeys,
 } from "./0010-security-alert-keys.js";
+import {
+  BUG_SCHEDULE_ROWS,
+  bugScheduleKeys,
+} from "./0011-bug-schedule-keys.js";
 import {
   ADMIN_MIGRATIONS,
   createMigrator,
@@ -188,6 +200,55 @@ describe("security alert keys migration", () => {
   });
 });
 
+describe("bug schedule keys migration", () => {
+  it("adds both keys the code reads, with their defaults", () => {
+    const seededValue = (key: string) =>
+      BUG_SCHEDULE_ROWS.find((row) => row.key === key)?.value;
+
+    expect(BUG_SCHEDULE_ROWS.map(({ key }) => key).sort()).toEqual(
+      [BUG_SYNC_INTERVAL_KEY, REJECTED_BUG_RETENTION_KEY].sort(),
+    );
+    expect(bugSyncIntervalMsOf(seededValue(BUG_SYNC_INTERVAL_KEY))).toBe(
+      bugSyncIntervalMsOf(undefined),
+    );
+    expect(isAcceptedBugSyncInterval(seededValue(BUG_SYNC_INTERVAL_KEY))).toBe(
+      true,
+    );
+    expect(
+      rejectedBugRetentionDaysOf(seededValue(REJECTED_BUG_RETENTION_KEY)),
+    ).toBe(rejectedBugRetentionDaysOf(undefined));
+    expect(
+      isAcceptedRejectedBugRetention(seededValue(REJECTED_BUG_RETENTION_KEY)),
+    ).toBe(true);
+  });
+
+  it("never overwrites a key, in the configured schema", async () => {
+    const { sequelize, statements } = fakeSequelize([]);
+
+    await bugScheduleKeys.up({
+      name: bugScheduleKeys.name,
+      context: { sequelize, schema: "custom" },
+    });
+
+    expect(statements).toHaveLength(BUG_SCHEDULE_ROWS.length);
+    for (const sql of statements) {
+      expect(sql).toContain('INSERT INTO "custom"."configurations"');
+      expect(sql).toContain('ON CONFLICT ("key") DO NOTHING');
+    }
+  });
+
+  it("refuses to be reverted", async () => {
+    const { sequelize } = fakeSequelize([]);
+
+    await expect(
+      bugScheduleKeys.down?.({
+        name: bugScheduleKeys.name,
+        context: { sequelize, schema: "custom" },
+      }),
+    ).rejects.toThrow("cannot be reverted");
+  });
+});
+
 describe("createMigrator", () => {
   it.each(["", "  "])("refuses an empty schema (%j)", (schema) => {
     const { sequelize } = fakeSequelize([]);
@@ -209,6 +270,7 @@ describe("createMigrator", () => {
       "0008-bug-severity-component",
       "0009-health-log-indexes",
       "0010-security-alert-keys",
+      "0011-bug-schedule-keys",
     ]);
   });
 });

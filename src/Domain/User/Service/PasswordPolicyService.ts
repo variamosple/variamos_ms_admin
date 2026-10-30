@@ -10,6 +10,8 @@ export const PASSWORD_POLICY_KEYS = {
   requireSpecial: "security.password.require_special",
 } as const;
 export const PASSWORD_RESET_EXPIRY_KEY = "security.password.reset_expiry";
+/** A reset link is valid one hour at most, whatever the key says. */
+export const MAX_PASSWORD_RESET_EXPIRY_MS = 60 * 60 * 1000;
 
 export interface IPasswordPolicyProvider {
   getPolicy(): Promise<PasswordPolicy>;
