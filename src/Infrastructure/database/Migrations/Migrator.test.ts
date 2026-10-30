@@ -271,6 +271,7 @@ describe("createMigrator", () => {
       "0009-health-log-indexes",
       "0010-security-alert-keys",
       "0011-bug-schedule-keys",
+      "0012-laboratory-access-permission",
     ]);
   });
 });

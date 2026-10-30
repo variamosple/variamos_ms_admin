@@ -159,6 +159,14 @@ const MENU: Menu = {
       location: "https://app.variamos.com/variamos_languages/",
     },
     {
+      title: "Laboratory",
+      type: "location",
+      location: "https://app.variamos.com/variamos_laboratory/",
+      // Given to administrators only at first (migration 0012), as the
+      // Laboratory backend refuses every other account
+      allowedPermissions: ["laboratory::access"],
+    },
+    {
       title: "Wiki",
       type: "location",
       location: "https://github.com/variamosple/VariaMosPLE/wiki",
