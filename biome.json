@@ -20,7 +20,11 @@
     "rules": {
       "preset": "recommended",
       "suspicious": {
-        "noExplicitAny": "error"
+        "noExplicitAny": "error",
+        "noSkippedTests": "error"
+      },
+      "complexity": {
+        "noExcessiveNestedTestSuites": "error"
       },
       "correctness": {
         "noUnusedVariables": "warn"
