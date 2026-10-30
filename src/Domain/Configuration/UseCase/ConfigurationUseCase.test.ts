@@ -204,6 +204,42 @@ describe("ConfigurationUseCase Unit Tests", () => {
     expect(mockPublisher.publishConfigUpdated).not.toHaveBeenCalled();
   });
 
+  it("refuses a value the code would not use, without saving it", async () => {
+    const mockRepo = mock<IConfigurationRepository>();
+    const mockPublisher = mock<IConfigEventPublisher>();
+    const useCase = new ConfigurationUseCase(
+      mockRepo,
+      mockPublisher,
+      activityJournal,
+    );
+    mockRepo.queryByKey.mockResolvedValue(
+      new ResponseModel<Configuration>("queryByKey").withResponse(
+        Configuration.builder()
+          .setKey(new ConfigurationKey("bugs.sync_interval_minutes"))
+          .setValue(15)
+          .setType("number")
+          .setCategory("general")
+          .setTargetServices(["variamos_ms_admin"])
+          .build(),
+      ),
+    );
+
+    const response = await useCase.updateConfiguration(
+      new RequestModel("updateConfiguration", {
+        key: "bugs.sync_interval_minutes",
+        value: 1,
+        operatorId: "admin_user",
+      }),
+    );
+
+    expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+    expect(response.message).toBe(
+      "Configuration 'bugs.sync_interval_minutes' expects a whole number of minutes from 5 to 1440.",
+    );
+    expect(mockRepo.updateConfiguration).not.toHaveBeenCalled();
+    expect(mockPublisher.publishConfigUpdated).not.toHaveBeenCalled();
+  });
+
   it("should fail update if new value type is mismatched", async () => {
     const mockRepo = mock<IConfigurationRepository>();
     const mockPublisher = mock<IConfigEventPublisher>();

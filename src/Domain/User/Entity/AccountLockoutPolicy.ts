@@ -1,7 +1,7 @@
 const MINUTE_MS = 60 * 1000;
 
 /** Accepted bounds of the configured values; outside them, the default. */
-const ACCOUNT_LOCKOUT_BOUNDS = {
+export const ACCOUNT_LOCKOUT_BOUNDS = {
   maxAttempts: { min: 3, max: 100 },
   durationMinutes: { min: 1, max: 1440 },
 } as const;

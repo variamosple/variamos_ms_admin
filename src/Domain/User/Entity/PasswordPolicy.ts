@@ -1,7 +1,7 @@
 /** Longest accepted password (NIST SP 800-63B: accept at least 64). */
-const PASSWORD_MAX_LENGTH = 64;
+export const PASSWORD_MAX_LENGTH = 64;
 /** The configured minimum never goes below this. */
-const PASSWORD_MIN_LENGTH_FLOOR = 8;
+export const PASSWORD_MIN_LENGTH_FLOOR = 8;
 
 export interface PasswordPolicyRules {
   minLength: number;

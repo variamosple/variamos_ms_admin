@@ -8,7 +8,7 @@ const MINUTE_MS = 60 * 1000;
  * Accepted values and defaults. Under 5 minutes, the synchronizations would
  * spend the GitHub API quota; a rejected bug is kept a year at most.
  */
-const BUG_SCHEDULE_BOUNDS = {
+export const BUG_SCHEDULE_BOUNDS = {
   syncIntervalMinutes: { min: 5, max: 24 * 60, default: 15 },
   rejectedRetentionDays: { min: 1, max: 365, default: 7 },
 } as const;

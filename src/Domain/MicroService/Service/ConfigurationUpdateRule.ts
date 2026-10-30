@@ -1,3 +1,4 @@
+import { refusalOfConfigurationValue } from "#src/Domain/Configuration/Entity/AppliedConfigurationKeys.js";
 import type { ConfigurationValue } from "#src/Domain/Configuration/Entity/Configuration.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { isSecretMask } from "#src/Domain/Core/Secret/SecretMask.js";
@@ -69,15 +70,16 @@ export function readConfigurationValue(
 /**
  * Rules applied when a configuration is updated from the micro-service page.
  * They match those of the configuration API (read-only, MFA, secret mask,
- * value type); that page has no MFA step, so MFA-protected keys are refused
- * there. Returns null when the update is allowed.
+ * value type, value the code would not use); that page has no MFA step, so
+ * MFA-protected keys are refused there. Returns null when the update is
+ * allowed.
  */
 export function refuseConfigurationUpdate(
   key: string,
   value: string,
   existing: ExistingConfiguration | null,
 ): ConfigurationUpdateRefusal | null {
-  if (!existing) return null;
+  if (!existing) return outOfRange(key, parseJson(value) ?? value);
   if (existing.isReadOnly) {
     return {
       errorCode: DomainErrorCodes.INVALID_INPUT,
@@ -96,14 +98,26 @@ export function refuseConfigurationUpdate(
       message: `Enter a new value for the secret configuration '${key}'.`,
     };
   }
-  if (readConfigurationValue(value, existing.type) === undefined) {
+  const typed = readConfigurationValue(value, existing.type);
+  if (typed === undefined) {
     return {
       errorCode: DomainErrorCodes.INVALID_INPUT,
       message: `Value for key '${key}' must be ${VALUE_TYPE_NAMES[existing.type]}.`,
     };
   }
-  return null;
+  return outOfRange(key, typed);
 }
+
+/** The refusal of a value the code reading the key would not use (EV-18). */
+const outOfRange = (
+  key: string,
+  value: unknown,
+): ConfigurationUpdateRefusal | null => {
+  const message = refusalOfConfigurationValue(key, value);
+  return message
+    ? { errorCode: DomainErrorCodes.INVALID_INPUT, message }
+    : null;
+};
 
 const VALUE_TYPE_NAMES: Record<ConfigurationValueType, string> = {
   boolean: "true or false",

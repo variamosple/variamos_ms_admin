@@ -5,7 +5,7 @@ export const PASSWORD_HASHING_COST_KEY = "security.bcrypt_salt_rounds";
  * Accepted bcrypt costs. OWASP asks for 10 at least; each step doubles the
  * time of a sign-in, so beyond 14 a sign-in takes about a second.
  */
-const PASSWORD_HASHING_COST_BOUNDS = { min: 10, max: 14 } as const;
+export const PASSWORD_HASHING_COST_BOUNDS = { min: 10, max: 14 } as const;
 
 /** Cost when neither the configuration nor the environment gives a valid one. */
 export const DEFAULT_PASSWORD_HASHING_COST = 10;

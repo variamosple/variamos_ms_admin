@@ -68,6 +68,33 @@ describe("refuseConfigurationUpdate", () => {
   });
 });
 
+describe("refuseConfigurationUpdate on a key the code reads", () => {
+  it("refuses a value the code would not use, existing key or not", () => {
+    const number = existing({ type: "number" });
+
+    expect(
+      refuseConfigurationUpdate("security.bcrypt_salt_rounds", "20", number),
+    ).toEqual({
+      errorCode: DomainErrorCodes.INVALID_INPUT,
+      message:
+        "Configuration 'security.bcrypt_salt_rounds' expects a whole number of rounds from 10 to 14.",
+    });
+    expect(
+      refuseConfigurationUpdate(
+        "security.alerts.timezone",
+        "Mars/Olympus",
+        null,
+      ),
+    ).not.toBeNull();
+    expect(
+      refuseConfigurationUpdate("security.bcrypt_salt_rounds", "12", number),
+    ).toBeNull();
+    expect(
+      refuseConfigurationUpdate("security.alerts.timezone", "UTC", null),
+    ).toBeNull();
+  });
+});
+
 describe("readConfigurationValue", () => {
   it.each<[ConfigurationValueType, string, unknown]>([
     ["string", "8080", "8080"],
