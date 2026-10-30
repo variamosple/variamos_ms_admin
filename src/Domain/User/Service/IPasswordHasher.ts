@@ -9,6 +9,12 @@ export interface IPasswordHasher {
    * the response time does not reveal whether an account can sign in.
    */
   verify(password: string, hash: string | null): Promise<boolean>;
+  /**
+   * True when the hash was made at another cost than the current one: after
+   * a successful sign in, the password is hashed again at the current cost
+   * (EV-46).
+   */
+  needsRehash(hash: string): Promise<boolean>;
 }
 
 export interface IPasswordHashingCostProvider {

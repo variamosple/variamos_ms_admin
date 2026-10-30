@@ -305,8 +305,16 @@ export class UserRepositoryImpl
         return response.withError(DomainErrorCodes.INVALID_INPUT, errorMessage);
       }
 
+      const rehashed = await this.rehashIfOutdated(
+        dbUser.id,
+        password,
+        dbUser.password as string,
+      );
       await UserModel.update(
-        { lastLogin: new Date() },
+        {
+          lastLogin: new Date(),
+          ...(rehashed && { password: rehashed }),
+        },
         {
           where: {
             id: dbUser.id,
@@ -333,6 +341,30 @@ export class UserRepositoryImpl
     }
 
     return response;
+  }
+
+  /**
+   * The password hashed again at the current cost when its hash was made at
+   * another one (EV-46), else undefined. Only a sign in knows the password:
+   * the hashes of the accounts that sign in follow the configured cost. A
+   * failure is logged and never stops the sign in.
+   */
+  private async rehashIfOutdated(
+    userId: UserModel["id"],
+    password: string,
+    hash: string,
+  ): Promise<string | undefined> {
+    try {
+      if (!(await this.passwordHasher.needsRehash(hash))) return undefined;
+      const rehashed = await this.passwordHasher.hash(password);
+      logger.info(
+        `Password hash of user ${userId} rehashed at the configured cost`,
+      );
+      return rehashed;
+    } catch (error) {
+      logger.err(`Password rehash failed for user ${userId}: ${error}`);
+      return undefined;
+    }
   }
 
   public async signUp(

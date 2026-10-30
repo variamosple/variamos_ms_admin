@@ -26,6 +26,11 @@ export class BcryptPasswordHasher implements IPasswordHasher {
     return hash !== null && matches;
   }
 
+  public async needsRehash(hash: string): Promise<boolean> {
+    // The cost is part of the hash: $2b$<cost>$<salt and hash>
+    return bcrypt.getRounds(hash) !== (await this.cost.getCost());
+  }
+
   private dummyHash(cost: number): Promise<string> {
     let dummy = this.dummyHashes.get(cost);
     if (!dummy) {
