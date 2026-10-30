@@ -284,6 +284,13 @@ describe("ConfigurationRouter Integration Tests", () => {
         ["security.password.min_length", true],
         ["security.cookie.max_age", false],
       ]);
+      expect(response.body.data[0].accepts).toEqual({
+        text: "a whole number of characters from 8 to 64",
+        min: 8,
+        max: 64,
+        unit: "characters",
+      });
+      expect(response.body.data[1]).not.toHaveProperty("accepts");
     });
 
     it("should cover false branch when queryConfigurations returns no data", async () => {

@@ -1,7 +1,12 @@
 import { hasPermissions } from "@variamosple/variamos-security";
 import { type Request, Router } from "express";
 import EnvVars from "#src/common/EnvVars.js";
-import { isConfigurationApplied } from "#src/Domain/Configuration/Entity/AppliedConfigurationKeys.js";
+import {
+  type AcceptedConfigurationValues,
+  acceptedValuesOf,
+  isConfigurationApplied,
+} from "#src/Domain/Configuration/Entity/AppliedConfigurationKeys.js";
+import type { Configuration } from "#src/Domain/Configuration/Entity/Configuration.js";
 import type { ConfigurationUseCase } from "#src/Domain/Configuration/UseCase/ConfigurationUseCase.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -32,12 +37,36 @@ export interface ConfigurationResponseDto {
   isReadOnly: boolean;
   /** False when no code reads the key yet: changing it has no effect. */
   isApplied: boolean;
+  /** What a key the code reads accepts, for the form (EV-18 lot C). */
+  accepts?: AcceptedConfigurationValues;
   targetServices: string[];
   description?: string;
   updatedBy?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
+
+/** A configuration as the screen shows it: a secret only as its mask. */
+const toConfigurationResponse = (
+  config: Configuration,
+): ConfigurationResponseDto => ({
+  id: config.id,
+  key: config.key.getValue(),
+  value: config.getDisplayValue(),
+  type: config.type,
+  category: config.category,
+  requiresMfa: config.requiresMfa,
+  isSecret: config.isSecret,
+  environmentScope: config.environmentScope,
+  isReadOnly: config.isReadOnly,
+  isApplied: isConfigurationApplied(config.key.getValue()),
+  accepts: acceptedValuesOf(config.key.getValue()),
+  targetServices: config.targetServices,
+  description: config.description,
+  updatedBy: config.updatedBy,
+  createdAt: config.createdAt,
+  updatedAt: config.updatedAt,
+});
 
 // The pages of the administration, in the order of its sub-menu
 const ADMIN_PAGES: Menu["subMenu"][number]["items"] = [
@@ -264,25 +293,7 @@ export function createConfigurationRouter(
         );
 
         if (useCaseResponse.data) {
-          response.data = useCaseResponse.data.map((config) => {
-            return {
-              id: config.id,
-              key: config.key.getValue(),
-              value: config.getDisplayValue(),
-              type: config.type,
-              category: config.category,
-              requiresMfa: config.requiresMfa,
-              isSecret: config.isSecret,
-              environmentScope: config.environmentScope,
-              isReadOnly: config.isReadOnly,
-              isApplied: isConfigurationApplied(config.key.getValue()),
-              targetServices: config.targetServices,
-              description: config.description,
-              updatedBy: config.updatedBy,
-              createdAt: config.createdAt,
-              updatedAt: config.updatedAt,
-            };
-          });
+          response.data = useCaseResponse.data.map(toConfigurationResponse);
         }
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);
@@ -325,24 +336,7 @@ export function createConfigurationRouter(
         );
 
         if (useCaseResponse.data) {
-          const config = useCaseResponse.data;
-          response.data = {
-            id: config.id,
-            key: config.key.getValue(),
-            value: config.getDisplayValue(),
-            type: config.type,
-            category: config.category,
-            requiresMfa: config.requiresMfa,
-            isSecret: config.isSecret,
-            environmentScope: config.environmentScope,
-            isReadOnly: config.isReadOnly,
-            isApplied: isConfigurationApplied(config.key.getValue()),
-            targetServices: config.targetServices,
-            description: config.description,
-            updatedBy: config.updatedBy,
-            createdAt: config.createdAt,
-            updatedAt: config.updatedAt,
-          };
+          response.data = toConfigurationResponse(useCaseResponse.data);
         }
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);
