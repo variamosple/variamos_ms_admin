@@ -1,4 +1,5 @@
 import { type MockProxy, mock } from "vitest-mock-extended";
+import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import type { BugAttachment } from "#src/Domain/Bug/Entity/BugAttachment.js";
 import { BugNote } from "#src/Domain/Bug/Entity/BugNote.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
@@ -20,15 +21,18 @@ describe("BugAttachmentUseCase", () => {
   let logger: MockProxy<ILogger>;
   let mockBugRepository: MockProxy<IBugRepository>;
   let mockStorageService: MockProxy<IStorageService>;
+  let mockJournal: MockProxy<IActivityJournal>;
 
   beforeEach(() => {
     logger = mock<ILogger>();
     mockBugRepository = mock<IBugRepository>();
     mockStorageService = mock<IStorageService>();
+    mockJournal = mock<IActivityJournal>();
     useCase = new BugAttachmentUseCase(
       mockBugRepository,
       mockStorageService,
       logger,
+      mockJournal,
     );
   });
 
@@ -68,6 +72,16 @@ describe("BugAttachmentUseCase", () => {
         }),
       );
       expect(mockStorageService.deleteFile).not.toHaveBeenCalled();
+      // The bug and the type, never the file
+      expect(mockJournal.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "bug.attachment.create",
+          entityType: "bug",
+          entityId: "bug-123",
+          outcome: "success",
+          after: { attachmentId: 1, fileType: "image/png" },
+        }),
+      );
     });
 
     it("should refuse an unsupported file type without storing it", async () => {
@@ -173,6 +187,55 @@ describe("BugAttachmentUseCase", () => {
         "/uploads/file.png",
       );
       expect(mockBugRepository.deleteAttachment).toHaveBeenCalledWith(req);
+    });
+
+    it("records the deletion with its bug, as it leaves no other trace", async () => {
+      mockBugRepository.findAttachmentById.mockResolvedValue(
+        new ResponseModel<BugAttachment | null>("tx-1").withResponse({
+          id: 1,
+          filePath: "/uploads/file.png",
+          fileType: "image/png",
+          bugId: "bug-123",
+        }),
+      );
+      mockBugRepository.deleteAttachment.mockResolvedValue(
+        new ResponseModel<void>("tx-1"),
+      );
+
+      await useCase.deleteAttachment(
+        new RequestModel("tx-1", "att-123", "admin-1"),
+      );
+
+      expect(mockJournal.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actorId: "admin-1",
+          action: "bug.attachment.delete",
+          entityType: "bug",
+          entityId: "bug-123",
+          outcome: "success",
+          before: { attachmentId: "att-123", fileType: "image/png" },
+        }),
+      );
+    });
+
+    it("records a refused deletion with the attachment asked for", async () => {
+      mockBugRepository.findAttachmentById.mockResolvedValue(
+        new ResponseModel<BugAttachment | null>("tx-1").withResponse(null),
+      );
+
+      await useCase.deleteAttachment(
+        new RequestModel("tx-1", "missing-id", "admin-1"),
+      );
+
+      expect(mockJournal.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "bug.attachment.delete",
+          entityId: null,
+          outcome: "failed",
+          errorCode: DomainErrorCodes.ENTITY_NOT_FOUND,
+          before: { attachmentId: "missing-id" },
+        }),
+      );
     });
 
     it("should return error if ID is missing", async () => {
@@ -294,6 +357,17 @@ describe("BugAttachmentUseCase", () => {
 
       expect(res.data).toBe(mockNote);
       expect(mockBugRepository.createNote).toHaveBeenCalledWith(req);
+      // The note, never its text
+      expect(mockJournal.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "bug.note.create",
+          entityType: "bug",
+          entityId: "bug-123",
+          outcome: "success",
+          before: null,
+          after: { noteId: 1 },
+        }),
+      );
     });
   });
 });

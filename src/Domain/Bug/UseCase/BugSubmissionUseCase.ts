@@ -16,6 +16,7 @@ import {
 } from "#src/Domain/Core/File/AllowedFileType.js";
 import type { UploadedFile } from "#src/Domain/Core/File/UploadedFile.js";
 import type { IIssueTrackerService } from "#src/Domain/Core/Service/IIssueTrackerService.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IStorageService } from "#src/Domain/Core/Service/IStorageService.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 import { ALLOWED_CATEGORIES } from "./BugQueryUseCase.js";
@@ -46,6 +47,7 @@ export class BugSubmissionUseCase {
     private readonly githubConfig: IBugTrackerConfig,
     private readonly tokenResolver: IGitHubTokenProvider,
     private readonly storageService: IStorageService,
+    private readonly logger: ILogger,
   ) {}
 
   public async createBug(
@@ -154,6 +156,12 @@ export class BugSubmissionUseCase {
       if (response.errorCode && resolvedFile) {
         await this.storageService.deleteFile(resolvedFile.filePath);
       }
+      if (!response.errorCode) {
+        // Ids and status only: never the description or the reporter's address
+        this.logger.info(
+          `Bug ${response.data?.id} submitted (${response.data?.status}) by ${resolvedCreatedById ? `user ${resolvedCreatedById}` : "a guest"}.`,
+        );
+      }
       return response;
     } catch (error) {
       if (resolvedFile) {
@@ -210,6 +218,9 @@ export class BugSubmissionUseCase {
           gitIssueNumber = issueNum;
           githubHtmlUrl = `https://github.com/${data.githubRepo}/issues/${issueNum}`;
         } else {
+          this.logger.warn(
+            `Bug submission refused: the issue could not be created on ${data.githubRepo}.`,
+          );
           const response = new ResponseModel<Bug>(transactionId);
           return response.withErrorPromise(
             DomainErrorCodes.INVALID_INPUT,
@@ -217,6 +228,9 @@ export class BugSubmissionUseCase {
           );
         }
       } else {
+        this.logger.warn(
+          `Bug submission refused: no GitHub token for ${data.githubRepo}.`,
+        );
         const response = new ResponseModel<Bug>(transactionId);
         return response.withErrorPromise(
           DomainErrorCodes.INVALID_INPUT,

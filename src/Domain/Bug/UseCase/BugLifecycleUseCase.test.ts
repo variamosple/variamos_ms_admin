@@ -159,6 +159,55 @@ describe("BugLifecycleUseCase", () => {
       expect(res.message).toBe("Only pending bugs can be rejected.");
       expect(mockBugRepository.rejectBug).not.toHaveBeenCalled();
     });
+
+    it("records the rejection and its refusal in the activity journal", async () => {
+      mockBugRepository.findById.mockResolvedValueOnce(
+        new ResponseModel<Bug>("tx-1").withResponse(
+          createMockBug("bug-1", "Pending Bug", "pending"),
+        ),
+      );
+      mockBugRepository.rejectBug.mockResolvedValue(
+        new ResponseModel<Bug>("tx-1").withResponse(
+          createMockBug("bug-1", "Pending Bug", "rejected"),
+        ),
+      );
+      await useCase.rejectBug(
+        new RequestModel("tx-1", { id: "bug-1", adminId: "admin-1" }),
+      );
+      mockBugRepository.findById.mockResolvedValueOnce(
+        new ResponseModel<Bug>("tx-2").withResponse(
+          createMockBug("bug-2", "Open Bug", "open"),
+        ),
+      );
+      await useCase.rejectBug(
+        new RequestModel(
+          "tx-2",
+          { id: "bug-2", adminId: "admin-1" },
+          "admin-2",
+        ),
+      );
+
+      expect(mockJournal.record).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          actorId: "admin-1",
+          action: "bug.reject",
+          entityType: "bug",
+          entityId: "bug-1",
+          outcome: "success",
+        }),
+      );
+      expect(mockJournal.record).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          actorId: "admin-2",
+          action: "bug.reject",
+          entityId: "bug-2",
+          outcome: "failed",
+          errorCode: DomainErrorCodes.INVALID_INPUT,
+        }),
+      );
+    });
   });
 
   describe("restoreBug", () => {
@@ -179,6 +228,15 @@ describe("BugLifecycleUseCase", () => {
       });
       const res = await useCase.restoreBug(req);
 
+      expect(mockJournal.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actorId: "admin-123",
+          action: "bug.restore",
+          entityType: "bug",
+          entityId: "bug-1",
+          outcome: "success",
+        }),
+      );
       expect(res.data?.status).toBe("pending");
       expect(mockBugRepository.restoreBug).toHaveBeenCalledWith(
         expect.objectContaining({

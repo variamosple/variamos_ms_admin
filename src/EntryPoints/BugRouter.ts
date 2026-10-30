@@ -527,6 +527,7 @@ export function createBugRouter(
         const request = new RequestModel<typeof payload>(
           transactionId,
           payload,
+          actorOf(req),
         );
         const response = await bugLifecycleUseCase.restoreBug(request);
 
@@ -553,6 +554,7 @@ export function createBugRouter(
         const request = new RequestModel<typeof payload>(
           transactionId,
           payload,
+          actorOf(req),
         );
         const response = await bugLifecycleUseCase.rejectBug(request);
 
@@ -569,10 +571,14 @@ export function createBugRouter(
     "/sync",
     authMiddleware,
     hasPermissions(["bugs::sync"]),
-    async (_req: Request, res: Response) => {
+    async (req: Request, res: Response) => {
       const transactionId = "syncBugs";
       try {
-        const request = new RequestModel<void>(transactionId);
+        const request = new RequestModel<void>(
+          transactionId,
+          undefined,
+          actorOf(req),
+        );
         const response = await bugSyncUseCase.syncBugs(request);
 
         const code = mapDomainErrorToHttpStatus(response.errorCode);
@@ -621,6 +627,7 @@ export function createBugRouter(
         const request = new RequestModel<typeof payload>(
           transactionId,
           payload,
+          actorOf(req),
         );
         const response = await bugAttachmentUseCase.addAttachment(request);
         const code = mapDomainErrorToHttpStatus(
@@ -643,7 +650,11 @@ export function createBugRouter(
       const transactionId = "deleteAttachment";
       const { id } = req.params;
       try {
-        const request = new RequestModel<string>(transactionId, id);
+        const request = new RequestModel<string>(
+          transactionId,
+          id,
+          actorOf(req),
+        );
         const response = await bugAttachmentUseCase.deleteAttachment(request);
         const code = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(code).json(response);
@@ -667,7 +678,7 @@ export function createBugRouter(
 
       try {
         const payload = { bugId: id, body: body || "", authorId };
-        const request = new RequestModel(transactionId, payload);
+        const request = new RequestModel(transactionId, payload, authorId);
         const response = await bugAttachmentUseCase.createNote(request);
         const code = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(code).json(response);

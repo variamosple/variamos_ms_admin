@@ -7,6 +7,7 @@ import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { IIssueTrackerService } from "#src/Domain/Core/Service/IIssueTrackerService.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IStorageService } from "#src/Domain/Core/Service/IStorageService.js";
 import { User } from "#src/Domain/User/Entity/User.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
@@ -25,6 +26,7 @@ describe("BugSubmissionUseCase", () => {
   let mockGithubConfig: MockProxy<IBugTrackerConfig>;
   let mockTokenResolver: MockProxy<IGitHubTokenProvider>;
   let mockStorageService: MockProxy<IStorageService>;
+  let logger: MockProxy<ILogger>;
 
   beforeEach(() => {
     mockBugRepository = mock<IBugRepository>();
@@ -34,6 +36,7 @@ describe("BugSubmissionUseCase", () => {
     mockTokenResolver = mock<IGitHubTokenProvider>();
     mockStorageService = mock<IStorageService>();
     mockStorageService.saveFile.mockResolvedValue("/uploads/generated.png");
+    logger = mock<ILogger>();
     useCase = new BugSubmissionUseCase(
       mockBugRepository,
       mockUserRepository,
@@ -41,6 +44,7 @@ describe("BugSubmissionUseCase", () => {
       mockGithubConfig,
       mockTokenResolver,
       mockStorageService,
+      logger,
     );
   });
 
@@ -78,6 +82,10 @@ describe("BugSubmissionUseCase", () => {
           logComment: "Bug submitted locally by guest.",
         }),
       }),
+    );
+    // Ids and status only, never the address or the description
+    expect(logger.info).toHaveBeenCalledExactlyOnceWith(
+      "Bug bug-123 submitted (pending) by a guest.",
     );
   });
 
@@ -125,6 +133,9 @@ describe("BugSubmissionUseCase", () => {
     const res = await useCase.createBug(req);
 
     expect(res.data).toBe(bug);
+    expect(logger.info).toHaveBeenCalledExactlyOnceWith(
+      "Bug bug-456 submitted (open) by user admin-123.",
+    );
     expect(mockTokenResolver.resolveGitHubToken).toHaveBeenCalledWith(
       "VariaMos/VariaMosAdmin",
     );
@@ -317,6 +328,9 @@ describe("BugSubmissionUseCase", () => {
     const res = await useCase.createBug(req);
     expect(res.errorCode).toBe("INVALID_INPUT");
     expect(res.message).toBe("GitHub integration token is not configured.");
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Bug submission refused: no GitHub token for VariaMos/VariaMosAdmin.",
+    );
   });
 
   it("should return error if pushing to GitHub fails", async () => {
@@ -344,6 +358,10 @@ describe("BugSubmissionUseCase", () => {
     const res = await useCase.createBug(req);
     expect(res.errorCode).toBe("INVALID_INPUT");
     expect(res.message).toContain("Failed to push bug to GitHub repository");
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Bug submission refused: the issue could not be created on VariaMos/VariaMosAdmin.",
+    );
+    expect(logger.info).not.toHaveBeenCalled();
   });
 
   it("should handle bug creation with file attachments", async () => {

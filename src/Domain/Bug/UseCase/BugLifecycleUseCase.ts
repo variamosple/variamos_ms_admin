@@ -348,6 +348,22 @@ export class BugLifecycleUseCase {
   public async rejectBug(
     request: RequestModel<{ id: string; adminId: string }>,
   ): Promise<ResponseModel<Bug>> {
+    return withJournal(
+      this.journal,
+      {
+        actorId: request.actorId ?? request.data?.adminId,
+        action: "bug.reject",
+        entityType: "bug",
+        entityId: request.data?.id,
+        transactionId: request.transactionId,
+      },
+      () => this.applyRejectBug(request),
+    );
+  }
+
+  private async applyRejectBug(
+    request: RequestModel<{ id: string; adminId: string }>,
+  ): Promise<ResponseModel<Bug>> {
     const data = request.data;
     if (!data) {
       const response = new ResponseModel<Bug>(request.transactionId);
@@ -395,6 +411,22 @@ export class BugLifecycleUseCase {
   }
 
   public async restoreBug(
+    request: RequestModel<{ id: string; adminId: string }>,
+  ): Promise<ResponseModel<Bug>> {
+    return withJournal(
+      this.journal,
+      {
+        actorId: request.actorId ?? request.data?.adminId,
+        action: "bug.restore",
+        entityType: "bug",
+        entityId: request.data?.id,
+        transactionId: request.transactionId,
+      },
+      () => this.applyRestoreBug(request),
+    );
+  }
+
+  private async applyRestoreBug(
     request: RequestModel<{ id: string; adminId: string }>,
   ): Promise<ResponseModel<Bug>> {
     const data = request.data;

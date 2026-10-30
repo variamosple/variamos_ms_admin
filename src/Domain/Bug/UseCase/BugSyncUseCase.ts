@@ -1,3 +1,5 @@
+import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
+import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import { BugFilter } from "#src/Domain/Bug/Entity/BugFilter.js";
@@ -22,12 +24,15 @@ export class BugSyncUseCase {
     private readonly githubConfig: IBugTrackerConfig,
     private readonly tokenResolver: IGitHubTokenProvider,
     private readonly logger: ILogger,
+    private readonly journal: IActivityJournal,
   ) {}
 
   /**
    * One synchronization at a time (EV-18): a call made while one runs, from
    * the schedule or the sync button, gets the result of the running one
    * rather than reading GitHub a second time and creating the same bugs.
+   * A synchronization asked by an administrator is recorded in the activity
+   * journal; the scheduled one, with no actor, is not.
    */
   public syncBugs(request: RequestModel<void>): Promise<ResponseModel<void>> {
     if (!this.running) {
@@ -35,7 +40,18 @@ export class BugSyncUseCase {
         this.running = null;
       });
     }
-    return this.running;
+    const running = this.running;
+    if (!request.actorId) return running;
+    return withJournal(
+      this.journal,
+      {
+        actorId: request.actorId,
+        action: "bug.sync",
+        entityType: "bug",
+        transactionId: request.transactionId,
+      },
+      () => running,
+    );
   }
 
   private async synchronize(
