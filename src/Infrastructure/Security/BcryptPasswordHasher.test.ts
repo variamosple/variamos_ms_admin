@@ -56,4 +56,18 @@ describe("BcryptPasswordHasher", () => {
 
     expect(hash).toHaveBeenCalledTimes(1);
   });
+
+  it("asks for a new hash when the hash cost differs from the current one", async () => {
+    const hasher = new BcryptPasswordHasher({ getCost: async () => 5 });
+
+    expect(await hasher.needsRehash(await bcrypt.hash("Password-1", 4))).toBe(
+      true,
+    );
+    expect(await hasher.needsRehash(await bcrypt.hash("Password-1", 6))).toBe(
+      true,
+    );
+    expect(await hasher.needsRehash(await bcrypt.hash("Password-1", 5))).toBe(
+      false,
+    );
+  });
 });

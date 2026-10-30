@@ -1,10 +1,14 @@
 import bcrypt from "bcrypt";
+import logger from "#src/common/logger.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { Credentials } from "#src/Domain/User/Entity/Credentials.js";
 import { BcryptPasswordHasher } from "#src/Infrastructure/Security/BcryptPasswordHasher.js";
+import VARIAMOS_ORM from "#src/Infrastructure/VariamosORM.js";
 import { UserModel } from "./User.js";
 import { UserRepositoryImpl } from "./UserRepository.js";
+
+vi.mock("#src/common/logger.js");
 
 describe("UserRepositoryImpl.signIn account enumeration", () => {
   const repository = new UserRepositoryImpl(
@@ -67,5 +71,106 @@ describe("UserRepositoryImpl.signIn account enumeration", () => {
 
     expect(compare).toHaveBeenCalledWith("Password1!", hash);
     expect(response.message).toBe("Incorrect username or password.");
+  });
+});
+
+describe("UserRepositoryImpl.signIn hash upgrade (EV-46)", () => {
+  let cost = 5;
+  const hasher = new BcryptPasswordHasher({ getCost: async () => cost });
+  const repository = new UserRepositoryImpl(hasher);
+  const signIn = (password = "Password1!") =>
+    repository.signIn(
+      new RequestModel<Credentials>("signIn", {
+        email: "someone@example.com",
+        password,
+      } as Credentials),
+    );
+  const accountHashedAt = async (hashCost: number) => {
+    const hash = await bcrypt.hash("Password1!", hashCost);
+    vi.spyOn(UserModel, "findOne").mockResolvedValue({
+      id: "u1",
+      user: "someone",
+      name: "Someone",
+      email: "someone@example.com",
+      password: hash,
+      isEnabled: true,
+      isDeleted: false,
+    } as unknown as UserModel);
+    return hash;
+  };
+  const savedFields = (update: ReturnType<typeof vi.spyOn>) =>
+    update.mock.calls[0]?.[0] as { lastLogin?: Date; password?: string };
+
+  beforeEach(() => {
+    cost = 5;
+    // Roles and permissions of the signed in user
+    vi.spyOn(VARIAMOS_ORM, "query").mockResolvedValue([] as never);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    ["lower", 4],
+    ["higher", 6],
+  ])(
+    "saves a hash at the current cost when the old one is %s",
+    async (_label, hashCost) => {
+      await accountHashedAt(hashCost);
+      const update = vi
+        .spyOn(UserModel, "update")
+        .mockResolvedValue([1] as never);
+
+      const response = await signIn();
+
+      expect(response.errorCode).toBeUndefined();
+      const saved = savedFields(update);
+      expect(saved.lastLogin).toBeInstanceOf(Date);
+      expect(bcrypt.getRounds(saved.password as string)).toBe(5);
+      expect(await bcrypt.compare("Password1!", saved.password as string)).toBe(
+        true,
+      );
+    },
+  );
+
+  it("keeps the hash made at the current cost", async () => {
+    await accountHashedAt(5);
+    const update = vi
+      .spyOn(UserModel, "update")
+      .mockResolvedValue([1] as never);
+
+    const response = await signIn();
+
+    expect(response.errorCode).toBeUndefined();
+    expect(savedFields(update)).not.toHaveProperty("password");
+  });
+
+  it("signs in without a new hash when hashing again fails", async () => {
+    await accountHashedAt(4);
+    vi.spyOn(hasher, "hash").mockRejectedValue(new Error("hashing failed"));
+    const update = vi
+      .spyOn(UserModel, "update")
+      .mockResolvedValue([1] as never);
+
+    const response = await signIn();
+
+    expect(response.errorCode).toBeUndefined();
+    expect(savedFields(update)).not.toHaveProperty("password");
+    expect(logger.err).toHaveBeenCalledWith(
+      expect.stringContaining("Password rehash failed for user u1"),
+    );
+  });
+
+  it("does not hash again after a wrong password", async () => {
+    await accountHashedAt(4);
+    const update = vi.spyOn(UserModel, "update");
+    const hash = vi.spyOn(hasher, "hash");
+
+    const response = await signIn("Wrong1!");
+
+    expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+    expect(hash).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 });
