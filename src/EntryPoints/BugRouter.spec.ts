@@ -352,6 +352,7 @@ describe("BugRouter HTTP Integration Tests", () => {
         expect.objectContaining({
           transactionId: "rejectBug",
           data: { id: "local-1", adminId: "admin-123" },
+          actorId: "admin-123",
         }),
       );
     });
@@ -389,6 +390,7 @@ describe("BugRouter HTTP Integration Tests", () => {
         expect.objectContaining({
           transactionId: "restoreBug",
           data: { id: "local-1", adminId: "admin-123" },
+          actorId: "admin-123",
         }),
       );
     });
@@ -805,6 +807,7 @@ describe("BugRouter HTTP Integration Tests", () => {
       expect(mockBugSyncUseCase.syncBugs).toHaveBeenCalledWith(
         expect.objectContaining({
           transactionId: "syncBugs",
+          actorId: "admin-123",
         }),
       );
     });
@@ -1103,6 +1106,7 @@ describe("BugRouter HTTP Integration Tests", () => {
         expect(mockBugAttachmentUseCase.addAttachment).toHaveBeenCalledWith(
           expect.objectContaining({
             transactionId: "addAttachment",
+            actorId: "admin-123",
             data: expect.objectContaining({
               bugId: "local-1",
               file: expect.objectContaining({
@@ -1154,6 +1158,7 @@ describe("BugRouter HTTP Integration Tests", () => {
           expect.objectContaining({
             transactionId: "deleteAttachment",
             data: "1",
+            actorId: "admin-123",
           }),
         );
       });
@@ -1198,6 +1203,7 @@ describe("BugRouter HTTP Integration Tests", () => {
         expect(mockBugAttachmentUseCase.createNote).toHaveBeenCalledWith(
           expect.objectContaining({
             transactionId: "createBugNote",
+            actorId: "admin-123",
             data: {
               bugId: "local-1",
               body: "Hello note",

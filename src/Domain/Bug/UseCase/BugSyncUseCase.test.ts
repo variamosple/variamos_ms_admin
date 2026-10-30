@@ -1,4 +1,5 @@
 import { type MockProxy, mock } from "vitest-mock-extended";
+import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
@@ -21,6 +22,7 @@ describe("BugSyncUseCase", () => {
   let mockIssueTracker: MockProxy<IIssueTrackerService>;
   let mockGithubConfig: MockProxy<IBugTrackerConfig>;
   let mockTokenResolver: MockProxy<IGitHubTokenProvider>;
+  let mockJournal: MockProxy<IActivityJournal>;
 
   beforeEach(() => {
     logger = mock<ILogger>();
@@ -28,12 +30,14 @@ describe("BugSyncUseCase", () => {
     mockIssueTracker = mock<IIssueTrackerService>();
     mockGithubConfig = mock<IBugTrackerConfig>();
     mockTokenResolver = mock<IGitHubTokenProvider>();
+    mockJournal = mock<IActivityJournal>();
     useCase = new BugSyncUseCase(
       mockBugRepository,
       mockIssueTracker,
       mockGithubConfig,
       mockTokenResolver,
       logger,
+      mockJournal,
     );
     // No local bug yet for the synchronized repositories
     mockBugRepository.queryBugs.mockResolvedValue(
@@ -122,6 +126,26 @@ describe("BugSyncUseCase", () => {
     await useCase.syncBugs(new RequestModel<void>("syncBugs"));
 
     expect(mockIssueTracker.getIssues).toHaveBeenCalledTimes(2);
+  });
+
+  it("records a synchronization asked by an administrator, not the scheduled one", async () => {
+    mockGithubConfig.getGitHubToken.mockReturnValue("");
+
+    await useCase.syncBugs(new RequestModel<void>("periodicSyncBugs"));
+    expect(mockJournal.record).not.toHaveBeenCalled();
+
+    await useCase.syncBugs(
+      new RequestModel<void>("syncBugs", undefined, "admin-1"),
+    );
+    expect(mockJournal.record).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        actorId: "admin-1",
+        action: "bug.sync",
+        entityType: "bug",
+        outcome: "failed",
+        errorCode: DomainErrorCodes.INVALID_INPUT,
+      }),
+    );
   });
 
   it("should return error if github token/app configs are not defined", async () => {

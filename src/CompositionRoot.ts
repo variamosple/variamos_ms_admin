@@ -300,6 +300,7 @@ const productionBugSubmissionUseCase = new BugSubmissionUseCase(
   bugTrackerConfig,
   productionGitHubTokenResolver,
   DiskStorageServiceInstance,
+  JetLogger,
 );
 
 // Bug tracker schedule, read from the configuration screen (EV-18)
@@ -324,6 +325,7 @@ const productionBugSyncUseCase = new BugSyncUseCase(
   bugTrackerConfig,
   productionGitHubTokenResolver,
   JetLogger,
+  WatchedActivityJournal,
 );
 
 const productionBugQueryUseCase = new BugQueryUseCase(
@@ -343,6 +345,7 @@ const productionBugAttachmentUseCase = new BugAttachmentUseCase(
   BugRepositoryInstance,
   DiskStorageServiceInstance,
   JetLogger,
+  WatchedActivityJournal,
 );
 
 // Notifications sent by an administrator (T-18 lot 3b)
