@@ -125,6 +125,8 @@ const PUBLIC = new Set([
   "GET /bugs/categories",
   // The menu of the shared header, shown before signing in
   "GET /v1/configurations/menu",
+  // The site name of the browser tabs, before signing in (EV-87 lot 2)
+  "GET /v1/configurations/public",
   // Monitoring
   "GET /health",
   "GET /version",

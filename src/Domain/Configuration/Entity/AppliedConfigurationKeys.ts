@@ -32,6 +32,11 @@ import {
   PASSWORD_POLICY_KEYS,
   PASSWORD_RESET_EXPIRY_KEY,
 } from "#src/Domain/User/Service/PasswordPolicyService.js";
+import {
+  isAcceptedSiteName,
+  SITE_NAME_KEY,
+  SITE_NAME_MAX_LENGTH,
+} from "./SiteName.js";
 
 /**
  * What a key accepts, sent to the configuration screen so that its form
@@ -163,6 +168,15 @@ const APPLIED_CONFIGURATION_RULES: ReadonlyMap<string, ConfigurationRule> =
     [
       REJECTED_BUG_RETENTION_KEY,
       wholeNumber(BUG_SCHEDULE_BOUNDS.rejectedRetentionDays, "days"),
+    ],
+    [
+      SITE_NAME_KEY,
+      {
+        accepts: isAcceptedSiteName,
+        accepted: {
+          text: `a name of 1 to ${SITE_NAME_MAX_LENGTH} characters on one line`,
+        },
+      },
     ],
   ]);
 

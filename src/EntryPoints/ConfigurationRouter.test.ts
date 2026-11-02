@@ -195,6 +195,35 @@ describe("ConfigurationRouter Integration Tests", () => {
     });
   });
 
+  describe("GET /v1/configurations/public (EV-87 lot 2)", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("gives the site name, and nothing else, without signing in", async () => {
+      vi.spyOn(mockUseCase, "getSiteName").mockResolvedValue("VariaMos Lab");
+
+      const response = await supertest(app).get("/v1/configurations/public");
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(response.body.transactionId).toBe("getPublicSettings");
+      expect(response.body.data).toEqual({ siteName: "VariaMos Lab" });
+    });
+
+    it("answers 500 when reading the name fails unexpectedly", async () => {
+      const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
+      vi.spyOn(mockUseCase, "getSiteName").mockRejectedValue(
+        new Error("Unexpected error"),
+      );
+
+      const response = await supertest(app).get("/v1/configurations/public");
+
+      expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
+      expect(loggerSpy).toHaveBeenCalled();
+    });
+  });
+
   describe("GET /v1/configurations (query configurations)", () => {
     it("should return a list of configurations and mask secret values", async () => {
       const secretConfig = Configuration.builder()
@@ -207,8 +236,8 @@ describe("ConfigurationRouter Integration Tests", () => {
         .build();
 
       const publicConfig = Configuration.builder()
-        .setKey(new ConfigurationKey("general.site_name"))
-        .setValue("VariaMos")
+        .setKey(new ConfigurationKey("general.default_language"))
+        .setValue("en")
         .setType("string")
         .setCategory("general")
         .setIsSecret(false)
@@ -236,12 +265,12 @@ describe("ConfigurationRouter Integration Tests", () => {
 
       // Verify public config and all its mapped properties (kills ObjectLiteral mutant)
       const publicItem = data.find(
-        (c: ConfigurationResponseDto) => c.key === "general.site_name",
+        (c: ConfigurationResponseDto) => c.key === "general.default_language",
       );
       expect(publicItem).toEqual({
         id: undefined,
-        key: "general.site_name",
-        value: "VariaMos",
+        key: "general.default_language",
+        value: "en",
         type: "string",
         category: "general",
         requiresMfa: false,
