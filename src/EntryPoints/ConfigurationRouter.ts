@@ -68,6 +68,11 @@ const toConfigurationResponse = (
   updatedAt: config.updatedAt,
 });
 
+/** What every page may know before signing in (EV-87 lot 2). */
+export interface PublicSettingsDto {
+  siteName: string;
+}
+
 // The pages of the administration, in the order of its sub-menu
 const ADMIN_PAGES: Menu["subMenu"][number]["items"] = [
   {
@@ -274,6 +279,19 @@ export function createConfigurationRouter(
     }
 
     res.status(200).json(response.withResponse(menuCopy));
+  });
+
+  // Open to all, like the menu: the name the browser tabs show. Only the
+  // settings listed in PublicSettingsDto leave here, never another key.
+  configurationV1Router.get("/public", async (_req: Request, res) => {
+    const transactionId = "getPublicSettings";
+    try {
+      const siteName = await configurationUseCase.getSiteName();
+      const response = new ResponseModel<PublicSettingsDto>(transactionId);
+      res.status(200).json(response.withResponse({ siteName }));
+    } catch (error) {
+      sendError(res, error, transactionId);
+    }
   });
 
   // Query configurations

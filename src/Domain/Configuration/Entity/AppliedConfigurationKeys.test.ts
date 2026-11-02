@@ -25,6 +25,7 @@ describe("isConfigurationApplied", () => {
     "security.alerts.timezone",
     "bugs.sync_interval_minutes",
     "bugs.rejected_retention_days",
+    "general.site_name",
   ])("%s is read by the code", (key) => {
     expect(isConfigurationApplied(key)).toBe(true);
   });
@@ -32,7 +33,7 @@ describe("isConfigurationApplied", () => {
   it.each([
     "security.mfa.global_enabled",
     "security.cookie.max_age",
-    "general.site_name",
+    "general.default_language",
     "notification.smtp.host",
   ])("%s has no effect yet", (key) => {
     expect(isConfigurationApplied(key)).toBe(false);
@@ -98,8 +99,19 @@ describe("refusalOfConfigurationValue", () => {
     ).not.toBeNull();
   });
 
+  it("accepts a site name the browser tabs can show (EV-87 lot 2)", () => {
+    const siteName = "general.site_name";
+
+    expect(refusalOfConfigurationValue(siteName, "VariaMos Lab")).toBeNull();
+    expect(refusalOfConfigurationValue(siteName, "")).toBe(
+      `Configuration '${siteName}' expects a name of 1 to 60 characters on one line.`,
+    );
+  });
+
   it("lets any value through for a key that no code reads", () => {
-    expect(refusalOfConfigurationValue("general.site_name", 42)).toBeNull();
+    expect(
+      refusalOfConfigurationValue("general.default_language", 42),
+    ).toBeNull();
   });
 });
 
@@ -123,6 +135,6 @@ describe("acceptedValuesOf", () => {
   });
 
   it("gives nothing for a key that no code reads", () => {
-    expect(acceptedValuesOf("general.site_name")).toBeUndefined();
+    expect(acceptedValuesOf("general.default_language")).toBeUndefined();
   });
 });
