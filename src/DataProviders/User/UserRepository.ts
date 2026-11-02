@@ -3,7 +3,7 @@ import logger from "#src/common/logger.js";
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
-import type { Credentials } from "#src/Domain/User/Entity/Credentials.js";
+import { accountRefusalOf } from "#src/Domain/User/Entity/AccountAccess.js";
 import type { PasswordUpdate } from "#src/Domain/User/Entity/PasswordUpdate.js";
 import type { PersonalInformationUpdate } from "#src/Domain/User/Entity/PersonalInformationUpdate.js";
 import { User } from "#src/Domain/User/Entity/User.js";
@@ -11,6 +11,7 @@ import { UserFilter } from "#src/Domain/User/Entity/UserFilter.js";
 import type { UserRegistration } from "#src/Domain/User/Entity/UserRegistration.js";
 import type {
   IUserRepository,
+  PasswordAccount,
   PasswordResetOutcome,
 } from "#src/Domain/User/IUserRepository.js";
 import type { IPasswordHasher } from "#src/Domain/User/Service/IPasswordHasher.js";
@@ -143,26 +144,8 @@ export class UserRepositoryImpl
         );
       }
 
-      if (!dbUser.isEnabled) {
-        return response.withError(
-          DomainErrorCodes.INVALID_INPUT,
-          "Your account is disabled.",
-        );
-      }
-
-      if (dbUser.isDeleted) {
-        return response.withError(
-          DomainErrorCodes.INVALID_INPUT,
-          "Your account is deleted.",
-        );
-      }
-
-      response.data = User.builder()
-        .setId(dbUser.id)
-        .setUser(dbUser.user)
-        .setName(dbUser.name)
-        .setEmail(dbUser.email)
-        .build();
+      // The state goes with the user: the domain decides (AccountAccess)
+      response.data = this.accountOf(dbUser);
 
       await this.enrichUserRolesAndPermissions(response.data);
     } catch (error) {
@@ -204,7 +187,7 @@ export class UserRepositoryImpl
         );
       }
 
-      const [dbUser, crated] = await UserModel.findOrCreate({
+      const [dbUser] = await UserModel.findOrCreate({
         where: { email },
         defaults: {
           user,
@@ -217,39 +200,8 @@ export class UserRepositoryImpl
         },
       });
 
-      if (!dbUser.isEnabled) {
-        return response.withError(
-          DomainErrorCodes.FORBIDDEN,
-          "Your account is disabled.",
-        );
-      }
-
-      if (dbUser.isDeleted) {
-        return response.withError(
-          DomainErrorCodes.FORBIDDEN,
-          "Your account is deleted.",
-        );
-      }
-
-      if (!crated) {
-        await UserModel.update(
-          { lastLogin: new Date() },
-          {
-            where: {
-              id: dbUser.id,
-            },
-          },
-        );
-      }
-
-      response.data = User.builder()
-        .setId(dbUser.id)
-        .setUser(dbUser.user)
-        .setName(dbUser.name)
-        .setEmail(dbUser.email)
-        .build();
-
-      await this.enrichUserRolesAndPermissions(response.data);
+      // The use case refuses a closed account, then records the sign-in
+      response.data = this.accountOf(dbUser);
     } catch (error) {
       const err = error as Error;
       logger.err("Error in findOrCreateUser:");
@@ -263,108 +215,42 @@ export class UserRepositoryImpl
     return response;
   }
 
-  public async signIn(
-    request: RequestModel<Credentials>,
-  ): Promise<ResponseModel<User>> {
-    const response = new ResponseModel<User>(request.transactionId);
-
-    try {
-      const { data } = request;
-      if (!data) {
-        return response.withError(
-          DomainErrorCodes.INVALID_INPUT,
-          "Credentials are required.",
-        );
-      }
-
-      const email = data.email;
-      const password = data.password;
-      if (!email || !password) {
-        return response.withError(
-          DomainErrorCodes.INVALID_INPUT,
-          "email and password are required.",
-        );
-      }
-
-      const dbUser = await UserModel.findOne({
-        where: { email },
-      });
-
-      const errorMessage = "Incorrect username or password.";
-      const canSignIn =
-        !!dbUser?.password && dbUser.isEnabled && !dbUser.isDeleted;
-
-      // Unknown and disabled accounts pay the same hashing cost as a wrong
-      // password: the response time does not reveal whether an account exists.
-      const passwordMatch = await this.passwordHasher.verify(
-        password,
-        canSignIn ? (dbUser.password as string) : null,
-      );
-
-      if (!canSignIn || !passwordMatch) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, errorMessage);
-      }
-
-      const rehashed = await this.rehashIfOutdated(
-        dbUser.id,
-        password,
-        dbUser.password as string,
-      );
-      await UserModel.update(
-        {
-          lastLogin: new Date(),
-          ...(rehashed && { password: rehashed }),
-        },
-        {
-          where: {
-            id: dbUser.id,
-          },
-        },
-      );
-
-      response.data = User.builder()
-        .setId(dbUser.id)
-        .setUser(dbUser.user)
-        .setName(dbUser.name)
-        .setEmail(dbUser.email)
-        .build();
-
-      await this.enrichUserRolesAndPermissions(response.data);
-    } catch (error) {
-      const err = error as Error;
-      logger.err("Error in signIn:");
-      logger.err(err);
-      response.withError(
-        DomainErrorCodes.SYSTEM_ERROR,
-        "Internal server error",
-      );
-    }
-
-    return response;
+  public async findPasswordAccount(
+    by: { email: string } | { id: string },
+  ): Promise<PasswordAccount | null> {
+    const dbUser = await UserModel.findOne({
+      where: "email" in by ? { email: by.email } : { id: by.id },
+    });
+    return dbUser
+      ? { user: this.accountOf(dbUser), passwordHash: dbUser.password || null }
+      : null;
   }
 
-  /**
-   * The password hashed again at the current cost when its hash was made at
-   * another one (EV-46), else undefined. Only a sign in knows the password:
-   * the hashes of the accounts that sign in follow the configured cost. A
-   * failure is logged and never stops the sign in.
-   */
-  private async rehashIfOutdated(
-    userId: UserModel["id"],
-    password: string,
-    hash: string,
-  ): Promise<string | undefined> {
-    try {
-      if (!(await this.passwordHasher.needsRehash(hash))) return undefined;
-      const rehashed = await this.passwordHasher.hash(password);
-      logger.info(
-        `Password hash of user ${userId} rehashed at the configured cost`,
-      );
-      return rehashed;
-    } catch (error) {
-      logger.err(`Password rehash failed for user ${userId}: ${error}`);
-      return undefined;
-    }
+  public async recordSignIn(
+    user: User,
+    rehashedPassword?: string,
+  ): Promise<User> {
+    await UserModel.update(
+      {
+        lastLogin: new Date(),
+        ...(rehashedPassword && { password: rehashedPassword }),
+      },
+      { where: { id: user.id as string } },
+    );
+    await this.enrichUserRolesAndPermissions(user);
+    return user;
+  }
+
+  /** The user and the state of its account, as stored. */
+  private accountOf(dbUser: UserModel): User {
+    return User.builder()
+      .setId(dbUser.id)
+      .setUser(dbUser.user)
+      .setName(dbUser.name)
+      .setEmail(dbUser.email)
+      .setIsEnabled(dbUser.isEnabled === true)
+      .setIsDeleted(dbUser.isDeleted === true)
+      .build();
   }
 
   public async signUp(
@@ -381,16 +267,8 @@ export class UserRepositoryImpl
         );
       }
 
-      const email = data.email;
-      const password = data.password;
-      const name = data.name;
-
-      if (!email || !password || !name) {
-        return response.withError(
-          DomainErrorCodes.INVALID_INPUT,
-          "email, password, and name are required.",
-        );
-      }
+      // A UserRegistration is checked when built, in the use case (EV-98)
+      const { email, password, name } = data;
 
       // Hashed before the check, so that a taken address does not answer
       // faster than a free one (the sign-up answer is the same for both)
@@ -700,21 +578,6 @@ export class UserRepositoryImpl
     );
   }
 
-  /** Same cost whatever the account, as at sign-in. */
-  public async verifyPassword(
-    userId: string,
-    password: string,
-  ): Promise<boolean> {
-    const dbUser = await UserModel.findOne({ where: { id: userId } });
-    const canSignIn =
-      !!dbUser?.password && dbUser.isEnabled && !dbUser.isDeleted;
-    const passwordMatch = await this.passwordHasher.verify(
-      password,
-      canSignIn ? (dbUser.password as string) : null,
-    );
-    return canSignIn === true && passwordMatch;
-  }
-
   public async getUserByEmail(email: string): Promise<User | null> {
     try {
       const dbUser = await UserModel.findOne({
@@ -777,14 +640,16 @@ export class UserRepositoryImpl
         userId: string;
         expiresAt: Date;
         usedAt?: Date | null;
-        isUserActive: boolean;
+        // Null when the account no longer exists
+        isEnabled: boolean | null;
+        isDeleted: boolean | null;
       }
 
       const results = await VARIAMOS_ORM.query<PasswordResetTokenRow>(
         `
         SELECT t."user_id" AS "userId", t."expires_at" AS "expiresAt",
           t."used_at" AS "usedAt",
-          COALESCE(u."is_enabled" AND NOT u."is_deleted", false) AS "isUserActive"
+          u."is_enabled" AS "isEnabled", u."is_deleted" AS "isDeleted"
         FROM "${DB_SCHEMA}"."password_reset_tokens" t
         LEFT JOIN "${DB_SCHEMA}"."user" u ON u."id"::text = t."user_id"
         WHERE t."token_hash" = :tokenHash
@@ -795,7 +660,15 @@ export class UserRepositoryImpl
           type: QueryTypes.SELECT,
         },
       );
-      return results.length > 0 ? results[0] : null;
+      const row = results[0];
+      return row
+        ? {
+            userId: row.userId,
+            expiresAt: row.expiresAt,
+            usedAt: row.usedAt,
+            isUserActive: accountRefusalOf(row) === null,
+          }
+        : null;
     } catch (error) {
       logger.err(`Error in getPasswordResetToken: ${error}`);
       return null;
@@ -836,7 +709,8 @@ export class UserRepositoryImpl
         transaction,
         lock: transaction.LOCK.UPDATE,
       });
-      if (!dbUser?.isEnabled || dbUser.isDeleted) {
+      // Decided here, inside the transaction that locks the account
+      if (!dbUser || accountRefusalOf(dbUser) !== null) {
         await transaction.rollback();
         return "inactive_account";
       }

@@ -1,6 +1,7 @@
 import { type MockProxy, mock } from "vitest-mock-extended";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { User } from "#src/Domain/User/Entity/User.js";
 import { UserFilter } from "#src/Domain/User/Entity/UserFilter.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
@@ -69,6 +70,32 @@ describe("UserQueryUseCase", () => {
       expect(res.data).toBe(mockUser);
       expect(mockUserRepository.findSessionUser).toHaveBeenCalledWith(req);
     });
+
+    it.each([
+      [false, false, "Your account is disabled."],
+      [true, true, "Your account is deleted."],
+    ])(
+      "refuses a closed account, as the repository did (EV-98)",
+      async (isEnabled, isDeleted, message) => {
+        mockUserRepository.findSessionUser.mockResolvedValue(
+          new ResponseModel<User>("tx-1").withResponse(
+            User.builder()
+              .setId("user-123")
+              .setIsEnabled(isEnabled)
+              .setIsDeleted(isDeleted)
+              .build(),
+          ),
+        );
+
+        const res = await useCase.sessionUser(
+          new RequestModel<string>("tx-1", "user-123"),
+        );
+
+        expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+        expect(res.message).toBe(message);
+        expect(res.data).toBeUndefined();
+      },
+    );
   });
 
   describe("myAccount", () => {

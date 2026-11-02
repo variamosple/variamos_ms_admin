@@ -1,5 +1,7 @@
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import type { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { refuseClosedAccount } from "#src/Domain/User/Entity/AccountAccess.js";
 import { User } from "#src/Domain/User/Entity/User.js";
 import type { UserFilter } from "#src/Domain/User/Entity/UserFilter.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
@@ -19,10 +21,14 @@ export class UserQueryUseCase {
     return this.userRepository.queryById(request);
   }
 
+  /** The user of a session, refused once its account is closed. */
   public async sessionUser(
     request: RequestModel<string>,
   ): Promise<ResponseModel<User>> {
-    return this.userRepository.findSessionUser(request);
+    return refuseClosedAccount(
+      await this.userRepository.findSessionUser(request),
+      DomainErrorCodes.INVALID_INPUT,
+    );
   }
 
   public async myAccount(
