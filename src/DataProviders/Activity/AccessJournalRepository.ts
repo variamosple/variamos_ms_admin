@@ -6,6 +6,7 @@ import type {
 } from "#src/Domain/Activity/AccessEntry.js";
 import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
 import type { IJournalPurge } from "#src/Domain/Activity/IJournalPurge.js";
+import { accountRefusalOf } from "#src/Domain/User/Entity/AccountAccess.js";
 
 // Same value as the trigger of migration 0006
 const RETENTION = "6 months";
@@ -60,7 +61,14 @@ export class AccessJournalRepositoryImpl
         { replacements: { email }, type: QueryTypes.SELECT },
       );
       return row
-        ? { id: row.id, active: row.is_enabled && !row.is_deleted }
+        ? {
+            id: row.id,
+            active:
+              accountRefusalOf({
+                isEnabled: row.is_enabled,
+                isDeleted: row.is_deleted,
+              }) === null,
+          }
         : null;
     } catch (error) {
       logger.err(`[ACCESS] account lookup failed: ${(error as Error).name}`);

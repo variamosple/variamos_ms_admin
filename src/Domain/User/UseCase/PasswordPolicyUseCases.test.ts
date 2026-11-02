@@ -9,6 +9,7 @@ import { PasswordPolicy } from "#src/Domain/User/Entity/PasswordPolicy.js";
 import { PasswordUpdate } from "#src/Domain/User/Entity/PasswordUpdate.js";
 import type { UserRegistration } from "#src/Domain/User/Entity/UserRegistration.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
+import type { AccountPasswordService } from "#src/Domain/User/Service/AccountPasswordService.js";
 import type { IPasswordPolicyProvider } from "#src/Domain/User/Service/PasswordPolicyService.js";
 import { PasswordResetTokenService } from "#src/Domain/User/Service/PasswordResetTokenService.js";
 import { UserAuthUseCase } from "./UserAuthUseCase.js";
@@ -41,6 +42,7 @@ describe("configured password policy in the use cases", () => {
       mock<ILogger>(),
       mock<IMailService>(),
       { adminHomeUri: "https://app.example.com" },
+      mock<AccountPasswordService>(),
       strict,
     );
 
