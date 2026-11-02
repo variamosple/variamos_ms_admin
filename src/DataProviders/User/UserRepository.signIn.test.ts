@@ -1,8 +1,12 @@
 import bcrypt from "bcrypt";
-import logger from "#src/common/logger.js";
+import { mock } from "vitest-mock-extended";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { Credentials } from "#src/Domain/User/Entity/Credentials.js";
+import { AccountPasswordService } from "#src/Domain/User/Service/AccountPasswordService.js";
+import type { IPasswordHasher } from "#src/Domain/User/Service/IPasswordHasher.js";
+import { UserAuthUseCase } from "#src/Domain/User/UseCase/UserAuthUseCase.js";
 import { BcryptPasswordHasher } from "#src/Infrastructure/Security/BcryptPasswordHasher.js";
 import VARIAMOS_ORM from "#src/Infrastructure/VariamosORM.js";
 import { UserModel } from "./User.js";
@@ -10,17 +14,31 @@ import { UserRepositoryImpl } from "./UserRepository.js";
 
 vi.mock("#src/common/logger.js");
 
-describe("UserRepositoryImpl.signIn account enumeration", () => {
-  const repository = new UserRepositoryImpl(
-    new BcryptPasswordHasher({ getCost: async () => 4 }),
+// The sign-in as it runs: the use case decides, the repository reads and
+// writes, bcrypt compares (EV-98)
+const signInWith = (hasher: IPasswordHasher, logger = mock<ILogger>()) => {
+  const repository = new UserRepositoryImpl(hasher);
+  const useCase = new UserAuthUseCase(
+    repository,
+    { queryGuestRole: vi.fn() },
+    logger,
+    { sendExistingAccountMail: vi.fn() },
+    { adminHomeUri: "" },
+    new AccountPasswordService(repository, hasher, logger),
   );
-  const signIn = () =>
-    repository.signIn(
+  return (password = "Password1!") =>
+    useCase.signIn(
       new RequestModel<Credentials>("signIn", {
         email: "someone@example.com",
-        password: "Password1!",
+        password,
       } as Credentials),
     );
+};
+
+describe("Sign-in account enumeration", () => {
+  const signIn = signInWith(
+    new BcryptPasswordHasher({ getCost: async () => 4 }),
+  );
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -74,17 +92,11 @@ describe("UserRepositoryImpl.signIn account enumeration", () => {
   });
 });
 
-describe("UserRepositoryImpl.signIn hash upgrade (EV-46)", () => {
+describe("Sign-in hash upgrade (EV-46)", () => {
   let cost = 5;
   const hasher = new BcryptPasswordHasher({ getCost: async () => cost });
-  const repository = new UserRepositoryImpl(hasher);
-  const signIn = (password = "Password1!") =>
-    repository.signIn(
-      new RequestModel<Credentials>("signIn", {
-        email: "someone@example.com",
-        password,
-      } as Credentials),
-    );
+  const logger = mock<ILogger>();
+  const signIn = signInWith(hasher, logger);
   const accountHashedAt = async (hashCost: number) => {
     const hash = await bcrypt.hash("Password1!", hashCost);
     vi.spyOn(UserModel, "findOne").mockResolvedValue({

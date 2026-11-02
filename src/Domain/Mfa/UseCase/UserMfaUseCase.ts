@@ -16,7 +16,7 @@ import type {
   IUserMfaRepository,
   UserMfaRecord,
 } from "#src/Domain/Mfa/Repository/IUserMfaRepository.js";
-import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
+import type { IAccountPasswordCheck } from "#src/Domain/User/Service/AccountPasswordService.js";
 
 const MFA_ISSUER = "VariaMos";
 
@@ -44,7 +44,7 @@ export interface MfaRecoveryCodes {
 export class UserMfaUseCase {
   public constructor(
     private readonly mfaRepository: IUserMfaRepository,
-    private readonly userRepository: Pick<IUserRepository, "verifyPassword">,
+    private readonly passwordCheck: IAccountPasswordCheck,
     private readonly cipher: ISecretCipher,
     private readonly logger: ILogger,
     private readonly now: () => number = Date.now,
@@ -82,7 +82,7 @@ export class UserMfaUseCase {
       return this.unavailable(response);
     }
     try {
-      if (!(await this.userRepository.verifyPassword(userId, password))) {
+      if (!(await this.passwordCheck.verifyPassword(userId, password))) {
         return response.withError(
           DomainErrorCodes.INVALID_INPUT,
           "The password is incorrect.",
@@ -173,7 +173,7 @@ export class UserMfaUseCase {
       return this.unavailable(response);
     }
     try {
-      if (!(await this.userRepository.verifyPassword(userId, password))) {
+      if (!(await this.passwordCheck.verifyPassword(userId, password))) {
         return response.withError(
           DomainErrorCodes.INVALID_INPUT,
           "The password is incorrect.",

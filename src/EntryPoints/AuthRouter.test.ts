@@ -58,6 +58,7 @@ import type { MfaSignInUseCase } from "#src/Domain/Mfa/UseCase/MfaSignInUseCase.
 import type { IGuestRoleRepository } from "#src/Domain/Role/Repository/IGuestRoleRepository.js";
 import { User } from "#src/Domain/User/Entity/User.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
+import type { AccountPasswordService } from "#src/Domain/User/Service/AccountPasswordService.js";
 import { UserAuthUseCase } from "#src/Domain/User/UseCase/UserAuthUseCase.js";
 import { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
 import {
@@ -168,6 +169,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       mock<ILogger>(),
       mock<IMailService>(),
       { adminHomeUri: "https://app.example.com" },
+      mock<AccountPasswordService>(),
     );
     const mockUserPasswordUseCase = new UserPasswordUseCase(
       mock<IUserRepository>(),
@@ -963,12 +965,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 200 with signup successful message even on conflict (already exists)", async () => {
-      const expectedResponse = new ResponseModel("signUp").withError(
-        DomainErrorCodes.DUPLICATE_ENTITY,
-        "User already exists",
-      );
+      // The use case answers a taken address as a free one (EV-98)
       (UserAuthUseCase.prototype.signUp as vi.Mock).mockResolvedValue(
-        expectedResponse,
+        new ResponseModel("signUp"),
       );
 
       const response = await supertest(app).post("/auth/sign-up").send({
@@ -979,6 +978,10 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(response.body).toEqual({
+        transactionId: "signUp",
+        message: "You have successfully signed up!",
+      });
     });
 
     it("should return 400 when password and passwordConfirmation do not match", async () => {

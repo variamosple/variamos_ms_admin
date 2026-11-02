@@ -18,6 +18,7 @@ import type { UploadedFile } from "#src/Domain/Core/File/UploadedFile.js";
 import type { IIssueTrackerService } from "#src/Domain/Core/Service/IIssueTrackerService.js";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IStorageService } from "#src/Domain/Core/Service/IStorageService.js";
+import { refuseClosedAccount } from "#src/Domain/User/Entity/AccountAccess.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 import { ALLOWED_CATEGORIES } from "./BugQueryUseCase.js";
 
@@ -116,8 +117,12 @@ export class BugSubmissionUseCase {
     let resolvedCreatedById: string | undefined = data.createdById;
 
     if (data.createdById) {
-      const userResponse = await this.userRepository.findSessionUser(
-        new RequestModel(request.transactionId, data.createdById),
+      // A closed account reports as a guest would
+      const userResponse = refuseClosedAccount(
+        await this.userRepository.findSessionUser(
+          new RequestModel(request.transactionId, data.createdById),
+        ),
+        DomainErrorCodes.INVALID_INPUT,
       );
       if (userResponse.data?.email) {
         reporterEmail = userResponse.data.email;
