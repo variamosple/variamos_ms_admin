@@ -25,6 +25,7 @@ import {
   DAILY_STATS_KEY,
   HEALTH_LOG_INDEX,
 } from "./0009-health-log-indexes.js";
+import { BUG_ISSUE_INDEX } from "./0013-bug-issue-unique-index.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 import {
   ADMIN_MIGRATIONS,
@@ -399,6 +400,29 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         indexdef: expect.stringContaining("(service_name, checked_at)"),
       },
     ]);
+  });
+
+  it("keeps one bug per GitHub issue, bugs without an issue aside (EV-101)", async () => {
+    await sequelize.query(`DROP SCHEMA IF EXISTS "t13_bugs" CASCADE`);
+    await sequelize.query(`CREATE SCHEMA "t13_bugs"`);
+    await sequelize.query(productionSchema("t13_bugs"));
+    await migrate("t13_bugs");
+    const insert = (repo: string, issue: number | null) =>
+      sequelize.query(
+        `INSERT INTO "t13_bugs"."bugs"
+           ("title", "description", "github_repo", "git_issue_number")
+         VALUES ('A bug', 'Steps', :repo, :issue)`,
+        { replacements: { repo, issue } },
+      );
+
+    await insert("variamosple/VariaMosPLE", 7);
+    await insert("variamosple/VariaMosAdmin", 7);
+    await insert("variamosple/VariaMosPLE", null);
+    await insert("variamosple/VariaMosPLE", null);
+
+    await expect(insert("variamosple/VariaMosPLE", 7)).rejects.toMatchObject({
+      parent: { constraint: BUG_ISSUE_INDEX },
+    });
   });
 
   it("gives a new database the same structure as production", async () => {

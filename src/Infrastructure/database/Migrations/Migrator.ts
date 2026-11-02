@@ -13,6 +13,7 @@ import { healthLogIndexes } from "./0009-health-log-indexes.js";
 import { securityAlertKeys } from "./0010-security-alert-keys.js";
 import { bugScheduleKeys } from "./0011-bug-schedule-keys.js";
 import { laboratoryAccessPermission } from "./0012-laboratory-access-permission.js";
+import { bugIssueUniqueIndex } from "./0013-bug-issue-unique-index.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 
 // Applied in order at start-up, each one once; append new migrations here
@@ -29,6 +30,7 @@ export const ADMIN_MIGRATIONS: SchemaMigration[] = [
   securityAlertKeys,
   bugScheduleKeys,
   laboratoryAccessPermission,
+  bugIssueUniqueIndex,
 ];
 
 // The schema is shared with other services: a name of our own

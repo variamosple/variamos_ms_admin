@@ -28,6 +28,10 @@ import {
   bugScheduleKeys,
 } from "./0011-bug-schedule-keys.js";
 import {
+  BUG_ISSUE_INDEX,
+  bugIssueUniqueIndex,
+} from "./0013-bug-issue-unique-index.js";
+import {
   ADMIN_MIGRATIONS,
   createMigrator,
   waitForDatabase,
@@ -249,6 +253,28 @@ describe("bug schedule keys migration", () => {
   });
 });
 
+// Checked on PostgreSQL by Migrator.integration.test.ts
+describe("bug issue unique index migration", () => {
+  it("adds the index in the configured schema, and removes it when reverted", async () => {
+    const { sequelize, statements } = fakeSequelize([]);
+    const params = {
+      name: bugIssueUniqueIndex.name,
+      context: { sequelize, schema: "custom" },
+    };
+
+    await bugIssueUniqueIndex.up(params);
+    await bugIssueUniqueIndex.down?.(params);
+
+    expect(statements[0]).toContain(
+      `CREATE UNIQUE INDEX IF NOT EXISTS "${BUG_ISSUE_INDEX}"`,
+    );
+    expect(statements[0]).toContain('ON "custom"."bugs"');
+    expect(statements[1]).toBe(
+      `DROP INDEX IF EXISTS "custom"."${BUG_ISSUE_INDEX}"`,
+    );
+  });
+});
+
 describe("createMigrator", () => {
   it.each(["", "  "])("refuses an empty schema (%j)", (schema) => {
     const { sequelize } = fakeSequelize([]);
@@ -272,6 +298,7 @@ describe("createMigrator", () => {
       "0010-security-alert-keys",
       "0011-bug-schedule-keys",
       "0012-laboratory-access-permission",
+      "0013-bug-issue-unique-index",
     ]);
   });
 });
