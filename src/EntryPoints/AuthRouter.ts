@@ -30,7 +30,6 @@ import { PasswordUpdate } from "#src/Domain/User/Entity/PasswordUpdate.js";
 import { PersonalInformationUpdate } from "#src/Domain/User/Entity/PersonalInformationUpdate.js";
 import type { SingInResponse } from "#src/Domain/User/Entity/SingInResponse.js";
 import { User } from "#src/Domain/User/Entity/User.js";
-import { UserRegistration } from "#src/Domain/User/Entity/UserRegistration.js";
 import type { UserAuthUseCase } from "#src/Domain/User/UseCase/UserAuthUseCase.js";
 import type { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
 import type { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
@@ -575,28 +574,16 @@ export function createAuthRouter(
       "You have successfully signed up!",
     );
 
-    let registration: UserRegistration;
     try {
-      registration = new UserRegistration(
-        name,
-        email,
-        password,
-        passwordConfirmation,
+      // Checked once, by the use case; a taken address answers as a free one
+      const response = await userAuthUseCase.signUp(
+        new RequestModel(transactionId, {
+          name,
+          email,
+          password,
+          passwordConfirmation,
+        }),
       );
-    } catch (error) {
-      return sendError(res, error, transactionId);
-    }
-
-    try {
-      const request = new RequestModel<UserRegistration>(
-        transactionId,
-        registration,
-      );
-      const response = await userAuthUseCase.signUp(request);
-
-      if (DomainErrorCodes.DUPLICATE_ENTITY === response.errorCode) {
-        return res.status(HttpStatusCodes.OK).json(successfulResponse);
-      }
 
       if (response.errorCode) {
         return res

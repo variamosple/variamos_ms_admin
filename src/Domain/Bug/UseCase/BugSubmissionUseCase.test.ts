@@ -18,6 +18,9 @@ const PNG_BYTES = new Uint8Array([
 ]);
 const HTML_BYTES = new TextEncoder().encode("<html><script>alert(1)</script>");
 
+// The repository reads the account with its state; an open one reports
+const openUser = () => User.builder().setIsEnabled(true).setIsDeleted(false);
+
 describe("BugSubmissionUseCase", () => {
   let useCase: BugSubmissionUseCase;
   let mockBugRepository: MockProxy<IBugRepository>;
@@ -90,7 +93,7 @@ describe("BugSubmissionUseCase", () => {
   });
 
   it("should successfully push a bug to GitHub for an admin", async () => {
-    const adminUser = User.builder()
+    const adminUser = openUser()
       .setId("admin-123")
       .setEmail("admin@test.com")
       .setUser("admin")
@@ -162,7 +165,7 @@ describe("BugSubmissionUseCase", () => {
   it("writes a critical severity and the component in the issue, and stores them", async () => {
     mockUserRepository.findSessionUser.mockResolvedValue(
       new ResponseModel<User>("tx-1").withResponse(
-        User.builder().setId("admin-123").setEmail("admin@test.com").build(),
+        openUser().setId("admin-123").setEmail("admin@test.com").build(),
       ),
     );
     mockTokenResolver.resolveGitHubToken.mockResolvedValue("github-token-abc");
@@ -287,6 +290,39 @@ describe("BugSubmissionUseCase", () => {
     );
   });
 
+  it.each([
+    ["disabled", false, false],
+    ["deleted", true, true],
+  ])(
+    "reports as a guest for a %s account, without its address",
+    async (_, isEnabled, isDeleted) => {
+      mockUserRepository.findSessionUser.mockResolvedValue(
+        new ResponseModel<User>("tx-1").withResponse(
+          User.builder()
+            .setId("admin-123")
+            .setEmail("closed@test.com")
+            .setIsEnabled(isEnabled)
+            .setIsDeleted(isDeleted)
+            .build(),
+        ),
+      );
+
+      const res = await useCase.createBug(
+        new RequestModel("tx-1", {
+          title: "Title",
+          description: "Desc",
+          category: "Editor",
+          createdById: "admin-123",
+          priority: "medium" as const,
+        }),
+      );
+
+      expect(res.errorCode).toBe("INVALID_INPUT");
+      expect(res.message).toBe("Reporter email could not be resolved.");
+      expect(mockBugRepository.createBug).not.toHaveBeenCalled();
+    },
+  );
+
   it("should return error if reporter email cannot be resolved for admin", async () => {
     mockUserRepository.findSessionUser.mockResolvedValue(
       new ResponseModel<User>("tx-1").withResponse(null),
@@ -305,7 +341,7 @@ describe("BugSubmissionUseCase", () => {
   });
 
   it("should return error if GitHub token resolution fails", async () => {
-    const adminUser = User.builder()
+    const adminUser = openUser()
       .setId("admin-123")
       .setEmail("admin@test.com")
       .setUser("admin")
@@ -334,7 +370,7 @@ describe("BugSubmissionUseCase", () => {
   });
 
   it("should return error if pushing to GitHub fails", async () => {
-    const adminUser = User.builder()
+    const adminUser = openUser()
       .setId("admin-123")
       .setEmail("admin@test.com")
       .setUser("admin")
@@ -365,7 +401,7 @@ describe("BugSubmissionUseCase", () => {
   });
 
   it("should handle bug creation with file attachments", async () => {
-    const adminUser = User.builder()
+    const adminUser = openUser()
       .setId("admin-123")
       .setEmail("admin@test.com")
       .setUser("admin")
@@ -410,7 +446,7 @@ describe("BugSubmissionUseCase", () => {
   });
 
   it("should handle bug creation with file attachments when getApiBaseUrl is not configured, defaulting to localhost:4000", async () => {
-    const adminUser = User.builder()
+    const adminUser = openUser()
       .setId("admin-123")
       .setEmail("admin@test.com")
       .setUser("admin")
@@ -454,7 +490,7 @@ describe("BugSubmissionUseCase", () => {
   });
 
   it("should handle local submission by an admin user when githubRepo is not provided", async () => {
-    const adminUser = User.builder()
+    const adminUser = openUser()
       .setId("admin-123")
       .setEmail("admin@test.com")
       .setUser("admin")
@@ -491,7 +527,7 @@ describe("BugSubmissionUseCase", () => {
   });
 
   it("should handle bug submission when priority is not specified", async () => {
-    const adminUser = User.builder()
+    const adminUser = openUser()
       .setId("admin-123")
       .setEmail("admin@test.com")
       .setUser("admin")
@@ -552,7 +588,7 @@ describe("BugSubmissionUseCase", () => {
   });
 
   describe("file attachments", () => {
-    const adminUser = User.builder()
+    const adminUser = openUser()
       .setId("admin-123")
       .setEmail("admin@test.com")
       .setUser("admin")

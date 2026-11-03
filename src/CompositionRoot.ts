@@ -68,6 +68,7 @@ import {
   AccountLockout,
   AccountLockoutPolicyService,
 } from "./Domain/User/Service/AccountLockoutService.js";
+import { AccountPasswordService } from "./Domain/User/Service/AccountPasswordService.js";
 import { PasswordHashingCostService } from "./Domain/User/Service/PasswordHashingCostService.js";
 import { PasswordPolicyService } from "./Domain/User/Service/PasswordPolicyService.js";
 // User Use Cases
@@ -140,13 +141,18 @@ const ConfigurationRepositoryInstance = new ConfigurationRepositoryImpl(
   SecretConfigurationValueInstance,
 );
 // security.bcrypt_salt_rounds, read at each hash; BCRYPT_SALT_ROUNDS as fallback
-const UserRepositoryInstance = new UserRepositoryImpl(
-  new BcryptPasswordHasher(
-    new PasswordHashingCostService(
-      ConfigurationRepositoryInstance,
-      EnvVars.Auth.APP.BCRYPT_SALT_ROUNDS,
-    ),
+const PasswordHasherInstance = new BcryptPasswordHasher(
+  new PasswordHashingCostService(
+    ConfigurationRepositoryInstance,
+    EnvVars.Auth.APP.BCRYPT_SALT_ROUNDS,
   ),
+);
+const UserRepositoryInstance = new UserRepositoryImpl(PasswordHasherInstance);
+// Whether a password opens an account: decided in the domain (EV-98)
+const AccountPasswordServiceInstance = new AccountPasswordService(
+  UserRepositoryInstance,
+  PasswordHasherInstance,
+  JetLogger,
 );
 const ConfigEventPublisherInstance = new ConfigEventPublisherImpl();
 // Administration operations (T-24): table admin_activity_logs, append-only
@@ -210,6 +216,7 @@ const productionUserAuthUseCase = new UserAuthUseCase(
   JetLogger,
   MailServiceInstance,
   { adminHomeUri: EnvVars.Auth.APP.ADMIN_HOME_URI },
+  AccountPasswordServiceInstance,
   PasswordPolicyServiceInstance,
 );
 
@@ -245,7 +252,7 @@ const userMfaRepository = new UserMfaRepositoryImpl(VARIAMOS_ORM, DB_SCHEMA);
 const mfaSecretCipher = new AesGcmSecretCipher(mfaEncryptionKey);
 const productionUserMfaUseCase = new UserMfaUseCase(
   userMfaRepository,
-  UserRepositoryInstance,
+  AccountPasswordServiceInstance,
   mfaSecretCipher,
   JetLogger,
 );

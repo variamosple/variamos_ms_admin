@@ -38,6 +38,7 @@ import type { SecretConfigurationValue } from "../Configuration/SecretConfigurat
 import { HealthLogStatistics } from "./HealthLogStatistics.js";
 import { MicroServiceAuditLogModel } from "./MicroServiceAuditLogModel.js";
 import { MicroServiceHealthLogModel } from "./MicroServiceHealthLogModel.js";
+import { RecentResults } from "./RecentResults.js";
 
 /**
  * IP addresses of a container on every Docker network it is attached to.
@@ -55,6 +56,15 @@ export function containerIpsOf(container: {
  * A container is a monitored microservice only when it carries the explicit
  * `variamos.service.monitored=true` label.
  */
+/**
+ * Age at which an uptime summary is computed again. A service is checked
+ * every 30 s by default, so a summary younger than that misses at most one
+ * check per service. Measured on 2026-11-02 (EV-92): one computation reads 30
+ * days of checks, 842 ms of PostgreSQL for eight services; computed at each
+ * opening of the screen, it saturated the database from 50 sessions on.
+ */
+const UPTIME_MAX_AGE_MS = 30_000;
+
 export function isMonitoredContainer(labels: Record<string, string>): boolean {
   return labels["variamos.service.monitored"] === "true";
 }
@@ -69,11 +79,13 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
 
   private readonly secrets: SecretConfigurationValue;
   private readonly statistics: HealthLogStatistics;
+  private readonly recentUptimes: RecentResults<MicroServiceUptimeSummary[]>;
 
   public constructor(config: {
     socketPath: string;
     secrets: SecretConfigurationValue;
     statistics?: HealthLogStatistics;
+    uptimeMaxAgeMs?: number;
   }) {
     this.dockerConnection = new Docker({
       socketPath: config.socketPath,
@@ -81,6 +93,9 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
     this.secrets = config.secrets;
     this.statistics =
       config.statistics ?? new HealthLogStatistics(VARIAMOS_ORM, DB_SCHEMA);
+    this.recentUptimes = new RecentResults(
+      config.uptimeMaxAgeMs ?? UPTIME_MAX_AGE_MS,
+    );
   }
 
   /** The value as text, in clear; the mask when a secret cannot be decrypted. */
@@ -875,10 +890,23 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
     return response;
   }
 
-  /** Uptime of the services over the last `days` days, computed by PostgreSQL. */
-  private async uptimeSummaries(
+  /**
+   * Uptime of the services over the last `days` days, computed by PostgreSQL
+   * and kept UPTIME_MAX_AGE_MS: every screen open in that time reads the same
+   * computation (EV-92).
+   */
+  private uptimeSummaries(
     serviceNames: string[],
     days = 30,
+  ): Promise<MicroServiceUptimeSummary[]> {
+    return this.recentUptimes.get(`${days}:${serviceNames.join(",")}`, () =>
+      this.computeUptimeSummaries(serviceNames, days),
+    );
+  }
+
+  private async computeUptimeSummaries(
+    serviceNames: string[],
+    days: number,
   ): Promise<MicroServiceUptimeSummary[]> {
     const window = uptimeWindow(days);
     const [counts, lastStatuses] = await Promise.all([

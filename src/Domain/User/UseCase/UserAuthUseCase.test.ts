@@ -11,6 +11,10 @@ import { Credentials } from "#src/Domain/User/Entity/Credentials.js";
 import { User } from "#src/Domain/User/Entity/User.js";
 import { UserRegistration } from "#src/Domain/User/Entity/UserRegistration.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
+import type {
+  AccountPasswordService,
+  OpenedAccount,
+} from "#src/Domain/User/Service/AccountPasswordService.js";
 import { UserAuthUseCase } from "./UserAuthUseCase.js";
 
 describe("UserAuthUseCase", () => {
@@ -19,18 +23,21 @@ describe("UserAuthUseCase", () => {
   let mockUserRepository: MockProxy<IUserRepository>;
   let mockRoleRepository: MockProxy<IGuestRoleRepository>;
   let mailService: MockProxy<IMailService>;
+  let accountPasswords: MockProxy<AccountPasswordService>;
 
   beforeEach(() => {
     logger = mock<ILogger>();
     mockUserRepository = mock<IUserRepository>();
     mockRoleRepository = mock<IGuestRoleRepository>();
     mailService = mock<IMailService>();
+    accountPasswords = mock<AccountPasswordService>();
     useCase = new UserAuthUseCase(
       mockUserRepository,
       mockRoleRepository,
       logger,
       mailService,
       { adminHomeUri: "https://app.example.com" },
+      accountPasswords,
     );
   });
 
@@ -99,6 +106,14 @@ describe("UserAuthUseCase", () => {
       const res = await useCase.signUp(req);
       expect(res.data).toBe(mockUser);
       expect(mailService.sendExistingAccountMail).not.toHaveBeenCalled();
+      // The registration checked once, here, is the one saved
+      const saved = mockUserRepository.signUp.mock.calls[0]?.[0];
+      expect(saved?.data).toBeInstanceOf(UserRegistration);
+      expect(saved?.data).toMatchObject({
+        name: "Name",
+        email: "test@e.com",
+      });
+      expect(saved?.transactionId).toBe("tx-1");
     });
 
     describe("with a taken address (UX-33)", () => {
@@ -122,10 +137,19 @@ describe("UserAuthUseCase", () => {
         );
       });
 
+      it("answers as for a free address, so that no one learns who has an account", async () => {
+        const res = await useCase.signUp(registration());
+
+        expect(res.errorCode).toBeUndefined();
+        expect(res.message).toBeUndefined();
+        expect(res.data).toBeUndefined();
+        expect(res.transactionId).toBe("tx-1");
+      });
+
       it("tells the owner by mail, with links to sign in and recover", async () => {
         const res = await useCase.signUp(registration());
 
-        expect(res.errorCode).toBe(DomainErrorCodes.DUPLICATE_ENTITY);
+        expect(res.errorCode).toBeUndefined();
         expect(mailService.sendExistingAccountMail).toHaveBeenCalledWith(
           "taken@e.com",
           "https://app.example.com/#/login",
@@ -141,57 +165,168 @@ describe("UserAuthUseCase", () => {
         const res = await useCase.signUp(registration());
         await vi.waitFor(() => expect(logger.err).toHaveBeenCalled());
 
-        expect(res.errorCode).toBe(DomainErrorCodes.DUPLICATE_ENTITY);
+        expect(res.errorCode).toBeUndefined();
       });
     });
   });
 
   describe("signIn", () => {
-    it("should authenticate user and return details successfully", async () => {
-      const credentials = new Credentials("testuser", "Password123!");
-      const mockUser = User.builder()
+    const account = (): OpenedAccount => ({
+      user: User.builder()
         .setId("user-123")
         .setUser("testuser")
         .setName("Test User")
         .setEmail("test@e.com")
         .setIsEnabled(true)
         .setIsDeleted(false)
-        .setCreatedAt(new Date())
-        .build();
-      const mockResponse = new ResponseModel<User>("tx-1").withResponse(
-        mockUser,
+        .build(),
+      passwordHash: "$2b$10$hash",
+    });
+    const signIn = (data?: Credentials) =>
+      useCase.signIn(new RequestModel<Credentials>("tx-1", data));
+
+    it("records the sign-in of the account the password opens", async () => {
+      const opened = account();
+      const signedIn = User.builder().setId("user-123").build();
+      accountPasswords.accountOpenedBy.mockResolvedValue(opened);
+      accountPasswords.rehashIfOutdated.mockResolvedValue("$2b$12$new");
+      mockUserRepository.recordSignIn.mockResolvedValue(signedIn);
+
+      const res = await signIn(new Credentials("test@e.com", "Password123!"));
+
+      expect(res.errorCode).toBeUndefined();
+      expect(res.data).toBe(signedIn);
+      expect(accountPasswords.accountOpenedBy).toHaveBeenCalledWith(
+        { email: "test@e.com" },
+        "Password123!",
       );
-      mockUserRepository.signIn.mockResolvedValue(mockResponse);
+      expect(accountPasswords.rehashIfOutdated).toHaveBeenCalledWith(
+        opened,
+        "Password123!",
+      );
+      expect(mockUserRepository.recordSignIn).toHaveBeenCalledWith(
+        opened.user,
+        "$2b$12$new",
+      );
+    });
 
-      const req = new RequestModel<Credentials>("tx-1", credentials);
-      const res = await useCase.signIn(req);
+    it("refuses with the same words whatever the reason", async () => {
+      accountPasswords.accountOpenedBy.mockResolvedValue(null);
 
-      expect(res.data).toBe(mockUser);
-      expect(mockUserRepository.signIn).toHaveBeenCalledWith(req);
+      const res = await signIn(new Credentials("test@e.com", "Password123!"));
+
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(res.message).toBe("Incorrect username or password.");
+      expect(accountPasswords.rehashIfOutdated).not.toHaveBeenCalled();
+      expect(mockUserRepository.recordSignIn).not.toHaveBeenCalled();
+    });
+
+    it("asks for credentials", async () => {
+      const res = await signIn();
+
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(res.message).toBe("Credentials are required.");
+    });
+
+    it.each([
+      ["an e-mail", { email: "", password: "Password123!" }],
+      ["a password", { email: "test@e.com", password: "" }],
+    ])("asks for %s, without reading an account", async (_, data) => {
+      const res = await signIn(data as Credentials);
+
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(res.message).toBe("email and password are required.");
+      expect(accountPasswords.accountOpenedBy).not.toHaveBeenCalled();
+    });
+
+    it("hides a failure behind a system error, and logs it", async () => {
+      accountPasswords.accountOpenedBy.mockRejectedValue(new Error("db down"));
+
+      const res = await signIn(new Credentials("test@e.com", "Password123!"));
+
+      expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
+      expect(res.message).toBe("Internal server error");
+      expect(logger.err).toHaveBeenCalledWith(new Error("db down"));
     });
   });
 
   describe("findOrCreate", () => {
-    it("should find or create user details successfully", async () => {
-      const mockUser = User.builder()
+    const googleUser = (isEnabled = true, isDeleted = false) =>
+      User.builder()
         .setId("user-123")
         .setUser("testuser")
         .setName("Test User")
         .setEmail("test@e.com")
-        .setIsEnabled(true)
-        .setIsDeleted(false)
-        .setCreatedAt(new Date())
+        .setIsEnabled(isEnabled)
+        .setIsDeleted(isDeleted)
         .build();
-      const mockResponse = new ResponseModel<User>("tx-1").withResponse(
-        mockUser,
-      );
-      mockUserRepository.findOrCreateUser.mockResolvedValue(mockResponse);
 
-      const req = new RequestModel<User>("tx-1", mockUser);
+    it("records the sign-in of an open account", async () => {
+      const found = googleUser();
+      const signedIn = User.builder().setId("user-123").build();
+      mockUserRepository.findOrCreateUser.mockResolvedValue(
+        new ResponseModel<User>("tx-1").withResponse(found),
+      );
+      mockUserRepository.recordSignIn.mockResolvedValue(signedIn);
+
+      const req = new RequestModel<User>("tx-1", found);
       const res = await useCase.findOrCreate(req);
 
-      expect(res.data).toBe(mockUser);
+      expect(res.data).toBe(signedIn);
       expect(mockUserRepository.findOrCreateUser).toHaveBeenCalledWith(req);
+      expect(mockUserRepository.recordSignIn).toHaveBeenCalledWith(found);
+    });
+
+    it.each([
+      ["disabled", googleUser(false), "Your account is disabled."],
+      ["deleted", googleUser(true, true), "Your account is deleted."],
+    ])(
+      "refuses a %s account without recording it",
+      async (_, found, message) => {
+        mockUserRepository.findOrCreateUser.mockResolvedValue(
+          new ResponseModel<User>("tx-1").withResponse(found),
+        );
+
+        const res = await useCase.findOrCreate(
+          new RequestModel<User>("tx-1", found),
+        );
+
+        expect(res.errorCode).toBe(DomainErrorCodes.FORBIDDEN);
+        expect(res.message).toBe(message);
+        expect(res.data).toBeUndefined();
+        expect(mockUserRepository.recordSignIn).not.toHaveBeenCalled();
+      },
+    );
+
+    it("passes on a failure to read the account", async () => {
+      const failure = new ResponseModel<User>("tx-1").withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
+      mockUserRepository.findOrCreateUser.mockResolvedValue(failure);
+
+      const res = await useCase.findOrCreate(
+        new RequestModel<User>("tx-1", googleUser()),
+      );
+
+      expect(res).toBe(failure);
+      expect(mockUserRepository.recordSignIn).not.toHaveBeenCalled();
+    });
+
+    it("answers a system error when the sign-in cannot be recorded", async () => {
+      mockUserRepository.findOrCreateUser.mockResolvedValue(
+        new ResponseModel<User>("tx-1").withResponse(googleUser()),
+      );
+      mockUserRepository.recordSignIn.mockRejectedValue(new Error("db down"));
+
+      const res = await useCase.findOrCreate(
+        new RequestModel<User>("tx-1", googleUser()),
+      );
+
+      expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
+      expect(res.message).toBe("Internal server error");
+      expect(res.data).toBeUndefined();
+      expect(logger.err).toHaveBeenCalledWith(new Error("db down"));
     });
   });
 

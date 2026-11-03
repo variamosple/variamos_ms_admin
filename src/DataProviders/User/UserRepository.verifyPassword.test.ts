@@ -1,11 +1,19 @@
 import bcrypt from "bcrypt";
+import { mock } from "vitest-mock-extended";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
+import { AccountPasswordService } from "#src/Domain/User/Service/AccountPasswordService.js";
 import { BcryptPasswordHasher } from "#src/Infrastructure/Security/BcryptPasswordHasher.js";
 import { UserModel } from "./User.js";
 import { UserRepositoryImpl } from "./UserRepository.js";
 
-describe("UserRepositoryImpl.verifyPassword", () => {
-  const repository = new UserRepositoryImpl(
-    new BcryptPasswordHasher({ getCost: async () => 4 }),
+// The password asked again before a second factor changes (EV-98: the rule
+// is decided by the domain service, on what the repository reads)
+describe("AccountPasswordService.verifyPassword", () => {
+  const hasher = new BcryptPasswordHasher({ getCost: async () => 4 });
+  const repository = new AccountPasswordService(
+    new UserRepositoryImpl(hasher),
+    hasher,
+    mock<ILogger>(),
   );
 
   afterEach(() => {
