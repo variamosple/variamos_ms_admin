@@ -140,3 +140,82 @@ describe("MicroServiceRepositoryImpl.queryMicroServices", () => {
     expect(uptimeCounts.mock.calls[0]?.[0]).toEqual(["ms_auth", "ms_bugs"]);
   });
 });
+
+/** Every screen open within UPTIME_MAX_AGE_MS reads one computation (EV-92). */
+describe("MicroServiceRepositoryImpl uptime kept between screens", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const repositoryWith = (uptimeMaxAgeMs?: number) => {
+    const uptimeCounts = vi.fn().mockResolvedValue(new Map());
+    const repository = new MicroServiceRepositoryImpl({
+      socketPath: "/nonexistent/docker.sock",
+      secrets: new SecretConfigurationValue(new AesGcmSecretCipher(null)),
+      statistics: {
+        uptimeCounts,
+        lastStatuses: vi.fn().mockResolvedValue(new Map()),
+      } as unknown as HealthLogStatistics,
+      uptimeMaxAgeMs,
+    });
+    vi.spyOn(
+      (
+        repository as unknown as {
+          dockerConnection: { listContainers: () => unknown };
+        }
+      ).dockerConnection,
+      "listContainers",
+    ).mockResolvedValue([
+      {
+        Id: "id-ms_auth",
+        Names: ["/ms_auth"],
+        State: "running",
+        Status: "Up 2 hours",
+        Created: 1_700_000_000,
+        Labels: {
+          "variamos.service.monitored": "true",
+          "variamos.service.name": "ms_auth",
+        },
+      },
+    ]);
+    vi.spyOn(MicroServiceHealthLogModel, "findOne").mockResolvedValue(null);
+    const list = () =>
+      repository.queryMicroServices(
+        new RequestModel("tx", new MicroServiceFilter()),
+      );
+    return { list, repository, uptimeCounts };
+  };
+
+  it("computes the uptime once for two lists in a row", async () => {
+    const { list, uptimeCounts } = repositoryWith();
+
+    await list();
+    const { data } = await list();
+
+    expect(uptimeCounts).toHaveBeenCalledTimes(1);
+    expect(data?.[0]?.uptimeSummary?.serviceName).toBe("ms_auth");
+  });
+
+  it("computes it again once the summary is older than the limit", async () => {
+    const { list, uptimeCounts } = repositoryWith(0);
+
+    await list();
+    await list();
+
+    expect(uptimeCounts).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the history of another period apart", async () => {
+    const { list, repository, uptimeCounts } = repositoryWith();
+
+    await list();
+    await repository.getHealthHistory(
+      new RequestModel("tx", { serviceName: "ms_auth", days: 7 }),
+    );
+
+    expect(uptimeCounts).toHaveBeenCalledTimes(2);
+    expect(uptimeCounts.mock.calls[1]?.[1].since.getTime()).toBeGreaterThan(
+      uptimeCounts.mock.calls[0]?.[1].since.getTime(),
+    );
+  });
+});
