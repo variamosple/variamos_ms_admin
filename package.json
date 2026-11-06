@@ -95,7 +95,10 @@
   "overrides": {
     "qs": "^6.15.3",
     "source-map-js": "^1.2.2",
-    "uuid": "^14.0.1"
+    "uuid": "^14.0.1",
+    "@stryker-mutator/core": {
+      "minimatch": "^11.0.1"
+    }
   },
   "allowScripts": {
     "bcrypt@6.0.0": true,
