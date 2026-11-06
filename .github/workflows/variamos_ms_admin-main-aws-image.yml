@@ -67,14 +67,18 @@ jobs:
             echo "NOTIFICATION_SERVICE_URL=\"${{ vars.NOTIFICATION_SERVICE_URL }}\"" >> .env.aws.develop
 
             echo "Executing command on remote server..."
+            # Keep the image in service: the rollback step puts it back (D6)
+            previous=$(docker inspect -f '{{.Image}}' "$(docker compose --env-file .env.aws.develop -f docker-compose-aws-develop-nginx.yml ps -q variamos_ms_admin)" 2>/dev/null || true)
+            if [ -n "$previous" ]; then docker tag "$previous" variamos_ms_admin:rollback; fi
             docker compose --env-file .env.aws.develop -f docker-compose-aws-develop-nginx.yml pull variamos_ms_admin
             docker compose --env-file .env.aws.develop -f docker-compose-aws-develop-nginx.yml up -d variamos_ms_admin
             docker image prune -f
 
-      # Alert only (T-25, decision D6): a red run on main warns whoever merged;
-      # nothing is rolled back. The new container must answer the /health
-      # contract with UP, and have started after the deployment began.
+      # The new container must answer the /health contract with UP, and have
+      # started after the deployment began. Otherwise the previous image is
+      # put back and the run stays red (T-25, decision D6).
       - name: Check the deployed service answers
+        id: health
         env:
           HEALTH_URL: https://app.variamos.com/variamos_ms_admin/health
           SERVICE_NAME: variamos_ms_admin
@@ -96,3 +100,46 @@ jobs:
             fi
             sleep 10
           done
+
+      # A migration is not undone: the previous code must accept the schema
+      # left by the new one, as every migration so far does
+      - name: Roll back to the previous image
+        id: rollback
+        if: failure() && steps.health.outcome == 'failure'
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.AWS_HOST }}
+          username: ${{ secrets.AWS_USERNAME }}
+          key: ${{ secrets.VARIAMOS_AWS_PEM }}
+          script: |
+            set -e
+            container=$(docker compose --env-file .env.aws.develop -f docker-compose-aws-develop-nginx.yml ps -q variamos_ms_admin)
+            if ! docker image inspect variamos_ms_admin:rollback >/dev/null 2>&1; then
+              echo "No previous image kept: nothing to roll back to"
+              exit 1
+            fi
+            if [ "$(docker inspect -f '{{.Image}}' "$container")" = "$(docker image inspect -f '{{.Id}}' variamos_ms_admin:rollback)" ]; then
+              echo "The service still runs the previous image: nothing was rolled back"
+              exit 1
+            fi
+            # The compose file names the image: that name points back to the previous one
+            docker tag variamos_ms_admin:rollback "$(docker inspect -f '{{.Config.Image}}' "$container")"
+            docker compose --env-file .env.aws.develop -f docker-compose-aws-develop-nginx.yml up -d --force-recreate --pull never variamos_ms_admin
+            echo "Rolled back to the previous image"
+
+      - name: Check the rolled back service answers
+        if: failure() && steps.rollback.outcome == 'success'
+        env:
+          HEALTH_URL: https://app.variamos.com/variamos_ms_admin/health
+          SERVICE_NAME: variamos_ms_admin
+        run: |
+          deadline=$(( $(date +%s) + 300 ))
+          until curl -sS --max-time 10 "$HEALTH_URL" | jq -e --arg name "$SERVICE_NAME" \
+            '.serviceName == $name and .status == "UP"' >/dev/null 2>&1; do
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "::error::$SERVICE_NAME does not answer UP after the rollback either"
+              exit 1
+            fi
+            sleep 10
+          done
+          echo "::warning::$SERVICE_NAME was rolled back to the previous image and answers UP"
