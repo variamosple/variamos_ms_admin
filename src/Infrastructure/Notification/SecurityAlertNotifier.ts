@@ -11,7 +11,8 @@ import type { INotificationDispatcher } from "#src/Domain/Notification/INotifica
  * Both channels (T-24): an in-app notification, seen at once by a signed-in
  * administrator, and a mail, read even when nobody is signed in. A channel
  * that fails is logged and does not stop the other. The generic admin_alert
- * template already exists in the notification service.
+ * template already exists in the notification service. A security alert is
+ * mandatory: muting the admin alerts never silences it (EV-99).
  */
 export class SecurityAlertNotifier implements ISecurityAlertNotifier {
   public constructor(
@@ -39,6 +40,7 @@ export class SecurityAlertNotifier implements ISecurityAlertNotifier {
           variables: { title: alert.title, body: alert.body },
           metadata: { source: "security-alerts", rule: alert.rule },
           actorId: null,
+          mandatory: true,
         }),
       ),
       ...recipients.flatMap(({ email }) =>
