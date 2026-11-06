@@ -92,5 +92,5 @@ jobs:
         path: ./
         # The image of the same release, not "latest": change it with the
         # SHA above when Dependabot updates the action
-        version: 3.99.2
+        version: 3.99.7
 
