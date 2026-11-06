@@ -7,6 +7,8 @@ export interface NotificationPayload {
   variables: Record<string, unknown>;
   metadata?: Record<string, unknown>;
   actorId?: string | null;
+  // Delivered whatever the recipients muted in their preferences (EV-99)
+  mandatory?: boolean;
 }
 
 /** Sends a notification through the notification service. */

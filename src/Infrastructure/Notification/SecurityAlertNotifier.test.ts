@@ -37,6 +37,7 @@ describe("SecurityAlertNotifier", () => {
       variables: { title: ALERT.title, body: ALERT.body },
       metadata: { source: "security-alerts", rule: "failed-sign-ins" },
       actorId: null,
+      mandatory: true,
     });
     expect(mail.sendSecurityAlertMail).toHaveBeenCalledOnce();
     expect(mail.sendSecurityAlertMail).toHaveBeenCalledWith(
