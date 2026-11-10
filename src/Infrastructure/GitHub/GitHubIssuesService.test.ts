@@ -146,5 +146,23 @@ describe("GitHubIssuesService", () => {
         "https://api.github.com/x?page=2",
       );
     });
+
+    it("reads the next page among the entries GitHub sends", () => {
+      expect(
+        nextPageOf(
+          '<https://api.github.com/x?page=1>; rel="prev", <https://api.github.com/x?page=3>; rel="next", <https://api.github.com/x?page=9>; rel="last"',
+        ),
+      ).toBe("https://api.github.com/x?page=3");
+      expect(
+        nextPageOf('https://api.github.com/x?page=2; rel="next"'),
+      ).toBeNull();
+    });
+
+    it("reads a long hostile header in linear time", () => {
+      const start = performance.now();
+
+      expect(nextPageOf("<".repeat(100_000))).toBeNull();
+      expect(performance.now() - start).toBeLessThan(500);
+    });
   });
 });

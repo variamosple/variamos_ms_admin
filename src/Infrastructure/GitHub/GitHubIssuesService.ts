@@ -21,8 +21,17 @@ export const MAX_ISSUE_PAGES = 100;
  */
 export function nextPageOf(link: unknown): string | null {
   if (typeof link !== "string") return null;
-  const next = /<([^>]+)>;\s*rel="next"/.exec(link)?.[1];
-  return next?.startsWith("https://api.github.com/") ? next : null;
+  // Entries "<url>; rel=..." read one by one: the former expression
+  // /<([^>]+)>;\s*rel="next"/ took a time quadratic in the header length
+  for (const entry of link.split(",")) {
+    const [target = "", ...params] = entry.split(";");
+    const url = target.trim();
+    const isNext = params.some((param) => param.trim() === 'rel="next"');
+    if (!isNext || !url.startsWith("<") || !url.endsWith(">")) continue;
+    const next = url.slice(1, -1);
+    return next.startsWith("https://api.github.com/") ? next : null;
+  }
+  return null;
 }
 
 export class GitHubIssuesService implements IIssueTrackerService {

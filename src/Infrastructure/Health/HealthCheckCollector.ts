@@ -16,6 +16,16 @@ const HEALTH_CHECK_CONCURRENCY = 4;
 export const DEGRADED_LATENCY_MS = 2000;
 
 /**
+ * The address without its final slashes. Read from the end: the former
+ * expression /\/+$/ took a time quadratic in the number of slashes.
+ */
+export function withoutTrailingSlashes(url: string): string {
+  let end = url.length;
+  while (end > 0 && url[end - 1] === "/") end--;
+  return url.slice(0, end);
+}
+
+/**
  * Runs `task` on every item with at most `limit` tasks at the same time and
  * returns the outcomes in the order of the items. A failure does not stop
  * the other tasks.
@@ -266,7 +276,9 @@ export class HealthCheckCollector {
         !service.targetUrl.includes("localhost") &&
         !service.targetUrl.includes("127.0.0.1")
       ) {
-        candidateUrls.push(`${service.targetUrl.replace(/\/+$/, "")}${path}`);
+        candidateUrls.push(
+          `${withoutTrailingSlashes(service.targetUrl)}${path}`,
+        );
       }
     }
 

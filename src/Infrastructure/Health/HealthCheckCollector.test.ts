@@ -8,12 +8,35 @@ import {
   DEGRADED_LATENCY_MS,
   HealthCheckCollector,
   mapWithConcurrency,
+  withoutTrailingSlashes,
 } from "./HealthCheckCollector.js";
 
 // The tests that do not reach the retention
 const noArchive = {} as IHealthLogArchive;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+describe("withoutTrailingSlashes", () => {
+  it.each([
+    ["http://svc:8080", "http://svc:8080"],
+    ["http://svc:8080/", "http://svc:8080"],
+    ["http://svc:8080///", "http://svc:8080"],
+    ["http://svc:8080/api/", "http://svc:8080/api"],
+    ["///", ""],
+    ["", ""],
+  ])("turns %j into %j", (url, expected) => {
+    expect(withoutTrailingSlashes(url)).toBe(expected);
+  });
+
+  it("reads a long run of slashes in linear time", () => {
+    const start = performance.now();
+
+    expect(withoutTrailingSlashes(`${"/".repeat(100_000)}x`)).toBe(
+      `${"/".repeat(100_000)}x`,
+    );
+    expect(performance.now() - start).toBeLessThan(500);
+  });
+});
 
 describe("mapWithConcurrency", () => {
   it("keeps the order of the items whatever the completion order", async () => {
