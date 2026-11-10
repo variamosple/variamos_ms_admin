@@ -106,14 +106,15 @@ jobs:
       - name: Roll back to the previous image
         id: rollback
         if: failure() && steps.health.outcome == 'failure'
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@c4f70287fc37c43b14b30b407224bbbc8e8c6327 # master of 2026-08-16: v1.2.5 plus the drone-ssh checksum check
         with:
           host: ${{ secrets.AWS_HOST }}
           username: ${{ secrets.AWS_USERNAME }}
           key: ${{ secrets.VARIAMOS_AWS_PEM }}
           script: |
             set -e
-            container=$(docker compose --env-file .env.aws.develop -f docker-compose-aws-develop-nginx.yml ps -q variamos_ms_admin)
+            # -a: a container that stopped after a crash is not listed otherwise
+            container=$(docker compose --env-file .env.aws.develop -f docker-compose-aws-develop-nginx.yml ps -a -q variamos_ms_admin)
             if ! docker image inspect variamos_ms_admin:rollback >/dev/null 2>&1; then
               echo "No previous image kept: nothing to roll back to"
               exit 1
