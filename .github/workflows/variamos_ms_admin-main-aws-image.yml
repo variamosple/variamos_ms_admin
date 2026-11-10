@@ -10,6 +10,13 @@ on:
       - main
   workflow_dispatch:
 
+# One deployment at a time: the rollback puts back the image in service when
+# the run started, which must not be the one another run is deploying. A run
+# waits for the one in progress; a newer push replaces a run still waiting.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: "ubuntu-latest"
