@@ -9,8 +9,8 @@ import {
   type Response,
   Router,
 } from "express";
-import logger from "jet-logger";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import logger from "#src/common/logger.js";
 import type { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import { BugFilter } from "#src/Domain/Bug/Entity/BugFilter.js";
 import {
@@ -29,8 +29,14 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { MAX_ATTACHMENT_SIZE_BYTES } from "#src/Domain/Core/File/AllowedFileType.js";
 import type { UploadedFile } from "#src/Domain/Core/File/UploadedFile.js";
 import { actorOf } from "./actor.js";
+import {
+  bugCreateBody,
+  bugNoteBody,
+  bugStatusBody,
+} from "./adminRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
+import { validBody } from "./requestBody.js";
 
 /**
  * Factory function to create Bug Router with decoupled dependency injection
@@ -117,6 +123,41 @@ function maskReporterEmails(
   );
 }
 
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
+
+/** The page of a bug list, or null when the query string asks for none valid. */
+function pageOf(
+  query: Request["query"],
+): { pageNumber: number; pageSize: number } | null {
+  const read = (value: unknown, fallback: number, max: number) => {
+    if (value === undefined || value === "") return fallback;
+    const parsed = Number(value);
+    return typeof value === "string" &&
+      Number.isInteger(parsed) &&
+      parsed >= 1 &&
+      parsed <= max
+      ? parsed
+      : null;
+  };
+  const pageNumber = read(query.pageNumber, 1, Number.MAX_SAFE_INTEGER);
+  const pageSize = read(query.pageSize, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
+  return pageNumber === null || pageSize === null
+    ? null
+    : { pageNumber, pageSize };
+}
+
+function sendInvalidPage(res: Response, transactionId: string): void {
+  res
+    .status(HttpStatusCodes.BAD_REQUEST)
+    .json(
+      new ResponseModel(transactionId).withError(
+        DomainErrorCodes.INVALID_INPUT,
+        `pageNumber and pageSize are whole numbers from 1, pageSize at most ${MAX_PAGE_SIZE}.`,
+      ),
+    );
+}
+
 export function createBugRouter(
   bugSubmissionUseCase: BugSubmissionUseCase,
   bugLifecycleUseCase: BugLifecycleUseCase,
@@ -136,6 +177,11 @@ export function createBugRouter(
     hasPermissions(["bugs::query"]),
     async (req: Request, res: Response) => {
       const transactionId = "queryBugs";
+      const page = pageOf(req.query);
+      if (!page) {
+        sendInvalidPage(res, transactionId);
+        return;
+      }
       const { repo, status, priority, search, assignee, component } = req.query;
       try {
         const filter = new BugFilter(
@@ -146,6 +192,8 @@ export function createBugRouter(
           undefined,
           typeof assignee === "string" && assignee ? assignee : undefined,
           component as string,
+          page.pageNumber,
+          page.pageSize,
         );
         const request = new RequestModel<BugFilter>(transactionId, filter);
         const response = await bugQueryUseCase.queryBugs(request);
@@ -166,6 +214,11 @@ export function createBugRouter(
     hasPermissions(["bugs::query"]),
     async (req: Request, res: Response) => {
       const transactionId = "queryLocalBugs";
+      const page = pageOf(req.query);
+      if (!page) {
+        sendInvalidPage(res, transactionId);
+        return;
+      }
       const { repo, status, priority, search, component } = req.query;
       try {
         const filter = new BugFilter(
@@ -176,6 +229,8 @@ export function createBugRouter(
           undefined,
           undefined,
           component as string,
+          page.pageNumber,
+          page.pageSize,
         );
         const request = new RequestModel<BugFilter>(transactionId, filter);
         const response = await bugQueryUseCase.queryLocalBugs(request);
@@ -282,6 +337,7 @@ export function createBugRouter(
   router.post(
     "/",
     acceptSingleFile(upload, "createBug"),
+    validBody(bugCreateBody, "createBug"),
     async (req: Request, res: Response) => {
       const transactionId = "createBug";
       const {
@@ -398,6 +454,7 @@ export function createBugRouter(
     "/:id/status",
     authMiddleware,
     hasPermissions(["bugs::update"]),
+    validBody(bugStatusBody, "updateStatus"),
     async (req: Request<{ id: string }>, res: Response) => {
       const transactionId = "updateStatus";
       const { id } = req.params;
@@ -470,6 +527,7 @@ export function createBugRouter(
         const request = new RequestModel<typeof payload>(
           transactionId,
           payload,
+          actorOf(req),
         );
         const response = await bugLifecycleUseCase.restoreBug(request);
 
@@ -496,6 +554,7 @@ export function createBugRouter(
         const request = new RequestModel<typeof payload>(
           transactionId,
           payload,
+          actorOf(req),
         );
         const response = await bugLifecycleUseCase.rejectBug(request);
 
@@ -512,10 +571,14 @@ export function createBugRouter(
     "/sync",
     authMiddleware,
     hasPermissions(["bugs::sync"]),
-    async (_req: Request, res: Response) => {
+    async (req: Request, res: Response) => {
       const transactionId = "syncBugs";
       try {
-        const request = new RequestModel<void>(transactionId);
+        const request = new RequestModel<void>(
+          transactionId,
+          undefined,
+          actorOf(req),
+        );
         const response = await bugSyncUseCase.syncBugs(request);
 
         const code = mapDomainErrorToHttpStatus(response.errorCode);
@@ -564,6 +627,7 @@ export function createBugRouter(
         const request = new RequestModel<typeof payload>(
           transactionId,
           payload,
+          actorOf(req),
         );
         const response = await bugAttachmentUseCase.addAttachment(request);
         const code = mapDomainErrorToHttpStatus(
@@ -586,7 +650,11 @@ export function createBugRouter(
       const transactionId = "deleteAttachment";
       const { id } = req.params;
       try {
-        const request = new RequestModel<string>(transactionId, id);
+        const request = new RequestModel<string>(
+          transactionId,
+          id,
+          actorOf(req),
+        );
         const response = await bugAttachmentUseCase.deleteAttachment(request);
         const code = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(code).json(response);
@@ -601,6 +669,7 @@ export function createBugRouter(
     "/:id/notes",
     authMiddleware,
     hasPermissions(["bugs::update"]),
+    validBody(bugNoteBody, "createBugNote"),
     async (req: Request<{ id: string }>, res: Response) => {
       const transactionId = "createBugNote";
       const { id } = req.params;
@@ -609,7 +678,7 @@ export function createBugRouter(
 
       try {
         const payload = { bugId: id, body: body || "", authorId };
-        const request = new RequestModel(transactionId, payload);
+        const request = new RequestModel(transactionId, payload, authorId);
         const response = await bugAttachmentUseCase.createNote(request);
         const code = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(code).json(response);

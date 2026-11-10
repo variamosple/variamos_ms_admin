@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
-import logger from "jet-logger";
 import { mock } from "vitest-mock-extended";
 import type { IConfigurationRepository } from "#src/Domain/Configuration/Repository/IConfigurationRepository.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { ITrustedDeviceRepository } from "#src/Domain/Mfa/Repository/ITrustedDeviceRepository.js";
 import {
   TRUSTED_DEVICE_DAYS_KEY,
@@ -17,6 +17,7 @@ const sha256 = (value: string) =>
 describe("TrustedDeviceUseCase", () => {
   let repository: ReturnType<typeof mock<ITrustedDeviceRepository>>;
   let configuration: ReturnType<typeof mock<IConfigurationRepository>>;
+  let logger: ReturnType<typeof mock<ILogger>>;
   let useCase: TrustedDeviceUseCase;
 
   const configured = (value: unknown) =>
@@ -25,16 +26,12 @@ describe("TrustedDeviceUseCase", () => {
     );
 
   beforeEach(() => {
-    vi.spyOn(logger, "warn").mockImplementation(() => {});
     repository = mock<ITrustedDeviceRepository>();
     repository.use.mockResolvedValue(true);
     configuration = mock<IConfigurationRepository>();
     configured(14);
-    useCase = new TrustedDeviceUseCase(repository, configuration);
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
+    logger = mock<ILogger>();
+    useCase = new TrustedDeviceUseCase(repository, configuration, logger);
   });
 
   it("reads the number of days from its key", async () => {

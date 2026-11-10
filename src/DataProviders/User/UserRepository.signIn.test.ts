@@ -1,19 +1,44 @@
 import bcrypt from "bcrypt";
+import { mock } from "vitest-mock-extended";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { Credentials } from "#src/Domain/User/Entity/Credentials.js";
+import { AccountPasswordService } from "#src/Domain/User/Service/AccountPasswordService.js";
+import type { IPasswordHasher } from "#src/Domain/User/Service/IPasswordHasher.js";
+import { UserAuthUseCase } from "#src/Domain/User/UseCase/UserAuthUseCase.js";
+import { BcryptPasswordHasher } from "#src/Infrastructure/Security/BcryptPasswordHasher.js";
+import VARIAMOS_ORM from "#src/Infrastructure/VariamosORM.js";
 import { UserModel } from "./User.js";
 import { UserRepositoryImpl } from "./UserRepository.js";
 
-describe("UserRepositoryImpl.signIn account enumeration", () => {
-  const repository = new UserRepositoryImpl({ bcryptSaltRounds: 4 });
-  const signIn = () =>
-    repository.signIn(
+vi.mock("#src/common/logger.js");
+
+// The sign-in as it runs: the use case decides, the repository reads and
+// writes, bcrypt compares (EV-98)
+const signInWith = (hasher: IPasswordHasher, logger = mock<ILogger>()) => {
+  const repository = new UserRepositoryImpl(hasher);
+  const useCase = new UserAuthUseCase(
+    repository,
+    { queryGuestRole: vi.fn() },
+    logger,
+    { sendExistingAccountMail: vi.fn() },
+    { adminHomeUri: "" },
+    new AccountPasswordService(repository, hasher, logger),
+  );
+  return (password = "Password1!") =>
+    useCase.signIn(
       new RequestModel<Credentials>("signIn", {
         email: "someone@example.com",
-        password: "Password1!",
+        password,
       } as Credentials),
     );
+};
+
+describe("Sign-in account enumeration", () => {
+  const signIn = signInWith(
+    new BcryptPasswordHasher({ getCost: async () => 4 }),
+  );
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -64,5 +89,100 @@ describe("UserRepositoryImpl.signIn account enumeration", () => {
 
     expect(compare).toHaveBeenCalledWith("Password1!", hash);
     expect(response.message).toBe("Incorrect username or password.");
+  });
+});
+
+describe("Sign-in hash upgrade (EV-46)", () => {
+  let cost = 5;
+  const hasher = new BcryptPasswordHasher({ getCost: async () => cost });
+  const logger = mock<ILogger>();
+  const signIn = signInWith(hasher, logger);
+  const accountHashedAt = async (hashCost: number) => {
+    const hash = await bcrypt.hash("Password1!", hashCost);
+    vi.spyOn(UserModel, "findOne").mockResolvedValue({
+      id: "u1",
+      user: "someone",
+      name: "Someone",
+      email: "someone@example.com",
+      password: hash,
+      isEnabled: true,
+      isDeleted: false,
+    } as unknown as UserModel);
+    return hash;
+  };
+  const savedFields = (update: ReturnType<typeof vi.spyOn>) =>
+    update.mock.calls[0]?.[0] as { lastLogin?: Date; password?: string };
+
+  beforeEach(() => {
+    cost = 5;
+    // Roles and permissions of the signed in user
+    vi.spyOn(VARIAMOS_ORM, "query").mockResolvedValue([] as never);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    ["lower", 4],
+    ["higher", 6],
+  ])(
+    "saves a hash at the current cost when the old one is %s",
+    async (_label, hashCost) => {
+      await accountHashedAt(hashCost);
+      const update = vi
+        .spyOn(UserModel, "update")
+        .mockResolvedValue([1] as never);
+
+      const response = await signIn();
+
+      expect(response.errorCode).toBeUndefined();
+      const saved = savedFields(update);
+      expect(saved.lastLogin).toBeInstanceOf(Date);
+      expect(bcrypt.getRounds(saved.password as string)).toBe(5);
+      expect(await bcrypt.compare("Password1!", saved.password as string)).toBe(
+        true,
+      );
+    },
+  );
+
+  it("keeps the hash made at the current cost", async () => {
+    await accountHashedAt(5);
+    const update = vi
+      .spyOn(UserModel, "update")
+      .mockResolvedValue([1] as never);
+
+    const response = await signIn();
+
+    expect(response.errorCode).toBeUndefined();
+    expect(savedFields(update)).not.toHaveProperty("password");
+  });
+
+  it("signs in without a new hash when hashing again fails", async () => {
+    await accountHashedAt(4);
+    vi.spyOn(hasher, "hash").mockRejectedValue(new Error("hashing failed"));
+    const update = vi
+      .spyOn(UserModel, "update")
+      .mockResolvedValue([1] as never);
+
+    const response = await signIn();
+
+    expect(response.errorCode).toBeUndefined();
+    expect(savedFields(update)).not.toHaveProperty("password");
+    expect(logger.err).toHaveBeenCalledWith(
+      expect.stringContaining("Password rehash failed for user u1"),
+    );
+  });
+
+  it("does not hash again after a wrong password", async () => {
+    await accountHashedAt(4);
+    const update = vi.spyOn(UserModel, "update");
+    const hash = vi.spyOn(hasher, "hash");
+
+    const response = await signIn("Wrong1!");
+
+    expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+    expect(hash).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 });

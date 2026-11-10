@@ -6,8 +6,7 @@ import {
 } from "#src/Domain/Bug/Entity/BugComponent.js";
 import type { BugPriorityValue } from "#src/Domain/Bug/Entity/BugPriority.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
-import type { IUserRepository } from "#src/Domain/Bug/Repository/IUserRepository.js";
-import type { GitHubTokenResolver } from "#src/Domain/Bug/Service/GitHubTokenResolver.js";
+import type { IGitHubTokenProvider } from "#src/Domain/Bug/Service/IGitHubTokenProvider.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -17,7 +16,10 @@ import {
 } from "#src/Domain/Core/File/AllowedFileType.js";
 import type { UploadedFile } from "#src/Domain/Core/File/UploadedFile.js";
 import type { IIssueTrackerService } from "#src/Domain/Core/Service/IIssueTrackerService.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IStorageService } from "#src/Domain/Core/Service/IStorageService.js";
+import { refuseClosedAccount } from "#src/Domain/User/Entity/AccountAccess.js";
+import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 import { ALLOWED_CATEGORIES } from "./BugQueryUseCase.js";
 
 interface BugSubmissionData {
@@ -41,11 +43,12 @@ interface StoredFile {
 export class BugSubmissionUseCase {
   public constructor(
     private readonly bugRepository: IBugRepository,
-    private readonly userRepository: IUserRepository,
+    private readonly userRepository: Pick<IUserRepository, "findSessionUser">,
     private readonly issueTrackerService: IIssueTrackerService,
     private readonly githubConfig: IBugTrackerConfig,
-    private readonly tokenResolver: GitHubTokenResolver,
+    private readonly tokenResolver: IGitHubTokenProvider,
     private readonly storageService: IStorageService,
+    private readonly logger: ILogger,
   ) {}
 
   public async createBug(
@@ -114,8 +117,12 @@ export class BugSubmissionUseCase {
     let resolvedCreatedById: string | undefined = data.createdById;
 
     if (data.createdById) {
-      const userResponse = await this.userRepository.findSessionUser(
-        new RequestModel(request.transactionId, data.createdById),
+      // A closed account reports as a guest would
+      const userResponse = refuseClosedAccount(
+        await this.userRepository.findSessionUser(
+          new RequestModel(request.transactionId, data.createdById),
+        ),
+        DomainErrorCodes.INVALID_INPUT,
       );
       if (userResponse.data?.email) {
         reporterEmail = userResponse.data.email;
@@ -153,6 +160,12 @@ export class BugSubmissionUseCase {
       );
       if (response.errorCode && resolvedFile) {
         await this.storageService.deleteFile(resolvedFile.filePath);
+      }
+      if (!response.errorCode) {
+        // Ids and status only: never the description or the reporter's address
+        this.logger.info(
+          `Bug ${response.data?.id} submitted (${response.data?.status}) by ${resolvedCreatedById ? `user ${resolvedCreatedById}` : "a guest"}.`,
+        );
       }
       return response;
     } catch (error) {
@@ -210,6 +223,9 @@ export class BugSubmissionUseCase {
           gitIssueNumber = issueNum;
           githubHtmlUrl = `https://github.com/${data.githubRepo}/issues/${issueNum}`;
         } else {
+          this.logger.warn(
+            `Bug submission refused: the issue could not be created on ${data.githubRepo}.`,
+          );
           const response = new ResponseModel<Bug>(transactionId);
           return response.withErrorPromise(
             DomainErrorCodes.INVALID_INPUT,
@@ -217,6 +233,9 @@ export class BugSubmissionUseCase {
           );
         }
       } else {
+        this.logger.warn(
+          `Bug submission refused: no GitHub token for ${data.githubRepo}.`,
+        );
         const response = new ResponseModel<Bug>(transactionId);
         return response.withErrorPromise(
           DomainErrorCodes.INVALID_INPUT,

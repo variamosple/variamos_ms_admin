@@ -2,8 +2,10 @@ import express from "express";
 import supertest from "supertest";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import { NotificationRecipientDirectory } from "#src/DataProviders/Notification/NotificationRecipientDirectory.js";
 import { RoleModel } from "#src/DataProviders/Role/Role.js";
 import { UserModel } from "#src/DataProviders/User/User.js";
+import { NotificationDispatchUseCase } from "#src/Domain/Notification/UseCase/NotificationDispatchUseCase.js";
 import { NotificationClientInstance } from "#src/Infrastructure/Notification/NotificationClient.js";
 import { createAdminNotificationsRouter } from "./AdminNotificationsRouter.js";
 
@@ -60,7 +62,14 @@ describe("AdminNotificationsRouter Integration Tests", () => {
     });
     app.use(
       "/v1/admin/notifications",
-      createAdminNotificationsRouter(activityJournal),
+      // The real use case and adapters, over the mocked models and client
+      createAdminNotificationsRouter(
+        new NotificationDispatchUseCase(
+          new NotificationRecipientDirectory(),
+          NotificationClientInstance,
+          activityJournal,
+        ),
+      ),
     );
   });
 
@@ -300,6 +309,68 @@ describe("AdminNotificationsRouter Integration Tests", () => {
         message: "An unexpected error occurred. Please try again later.",
       });
       expect(JSON.stringify(response.body)).not.toContain("ECONNREFUSED");
+    });
+  });
+
+  describe("POST /v1/admin/notifications/recipients/count (UX-02)", () => {
+    const count = (body: object) =>
+      supertest(app)
+        .post("/v1/admin/notifications/recipients/count")
+        .send(body);
+
+    it("counts the accounts of a broadcast, sends nothing and records nothing", async () => {
+      vi.mocked(UserModel.findAll).mockResolvedValue([
+        { id: "user-1" },
+        { id: "user-2" },
+        { id: "user-3" },
+      ] as UserModel[]);
+
+      const response = await count({ audience: "broadcast" });
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(response.body.data).toEqual({ count: 3 });
+      expect(UserModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { isDeleted: false, isEnabled: true },
+        }),
+      );
+      expect(
+        NotificationClientInstance.dispatchNotification,
+      ).not.toHaveBeenCalled();
+      expect(activityJournal.record).not.toHaveBeenCalled();
+    });
+
+    it("counts an account holding two of the roles once", async () => {
+      vi.mocked(RoleModel.findAll).mockResolvedValue([
+        { name: "admin", users: [{ id: "user-1" }, { id: "user-2" }] },
+        { name: "editor", users: [{ id: "user-2" }] },
+      ] as never);
+
+      const response = await count({
+        audience: "role",
+        roles: ["admin", "editor"],
+      });
+
+      expect(response.body.data).toEqual({ count: 2 });
+    });
+
+    it("answers 400 for an audience without recipients", async () => {
+      const response = await count({ audience: "users", userIds: [] });
+
+      expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
+      expect(response.body).toMatchObject({
+        transactionId: "countNotificationRecipients",
+        errorCode: "INVALID_INPUT",
+      });
+    });
+
+    it("answers a generic message when the database fails", async () => {
+      vi.mocked(UserModel.findAll).mockRejectedValue(new Error("db down"));
+
+      const response = await count({ audience: "broadcast" });
+
+      expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(JSON.stringify(response.body)).not.toContain("db down");
     });
   });
 });

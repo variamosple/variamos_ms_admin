@@ -1,5 +1,7 @@
+import { mock } from "vitest-mock-extended";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { ISecretCipher } from "#src/Domain/Core/Secret/ISecretCipher.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { hashRecoveryCode } from "#src/Domain/Mfa/Entity/RecoveryCodes.js";
 import {
   base32Decode,
@@ -96,6 +98,7 @@ describe("UserMfaUseCase", () => {
       repository,
       userRepository,
       fakeCipher(),
+      mock<ILogger>(),
       () => now,
     );
   });
@@ -212,6 +215,53 @@ describe("UserMfaUseCase", () => {
     expect(again.errorCode).toBe(DomainErrorCodes.DUPLICATE_ENTITY);
   });
 
+  // The factor turned on between the read and the save: no secret is shown
+  // that would not be the one stored
+  it("gives no secret when the factor turned on meanwhile", async () => {
+    await enroll();
+    const stored = repository.factors.get(USER)?.secretEncrypted;
+    vi.spyOn(repository, "findByUser").mockResolvedValueOnce(null);
+
+    const again = await useCase.startEnrollment(
+      "t",
+      USER,
+      "ana@example.com",
+      PASSWORD,
+    );
+
+    expect(again.errorCode).toBe(DomainErrorCodes.DUPLICATE_ENTITY);
+    expect(again.data).toBeUndefined();
+    expect(repository.factors.get(USER)?.secretEncrypted).toBe(stored);
+  });
+
+  it("gives the recovery codes once when two confirmations race", async () => {
+    const started = await useCase.startEnrollment(
+      "t",
+      USER,
+      "ana@example.com",
+      PASSWORD,
+    );
+    const code = totpCode(
+      base32Decode(started.data?.secret ?? ""),
+      totpStep(now),
+    );
+
+    const results = await Promise.all([
+      useCase.confirmEnrollment("t", USER, code),
+      useCase.confirmEnrollment("t", USER, code),
+    ]);
+
+    const given = results.filter((r) => r.data?.recoveryCodes);
+    expect(given).toHaveLength(1);
+    expect(results.map((r) => r.errorCode)).toContain(
+      DomainErrorCodes.INVALID_INPUT,
+    );
+    // The codes shown are the ones that work
+    expect(repository.codes.get(USER)?.map((c) => c.hash)).toEqual(
+      given[0]?.data?.recoveryCodes.map(hashRecoveryCode),
+    );
+  });
+
   it("turns the factor off with the password and a new code", async () => {
     const { secret } = await enroll();
     nextStep();
@@ -315,6 +365,7 @@ describe("UserMfaUseCase", () => {
       repository,
       userRepository,
       fakeCipher(false),
+      mock<ILogger>(),
     );
 
     expect((await withoutKey.status("t", USER)).data?.available).toBe(false);

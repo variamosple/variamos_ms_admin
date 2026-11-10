@@ -1,7 +1,7 @@
-import logger from "jet-logger";
 /* cspell:disable */
 import nodemailer from "nodemailer";
 import EnvVars from "#src/common/EnvVars.js";
+import logger from "#src/common/logger.js";
 import { maskEmail } from "#src/common/maskEmail.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
 
@@ -14,6 +14,18 @@ export function describeDuration(ms: number): string {
   }
   return minutes === 1 ? "1 minute" : `${minutes} minutes`;
 }
+
+const HTML_ESCAPES: Record<string, string> = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&#39;",
+};
+
+/** Text placed in the HTML of a mail, never read as markup. */
+const escapeHtml = (text: string) =>
+  text.replace(/[&<>"']/g, (char) => HTML_ESCAPES[char]);
 
 /** The VariaMos frame of every e-mail: logo, signature and footer. */
 function renderMail(content: string): string {
@@ -60,6 +72,10 @@ export class MailServiceImpl implements IMailService {
     host: EnvVars.SMTP.HOST,
     port: EnvVars.SMTP.PORT,
     secure: EnvVars.SMTP.PORT === 465, // true for port 465 (SSL), false for other ports (TLS/STARTTLS)
+    // Never in clear text: a server that does not offer STARTTLS is refused
+    // rather than sent the credentials and the reset links (EV-75 lot 3)
+    requireTLS: true,
+    tls: { minVersion: "TLSv1.2" },
     auth:
       EnvVars.SMTP.USER && EnvVars.SMTP.PASSWORD
         ? {
@@ -160,6 +176,54 @@ export class MailServiceImpl implements IMailService {
             </p>
             <p style="font-size: 15px; line-height: 1.6; color: #495057;">
               If you did not ask for this, change your password and contact the VariaMos team.
+            </p>
+
+`);
+    return this.sendMail(to, subject, html);
+  }
+
+  /**
+   * Tells the owner of an address that someone tried to create an account
+   * with it
+   */
+  public async sendExistingAccountMail(
+    to: string,
+    signInLink: string,
+    forgotPasswordLink: string,
+  ): Promise<boolean> {
+    const subject = "VariaMos - Sign-up attempt with your address";
+    const html = renderMail(`
+            <h2 style="color: #212529; font-size: 20px; margin-top: 0; font-weight: 600;">Hello,</h2>
+            <p style="font-size: 15px; line-height: 1.6; color: #495057;">
+              Someone tried to create a <strong>VariaMos</strong> account with this email address. You already have an account, so no new account was created.
+            </p>
+            <p style="font-size: 15px; line-height: 1.6; color: #495057;">
+              If it was you, <a href="${signInLink}" style="color: #0d6efd;">sign in</a> with your account, or <a href="${forgotPasswordLink}" style="color: #0d6efd;">choose a new password</a> if you no longer remember it.
+            </p>
+            <p style="font-size: 15px; line-height: 1.6; color: #495057;">
+              If it was not you, you can ignore this email: your account has not changed.
+            </p>
+
+`);
+    return this.sendMail(to, subject, html);
+  }
+
+  /**
+   * Sends a security alert to an account at the top of the role ladder
+   */
+  public async sendSecurityAlertMail(
+    to: string,
+    title: string,
+    body: string,
+  ): Promise<boolean> {
+    const subject = `VariaMos - Security alert: ${title}`;
+    const html = renderMail(`
+            <h2 style="color: #212529; font-size: 20px; margin-top: 0; font-weight: 600;">${escapeHtml(title)}</h2>
+            <p style="font-size: 15px; line-height: 1.6; color: #495057;">
+              ${escapeHtml(body)}
+            </p>
+            <p style="font-size: 15px; line-height: 1.6; color: #495057;">
+              The details are in the activity journal of the <strong>VariaMos</strong> administration. You receive this alert because your account can manage permissions.
             </p>
 
 `);

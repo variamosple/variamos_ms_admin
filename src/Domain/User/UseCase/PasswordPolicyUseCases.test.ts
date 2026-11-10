@@ -1,14 +1,15 @@
-import logger from "jet-logger";
 import { mock } from "vitest-mock-extended";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
 import type { IGuestRoleRepository } from "#src/Domain/Role/Repository/IGuestRoleRepository.js";
 import { PasswordPolicy } from "#src/Domain/User/Entity/PasswordPolicy.js";
 import { PasswordUpdate } from "#src/Domain/User/Entity/PasswordUpdate.js";
 import type { UserRegistration } from "#src/Domain/User/Entity/UserRegistration.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
+import type { AccountPasswordService } from "#src/Domain/User/Service/AccountPasswordService.js";
 import type { IPasswordPolicyProvider } from "#src/Domain/User/Service/PasswordPolicyService.js";
 import { PasswordResetTokenService } from "#src/Domain/User/Service/PasswordResetTokenService.js";
 import { UserAuthUseCase } from "./UserAuthUseCase.js";
@@ -31,7 +32,6 @@ describe("configured password policy in the use cases", () => {
 
   beforeEach(() => {
     users = mock<IUserRepository>();
-    vi.spyOn(logger, "info").mockImplementation(() => {});
   });
   afterEach(() => vi.restoreAllMocks());
 
@@ -39,6 +39,10 @@ describe("configured password policy in the use cases", () => {
     const useCase = new UserAuthUseCase(
       users,
       mock<IGuestRoleRepository>(),
+      mock<ILogger>(),
+      mock<IMailService>(),
+      { adminHomeUri: "https://app.example.com" },
+      mock<AccountPasswordService>(),
       strict,
     );
 
@@ -57,7 +61,12 @@ describe("configured password policy in the use cases", () => {
   });
 
   it("password change refuses it too", async () => {
-    const useCase = new UserManagementUseCase(users, activityJournal, strict);
+    const useCase = new UserManagementUseCase(
+      users,
+      activityJournal,
+      mock<ILogger>(),
+      strict,
+    );
 
     const res = await useCase.updatePassword(
       new RequestModel(
@@ -81,6 +90,7 @@ describe("configured password policy in the use cases", () => {
       mock<IMailService>(),
       { passwordResetExpiryInMs: 3_600_000, adminHomeUri: "http://ui" },
       activityJournal,
+      mock<ILogger>(),
       strict,
     );
 
@@ -107,6 +117,7 @@ describe("configured password policy in the use cases", () => {
       mail,
       { passwordResetExpiryInMs: 3_600_000, adminHomeUri: "http://ui" },
       activityJournal,
+      mock<ILogger>(),
       strict,
     );
 
@@ -128,6 +139,7 @@ describe("configured password policy in the use cases", () => {
       mock<IMailService>(),
       { passwordResetExpiryInMs: 3_600_000, adminHomeUri: "http://ui" },
       activityJournal,
+      mock<ILogger>(),
       strict,
     );
 

@@ -45,18 +45,20 @@ import {
 } from "@variamosple/variamos-security";
 import cookieParser from "cookie-parser";
 import express from "express";
-import logger from "jet-logger";
 import supertest from "supertest";
 import { mock } from "vitest-mock-extended";
 import EnvVars from "#src/common/EnvVars.js";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import logger from "#src/common/logger.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
 import type { MfaSignInUseCase } from "#src/Domain/Mfa/UseCase/MfaSignInUseCase.js";
 import type { IGuestRoleRepository } from "#src/Domain/Role/Repository/IGuestRoleRepository.js";
 import { User } from "#src/Domain/User/Entity/User.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
+import type { AccountPasswordService } from "#src/Domain/User/Service/AccountPasswordService.js";
 import { UserAuthUseCase } from "#src/Domain/User/UseCase/UserAuthUseCase.js";
 import { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
 import {
@@ -164,16 +166,22 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     const mockUserAuthUseCase = new UserAuthUseCase(
       mock<IUserRepository>(),
       mock<IGuestRoleRepository>(),
+      mock<ILogger>(),
+      mock<IMailService>(),
+      { adminHomeUri: "https://app.example.com" },
+      mock<AccountPasswordService>(),
     );
     const mockUserPasswordUseCase = new UserPasswordUseCase(
       mock<IUserRepository>(),
       mock<IMailService>(),
       mock<UserPasswordUseCaseConfig>(),
       mock<IActivityJournal>(),
+      mock<ILogger>(),
     );
     const mockUserManagementUseCase = new UserManagementUseCase(
       mock<IUserRepository>(),
       mock<IActivityJournal>(),
+      mock<ILogger>(),
     );
     const mockUserQueryUseCase = new UserQueryUseCase(mock<IUserRepository>());
     app.use(
@@ -373,7 +381,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       });
     });
 
-    it("should allow data URLs with null origin in getRedirectUrl", async () => {
+    it("never gives back a javascript: redirect, whose origin reads null", async () => {
       const mockToken = "valid-token";
       const mockUserPayload = {
         sub: "user-123",
@@ -398,13 +406,13 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       const response = await supertest(app)
         .get("/auth/session-info")
-        .set("Cookie", ["redirectTo=data:text/html,Hello"]);
+        .set("Cookie", ["redirectTo=javascript:alert(document.cookie)"]);
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       const body = response.body as TestSessionApiResponse & {
         data: { redirect?: string };
       };
-      expect(body.data.redirect).toBe("data:text/html,Hello");
+      expect(body.data.redirect).toBeUndefined();
     });
 
     it("should handle invalid url throwing error in getUrl and return undefined redirect", async () => {
@@ -828,6 +836,33 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       },
     );
 
+    it("records a sign-in that failed on the server as such, not as a wrong password", async () => {
+      accessJournal.accountByEmail.mockResolvedValueOnce({
+        id: "user-7",
+        active: true,
+      });
+      (UserAuthUseCase.prototype.signIn as vi.Mock).mockResolvedValue(
+        new ResponseModel("signIn").withError(
+          DomainErrorCodes.SYSTEM_ERROR,
+          "An unexpected error occurred.",
+        ),
+      );
+
+      await supertest(app)
+        .post("/auth/sign-in")
+        .send({ email: "john@example.com", password: "Right-pass-1" });
+
+      await vi.waitFor(() =>
+        expect(accessJournal.record).toHaveBeenCalledWith(
+          expect.objectContaining({
+            event: "sign-in",
+            outcome: "failed",
+            reason: "system_error",
+          }),
+        ),
+      );
+    });
+
     it("should redirect to external allowed redirect origin on successful sign in", async () => {
       const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
       Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
@@ -930,12 +965,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 200 with signup successful message even on conflict (already exists)", async () => {
-      const expectedResponse = new ResponseModel("signUp").withError(
-        DomainErrorCodes.DUPLICATE_ENTITY,
-        "User already exists",
-      );
+      // The use case answers a taken address as a free one (EV-98)
       (UserAuthUseCase.prototype.signUp as vi.Mock).mockResolvedValue(
-        expectedResponse,
+        new ResponseModel("signUp"),
       );
 
       const response = await supertest(app).post("/auth/sign-up").send({
@@ -946,6 +978,10 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(response.body).toEqual({
+        transactionId: "signUp",
+        message: "You have successfully signed up!",
+      });
     });
 
     it("should return 400 when password and passwordConfirmation do not match", async () => {
@@ -1319,6 +1355,26 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       );
     });
 
+    it("records a Google sign-in once, even when the session fails after it", async () => {
+      (UserAuthUseCase.prototype.findOrCreate as vi.Mock).mockResolvedValue(
+        new ResponseModel("loginWithGoogle").withResponse(
+          User.builder().setId("user-123").setEmail("john@example.com").build(),
+        ),
+      );
+      vi.mocked(createJwt).mockRejectedValue(new Error("signing failed"));
+
+      await supertest(app)
+        .post("/auth/google/callback")
+        .send({ credential: "mock-google-id-token" });
+
+      await vi.waitFor(() =>
+        expect(accessJournal.record).toHaveBeenCalledWith(
+          expect.objectContaining({ event: "sign-in.google" }),
+        ),
+      );
+      expect(accessJournal.record).toHaveBeenCalledOnce();
+    });
+
     it("records a Google sign-in that fails on the token", async () => {
       const response = await supertest(app)
         .post("/auth/google/callback")
@@ -1441,7 +1497,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
   });
 
-  describe("GET /auth/verify-token", () => {
+  describe("POST /auth/verify-token, answers", () => {
     it("should return 200 and verifyResponse on success", async () => {
       const expectedResponse = new ResponseModel(
         "verifyToken",
@@ -1453,8 +1509,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       );
 
       const response = await supertest(app)
-        .get("/auth/verify-token")
-        .query({ token: "valid-token" });
+        .post("/auth/verify-token")
+        .send({ token: "valid-token" });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(mapDomainErrorToHttpStatus).not.toHaveBeenCalled();
@@ -1470,8 +1526,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       );
 
       const response = await supertest(app)
-        .get("/auth/verify-token")
-        .query({ token: "expired-token" });
+        .post("/auth/verify-token")
+        .send({ token: "expired-token" });
 
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
     });
@@ -1482,10 +1538,19 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       );
 
       const response = await supertest(app)
-        .get("/auth/verify-token")
-        .query({ token: "token" });
+        .post("/auth/verify-token")
+        .send({ token: "token" });
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+    });
+
+    it("no longer reads a token from the URL", async () => {
+      const response = await supertest(app)
+        .get("/auth/verify-token")
+        .query({ token: "valid-token" });
+
+      expect(response.status).toBe(HttpStatusCodes.NOT_FOUND);
+      expect(UserPasswordUseCase.prototype.verifyToken).not.toHaveBeenCalled();
     });
   });
 
@@ -1530,22 +1595,14 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       );
     });
 
-    it("passes an empty token when the body holds no string token", async () => {
-      (UserPasswordUseCase.prototype.verifyToken as vi.Mock).mockResolvedValue(
-        new ResponseModel("verifyToken").withError(
-          DomainErrorCodes.INVALID_INPUT,
-          "Token is required.",
-        ),
-      );
-
+    it("refuses a token that is not text, before the use case", async () => {
       const response = await supertest(app)
         .post("/auth/verify-token")
         .send({ token: { $ne: "" } });
 
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
-      expect(UserPasswordUseCase.prototype.verifyToken).toHaveBeenCalledWith(
-        expect.objectContaining({ data: "" }),
-      );
+      expect(response.body.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(UserPasswordUseCase.prototype.verifyToken).not.toHaveBeenCalled();
     });
   });
 
@@ -1672,13 +1729,36 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       expect(response.headers["set-cookie"]).toBeUndefined();
     });
 
-    it("should authorize redirect origin if origin evaluates to null", async () => {
+    it.each([
+      "javascript:alert(document.cookie)",
+      "data:text/html,hello",
+      "file:///etc/passwd",
+    ])("does not keep %s, whose origin reads null", async (url) => {
       const response = await supertest(app)
         .post("/auth/redirects")
-        .send({ url: "data:text/html,hello" });
+        .send({ url });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(response.headers["set-cookie"]).toBeDefined();
+      expect(response.headers["set-cookie"]).toBeUndefined();
+    });
+
+    it("does not keep a non-web address even when every origin is allowed", async () => {
+      const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
+      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
+        value: [/.*/],
+        configurable: true,
+      });
+
+      const response = await supertest(app)
+        .post("/auth/redirects")
+        .send({ url: "javascript:alert(1)" });
+
+      expect(response.headers["set-cookie"]).toBeUndefined();
+
+      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
+        value: originalPatterns,
+        configurable: true,
+      });
     });
   });
 
@@ -2415,7 +2495,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       loggerSpy.mockRestore();
     });
 
-    it("should verify transactionId in verifyToken call (Line 646) and query token gets passed (Line 647)", async () => {
+    it("should verify transactionId in verifyToken call and pass the body token", async () => {
       const expectedResponse = new ResponseModel("verifyToken").withResponse(
         null,
       );
@@ -2423,7 +2503,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         expectedResponse,
       );
 
-      await supertest(app).get("/auth/verify-token").query({ token: "test" });
+      await supertest(app).post("/auth/verify-token").send({ token: "test" });
 
       expect(UserPasswordUseCase.prototype.verifyToken).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -2443,8 +2523,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       );
 
       const response = await supertest(app)
-        .get("/auth/verify-token")
-        .query({ token: "expired" });
+        .post("/auth/verify-token")
+        .send({ token: "expired" });
 
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
     });
@@ -2455,7 +2535,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         new Error("Verify throw"),
       );
 
-      await supertest(app).get("/auth/verify-token").query({ token: "token" });
+      await supertest(app).post("/auth/verify-token").send({ token: "token" });
 
       expectSafeErrorLog(loggerSpy);
       loggerSpy.mockRestore();
@@ -2687,24 +2767,22 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       });
     });
 
-    it("should authorize redirect origin if origin evaluates to null (Line 48)", async () => {
+    it("keeps an https address of an allowed site as the redirect", async () => {
       const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
       Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: [],
+        value: [/^https:\/\/allowed-origin\.com$/],
         configurable: true,
       });
 
       const response = await supertest(app)
         .post("/auth/redirects")
-        .send({ url: "data:text/html,hello" });
+        .send({ url: "https://allowed-origin.com/#/users" });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       const cookies = parseCookies(response);
       const redirectCookie = cookies.find((c) => c.includes("redirectTo="));
-      expect(redirectCookie).toBeDefined();
-      const decodedCookie = decodeURIComponent(redirectCookie ?? "");
-      expect(decodedCookie.includes("redirectTo=data:text/html,hello")).toBe(
-        true,
+      expect(decodeURIComponent(redirectCookie ?? "")).toContain(
+        "redirectTo=https://allowed-origin.com/#/users",
       );
 
       Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {

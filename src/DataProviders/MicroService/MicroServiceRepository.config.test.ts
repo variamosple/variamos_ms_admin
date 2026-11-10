@@ -72,6 +72,12 @@ describe("MicroServiceRepositoryImpl configurations and secrets", () => {
       "********",
       DomainErrorCodes.INVALID_INPUT,
     ],
+    [
+      "a value of the wrong type",
+      { isSecret: false, type: "number" },
+      "twenty",
+      DomainErrorCodes.INVALID_INPUT,
+    ],
   ])(
     "refuses %s without writing anything",
     async (_label, overrides, value, code) => {
@@ -136,7 +142,11 @@ describe("MicroServiceRepositoryImpl configurations and secrets", () => {
       socketPath: "/nonexistent/docker.sock",
       secrets: new SecretConfigurationValue(new AesGcmSecretCipher(null)),
     });
-    const row = configRow({ key: "notification.smtp.port", isSecret: false });
+    const row = configRow({
+      key: "notification.smtp.port",
+      isSecret: false,
+      type: "number",
+    });
     vi.spyOn(ConfigurationModel, "findOne").mockResolvedValue(row as never);
 
     const response = await repository.updateConfiguration(
@@ -151,6 +161,25 @@ describe("MicroServiceRepositoryImpl configurations and secrets", () => {
     expect(response.errorCode).toBeUndefined();
     expect(row.update).toHaveBeenCalledWith(
       expect.objectContaining({ value: 2525 }),
+    );
+  });
+
+  it("keeps a string key's value as typed, even when it looks like a number", async () => {
+    const row = configRow({ key: "notification.smtp.host", isSecret: false });
+    vi.spyOn(ConfigurationModel, "findOne").mockResolvedValue(row as never);
+
+    const response = await repository.updateConfiguration(
+      new RequestModel("tx", {
+        serviceName: "variamos_ms_notifications",
+        key: "notification.smtp.host",
+        value: "2525",
+        operatorId: "operator@example.com",
+      }),
+    );
+
+    expect(response.errorCode).toBeUndefined();
+    expect(row.update).toHaveBeenCalledWith(
+      expect.objectContaining({ value: "2525" }),
     );
   });
 

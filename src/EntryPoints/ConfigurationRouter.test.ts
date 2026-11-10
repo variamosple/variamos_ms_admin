@@ -1,8 +1,8 @@
 import express from "express";
-import logger from "jet-logger";
 import supertest from "supertest";
 import { mock } from "vitest-mock-extended";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import logger from "#src/common/logger.js";
 import {
   Configuration,
   ConfigurationKey,
@@ -59,10 +59,7 @@ describe("ConfigurationRouter Integration Tests", () => {
   });
 
   describe("GET /v1/configurations/menu", () => {
-    const originalEnv = process.env.NODE_ENV;
-
     afterEach(() => {
-      process.env.NODE_ENV = originalEnv;
       vi.restoreAllMocks();
     });
 
@@ -82,8 +79,32 @@ describe("ConfigurationRouter Integration Tests", () => {
       );
     });
 
+    it("shows the Admin entry to whoever may open one of its pages (EV-96)", async () => {
+      const response = await supertest(app).get("/v1/configurations/menu");
+
+      const { items, subMenu } = (response.body as MenuApiResponse).data;
+      const adminEntry = items.find((item) => item.title === "Admin");
+      const adminPages = subMenu.find(
+        (menu) => menu.accessibleFrom === "/variamos_admin/",
+      );
+      const pagePermissions = new Set(
+        adminPages?.items.flatMap((page) => page.allowedPermissions ?? []),
+      );
+      expect(new Set(adminEntry?.allowedPermissions)).toEqual(pagePermissions);
+      // The pages that the former list left out
+      expect(adminEntry?.allowedPermissions).toEqual(
+        expect.arrayContaining([
+          "admin::languages::query",
+          "admin::projects::query",
+          "admin::models::query",
+          "admin::notifications::dispatch",
+          "activity-logs::query",
+        ]),
+      );
+    });
+
     it("should rewrite URLs to localhost in development environment", async () => {
-      process.env.NODE_ENV = "development";
+      vi.stubEnv("NODE_ENV", "development");
 
       const response = await supertest(app).get("/v1/configurations/menu");
 
@@ -98,7 +119,7 @@ describe("ConfigurationRouter Integration Tests", () => {
     });
 
     it("should rewrite Admin location and options location when referer has /variamos_admin/ in non-development env", async () => {
-      process.env.NODE_ENV = "test";
+      vi.stubEnv("NODE_ENV", "test");
 
       const response = await supertest(app)
         .get("/v1/configurations/menu")
@@ -131,7 +152,7 @@ describe("ConfigurationRouter Integration Tests", () => {
       ["Languages", "https://app.variamos.com/variamos_languages/"],
       ["no referer", undefined],
     ])("opens My account in the admin from %s", async (_from, referer) => {
-      process.env.NODE_ENV = "test";
+      vi.stubEnv("NODE_ENV", "test");
 
       expect(await myAccountFrom(referer)).toBe(
         "https://app.variamos.com/variamos_admin/#/my-account",
@@ -139,7 +160,7 @@ describe("ConfigurationRouter Integration Tests", () => {
     });
 
     it("points My account to the local admin in development", async () => {
-      process.env.NODE_ENV = "development";
+      vi.stubEnv("NODE_ENV", "development");
 
       expect(await myAccountFrom("http://localhost:3000/")).toBe(
         "http://localhost:3000/variamos_admin/#/my-account",
@@ -174,6 +195,35 @@ describe("ConfigurationRouter Integration Tests", () => {
     });
   });
 
+  describe("GET /v1/configurations/public (EV-87 lot 2)", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("gives the site name, and nothing else, without signing in", async () => {
+      vi.spyOn(mockUseCase, "getSiteName").mockResolvedValue("VariaMos Lab");
+
+      const response = await supertest(app).get("/v1/configurations/public");
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(response.body.transactionId).toBe("getPublicSettings");
+      expect(response.body.data).toEqual({ siteName: "VariaMos Lab" });
+    });
+
+    it("answers 500 when reading the name fails unexpectedly", async () => {
+      const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
+      vi.spyOn(mockUseCase, "getSiteName").mockRejectedValue(
+        new Error("Unexpected error"),
+      );
+
+      const response = await supertest(app).get("/v1/configurations/public");
+
+      expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      expect(response.body.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
+      expect(loggerSpy).toHaveBeenCalled();
+    });
+  });
+
   describe("GET /v1/configurations (query configurations)", () => {
     it("should return a list of configurations and mask secret values", async () => {
       const secretConfig = Configuration.builder()
@@ -186,8 +236,8 @@ describe("ConfigurationRouter Integration Tests", () => {
         .build();
 
       const publicConfig = Configuration.builder()
-        .setKey(new ConfigurationKey("general.site_name"))
-        .setValue("VariaMos")
+        .setKey(new ConfigurationKey("general.default_language"))
+        .setValue("en")
         .setType("string")
         .setCategory("general")
         .setIsSecret(false)
@@ -215,12 +265,12 @@ describe("ConfigurationRouter Integration Tests", () => {
 
       // Verify public config and all its mapped properties (kills ObjectLiteral mutant)
       const publicItem = data.find(
-        (c: ConfigurationResponseDto) => c.key === "general.site_name",
+        (c: ConfigurationResponseDto) => c.key === "general.default_language",
       );
       expect(publicItem).toEqual({
         id: undefined,
-        key: "general.site_name",
-        value: "VariaMos",
+        key: "general.default_language",
+        value: "en",
         type: "string",
         category: "general",
         requiresMfa: false,
@@ -263,6 +313,13 @@ describe("ConfigurationRouter Integration Tests", () => {
         ["security.password.min_length", true],
         ["security.cookie.max_age", false],
       ]);
+      expect(response.body.data[0].accepts).toEqual({
+        text: "a whole number of characters from 8 to 64",
+        min: 8,
+        max: 64,
+        unit: "characters",
+      });
+      expect(response.body.data[1]).not.toHaveProperty("accepts");
     });
 
     it("should cover false branch when queryConfigurations returns no data", async () => {

@@ -1,5 +1,5 @@
-import logger from "jet-logger";
 import { describeError } from "#src/common/describeError.js";
+import logger from "#src/common/logger.js";
 import type { IJournalPurge } from "#src/Domain/Activity/IJournalPurge.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;

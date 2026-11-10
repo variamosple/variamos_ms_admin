@@ -1,9 +1,9 @@
 import type { IncomingMessage, Server } from "node:http";
 import type { Readable } from "node:stream";
 import { parseCookie } from "cookie";
-import logger from "jet-logger";
 import { type RawData, WebSocket, WebSocketServer } from "ws";
 import { describeError } from "#src/common/describeError.js";
+import logger from "#src/common/logger.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import type { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -13,7 +13,7 @@ export const CONTAINER_LOGS_PERMISSION = "micro-services::query";
 const MAX_SERVICE_ID_LENGTH = 128;
 const POLICY_VIOLATION = 1008;
 
-export interface ContainerLogsAccess {
+interface ContainerLogsAccess {
   errorCode?: unknown;
   data?: { exp?: number } | null;
 }

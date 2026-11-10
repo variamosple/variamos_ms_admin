@@ -2,13 +2,16 @@ import bcrypt from "bcrypt";
 import type { Transaction } from "sequelize";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { PasswordUpdate } from "#src/Domain/User/Entity/PasswordUpdate.js";
+import { BcryptPasswordHasher } from "#src/Infrastructure/Security/BcryptPasswordHasher.js";
 import VARIAMOS_ORM from "#src/Infrastructure/VariamosORM.js";
 import { UserModel } from "./User.js";
 import { UserRepositoryImpl } from "./UserRepository.js";
 
 /** A new password asks the sign-in code again on every browser (lot 6). */
 describe("UserRepositoryImpl forgets the trusted browsers", () => {
-  const repository = new UserRepositoryImpl({ bcryptSaltRounds: 4 });
+  const repository = new UserRepositoryImpl(
+    new BcryptPasswordHasher({ getCost: async () => 4 }),
+  );
   const transaction = {
     commit: vi.fn(),
     rollback: vi.fn(),

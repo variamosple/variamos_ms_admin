@@ -8,6 +8,7 @@ import type {
   MicroServiceHealthInfo,
   MicroServiceUptimeSummary,
 } from "../Entity/MicroServiceHealth.js";
+import type { ServiceDefinition } from "../Entity/ServiceDefinition.js";
 
 export interface IMicroServiceRepository {
   queryMicroServices(
@@ -43,6 +44,9 @@ export interface IMicroServiceRepository {
   ): Promise<ResponseModel<MicroServiceUptimeSummary>>;
 
   recordHealthCheck(healthInfo: MicroServiceHealthInfo): Promise<void>;
+
+  /** The monitored services, discovered from the running containers. */
+  discoverServiceDefinitions(): Promise<ServiceDefinition[]>;
 
   queryConfigurations(
     request: RequestModel<string>, // serviceName

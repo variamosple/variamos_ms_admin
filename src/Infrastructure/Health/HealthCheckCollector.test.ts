@@ -1,15 +1,17 @@
 import axios from "axios";
-import logger from "jet-logger";
-import { Op } from "sequelize";
-import type { HealthLogStatistics } from "#src/DataProviders/MicroService/HealthLogStatistics.js";
-import { MicroServiceHealthLogModel } from "#src/DataProviders/MicroService/MicroServiceHealthLogModel.js";
-import type { ServiceDefinition } from "#src/DataProviders/MicroService/MicroServiceRepository.js";
+import logger from "#src/common/logger.js";
 import type { MicroServiceHealthInfo } from "#src/Domain/MicroService/Entity/MicroServiceHealth.js";
+import type { ServiceDefinition } from "#src/Domain/MicroService/Entity/ServiceDefinition.js";
+import type { IHealthLogArchive } from "#src/Domain/MicroService/Repository/IHealthLogArchive.js";
 import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 import {
+  DEGRADED_LATENCY_MS,
   HealthCheckCollector,
   mapWithConcurrency,
 } from "./HealthCheckCollector.js";
+
+// The tests that do not reach the retention
+const noArchive = {} as IHealthLogArchive;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -90,6 +92,7 @@ describe("HealthCheckCollector.triggerHealthChecks", () => {
   const run = async (concurrency: number) => {
     const collector = new HealthCheckCollector(
       repository(),
+      noArchive,
       30000,
       concurrency,
     );
@@ -124,7 +127,12 @@ describe("HealthCheckCollector.triggerHealthChecks", () => {
 
   it("keeps the other results when one check throws", async () => {
     vi.spyOn(logger, "err").mockImplementation(() => {});
-    const collector = new HealthCheckCollector(repository(), 30000, 4);
+    const collector = new HealthCheckCollector(
+      repository(),
+      noArchive,
+      30000,
+      4,
+    );
     vi.spyOn(collector, "checkService").mockImplementation(async (service) => {
       if (service.name === "service_3") throw new Error("database down");
       return fakeCheck(service);
@@ -158,7 +166,7 @@ describe("HealthCheckCollector.checkService", () => {
     const repo = {
       recordHealthCheck: vi.fn().mockResolvedValue(undefined),
     } as unknown as IMicroServiceRepository;
-    const collector = new HealthCheckCollector(repo);
+    const collector = new HealthCheckCollector(repo, noArchive);
 
     const info = await collector.checkService({
       name: "variamos_ms_languages",
@@ -175,6 +183,90 @@ describe("HealthCheckCollector.checkService", () => {
   });
 });
 
+describe("HealthCheckCollector.checkService latency threshold", () => {
+  const service = {
+    name: "variamos_ms_languages",
+    displayName: "Languages",
+    defaultPort: 4000,
+    healthPath: "/health",
+    containerIps: ["10.0.0.1"],
+  } as ServiceDefinition;
+
+  const checkAnsweringAfter = async (latencyMs: number, body = {}) => {
+    vi.useFakeTimers();
+    vi.spyOn(axios, "get").mockImplementation(
+      () =>
+        new Promise((resolve) =>
+          setTimeout(() => resolve({ status: 200, data: body }), latencyMs),
+        ),
+    );
+    const repo = {
+      recordHealthCheck: vi.fn().mockResolvedValue(undefined),
+    } as unknown as IMicroServiceRepository;
+    const pending = new HealthCheckCollector(repo, noArchive).checkService(
+      service,
+    );
+    await vi.advanceTimersByTimeAsync(latencyMs);
+    return pending;
+  };
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("keeps a service that answers at the threshold UP", async () => {
+    const info = await checkAnsweringAfter(DEGRADED_LATENCY_MS);
+
+    expect(info.status).toBe("UP");
+  });
+
+  it("marks a service slower than the threshold DEGRADED", async () => {
+    const info = await checkAnsweringAfter(DEGRADED_LATENCY_MS + 1);
+
+    expect(info.status).toBe("DEGRADED");
+    expect(info.responseTimeMs).toBe(DEGRADED_LATENCY_MS + 1);
+  });
+
+  it("reads a 503 that declares DEGRADED as DEGRADED, not DOWN", async () => {
+    vi.spyOn(axios, "get").mockResolvedValue({
+      status: 503,
+      data: { status: "DEGRADED" },
+    });
+    const repo = {
+      recordHealthCheck: vi.fn().mockResolvedValue(undefined),
+    } as unknown as IMicroServiceRepository;
+
+    const info = await new HealthCheckCollector(repo, noArchive).checkService(
+      service,
+    );
+
+    expect(info.status).toBe("DEGRADED");
+  });
+
+  it("keeps a 503 without a health body DOWN", async () => {
+    vi.spyOn(axios, "get").mockResolvedValue({
+      status: 503,
+      data: "<html>Service Unavailable</html>",
+    });
+    const repo = {
+      recordHealthCheck: vi.fn().mockResolvedValue(undefined),
+    } as unknown as IMicroServiceRepository;
+
+    const info = await new HealthCheckCollector(repo, noArchive).checkService(
+      service,
+    );
+
+    expect(info.status).toBe("DOWN");
+  });
+
+  it("keeps a fast service that declares itself degraded DEGRADED", async () => {
+    const info = await checkAnsweringAfter(10, { status: "DEGRADED" });
+
+    expect(info.status).toBe("DEGRADED");
+  });
+});
+
 describe("HealthCheckCollector.runDailyAggregationAndPurge", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -182,14 +274,12 @@ describe("HealthCheckCollector.runDailyAggregationAndPurge", () => {
 
   it("saves the complete days still whole, then purges the older checks", async () => {
     const aggregateDays = vi.fn().mockResolvedValue(58);
-    const destroy = vi
-      .spyOn(MicroServiceHealthLogModel, "destroy")
-      .mockResolvedValue(2880);
+    const purgeChecksBefore = vi.fn().mockResolvedValue(2880);
     const collector = new HealthCheckCollector(
       {} as IMicroServiceRepository,
+      { aggregateDays, purgeChecksBefore },
       30000,
       4,
-      { aggregateDays } as unknown as HealthLogStatistics,
     );
 
     const outcome = await collector.runDailyAggregationAndPurge(
@@ -202,9 +292,9 @@ describe("HealthCheckCollector.runDailyAggregationAndPurge", () => {
       new Date("2026-09-26T00:00:00.000Z"),
       new Date("2026-10-25T00:00:00.000Z"),
     );
-    expect(destroy.mock.calls[0]?.[0]?.where).toEqual({
-      checkedAt: { [Op.lt]: new Date("2026-09-25T09:30:00.000Z") },
-    });
+    expect(purgeChecksBefore).toHaveBeenCalledWith(
+      new Date("2026-09-25T09:30:00.000Z"),
+    );
     expect(outcome).toEqual({ aggregatedDays: 58, purgedLogs: 2880 });
   });
 });

@@ -1,5 +1,18 @@
 import type { Nullable } from "#src/Domain/Core/Entity/Nullable.js";
 import { PagedModel } from "#src/Domain/Core/Entity/PagedModel.js";
+import {
+  type SortOrder,
+  toSortOrder,
+} from "#src/Domain/Core/Entity/SortOrder.js";
+
+const USER_SORT_FIELDS = [
+  "user",
+  "name",
+  "email",
+  "createdAt",
+  "lastLogin",
+] as const;
+export type UserSortField = (typeof USER_SORT_FIELDS)[number];
 
 export class UserFilter extends PagedModel {
   public constructor(
@@ -10,6 +23,8 @@ export class UserFilter extends PagedModel {
     public search?: Nullable<string>,
     pageNumber?: number,
     pageSize?: number,
+    public sortBy: UserSortField = "name",
+    public sortOrder: SortOrder = "asc",
   ) {
     super(pageNumber, pageSize);
   }
@@ -27,6 +42,8 @@ export class UserFilter extends PagedModel {
       builder.search,
       builder.pageNumber,
       builder.pageSize,
+      builder.sortBy,
+      builder.sortOrder,
     );
   }
 }
@@ -39,6 +56,8 @@ class UserFilterBuilder {
   public search: Nullable<string>;
   public pageNumber?: number;
   public pageSize?: number;
+  public sortBy?: UserSortField;
+  public sortOrder?: SortOrder;
 
   public setId(id: string): UserFilterBuilder {
     this.id = id;
@@ -72,6 +91,13 @@ class UserFilterBuilder {
 
   public setPageSize(pageSize: number): UserFilterBuilder {
     this.pageSize = pageSize;
+    return this;
+  }
+
+  /** Sorts by one of the list columns; anything else: by name */
+  public setSort(sortBy: unknown, sortOrder: unknown): UserFilterBuilder {
+    this.sortBy = USER_SORT_FIELDS.find((field) => field === sortBy);
+    this.sortOrder = toSortOrder(sortOrder);
     return this;
   }
 

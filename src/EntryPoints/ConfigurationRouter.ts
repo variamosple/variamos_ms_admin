@@ -1,16 +1,24 @@
 import { hasPermissions } from "@variamosple/variamos-security";
 import { type Request, Router } from "express";
-import { isConfigurationApplied } from "#src/Domain/Configuration/Entity/AppliedConfigurationKeys.js";
+import EnvVars from "#src/common/EnvVars.js";
+import {
+  type AcceptedConfigurationValues,
+  acceptedValuesOf,
+  isConfigurationApplied,
+} from "#src/Domain/Configuration/Entity/AppliedConfigurationKeys.js";
+import type { Configuration } from "#src/Domain/Configuration/Entity/Configuration.js";
 import type { ConfigurationUseCase } from "#src/Domain/Configuration/UseCase/ConfigurationUseCase.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import type { Menu } from "#src/Domain/Menu/Entity/Menu.js";
+import { configurationUpdateBody } from "./adminRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
+import { validBody } from "./requestBody.js";
 
 export const CONFIGURATION_V1_ROUTE = "/v1/configurations";
 
-export type ConfigurationValueDto =
+type ConfigurationValueDto =
   | string
   | number
   | boolean
@@ -29,12 +37,113 @@ export interface ConfigurationResponseDto {
   isReadOnly: boolean;
   /** False when no code reads the key yet: changing it has no effect. */
   isApplied: boolean;
+  /** What a key the code reads accepts, for the form (EV-18 lot C). */
+  accepts?: AcceptedConfigurationValues;
   targetServices: string[];
   description?: string;
   updatedBy?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
+
+/** A configuration as the screen shows it: a secret only as its mask. */
+const toConfigurationResponse = (
+  config: Configuration,
+): ConfigurationResponseDto => ({
+  id: config.id,
+  key: config.key.getValue(),
+  value: config.getDisplayValue(),
+  type: config.type,
+  category: config.category,
+  requiresMfa: config.requiresMfa,
+  isSecret: config.isSecret,
+  environmentScope: config.environmentScope,
+  isReadOnly: config.isReadOnly,
+  isApplied: isConfigurationApplied(config.key.getValue()),
+  accepts: acceptedValuesOf(config.key.getValue()),
+  targetServices: config.targetServices,
+  description: config.description,
+  updatedBy: config.updatedBy,
+  createdAt: config.createdAt,
+  updatedAt: config.updatedAt,
+});
+
+/** What every page may know before signing in (EV-87 lot 2). */
+export interface PublicSettingsDto {
+  siteName: string;
+}
+
+// The pages of the administration, in the order of its sub-menu
+const ADMIN_PAGES: Menu["subMenu"][number]["items"] = [
+  {
+    title: "Users",
+    location: "/users",
+    allowedPermissions: ["users::query"],
+  },
+  {
+    title: "Roles",
+    location: "/roles",
+    allowedPermissions: ["roles::query"],
+  },
+  {
+    title: "Permission",
+    location: "/permissions",
+    allowedPermissions: ["permissions::query"],
+  },
+  {
+    title: "Languages",
+    location: "/languages",
+    allowedPermissions: ["admin::languages::query"],
+  },
+  {
+    title: "Projects",
+    location: "/projects",
+    allowedPermissions: ["admin::projects::query"],
+  },
+  {
+    title: "Models",
+    location: "/models",
+    allowedPermissions: ["admin::models::query"],
+  },
+  {
+    title: "Metrics",
+    location: "/metrics",
+    allowedPermissions: ["metrics::query"],
+  },
+  {
+    title: "Monitoring",
+    location: "/monitoring",
+    allowedPermissions: ["micro-services::query"],
+  },
+  {
+    title: "Bugs",
+    location: "/bugs",
+    allowedPermissions: ["bugs::query"],
+  },
+  {
+    title: "Configurations",
+    location: "/configurations",
+    allowedPermissions: ["configurations::query"],
+  },
+  {
+    title: "Notifications",
+    location: "/admin/notifications",
+    allowedPermissions: ["admin::notifications::dispatch"],
+  },
+  {
+    title: "Journal",
+    location: "/journal",
+    allowedPermissions: ["activity-logs::query"],
+  },
+];
+
+/**
+ * The "Admin" entry is shown to whoever may open at least one of its pages:
+ * its permissions are those of its pages, so that they cannot diverge (EV-96).
+ */
+const ADMIN_ENTRY_PERMISSIONS = [
+  ...new Set(ADMIN_PAGES.flatMap((page) => page.allowedPermissions ?? [])),
+];
 
 const MENU: Menu = {
   items: [
@@ -47,20 +156,20 @@ const MENU: Menu = {
       title: "Admin",
       type: "location",
       location: "https://app.variamos.com/variamos_admin/",
-      allowedPermissions: [
-        "users::query",
-        "roles::query",
-        "permissions::query",
-        "metrics::query",
-        "micro-services::query",
-        "bugs::query",
-        "configurations::query",
-      ],
+      allowedPermissions: ADMIN_ENTRY_PERMISSIONS,
     },
     {
       title: "Languages",
       type: "location",
       location: "https://app.variamos.com/variamos_languages/",
+    },
+    {
+      title: "Laboratory",
+      type: "location",
+      location: "https://app.variamos.com/variamos_laboratory/",
+      // Given to administrators only at first (migration 0012), as the
+      // Laboratory backend refuses every other account
+      allowedPermissions: ["laboratory::access"],
     },
     {
       title: "Wiki",
@@ -72,68 +181,7 @@ const MENU: Menu = {
   subMenu: [
     {
       accessibleFrom: "/variamos_admin/",
-      items: [
-        {
-          title: "Users",
-          location: "/users",
-          allowedPermissions: ["users::query"],
-        },
-        {
-          title: "Roles",
-          location: "/roles",
-          allowedPermissions: ["roles::query"],
-        },
-        {
-          title: "Permission",
-          location: "/permissions",
-          allowedPermissions: ["permissions::query"],
-        },
-        {
-          title: "Languages",
-          location: "/languages",
-          allowedPermissions: ["admin::languages::query"],
-        },
-        {
-          title: "Projects",
-          location: "/projects",
-          allowedPermissions: ["admin::projects::query"],
-        },
-        {
-          title: "Models",
-          location: "/models",
-          allowedPermissions: ["admin::models::query"],
-        },
-        {
-          title: "Metrics",
-          location: "/metrics",
-          allowedPermissions: ["metrics::query"],
-        },
-        {
-          title: "Monitoring",
-          location: "/monitoring",
-          allowedPermissions: ["micro-services::query"],
-        },
-        {
-          title: "Bugs",
-          location: "/bugs",
-          allowedPermissions: ["bugs::query"],
-        },
-        {
-          title: "Configurations",
-          location: "/configurations",
-          allowedPermissions: ["configurations::query"],
-        },
-        {
-          title: "Notifications",
-          location: "/admin/notifications",
-          allowedPermissions: ["admin::notifications::dispatch"],
-        },
-        {
-          title: "Journal",
-          location: "/journal",
-          allowedPermissions: ["activity-logs::query"],
-        },
-      ],
+      items: ADMIN_PAGES,
     },
   ],
   options: [
@@ -201,7 +249,7 @@ export function createConfigurationRouter(
     const hasAdminSubpath = referer.includes("/variamos_admin/");
 
     // Rewrite prod URLs to local dev server in development environment
-    if (process.env.NODE_ENV === "development") {
+    if (EnvVars.IsDevelopment) {
       const entries = [...(menuCopy.items ?? []), ...(menuCopy.options ?? [])];
       for (const item of entries) {
         if (item.location?.startsWith("https://app.variamos.com")) {
@@ -233,6 +281,19 @@ export function createConfigurationRouter(
     res.status(200).json(response.withResponse(menuCopy));
   });
 
+  // Open to all, like the menu: the name the browser tabs show. Only the
+  // settings listed in PublicSettingsDto leave here, never another key.
+  configurationV1Router.get("/public", async (_req: Request, res) => {
+    const transactionId = "getPublicSettings";
+    try {
+      const siteName = await configurationUseCase.getSiteName();
+      const response = new ResponseModel<PublicSettingsDto>(transactionId);
+      res.status(200).json(response.withResponse({ siteName }));
+    } catch (error) {
+      sendError(res, error, transactionId);
+    }
+  });
+
   // Query configurations
   configurationV1Router.get(
     "/",
@@ -258,25 +319,7 @@ export function createConfigurationRouter(
         );
 
         if (useCaseResponse.data) {
-          response.data = useCaseResponse.data.map((config) => {
-            return {
-              id: config.id,
-              key: config.key.getValue(),
-              value: config.getDisplayValue(),
-              type: config.type,
-              category: config.category,
-              requiresMfa: config.requiresMfa,
-              isSecret: config.isSecret,
-              environmentScope: config.environmentScope,
-              isReadOnly: config.isReadOnly,
-              isApplied: isConfigurationApplied(config.key.getValue()),
-              targetServices: config.targetServices,
-              description: config.description,
-              updatedBy: config.updatedBy,
-              createdAt: config.createdAt,
-              updatedAt: config.updatedAt,
-            };
-          });
+          response.data = useCaseResponse.data.map(toConfigurationResponse);
         }
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);
@@ -291,6 +334,7 @@ export function createConfigurationRouter(
   configurationV1Router.put(
     "/:key",
     hasPermissions(["configurations::update"]),
+    validBody(configurationUpdateBody, "updateConfiguration"),
     async (req: Request<{ key: string }>, res) => {
       const transactionId = "updateConfiguration";
       const key = req.params.key;
@@ -318,24 +362,7 @@ export function createConfigurationRouter(
         );
 
         if (useCaseResponse.data) {
-          const config = useCaseResponse.data;
-          response.data = {
-            id: config.id,
-            key: config.key.getValue(),
-            value: config.getDisplayValue(),
-            type: config.type,
-            category: config.category,
-            requiresMfa: config.requiresMfa,
-            isSecret: config.isSecret,
-            environmentScope: config.environmentScope,
-            isReadOnly: config.isReadOnly,
-            isApplied: isConfigurationApplied(config.key.getValue()),
-            targetServices: config.targetServices,
-            description: config.description,
-            updatedBy: config.updatedBy,
-            createdAt: config.createdAt,
-            updatedAt: config.updatedAt,
-          };
+          response.data = toConfigurationResponse(useCaseResponse.data);
         }
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);

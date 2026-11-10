@@ -1,10 +1,13 @@
 import os from "node:os";
 import { Router } from "express";
-import VARIAMOS_ORM from "#src/Infrastructure/VariamosORM.js";
+import EnvVars from "#src/common/EnvVars.js";
 
 export const HEALTH_ROUTE = "/health";
 
-export function createHealthRouter(): Router {
+/** Resolves when the database answers; the router bounds it to 1.5 s. */
+export type DatabaseCheck = () => Promise<void>;
+
+export function createHealthRouter(checkDatabase: DatabaseCheck): Router {
   const router = Router();
 
   router.get("/", async (_req, res) => {
@@ -15,7 +18,7 @@ export function createHealthRouter(): Router {
     try {
       const dbStart = Date.now();
       await Promise.race([
-        VARIAMOS_ORM.authenticate(),
+        checkDatabase(),
         new Promise<void>((_, reject) =>
           setTimeout(() => reject(new Error("DB check timeout")), 1500),
         ),
@@ -46,7 +49,7 @@ export function createHealthRouter(): Router {
     res.status(overallStatus === "UP" ? 200 : 503).json({
       status: overallStatus,
       serviceName: "variamos_ms_admin",
-      version: process.env.npm_package_version || "1.0.0",
+      version: EnvVars.PackageVersion,
       uptimeSeconds: Math.floor(process.uptime()),
       timestamp: new Date().toISOString(),
       responseTimeMs: Date.now() - startTime,

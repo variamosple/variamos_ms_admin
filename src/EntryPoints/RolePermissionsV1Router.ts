@@ -8,8 +8,10 @@ import { RolePermission } from "#src/Domain/Role/Entity/RolePermission.js";
 import { RolePermissionFilter } from "#src/Domain/Role/Entity/RolePermissionFilter.js";
 import type { RolePermissionUseCase } from "#src/Domain/Role/UseCase/RolePermissionUseCase.js";
 import { actorOf } from "./actor.js";
+import { rolePermissionBody } from "./adminRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
+import { validBody } from "./requestBody.js";
 import { type AccessGuard, requireAccess, toId } from "./requireAccess.js";
 
 export const ROLE_PERMISSIONS_V1_ROUTE = "/:roleId/permissions";
@@ -25,7 +27,7 @@ export function createRolePermissionsRouter(
     hasPermissions(["roles::query"]),
     async (req: Request<{ roleId: string }>, res) => {
       const transactionId = "queryRolePermissions";
-      const { pageNumber, pageSize } = req.query;
+      const { pageNumber, pageSize, search } = req.query;
       const roleId = req.params.roleId;
       try {
         if (!roleId || Number.isNaN(Number(roleId))) {
@@ -43,6 +45,7 @@ export function createRolePermissionsRouter(
           .setRoleId(Number.parseInt(roleId, 10))
           .setPageNumber(Number(pageNumber))
           .setPageSize(Number(pageSize))
+          .setSearch(typeof search === "string" && search ? search : null)
           .build();
 
         const request = new RequestModel<RolePermissionFilter>(
@@ -63,6 +66,7 @@ export function createRolePermissionsRouter(
   rolePermissionsV1Router.post(
     "/",
     hasPermissions(["roles::update"]),
+    validBody(rolePermissionBody, "createRolePermission"),
     requireAccess(accessGuard, (req) => {
       const roleId = toId(req.params.roleId);
       const permissionId = toId(

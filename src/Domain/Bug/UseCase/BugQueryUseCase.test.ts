@@ -9,17 +9,20 @@ import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { INTERNAL_ERROR_MESSAGE } from "#src/Domain/Core/Error/InternalErrorMessage.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { ALLOWED_CATEGORIES, BugQueryUseCase } from "./BugQueryUseCase.js";
 
 describe("BugQueryUseCase", () => {
   let useCase: BugQueryUseCase;
+  let logger: MockProxy<ILogger>;
   let mockBugRepository: MockProxy<IBugRepository>;
   let mockGithubConfig: MockProxy<IBugTrackerConfig>;
 
   beforeEach(() => {
+    logger = mock<ILogger>();
     mockBugRepository = mock<IBugRepository>();
     mockGithubConfig = mock<IBugTrackerConfig>();
-    useCase = new BugQueryUseCase(mockBugRepository, mockGithubConfig);
+    useCase = new BugQueryUseCase(mockBugRepository, mockGithubConfig, logger);
   });
 
   describe("queryBugs", () => {

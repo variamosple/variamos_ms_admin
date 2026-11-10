@@ -3,6 +3,7 @@ import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { PasswordUpdate } from "#src/Domain/User/Entity/PasswordUpdate.js";
 import type { PersonalInformationUpdate } from "#src/Domain/User/Entity/PersonalInformationUpdate.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
@@ -16,6 +17,7 @@ export class UserManagementUseCase {
   public constructor(
     private readonly userRepository: IUserRepository,
     private readonly journal: IActivityJournal,
+    private readonly logger: ILogger,
     private readonly passwordPolicy: IPasswordPolicyProvider = DEFAULT_PASSWORD_POLICY_PROVIDER,
   ) {}
 
@@ -102,6 +104,7 @@ export class UserManagementUseCase {
 
     const refusal = await checkNewPassword(
       this.passwordPolicy,
+      this.logger,
       newPassword,
       "Password change",
     );

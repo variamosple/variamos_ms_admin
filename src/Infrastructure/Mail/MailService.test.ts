@@ -1,5 +1,6 @@
-import logger from "jet-logger";
+import nodemailer from "nodemailer";
 import EnvVars from "#src/common/EnvVars.js";
+import logger from "#src/common/logger.js";
 import { describeDuration, MailServiceImpl } from "./MailService.js";
 
 describe("MailServiceImpl logging", () => {
@@ -77,6 +78,58 @@ describe("MailServiceImpl messages", () => {
     expect(subject).toBe("VariaMos - Two-factor authentication turned off");
     expect(html).toContain("turned off two-factor authentication");
     expect(html).toContain("The VariaMos Team");
+  });
+
+  it("points the owner of an address to sign-in and recovery", async () => {
+    const service = new MailServiceImpl();
+    const send = vi.spyOn(service, "sendMail").mockResolvedValue(true);
+
+    await service.sendExistingAccountMail(
+      "cleo@example.com",
+      "https://app.example.com/#/login",
+      "https://app.example.com/#/forgot-password",
+    );
+
+    const [to, , html] = send.mock.calls[0] as [string, string, string];
+    expect(to).toBe("cleo@example.com");
+    expect(html).toContain('href="https://app.example.com/#/login"');
+    expect(html).toContain('href="https://app.example.com/#/forgot-password"');
+  });
+
+  it("sends a security alert whose text is never read as markup", async () => {
+    const service = new MailServiceImpl();
+    const send = vi.spyOn(service, "sendMail").mockResolvedValue(true);
+
+    await service.sendSecurityAlertMail(
+      "dana@example.com",
+      "Repeated failed sign-ins",
+      '10 failed sign-ins for address <script>"x"</script>.',
+    );
+
+    const [to, subject, html] = send.mock.calls[0] as [string, string, string];
+    expect(to).toBe("dana@example.com");
+    expect(subject).toBe("VariaMos - Security alert: Repeated failed sign-ins");
+    expect(html).toContain("&lt;script&gt;&quot;x&quot;&lt;/script&gt;");
+    expect(html).not.toContain("<script>");
+  });
+});
+
+describe("MailServiceImpl transport", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("refuses to send in clear text or below TLS 1.2", () => {
+    const createTransport = vi.spyOn(nodemailer, "createTransport");
+
+    new MailServiceImpl();
+
+    expect(createTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requireTLS: true,
+        tls: { minVersion: "TLSv1.2" },
+      }),
+    );
   });
 });
 

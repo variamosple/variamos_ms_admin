@@ -1,5 +1,5 @@
-import logger from "jet-logger";
 import { QueryTypes } from "sequelize";
+import logger from "#src/common/logger.js";
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -9,34 +9,41 @@ import type { IMetricsRepository } from "#src/Domain/Metrics/Repository/IMetrics
 import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 import { BaseRepository } from "../BaseRepository.js";
 
+// Keyed by the ids that get_metrics() gives the dashboard, which sends them
+// back to filter a chart; the functions are those of get_metrics.sql
 const METRICS_FUNCTIONS = new Map<string, string>([
-  ["visitsByDay", `${DB_SCHEMA}.get_visits_by_day()`],
-  ["visitsByUser", `${DB_SCHEMA}.get_visits_by_user()`],
-  ["operationsCount", `${DB_SCHEMA}.get_operations_count()`],
-  ["activeUsers", `${DB_SCHEMA}.get_active_users()`],
-  ["activeUsersCount", `${DB_SCHEMA}.get_active_users_count()`],
-  ["operationsBySystem", `${DB_SCHEMA}.get_operations_by_system()`],
-  ["averageExecutionTime", `${DB_SCHEMA}.get_average_execution_time()`],
-  ["errorRate", `${DB_SCHEMA}.get_error_rate()`],
-  ["errorRateBySystem", `${DB_SCHEMA}.get_error_rate_by_system()`],
+  [
+    "daily_visits",
+    `${DB_SCHEMA}.get_daily_visits_metrics(:startDate, :endDate)`,
+  ],
+  [
+    "daily_unique_visits",
+    `${DB_SCHEMA}.get_daily_unique_visits_metrics(:startDate, :endDate)`,
+  ],
+  [
+    "monthly_visits",
+    `${DB_SCHEMA}.get_monthly_visits_metrics(:startDate, :endDate)`,
+  ],
+  // These two take no period: they answer as on the dashboard
+  ["yearly_visits", `${DB_SCHEMA}.get_yearly_visits_metrics()`],
+  ["top_visited_pages", `${DB_SCHEMA}.get_top_visited_pages_metrics()`],
 ]);
 
 export class MetricsRepositoryImpl
   extends BaseRepository
   implements IMetricsRepository
 {
-  private metrics: Metric[] = [];
-
-  public constructor() {
-    super();
-    void this.loadMetrics();
-  }
-
-  private async loadMetrics() {
-    logger.info("Refreshing metrics...");
+  /**
+   * Reads the metric definitions and their data at each call, so that the
+   * dashboard shows today's figures, not those of the last restart.
+   */
+  public async getMetrics(
+    request: RequestModel<void>,
+  ): Promise<ResponseModel<Metric[]>> {
+    const response = new ResponseModel<Metric[]>(request.transactionId);
 
     try {
-      this.metrics = await VARIAMOS_ORM.query(
+      response.data = await VARIAMOS_ORM.query(
         `SELECT ${DB_SCHEMA}.get_metrics() AS data`,
         {
           type: QueryTypes.SELECT,
@@ -69,22 +76,6 @@ export class MetricsRepositoryImpl
               .build(),
         );
       });
-
-      logger.info("Metrics refreshed...");
-    } catch (error) {
-      const err = error as Error;
-      logger.err("Error in loadMetrics:");
-      logger.err(err);
-    }
-  }
-
-  public getMetrics(
-    request: RequestModel<void>,
-  ): Promise<ResponseModel<Metric[]>> {
-    const response = new ResponseModel<Metric[]>(request.transactionId);
-
-    try {
-      response.data = [...this.metrics];
     } catch (error) {
       const err = error as Error;
       logger.err("Error in getMetrics:");
@@ -95,7 +86,7 @@ export class MetricsRepositoryImpl
       );
     }
 
-    return Promise.resolve(response);
+    return response;
   }
 
   public async queryMetric(
@@ -178,5 +169,3 @@ export class MetricsRepositoryImpl
     return response;
   }
 }
-
-export const MetricsRepositoryInstance = new MetricsRepositoryImpl();

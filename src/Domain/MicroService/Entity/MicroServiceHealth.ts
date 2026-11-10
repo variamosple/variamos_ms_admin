@@ -18,7 +18,7 @@ export const resolveServiceStatus = (
   return isRunning(containers) ? "NO_DATA" : "DOWN";
 };
 
-export interface HealthCheckDetail {
+interface HealthCheckDetail {
   status: HealthStatus;
   latencyMs?: number;
   message?: string;

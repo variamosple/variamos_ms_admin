@@ -2,9 +2,9 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 /** RFC 6238 parameters read by every authenticator app. */
 export const TOTP_PERIOD_SECONDS = 30;
-export const TOTP_DIGITS = 6;
+const TOTP_DIGITS = 6;
 /** Steps accepted before and after the current one (clock drift). */
-export const TOTP_WINDOW = 1;
+const TOTP_WINDOW = 1;
 /** 160 bits, the size RFC 4226 recommends for HMAC-SHA1. */
 const SECRET_BYTES = 20;
 

@@ -1,21 +1,19 @@
 import axios from "axios";
-import logger from "jet-logger";
-import { Op } from "sequelize";
-import { HealthLogStatistics } from "#src/DataProviders/MicroService/HealthLogStatistics.js";
-import { MicroServiceHealthLogModel } from "#src/DataProviders/MicroService/MicroServiceHealthLogModel.js";
-import type {
-  MicroServiceRepositoryImpl,
-  ServiceDefinition,
-} from "#src/DataProviders/MicroService/MicroServiceRepository.js";
+import logger from "#src/common/logger.js";
 import type { MicroServiceHealthInfo } from "#src/Domain/MicroService/Entity/MicroServiceHealth.js";
+import type { ServiceDefinition } from "#src/Domain/MicroService/Entity/ServiceDefinition.js";
+import type { IHealthLogArchive } from "#src/Domain/MicroService/Repository/IHealthLogArchive.js";
 import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repository/IMicroServiceRepository.js";
-import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Services checked at the same time: one mute service then costs one timeout
 // for the whole cycle, not one per service, without flooding the network.
-export const HEALTH_CHECK_CONCURRENCY = 4;
+const HEALTH_CHECK_CONCURRENCY = 4;
+
+// A service that answers slower than this is DEGRADED, not UP (EV-86 lot 2);
+// one that does not answer within the 5 s timeout is DOWN
+export const DEGRADED_LATENCY_MS = 2000;
 
 /**
  * Runs `task` on every item with at most `limit` tasks at the same time and
@@ -55,13 +53,13 @@ export class HealthCheckCollector {
   private pollIntervalMs: number;
 
   public constructor(
-    private readonly microServiceRepository: IMicroServiceRepository,
+    private readonly microServiceRepository: Pick<
+      IMicroServiceRepository,
+      "discoverServiceDefinitions" | "recordHealthCheck"
+    >,
+    private readonly healthLogs: IHealthLogArchive,
     initialPollIntervalMs: number = 30000,
     private readonly concurrency: number = HEALTH_CHECK_CONCURRENCY,
-    private readonly statistics = new HealthLogStatistics(
-      VARIAMOS_ORM,
-      DB_SCHEMA,
-    ),
   ) {
     this.pollIntervalMs = initialPollIntervalMs;
   }
@@ -163,18 +161,12 @@ export class HealthCheckCollector {
         Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
       );
 
-      aggregatedDays = await this.statistics.aggregateDays(
+      aggregatedDays = await this.healthLogs.aggregateDays(
         firstCompleteDay,
         today,
       );
 
-      purgedLogs = await MicroServiceHealthLogModel.destroy({
-        where: {
-          checkedAt: {
-            [Op.lt]: cutoffDate,
-          },
-        },
-      });
+      purgedLogs = await this.healthLogs.purgeChecksBefore(cutoffDate);
 
       logger.info(
         `Daily health aggregation complete: ${aggregatedDays} daily stats saved, ${purgedLogs} raw logs purged (> ${retentionDays} days).`,
@@ -202,12 +194,8 @@ export class HealthCheckCollector {
 
     try {
       // Dynamic service discovery from repository
-      let services: ServiceDefinition[] = [];
-      if ("discoverServiceDefinitions" in this.microServiceRepository) {
-        services = await (
-          this.microServiceRepository as MicroServiceRepositoryImpl
-        ).discoverServiceDefinitions();
-      }
+      const services =
+        await this.microServiceRepository.discoverServiceDefinitions();
 
       const targetServices = serviceName
         ? services.filter(
@@ -297,7 +285,12 @@ export class HealthCheckCollector {
             signal: pendingRequests.signal,
           });
 
-          if (response.status >= 200 && response.status < 300) {
+          // A service that declares itself DEGRADED often answers 503 with
+          // it (semantic_translator does): it answered, so it is not DOWN
+          if (
+            (response.status >= 200 && response.status < 300) ||
+            response.data?.status === "DEGRADED"
+          ) {
             return { response, latency: Date.now() - reqStart };
           }
           throw new Error(`HTTP status ${response.status}`);
@@ -305,7 +298,8 @@ export class HealthCheckCollector {
       );
 
       status =
-        successfulResult.response.data?.status === "DEGRADED"
+        successfulResult.response.data?.status === "DEGRADED" ||
+        successfulResult.latency > DEGRADED_LATENCY_MS
           ? "DEGRADED"
           : "UP";
       responseTimeMs = successfulResult.latency;

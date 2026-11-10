@@ -66,6 +66,50 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
       );
     });
 
+    it("passes the search and a known sort to the use case (EV-32)", async () => {
+      (
+        PermissionUseCase.prototype.queryPermissions as vi.Mock
+      ).mockResolvedValue(
+        new ResponseModel("queryPermissions").withResponse([]),
+      );
+
+      await supertest(app)
+        .get("/v1/permissions")
+        .query({ name: "17", sortBy: "id", sortOrder: "desc" });
+
+      expect(
+        PermissionUseCase.prototype.queryPermissions,
+      ).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            name: "17",
+            sortBy: "id",
+            sortOrder: "desc",
+          }),
+        }),
+      );
+    });
+
+    it("sorts by name, ascending, when the sort is unknown (EV-32)", async () => {
+      (
+        PermissionUseCase.prototype.queryPermissions as vi.Mock
+      ).mockResolvedValue(
+        new ResponseModel("queryPermissions").withResponse([]),
+      );
+
+      await supertest(app)
+        .get("/v1/permissions")
+        .query({ sortBy: "name; DROP TABLE permission", sortOrder: "up" });
+
+      expect(
+        PermissionUseCase.prototype.queryPermissions,
+      ).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ sortBy: "name", sortOrder: "asc" }),
+        }),
+      );
+    });
+
     it("should return error status code when query fails", async () => {
       const expectedResponse = new ResponseModel("queryPermissions").withError(
         DomainErrorCodes.INVALID_INPUT,

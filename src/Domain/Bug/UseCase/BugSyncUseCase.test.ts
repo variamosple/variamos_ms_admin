@@ -1,9 +1,9 @@
-import logger from "jet-logger";
 import { type MockProxy, mock } from "vitest-mock-extended";
+import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
-import type { GitHubTokenResolver } from "#src/Domain/Bug/Service/GitHubTokenResolver.js";
+import type { IGitHubTokenProvider } from "#src/Domain/Bug/Service/IGitHubTokenProvider.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -12,25 +12,32 @@ import type {
   GitHubIssueLabel,
   IIssueTrackerService,
 } from "#src/Domain/Core/Service/IIssueTrackerService.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { BugSyncUseCase } from "./BugSyncUseCase.js";
 
 describe("BugSyncUseCase", () => {
   let useCase: BugSyncUseCase;
+  let logger: MockProxy<ILogger>;
   let mockBugRepository: MockProxy<IBugRepository>;
   let mockIssueTracker: MockProxy<IIssueTrackerService>;
   let mockGithubConfig: MockProxy<IBugTrackerConfig>;
-  let mockTokenResolver: MockProxy<GitHubTokenResolver>;
+  let mockTokenResolver: MockProxy<IGitHubTokenProvider>;
+  let mockJournal: MockProxy<IActivityJournal>;
 
   beforeEach(() => {
+    logger = mock<ILogger>();
     mockBugRepository = mock<IBugRepository>();
     mockIssueTracker = mock<IIssueTrackerService>();
     mockGithubConfig = mock<IBugTrackerConfig>();
-    mockTokenResolver = mock<GitHubTokenResolver>();
+    mockTokenResolver = mock<IGitHubTokenProvider>();
+    mockJournal = mock<IActivityJournal>();
     useCase = new BugSyncUseCase(
       mockBugRepository,
       mockIssueTracker,
       mockGithubConfig,
       mockTokenResolver,
+      logger,
+      mockJournal,
     );
     // No local bug yet for the synchronized repositories
     mockBugRepository.queryBugs.mockResolvedValue(
@@ -81,18 +88,63 @@ describe("BugSyncUseCase", () => {
       }),
     );
 
-    const loggerInfoSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
-
     const req = new RequestModel<void>("tx-1");
     const res = await useCase.syncBugs(req);
 
     expect(res.errorCode).toBeUndefined();
     expect(mockBugRepository.saveOrUpdateBug).toHaveBeenCalled();
-    expect(loggerInfoSpy).toHaveBeenCalledWith(
+    expect(logger.info).toHaveBeenCalledWith(
       "Starting bugs sync for repos: VariaMos/VariaMosAdmin",
     );
-    expect(loggerInfoSpy).toHaveBeenCalledWith(
+    expect(logger.info).toHaveBeenCalledWith(
       "Synchronization finished: Created 1 and Updated 0 bugs.",
+    );
+  });
+
+  it("shares a running synchronization rather than starting a second one", async () => {
+    mockGithubConfig.getGitHubToken.mockReturnValue("pat");
+    mockGithubConfig.getGitHubManagedRepos.mockReturnValue(["Repo1"]);
+    mockTokenResolver.resolveGitHubToken.mockResolvedValue("mock-token");
+    let answerGitHub: (issues: []) => void = () => {};
+    mockIssueTracker.getIssues.mockReturnValue(
+      new Promise((resolve) => {
+        answerGitHub = resolve;
+      }),
+    );
+
+    const first = useCase.syncBugs(new RequestModel<void>("periodicSyncBugs"));
+    const second = useCase.syncBugs(new RequestModel<void>("syncBugs"));
+    await vi.waitFor(() =>
+      expect(mockIssueTracker.getIssues).toHaveBeenCalled(),
+    );
+    answerGitHub([]);
+
+    expect(await second).toBe(await first);
+    expect(mockIssueTracker.getIssues).toHaveBeenCalledOnce();
+
+    mockIssueTracker.getIssues.mockResolvedValue([]);
+    await useCase.syncBugs(new RequestModel<void>("syncBugs"));
+
+    expect(mockIssueTracker.getIssues).toHaveBeenCalledTimes(2);
+  });
+
+  it("records a synchronization asked by an administrator, not the scheduled one", async () => {
+    mockGithubConfig.getGitHubToken.mockReturnValue("");
+
+    await useCase.syncBugs(new RequestModel<void>("periodicSyncBugs"));
+    expect(mockJournal.record).not.toHaveBeenCalled();
+
+    await useCase.syncBugs(
+      new RequestModel<void>("syncBugs", undefined, "admin-1"),
+    );
+    expect(mockJournal.record).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        actorId: "admin-1",
+        action: "bug.sync",
+        entityType: "bug",
+        outcome: "failed",
+        errorCode: DomainErrorCodes.INVALID_INPUT,
+      }),
     );
   });
 
@@ -159,14 +211,13 @@ describe("BugSyncUseCase", () => {
       .mockResolvedValueOnce("token2");
 
     mockIssueTracker.getIssues.mockResolvedValue([]);
-    const loggerWarnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
 
     const req = new RequestModel<void>("tx-1");
     await useCase.syncBugs(req);
 
     expect(mockTokenResolver.resolveGitHubToken).toHaveBeenCalledTimes(2);
     expect(mockIssueTracker.getIssues).toHaveBeenCalledTimes(1); // called only for Repo2
-    expect(loggerWarnSpy).toHaveBeenCalledWith(
+    expect(logger.warn).toHaveBeenCalledWith(
       "GitHub token could not be resolved for repo: Repo1. Skipping.",
     );
   });
@@ -697,11 +748,9 @@ describe("BugSyncUseCase", () => {
       }),
     );
 
-    const loggerErrSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
-
     await useCase.syncBugs(new RequestModel<void>("tx-1"));
 
-    expect(loggerErrSpy).not.toHaveBeenCalled();
+    expect(logger.err).not.toHaveBeenCalled();
 
     expect(mockBugRepository.saveOrUpdateBug).toHaveBeenNthCalledWith(
       1,
@@ -782,11 +831,9 @@ describe("BugSyncUseCase", () => {
         new ResponseModel<{ created: boolean; updated: boolean }>("tx-1"),
       );
 
-    const loggerInfoSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
-
     await useCase.syncBugs(new RequestModel<void>("tx-1"));
 
-    expect(loggerInfoSpy).toHaveBeenCalledWith(
+    expect(logger.info).toHaveBeenCalledWith(
       "Synchronization finished: Created 1 and Updated 1 bugs.",
     );
   });

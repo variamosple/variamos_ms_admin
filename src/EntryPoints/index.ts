@@ -3,7 +3,6 @@ import { isAuthenticated } from "@variamosple/variamos-security";
 import { Router } from "express";
 import EnvVars from "#src/common/EnvVars.js";
 import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
-import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import type { JournalQueryUseCase } from "#src/Domain/Activity/JournalQueryUseCase.js";
 import type { BugAssignmentUseCase } from "#src/Domain/Bug/UseCase/BugAssignmentUseCase.js";
 import type { BugAttachmentUseCase } from "#src/Domain/Bug/UseCase/BugAttachmentUseCase.js";
@@ -23,6 +22,7 @@ import type { UserMfaUseCase } from "#src/Domain/Mfa/UseCase/UserMfaUseCase.js";
 import type { MicroServiceManagementUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
 import type { MicroServiceQueryUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
 import type { INotificationAccessTokenIssuer } from "#src/Domain/Notification/INotificationAccessTokenIssuer.js";
+import type { NotificationDispatchUseCase } from "#src/Domain/Notification/UseCase/NotificationDispatchUseCase.js";
 import type { PermissionUseCase } from "#src/Domain/Permission/UseCase/PermissionUseCase.js";
 // Role & Permission Use Cases
 import type { RoleManagementUseCase } from "#src/Domain/Role/UseCase/RoleManagementUseCase.js";
@@ -54,7 +54,7 @@ import {
   COUNTRIES_V1_ROUTE,
   createCountriesRouter,
 } from "./CountriesV1Router.js";
-import { createHealthRouter } from "./HealthRouter.js";
+import { createHealthRouter, type DatabaseCheck } from "./HealthRouter.js";
 import {
   ACCESS_LOGS_V1_ROUTE,
   ACTIVITY_LOGS_V1_ROUTE,
@@ -84,7 +84,7 @@ import { createUserRolesRouter } from "./UserRolesV1Router.js";
 import { createUsersRouter, USERS_V1_ROUTE } from "./UsersV1Router.js";
 import { createVisitsRouter, VISITS_V1_ROUTE } from "./VisitsV1Router.js";
 
-export interface UserFlowUseCases {
+interface UserFlowUseCases {
   auth: UserAuthUseCase;
   password: UserPasswordUseCase;
   management: UserManagementUseCase;
@@ -92,7 +92,7 @@ export interface UserFlowUseCases {
   role: UserRoleUseCase;
 }
 
-export interface BugFlowUseCases {
+interface BugFlowUseCases {
   submission: BugSubmissionUseCase;
   lifecycle: BugLifecycleUseCase;
   sync: BugSyncUseCase;
@@ -101,39 +101,69 @@ export interface BugFlowUseCases {
   assignment: BugAssignmentUseCase;
 }
 
-export interface MicroServiceFlowUseCases {
+interface MicroServiceFlowUseCases {
   query: MicroServiceQueryUseCase;
   management: MicroServiceManagementUseCase;
 }
 
-export interface RoleFlowUseCases {
+interface RoleFlowUseCases {
   management: RoleManagementUseCase;
   query: RoleQueryUseCase;
   permission: RolePermissionUseCase;
 }
 
-export function createBaseRouter(
-  usersUseCases: UserFlowUseCases,
-  bugUseCases: BugFlowUseCases,
-  microServiceUseCases: MicroServiceFlowUseCases,
-  rolesUseCases: RoleFlowUseCases,
-  metricsUseCase: MetricsQueryUseCase,
-  permissionsUseCase: PermissionUseCase,
-  visitsUseCase: VisitUseCase,
-  countriesUseCase: CountriesQueryUseCase,
-  configurationUseCase: ConfigurationUseCase,
-  upload: MulterUpload,
-  notificationAccessTokenIssuer: INotificationAccessTokenIssuer,
-  accessGuard: AccessGuard,
-  accountLockout: AccountLockout,
-  mfaUseCase: UserMfaUseCase,
-  mfaSignIn: MfaSignInUseCase,
-  mfaReset: MfaResetUseCase,
-  trustedDevices: TrustedDeviceUseCase,
-  activityJournal: IActivityJournal,
-  accessJournal: IAccessJournal,
-  journalQuery: JournalQueryUseCase,
-): Router {
+interface MfaFlowUseCases {
+  user: UserMfaUseCase;
+  signIn: MfaSignInUseCase;
+  reset: MfaResetUseCase;
+  trustedDevices: TrustedDeviceUseCase;
+}
+
+interface NotificationFlow {
+  accessTokenIssuer: INotificationAccessTokenIssuer;
+  dispatch: NotificationDispatchUseCase;
+}
+
+/** What the routers need, built by the composition (T-18 lot 4a). */
+export interface BaseRouterDependencies {
+  users: UserFlowUseCases;
+  bugs: BugFlowUseCases;
+  microServices: MicroServiceFlowUseCases;
+  roles: RoleFlowUseCases;
+  mfa: MfaFlowUseCases;
+  notifications: NotificationFlow;
+  metrics: MetricsQueryUseCase;
+  permissions: PermissionUseCase;
+  visits: VisitUseCase;
+  countries: CountriesQueryUseCase;
+  configuration: ConfigurationUseCase;
+  upload: MulterUpload;
+  accessGuard: AccessGuard;
+  accountLockout: AccountLockout;
+  accessJournal: IAccessJournal;
+  journalQuery: JournalQueryUseCase;
+  checkDatabase: DatabaseCheck;
+}
+
+export function createBaseRouter({
+  users: usersUseCases,
+  bugs: bugUseCases,
+  microServices: microServiceUseCases,
+  roles: rolesUseCases,
+  mfa,
+  notifications,
+  metrics: metricsUseCase,
+  permissions: permissionsUseCase,
+  visits: visitsUseCase,
+  countries: countriesUseCase,
+  configuration: configurationUseCase,
+  upload,
+  accessGuard,
+  accountLockout,
+  accessJournal,
+  journalQuery,
+  checkDatabase,
+}: BaseRouterDependencies): Router {
   const baseRouter = Router();
 
   const authRouter = createAuthRouter(
@@ -141,7 +171,7 @@ export function createBaseRouter(
     usersUseCases.password,
     usersUseCases.management,
     usersUseCases.query,
-    mfaSignIn,
+    mfa.signIn,
     accessJournal,
   );
   const configurationV1Router = createConfigurationRouter(configurationUseCase);
@@ -184,20 +214,24 @@ export function createBaseRouter(
     isAuthenticated,
     bugUseCases.assignment,
   );
-  const adminNotificationsV1Router =
-    createAdminNotificationsRouter(activityJournal);
+  const adminNotificationsV1Router = createAdminNotificationsRouter(
+    notifications.dispatch,
+  );
   const notificationAccessV1Router = createNotificationAccessRouter(
-    notificationAccessTokenIssuer,
+    notifications.accessTokenIssuer,
     isAuthenticated,
   );
 
   // First, so that it sees the refusals of every router and limit (T-24)
   baseRouter.use(recordRefusals(accessJournal));
   applyRateLimits(baseRouter, accountLockout, accessJournal);
-  baseRouter.use(MFA_ROUTE, createMfaRouter(mfaUseCase, trustedDevices));
+  baseRouter.use(MFA_ROUTE, createMfaRouter(mfa.user, mfa.trustedDevices));
   baseRouter.use(AUTH_ROUTE, authRouter);
   baseRouter.use(CONFIGURATION_V1_ROUTE, configurationV1Router);
-  baseRouter.use(USER_MFA_V1_ROUTE, createUserMfaRouter(mfaReset, accessGuard));
+  baseRouter.use(
+    USER_MFA_V1_ROUTE,
+    createUserMfaRouter(mfa.reset, accessGuard),
+  );
   baseRouter.use(USERS_V1_ROUTE, usersV1Router);
   baseRouter.use(ROLES_V1_ROUTE, rolesV1Router);
   baseRouter.use(PERMISSIONS_V1_ROUTE, permissionsV1Router);
@@ -213,7 +247,7 @@ export function createBaseRouter(
     createActivityLogsRouter(journalQuery),
   );
   baseRouter.use(ACCESS_LOGS_V1_ROUTE, createAccessLogsRouter(journalQuery));
-  baseRouter.use("/health", createHealthRouter());
+  baseRouter.use("/health", createHealthRouter(checkDatabase));
 
   baseRouter.get("/version", (_, res) => {
     try {

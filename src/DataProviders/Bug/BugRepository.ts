@@ -1,5 +1,5 @@
-import logger from "jet-logger";
 import { Op, QueryTypes, type Transaction, type WhereOptions } from "sequelize";
+import logger from "#src/common/logger.js";
 import { Bug, type BugUserRef } from "#src/Domain/Bug/Entity/Bug.js";
 import { BugAttachment } from "#src/Domain/Bug/Entity/BugAttachment.js";
 import type { BugComponentValue } from "#src/Domain/Bug/Entity/BugComponent.js";
@@ -46,6 +46,41 @@ interface DbBugNoteWithAssociations extends BugNoteModel {
   author?: {
     name: string;
   } | null;
+}
+
+/** Newest first; the id keeps bugs created at the same time on one page. */
+const NEWEST_FIRST: [string, string][] = [
+  ["createdAt", "DESC"],
+  ["id", "DESC"],
+];
+
+function pageOf(filter: BugFilter): { limit?: number; offset?: number } {
+  if (!filter.pageNumber || !filter.pageSize) return {};
+  return {
+    limit: filter.pageSize,
+    offset: (filter.pageNumber - 1) * filter.pageSize,
+  };
+}
+
+/** The bugs of the page and, for a page, how many match the filters. */
+async function findPage(
+  where: WhereOptions,
+  filter: BugFilter,
+): Promise<{ dbBugs: BugModel[]; totalCount?: number }> {
+  const page = pageOf(filter);
+  const [dbBugs, totalCount] = await Promise.all([
+    BugModel.findAll({
+      where,
+      include: [
+        { model: BugAttachmentModel, as: "attachments" },
+        { model: UserModel, as: "createdBy", attributes: ["name", "email"] },
+      ],
+      order: NEWEST_FIRST,
+      ...page,
+    }),
+    page.limit === undefined ? undefined : BugModel.count({ where }),
+  ]);
+  return { dbBugs, totalCount: totalCount ?? dbBugs.length };
 }
 
 export class BugRepositoryImpl implements IBugRepository {
@@ -96,14 +131,11 @@ export class BugRepositoryImpl implements IBugRepository {
         whereClause[Op.or] = orConditions;
       }
 
-      const dbBugs = await BugModel.findAll({
-        where: whereClause as WhereOptions,
-        include: [
-          { model: BugAttachmentModel, as: "attachments" },
-          { model: UserModel, as: "createdBy", attributes: ["name", "email"] },
-        ],
-        order: [["createdAt", "DESC"]],
-      });
+      const { dbBugs, totalCount } = await findPage(
+        whereClause as WhereOptions,
+        filter,
+      );
+      response.totalCount = totalCount;
       const assignees = await this.assigneesOf(
         dbBugs.map((dbBug) => dbBug.id ?? ""),
       );
@@ -188,14 +220,11 @@ export class BugRepositoryImpl implements IBugRepository {
         whereClause[Op.or] = orConditions;
       }
 
-      const dbBugs = await BugModel.findAll({
-        where: whereClause as WhereOptions,
-        include: [
-          { model: BugAttachmentModel, as: "attachments" },
-          { model: UserModel, as: "createdBy", attributes: ["name", "email"] },
-        ],
-        order: [["createdAt", "DESC"]],
-      });
+      const { dbBugs, totalCount } = await findPage(
+        whereClause as WhereOptions,
+        filter,
+      );
+      response.totalCount = totalCount;
 
       response.data = dbBugs.map((dbBug) => {
         const typedBug = dbBug as DbBugWithAssociations;

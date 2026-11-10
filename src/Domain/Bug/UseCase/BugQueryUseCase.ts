@@ -1,4 +1,3 @@
-import logger from "jet-logger";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import type { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import { BugFilter } from "#src/Domain/Bug/Entity/BugFilter.js";
@@ -9,6 +8,7 @@ import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { INTERNAL_ERROR_MESSAGE } from "#src/Domain/Core/Error/InternalErrorMessage.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 
 export const ALLOWED_CATEGORIES = [
   "Editor",
@@ -24,6 +24,7 @@ export class BugQueryUseCase {
   public constructor(
     private readonly bugRepository: IBugRepository,
     private readonly githubConfig: IBugTrackerConfig,
+    private readonly logger: ILogger,
   ) {}
 
   public async queryBugs(
@@ -59,7 +60,7 @@ export class BugQueryUseCase {
       response.data = [...this.githubConfig.getGitHubManagedRepos()];
     } catch (error) {
       const err = error as Error;
-      logger.err(err);
+      this.logger.err(err);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return Promise.resolve(response);

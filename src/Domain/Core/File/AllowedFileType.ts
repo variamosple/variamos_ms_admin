@@ -49,16 +49,6 @@ export const LOG: AllowedFileType = {
   isImage: false,
 };
 
-export const ALLOWED_FILE_TYPES: readonly AllowedFileType[] = [
-  PNG,
-  JPEG,
-  GIF,
-  WEBP,
-  PDF,
-  TEXT,
-  LOG,
-];
-
 export const ALLOWED_FILE_TYPES_LABEL = "PNG, JPEG, GIF, WebP, PDF, TXT, LOG";
 
 const TEXT_EXTENSIONS: Record<string, AllowedFileType> = {

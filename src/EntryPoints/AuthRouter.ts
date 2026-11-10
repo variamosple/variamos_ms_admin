@@ -14,10 +14,10 @@ import {
   Router,
 } from "express";
 import { OAuth2Client } from "google-auth-library";
-import logger from "jet-logger";
 import { describeError } from "#src/common/describeError.js";
 import EnvVars from "#src/common/EnvVars.js";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import logger from "#src/common/logger.js";
 import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
 import type { Nullable } from "#src/Domain/Core/Entity/Nullable.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
@@ -28,17 +28,36 @@ import type { MfaSignInUseCase } from "#src/Domain/Mfa/UseCase/MfaSignInUseCase.
 import { Credentials } from "#src/Domain/User/Entity/Credentials.js";
 import { PasswordUpdate } from "#src/Domain/User/Entity/PasswordUpdate.js";
 import { PersonalInformationUpdate } from "#src/Domain/User/Entity/PersonalInformationUpdate.js";
-import type { SessionInfoResponse } from "#src/Domain/User/Entity/SessionInfoResponse.js";
 import type { SingInResponse } from "#src/Domain/User/Entity/SingInResponse.js";
 import { User } from "#src/Domain/User/Entity/User.js";
-import { UserRegistration } from "#src/Domain/User/Entity/UserRegistration.js";
 import type { UserAuthUseCase } from "#src/Domain/User/UseCase/UserAuthUseCase.js";
 import type { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
 import type { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
 import type { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
 import { recordAccess } from "./accessJournal.js";
+import {
+  forgotPasswordBody,
+  googleCallbackBody,
+  guestSignInBody,
+  passwordUpdateBody,
+  personalInformationBody,
+  redirectBody,
+  resetPasswordBody,
+  signInBody,
+  signInMfaBody,
+  signUpBody,
+  verifyTokenBody,
+} from "./authRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
+import { readBody } from "./requestBody.js";
+
+/** Body of GET /auth/session-info: an HTTP shape, not a domain entity. */
+interface SessionInfoResponse {
+  user: SessionUser;
+  authToken?: string;
+  redirect?: string;
+}
 
 export const AUTH_ROUTE = "/auth";
 
@@ -74,17 +93,17 @@ export function createAuthRouter(
   const isExternalDomain = (host?: string): boolean =>
     !!host && !HOME_URL_HOST_REGEX.test(host);
 
-  const isAllowedOrigin = (origin: string): boolean => {
-    if ("null" === origin) {
-      return true;
-    }
+  const isAllowedOrigin = (origin: string): boolean =>
+    EnvVars.CORS.AllowedOriginsPatterns.findIndex((pattern) =>
+      pattern.test(origin),
+    ) !== -1;
 
-    return (
-      EnvVars.CORS.AllowedOriginsPatterns.findIndex((pattern) =>
-        pattern.test(origin),
-      ) !== -1
-    );
-  };
+  // A page to go back to after sign-in: a web address of an allowed site.
+  // A javascript: or data: address has the origin "null"; given to the
+  // browser, a javascript: one would run its script on the sign-in site.
+  const isAllowedRedirect = (redirect: URL): boolean =>
+    (redirect.protocol === "http:" || redirect.protocol === "https:") &&
+    isAllowedOrigin(redirect.origin);
 
   const getRedirectUrl = (
     transactionId: string,
@@ -116,7 +135,7 @@ export function createAuthRouter(
     try {
       const redirect = new URL(url);
 
-      return isAllowedOrigin(redirect.origin) ? redirect : undefined;
+      return isAllowedRedirect(redirect) ? redirect : undefined;
     } catch (error) {
       // The query string or fragment may carry a token: never log them
       const urlWithoutQuery = url.split(/[?#]/)[0]?.slice(0, 200);
@@ -341,7 +360,9 @@ export function createAuthRouter(
   authRouter.post("/sign-in", async (req, res) => {
     const transactionId = "signIn";
     const response = new ResponseModel<SingInResponse>(transactionId);
-    const { email, password } = (req.body || {}) as Record<string, string>;
+    const body = readBody(signInBody, req, res, transactionId);
+    if (!body) return;
+    const { email, password } = body;
 
     try {
       if (!email || !password) {
@@ -438,10 +459,9 @@ export function createAuthRouter(
     const pendingToken = req.cookies?.[MFA_PENDING_COOKIE] as
       | string
       | undefined;
-    const { code, rememberDevice } = (req.body || {}) as Record<
-      string,
-      unknown
-    >;
+    const body = readBody(signInMfaBody, req, res, transactionId);
+    if (!body) return;
+    const { code, rememberDevice } = body;
     const clearPending = () =>
       res.clearCookie(MFA_PENDING_COOKIE, getCookieOptions({ maxAge: false }));
 
@@ -545,36 +565,25 @@ export function createAuthRouter(
 
   authRouter.post("/sign-up", async (req, res) => {
     const transactionId = "signUp";
-    const { name, email, password, passwordConfirmation } = (req.body ||
-      {}) as Record<string, string>;
+    const body = readBody(signUpBody, req, res, transactionId);
+    if (!body) return;
+    const { name, email, password, passwordConfirmation } = body;
     const successfulResponse = new ResponseModel<void>(
       transactionId,
       undefined,
       "You have successfully signed up!",
     );
 
-    let registration: UserRegistration;
     try {
-      registration = new UserRegistration(
-        name,
-        email,
-        password,
-        passwordConfirmation,
+      // Checked once, by the use case; a taken address answers as a free one
+      const response = await userAuthUseCase.signUp(
+        new RequestModel(transactionId, {
+          name,
+          email,
+          password,
+          passwordConfirmation,
+        }),
       );
-    } catch (error) {
-      return sendError(res, error, transactionId);
-    }
-
-    try {
-      const request = new RequestModel<UserRegistration>(
-        transactionId,
-        registration,
-      );
-      const response = await userAuthUseCase.signUp(request);
-
-      if (DomainErrorCodes.DUPLICATE_ENTITY === response.errorCode) {
-        return res.status(HttpStatusCodes.OK).json(successfulResponse);
-      }
 
       if (response.errorCode) {
         return res
@@ -634,7 +643,9 @@ export function createAuthRouter(
 
   authRouter.post("/google/callback", async (req, res) => {
     const transactionId = "loginWithGoogle";
-    const { credential } = (req.body || {}) as Record<string, string>;
+    const body = readBody(googleCallbackBody, req, res, transactionId);
+    if (!body) return;
+    const { credential } = body;
     try {
       const user = await validateGoogleCode(credential);
 
@@ -762,9 +773,13 @@ export function createAuthRouter(
     async (req, res) => {
       const transactionId = "updateMyAccountInformation";
       const user = req.user as SessionUser;
-      const personalInformation = (req.body || {}) as {
-        countryCode?: string | null;
-      };
+      const personalInformation = readBody(
+        personalInformationBody,
+        req,
+        res,
+        transactionId,
+      );
+      if (!personalInformation) return;
 
       try {
         const personalInformationUpdate = PersonalInformationUpdate.builder()
@@ -795,8 +810,9 @@ export function createAuthRouter(
     async (req, res) => {
       const transactionId = "passwordUpdate";
       const user = req.user as SessionUser;
-      const { currentPassword, newPassword, passwordConfirmation } =
-        (req.body || {}) as Record<string, string>;
+      const body = readBody(passwordUpdateBody, req, res, transactionId);
+      if (!body) return;
+      const { currentPassword, newPassword, passwordConfirmation } = body;
       try {
         const passwordUpdate = PasswordUpdate.builder()
           .setId(user.id)
@@ -821,7 +837,9 @@ export function createAuthRouter(
 
   authRouter.post("/guest/sign-in", async (req, res) => {
     const transactionId = "signInAsGuest";
-    const { guestId } = (req.body || {}) as Record<string, string>;
+    const body = readBody(guestSignInBody, req, res, transactionId);
+    if (!body) return;
+    const { guestId } = body;
 
     try {
       const response = new ResponseModel<SingInResponse>(transactionId);
@@ -875,7 +893,9 @@ export function createAuthRouter(
 
   authRouter.post("/redirects", (request, res) => {
     const response = new ResponseModel<void>("setRedirect");
-    const { url } = (request.body || {}) as Record<string, string>;
+    const body = readBody(redirectBody, request, res, "setRedirect");
+    if (!body) return;
+    const { url } = body;
 
     if (!url) {
       res.status(200).json(response);
@@ -886,7 +906,7 @@ export function createAuthRouter(
 
     try {
       const redirect = new URL(url);
-      isAllowed = isAllowedOrigin(redirect.origin);
+      isAllowed = isAllowedRedirect(redirect);
     } catch (error) {
       logger.err(`POST: ${AUTH_ROUTE}/redirects Invalid redirect URL:`);
       logger.err(error as Error);
@@ -911,7 +931,9 @@ export function createAuthRouter(
 
   authRouter.post("/forgot-password", async (req, res) => {
     const transactionId = "forgotPassword";
-    const { email = "" } = (req.body || {}) as Record<string, string>;
+    const body = readBody(forgotPasswordBody, req, res, transactionId);
+    if (!body) return;
+    const { email } = body;
 
     try {
       const forgotPasswordResponse = await userPasswordUseCase.requestReset(
@@ -930,17 +952,15 @@ export function createAuthRouter(
     }
   });
 
-  // POST keeps the token out of URLs and access logs; GET stays while
-  // clients that still send the token in the query string are replaced.
-  const verifyToken = async (token: unknown, res: Response) => {
+  // The token travels in the body, out of URLs and access logs (EV-74)
+  authRouter.post("/verify-token", async (req, res) => {
     const transactionId = "verifyToken";
+    const body = readBody(verifyTokenBody, req, res, transactionId);
+    if (!body) return;
 
     try {
       const verifyResponse = await userPasswordUseCase.verifyToken(
-        new RequestModel<string>(
-          transactionId,
-          typeof token === "string" ? token : "",
-        ),
+        new RequestModel<string>(transactionId, body.token),
       );
 
       if (verifyResponse.errorCode) {
@@ -953,21 +973,13 @@ export function createAuthRouter(
     } catch (err) {
       sendError(res, err, transactionId);
     }
-  };
-
-  authRouter.post("/verify-token", (req, res) =>
-    verifyToken((req.body as { token?: unknown } | undefined)?.token, res),
-  );
-  authRouter.get("/verify-token", (req, res) =>
-    verifyToken(req.query?.token, res),
-  );
+  });
 
   authRouter.post("/reset-password", async (req, res) => {
     const transactionId = "resetPassword";
-    const { token = "", password = "" } = (req.body || {}) as Record<
-      string,
-      string
-    >;
+    const body = readBody(resetPasswordBody, req, res, transactionId);
+    if (!body) return;
+    const { token, password } = body;
 
     try {
       const resetResponse = await userPasswordUseCase.resetPassword(

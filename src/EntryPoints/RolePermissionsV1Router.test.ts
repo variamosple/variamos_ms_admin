@@ -74,6 +74,34 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
       );
     });
 
+    it("passes the search to the use case (EV-31)", async () => {
+      (
+        RolePermissionUseCase.prototype.queryRolePermissions as vi.Mock
+      ).mockResolvedValue(
+        new ResponseModel("queryRolePermissions").withResponse([]),
+      );
+
+      await supertest(app)
+        .get("/v1/roles/1/permissions")
+        .query({ search: "users" });
+      expect(
+        RolePermissionUseCase.prototype.queryRolePermissions,
+      ).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ roleId: 1, search: "users" }),
+        }),
+      );
+
+      await supertest(app).get("/v1/roles/1/permissions");
+      expect(
+        RolePermissionUseCase.prototype.queryRolePermissions,
+      ).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ search: null }),
+        }),
+      );
+    });
+
     it("should return 400 when roleId is invalid", async () => {
       const response = await supertest(app).get(
         "/v1/roles/invalid-id/permissions",
@@ -110,6 +138,20 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
   });
 
   describe("POST /v1/roles/:roleId/permissions", () => {
+    it("refuses a permission id sent as a list, before the use case", async () => {
+      const response = await supertest(app)
+        .post("/v1/roles/1/permissions")
+        .send({ permissionId: [2] });
+
+      expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
+      expect(response.body.message).toBe(
+        'The field "permissionId" is invalid.',
+      );
+      expect(
+        RolePermissionUseCase.prototype.createRolePermission,
+      ).not.toHaveBeenCalled();
+    });
+
     it("should return 201 on success", async () => {
       const mockRolePerm = new RolePermission(1, 2);
       const expectedResponse = new ResponseModel(

@@ -3,8 +3,12 @@ import express from "express";
 import supertest from "supertest";
 import { mock } from "vitest-mock-extended";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
+import type { IConfigEventPublisher } from "#src/Domain/Configuration/Event/IConfigEventPublisher.js";
+import type { IConfigurationRepository } from "#src/Domain/Configuration/Repository/IConfigurationRepository.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { MicroServiceConfigItem } from "#src/Domain/MicroService/Entity/MicroServiceConfigItem.js";
 import { MicroServiceManagementUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
 import { MicroServiceQueryUseCase } from "#src/Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
@@ -50,6 +54,10 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
     );
     const mockManagementUseCase = new MicroServiceManagementUseCase(
       mock<IMicroServiceRepository>(),
+      mock<ILogger>(),
+      mock<IConfigurationRepository>(),
+      mock<IConfigEventPublisher>(),
+      mock<IActivityJournal>(),
     );
     app.use(
       "/v1/micro-services",

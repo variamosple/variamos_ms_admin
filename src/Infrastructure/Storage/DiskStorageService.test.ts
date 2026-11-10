@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import logger from "jet-logger";
+import logger from "#src/common/logger.js";
 import { DiskStorageService } from "./DiskStorageService.js";
 
 describe("DiskStorageService", () => {

@@ -1,3 +1,6 @@
+// Test files may reach any layer to build their doubles.
+const TESTS = '\\.(test|spec)\\.ts$';
+
 module.exports = {
   forbidden: [
     {
@@ -8,16 +11,46 @@ module.exports = {
       to: { path: '^src/Infrastructure|^src/DataProviders|^src/EntryPoints|^src/common' }
     },
     {
+      name: 'domain-uses-no-package',
+      comment: 'The Domain depends on no npm package: a library goes behind a port implemented in Infrastructure. Node built-ins stay allowed.',
+      severity: 'error',
+      from: { path: '^src/Domain', pathNot: TESTS },
+      to: { dependencyTypesNot: ['local', 'core'] }
+    },
+    {
+      name: 'entrypoints-go-through-the-domain',
+      comment: 'Routers call use cases; they do not reach the ORM models, repositories or infrastructure clients.',
+      severity: 'error',
+      from: { path: '^src/EntryPoints', pathNot: TESTS },
+      to: { path: '^src/Infrastructure|^src/DataProviders' }
+    },
+    {
+      name: 'infrastructure-does-not-use-dataproviders',
+      comment: 'Infrastructure adapters reach the data through domain ports.',
+      severity: 'error',
+      from: { path: '^src/Infrastructure', pathNot: TESTS },
+      to: { path: '^src/DataProviders' }
+    },
+    {
       name: 'dataproviders-do-not-import-common',
       comment: 'Data Providers must not import infrastructure utilities from common.',
       severity: 'error',
       from: { path: '^src/DataProviders' },
-      to: { path: '^src/common' }
+      // The logger replaces jet-logger, a package this layer already used
+      // directly; it holds no configuration or utility
+      to: { path: '^src/common', pathNot: '^src/common/logger\\.ts$' }
+    },
+    {
+      name: 'logs-go-through-the-common-logger',
+      comment: 'jet-logger prints objects in full since version 3 (request headers, SQL parameters): code logs through src/common/logger.ts, which writes text only.',
+      severity: 'error',
+      from: { pathNot: '^src/common/logger\\.(ts|spec\\.ts)$' },
+      to: { path: '^node_modules/jet-logger/' }
     },
     {
       name: 'no-circular-dependencies',
       comment: 'Forbidden circular dependencies that can corrupt execution.',
-      severity: 'warn',
+      severity: 'error',
       from: {},
       to: {
         circular: true

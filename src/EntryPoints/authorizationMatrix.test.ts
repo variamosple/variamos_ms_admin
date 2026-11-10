@@ -94,6 +94,8 @@ const GUARDED: Record<string, string> = {
   "GET /bugs/assignable-users": "bugs::update",
   "PUT /bugs/:id/assignees": "bugs::update",
   "POST /v1/admin/notifications/dispatch": "admin::notifications::dispatch",
+  "POST /v1/admin/notifications/recipients/count":
+    "admin::notifications::dispatch",
   "GET /v1/activity-logs": "activity-logs::query",
   "GET /v1/access-logs": "activity-logs::query",
   "POST /v1/visits": SIGNED_IN,
@@ -113,7 +115,6 @@ const PUBLIC = new Set([
   "POST /auth/forgot-password",
   "POST /auth/reset-password",
   "POST /auth/verify-token",
-  "GET /auth/verify-token",
   "GET /auth/password-policy",
   // Reads its own token; answers 401 itself without one
   "GET /auth/session-info",
@@ -124,6 +125,8 @@ const PUBLIC = new Set([
   "GET /bugs/categories",
   // The menu of the shared header, shown before signing in
   "GET /v1/configurations/menu",
+  // The site name of the browser tabs, before signing in (EV-87 lot 2)
+  "GET /v1/configurations/public",
   // Monitoring
   "GET /health",
   "GET /version",
@@ -167,30 +170,27 @@ function buildRouter(accessGuard: AccessGuard) {
   };
   let router: Router;
   try {
-    router = createBaseRouter(
-      mockDeep(),
-      mockDeep(),
-      mockDeep(),
-      mockDeep(),
-      mock(),
-      mock(),
-      mock(),
-      mock(),
-      mock(),
-      multer(),
-      mock(),
+    router = createBaseRouter({
+      users: mockDeep(),
+      bugs: mockDeep(),
+      microServices: mockDeep(),
+      roles: mockDeep(),
+      mfa: mockDeep(),
+      notifications: mockDeep(),
+      metrics: mock(),
+      permissions: mock(),
+      visits: mock(),
+      countries: mock(),
+      configuration: mock(),
+      upload: multer(),
       accessGuard,
-      new AccountLockout({
+      accountLockout: new AccountLockout({
         getPolicy: async () => AccountLockoutPolicy.DEFAULT,
       }),
-      mock(),
-      mock(),
-      mock(),
-      mock(),
-      mock(),
-      mock(),
-      mock(),
-    );
+      accessJournal: mock(),
+      journalQuery: mock(),
+      checkDatabase: mock(),
+    });
   } finally {
     proto.use = original;
   }
@@ -269,6 +269,15 @@ describe("authorization of every route (T-17 lot 2)", () => {
     without: new Map(),
   };
 
+  // The configuration restores the environment before each test
+  // (unstubEnvs): the keys and the token lifetime are stubbed again then
+  const keyEnv: Record<string, string> = {};
+  const stubKeyEnv = () => {
+    for (const [name, value] of Object.entries(keyEnv)) {
+      vi.stubEnv(name, value);
+    }
+  };
+
   beforeAll(async () => {
     // A key pair of this test only, read the way production reads its own
     const { privateKey, publicKey } = generateKeyPairSync("rsa", {
@@ -284,10 +293,11 @@ describe("authorization of every route (T-17 lot 2)", () => {
       publicPath,
       publicKey.export({ type: "spki", format: "pem" }),
     );
-    vi.stubEnv("VARIAMOS_PRIVATE_KEY_PATH", privatePath);
-    vi.stubEnv("VARIAMOS_PUBLIC_KEY_PATH", publicPath);
+    keyEnv.VARIAMOS_PRIVATE_KEY_PATH = privatePath;
+    keyEnv.VARIAMOS_PUBLIC_KEY_PATH = publicPath;
     // Tokens valid for ten minutes, whatever the environment file says
-    vi.stubEnv("VARIAMOS_JWT_EXP_IN_SECONDS", "600");
+    keyEnv.VARIAMOS_JWT_EXP_IN_SECONDS = "600";
+    stubKeyEnv();
     await initKeyStore();
 
     tokens.all = await tokenFor(PERMISSIONS);
@@ -302,8 +312,9 @@ describe("authorization of every route (T-17 lot 2)", () => {
     vi.spyOn(console, "info").mockImplementation(() => {});
   });
 
+  beforeEach(stubKeyEnv);
+
   afterAll(() => {
-    vi.unstubAllEnvs();
     rmSync(keyDir, { recursive: true, force: true });
   });
 

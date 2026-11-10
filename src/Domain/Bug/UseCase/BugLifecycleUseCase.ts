@@ -1,4 +1,3 @@
-import logger from "jet-logger";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
@@ -14,11 +13,13 @@ import {
   isIssueOpen,
 } from "#src/Domain/Bug/Entity/BugStatus.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
-import type { GitHubTokenResolver } from "#src/Domain/Bug/Service/GitHubTokenResolver.js";
+import type { IBugScheduleProvider } from "#src/Domain/Bug/Service/BugScheduleService.js";
+import type { IGitHubTokenProvider } from "#src/Domain/Bug/Service/IGitHubTokenProvider.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { IIssueTrackerService } from "#src/Domain/Core/Service/IIssueTrackerService.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IStorageService } from "#src/Domain/Core/Service/IStorageService.js";
 
 interface StatusChange {
@@ -41,8 +42,13 @@ export class BugLifecycleUseCase {
     private readonly issueTrackerService: IIssueTrackerService,
     private readonly storageService: IStorageService,
     private readonly githubConfig: IBugTrackerConfig,
-    private readonly tokenResolver: GitHubTokenResolver,
+    private readonly tokenResolver: IGitHubTokenProvider,
     private readonly journal: IActivityJournal,
+    private readonly logger: ILogger,
+    private readonly schedule: Pick<
+      IBugScheduleProvider,
+      "getRejectedRetentionDays"
+    >,
   ) {}
 
   public async updateStatus(
@@ -342,6 +348,22 @@ export class BugLifecycleUseCase {
   public async rejectBug(
     request: RequestModel<{ id: string; adminId: string }>,
   ): Promise<ResponseModel<Bug>> {
+    return withJournal(
+      this.journal,
+      {
+        actorId: request.actorId ?? request.data?.adminId,
+        action: "bug.reject",
+        entityType: "bug",
+        entityId: request.data?.id,
+        transactionId: request.transactionId,
+      },
+      () => this.applyRejectBug(request),
+    );
+  }
+
+  private async applyRejectBug(
+    request: RequestModel<{ id: string; adminId: string }>,
+  ): Promise<ResponseModel<Bug>> {
     const data = request.data;
     if (!data) {
       const response = new ResponseModel<Bug>(request.transactionId);
@@ -389,6 +411,22 @@ export class BugLifecycleUseCase {
   }
 
   public async restoreBug(
+    request: RequestModel<{ id: string; adminId: string }>,
+  ): Promise<ResponseModel<Bug>> {
+    return withJournal(
+      this.journal,
+      {
+        actorId: request.actorId ?? request.data?.adminId,
+        action: "bug.restore",
+        entityType: "bug",
+        entityId: request.data?.id,
+        transactionId: request.transactionId,
+      },
+      () => this.applyRestoreBug(request),
+    );
+  }
+
+  private async applyRestoreBug(
     request: RequestModel<{ id: string; adminId: string }>,
   ): Promise<ResponseModel<Bug>> {
     const data = request.data;
@@ -440,7 +478,10 @@ export class BugLifecycleUseCase {
   public async purgeExpiredRejectedBugs(): Promise<void> {
     try {
       const thresholdDate = new Date();
-      thresholdDate.setDate(thresholdDate.getDate() - 7);
+      thresholdDate.setDate(
+        thresholdDate.getDate() -
+          (await this.schedule.getRejectedRetentionDays()),
+      );
 
       const transactionId = "purgeExpiredBugs";
       const expiredResponse = await this.bugRepository.findExpiredRejectedBugs(
@@ -449,7 +490,7 @@ export class BugLifecycleUseCase {
 
       const expiredBugs = expiredResponse.data || [];
       if (expiredBugs.length === 0) return;
-      logger.info(
+      this.logger.info(
         `Found ${expiredBugs.length} expired rejected bugs to purge.`,
       );
 
@@ -491,10 +532,10 @@ export class BugLifecycleUseCase {
           }),
         );
       }
-      logger.info("Expired rejected bugs purging complete.");
+      this.logger.info("Expired rejected bugs purging complete.");
     } catch (error) {
       const err = error as Error;
-      logger.err(`Failed to purge expired rejected bugs: ${err.message}`);
+      this.logger.err(`Failed to purge expired rejected bugs: ${err.message}`);
     }
   }
 }

@@ -25,6 +25,7 @@ import {
   DAILY_STATS_KEY,
   HEALTH_LOG_INDEX,
 } from "./0009-health-log-indexes.js";
+import { BUG_ISSUE_INDEX } from "./0013-bug-issue-unique-index.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 import {
   ADMIN_MIGRATIONS,
@@ -257,6 +258,15 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         { type: QueryTypes.SELECT },
       ),
     ).toEqual([
+      { key: "bugs.rejected_retention_days", value: 7 },
+      { key: "bugs.sync_interval_minutes", value: 15 },
+      { key: "security.alerts.cooldown_minutes", value: 60 },
+      { key: "security.alerts.failed_sign_ins.max_attempts", value: 10 },
+      { key: "security.alerts.failed_sign_ins.window_minutes", value: 15 },
+      { key: "security.alerts.mass_operations.max_operations", value: 20 },
+      { key: "security.alerts.mass_operations.window_minutes", value: 10 },
+      { key: "security.alerts.off_hours", value: "" },
+      { key: "security.alerts.timezone", value: "UTC" },
       { key: "security.lockout.duration_minutes", value: 15 },
       { key: "security.lockout.max_attempts", value: 10 },
       { key: "security.mfa.trusted_device_days", value: 14 },
@@ -390,6 +400,29 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         indexdef: expect.stringContaining("(service_name, checked_at)"),
       },
     ]);
+  });
+
+  it("keeps one bug per GitHub issue, bugs without an issue aside (EV-101)", async () => {
+    await sequelize.query(`DROP SCHEMA IF EXISTS "t13_bugs" CASCADE`);
+    await sequelize.query(`CREATE SCHEMA "t13_bugs"`);
+    await sequelize.query(productionSchema("t13_bugs"));
+    await migrate("t13_bugs");
+    const insert = (repo: string, issue: number | null) =>
+      sequelize.query(
+        `INSERT INTO "t13_bugs"."bugs"
+           ("title", "description", "github_repo", "git_issue_number")
+         VALUES ('A bug', 'Steps', :repo, :issue)`,
+        { replacements: { repo, issue } },
+      );
+
+    await insert("variamosple/VariaMosPLE", 7);
+    await insert("variamosple/VariaMosAdmin", 7);
+    await insert("variamosple/VariaMosPLE", null);
+    await insert("variamosple/VariaMosPLE", null);
+
+    await expect(insert("variamosple/VariaMosPLE", 7)).rejects.toMatchObject({
+      parent: { constraint: BUG_ISSUE_INDEX },
+    });
   });
 
   it("gives a new database the same structure as production", async () => {

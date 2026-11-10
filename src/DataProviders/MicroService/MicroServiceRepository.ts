@@ -1,6 +1,6 @@
 import Docker from "dockerode";
-import logger from "jet-logger";
 import { Op } from "sequelize";
+import logger from "#src/common/logger.js";
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -18,8 +18,13 @@ import {
   type MicroServiceUptimeSummary,
   resolveServiceStatus,
 } from "#src/Domain/MicroService/Entity/MicroServiceHealth.js";
+import type { ServiceDefinition } from "#src/Domain/MicroService/Entity/ServiceDefinition.js";
 import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repository/IMicroServiceRepository.js";
-import { refuseConfigurationUpdate } from "#src/Domain/MicroService/Service/ConfigurationUpdateRule.js";
+import {
+  type ConfigurationValueType,
+  readConfigurationValue,
+  refuseConfigurationUpdate,
+} from "#src/Domain/MicroService/Service/ConfigurationUpdateRule.js";
 import {
   buildUptimeSummary,
   uptimeWindow,
@@ -33,16 +38,7 @@ import type { SecretConfigurationValue } from "../Configuration/SecretConfigurat
 import { HealthLogStatistics } from "./HealthLogStatistics.js";
 import { MicroServiceAuditLogModel } from "./MicroServiceAuditLogModel.js";
 import { MicroServiceHealthLogModel } from "./MicroServiceHealthLogModel.js";
-
-export interface ServiceDefinition {
-  name: string;
-  displayName: string;
-  targetUrl: string;
-  containerNamePattern?: string;
-  containerIps?: string[];
-  defaultPort: number;
-  healthPath?: string;
-}
+import { RecentResults } from "./RecentResults.js";
 
 /**
  * IP addresses of a container on every Docker network it is attached to.
@@ -60,6 +56,15 @@ export function containerIpsOf(container: {
  * A container is a monitored microservice only when it carries the explicit
  * `variamos.service.monitored=true` label.
  */
+/**
+ * Age at which an uptime summary is computed again. A service is checked
+ * every 30 s by default, so a summary younger than that misses at most one
+ * check per service. Measured on 2026-11-02 (EV-92): one computation reads 30
+ * days of checks, 842 ms of PostgreSQL for eight services; computed at each
+ * opening of the screen, it saturated the database from 50 sessions on.
+ */
+const UPTIME_MAX_AGE_MS = 30_000;
+
 export function isMonitoredContainer(labels: Record<string, string>): boolean {
   return labels["variamos.service.monitored"] === "true";
 }
@@ -74,11 +79,13 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
 
   private readonly secrets: SecretConfigurationValue;
   private readonly statistics: HealthLogStatistics;
+  private readonly recentUptimes: RecentResults<MicroServiceUptimeSummary[]>;
 
   public constructor(config: {
     socketPath: string;
     secrets: SecretConfigurationValue;
     statistics?: HealthLogStatistics;
+    uptimeMaxAgeMs?: number;
   }) {
     this.dockerConnection = new Docker({
       socketPath: config.socketPath,
@@ -86,6 +93,9 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
     this.secrets = config.secrets;
     this.statistics =
       config.statistics ?? new HealthLogStatistics(VARIAMOS_ORM, DB_SCHEMA);
+    this.recentUptimes = new RecentResults(
+      config.uptimeMaxAgeMs ?? UPTIME_MAX_AGE_MS,
+    );
   }
 
   /** The value as text, in clear; the mask when a secret cannot be decrypted. */
@@ -483,14 +493,8 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         performedBy: actorId,
       });
 
-      await MicroServiceHealthLogModel.create({
-        serviceName: request.data,
-        status: "UP",
-        responseTimeMs: 50,
-        checkedAt: new Date(),
-      }).catch((err) => {
-        logger.warn(`Could not log health UP: ${(err as Error).message}`);
-      });
+      // No health line here: whether the service came back is for the next
+      // real check to say, never an UP written without a measurement (EV-86)
     } catch (error) {
       logger.err(error);
       response.withError(
@@ -575,14 +579,8 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         performedBy: actorId,
       });
 
-      await MicroServiceHealthLogModel.create({
-        serviceName: request.data,
-        status: "UP",
-        responseTimeMs: 50,
-        checkedAt: new Date(),
-      }).catch((err) => {
-        logger.warn(`Could not log health UP: ${(err as Error).message}`);
-      });
+      // No health line here: whether the service came back is for the next
+      // real check to say, never an UP written without a measurement (EV-86)
     } catch (error) {
       logger.err(error);
       response.withError(
@@ -757,25 +755,14 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         return response.withError(refusal.errorCode, refusal.message);
       }
 
-      let parsedValue: ConfigurationValue = value;
-      let detectedType: "string" | "number" | "boolean" | "object" | "array" =
-        "string";
-
-      try {
-        parsedValue = JSON.parse(value);
-        if (typeof parsedValue === "number") detectedType = "number";
-        else if (typeof parsedValue === "boolean") detectedType = "boolean";
-        else if (Array.isArray(parsedValue)) detectedType = "array";
-        else if (typeof parsedValue === "object" && parsedValue !== null)
-          detectedType = "object";
-        else parsedValue = value;
-      } catch {
-        parsedValue = value;
-      }
-
       let config: ConfigurationModel;
 
       if (existing) {
+        // The refusal above has checked that the value matches the key's type
+        const parsedValue = readConfigurationValue(
+          value,
+          existing.type,
+        ) as ConfigurationValue;
         // A secret is never written in clear (T-13)
         if (existing.isSecret && !this.secrets.canEncrypt()) {
           return response.withError(
@@ -795,6 +782,19 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         });
         config = existing;
       } else {
+        let parsedValue: ConfigurationValue = value;
+        let detectedType: ConfigurationValueType = "string";
+        try {
+          parsedValue = JSON.parse(value);
+          if (typeof parsedValue === "number") detectedType = "number";
+          else if (typeof parsedValue === "boolean") detectedType = "boolean";
+          else if (Array.isArray(parsedValue)) detectedType = "array";
+          else if (typeof parsedValue === "object" && parsedValue !== null)
+            detectedType = "object";
+          else parsedValue = value;
+        } catch {
+          parsedValue = value;
+        }
         config = await ConfigurationModel.create({
           key,
           value: parsedValue,
@@ -858,7 +858,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
     try {
       const logs = await MicroServiceAuditLogModel.findAll({
         where: { serviceName },
-        order: [["created_at", "DESC"]],
+        order: [["createdAt", "DESC"]],
         limit,
       });
       // Older entries stored secret values in clear: mask them on the way out
@@ -890,10 +890,23 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
     return response;
   }
 
-  /** Uptime of the services over the last `days` days, computed by PostgreSQL. */
-  private async uptimeSummaries(
+  /**
+   * Uptime of the services over the last `days` days, computed by PostgreSQL
+   * and kept UPTIME_MAX_AGE_MS: every screen open in that time reads the same
+   * computation (EV-92).
+   */
+  private uptimeSummaries(
     serviceNames: string[],
     days = 30,
+  ): Promise<MicroServiceUptimeSummary[]> {
+    return this.recentUptimes.get(`${days}:${serviceNames.join(",")}`, () =>
+      this.computeUptimeSummaries(serviceNames, days),
+    );
+  }
+
+  private async computeUptimeSummaries(
+    serviceNames: string[],
+    days: number,
   ): Promise<MicroServiceUptimeSummary[]> {
     const window = uptimeWindow(days);
     const [counts, lastStatuses] = await Promise.all([

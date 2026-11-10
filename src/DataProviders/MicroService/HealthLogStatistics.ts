@@ -1,15 +1,17 @@
-import { QueryTypes, type Sequelize } from "sequelize";
+import { Op, QueryTypes, type Sequelize } from "sequelize";
 import type { HealthStatus } from "#src/Domain/MicroService/Entity/MicroServiceHealth.js";
+import type { IHealthLogArchive } from "#src/Domain/MicroService/Repository/IHealthLogArchive.js";
 import type {
   UptimeSlotCount,
   UptimeWindow,
 } from "#src/Domain/MicroService/Service/UptimeSummary.js";
+import { MicroServiceHealthLogModel } from "./MicroServiceHealthLogModel.js";
 
 /**
  * Statistics computed by PostgreSQL from the health checks (EV-101): the
  * rows stay in the database, only the counts reach the service.
  */
-export class HealthLogStatistics {
+export class HealthLogStatistics implements IHealthLogArchive {
   public constructor(
     private readonly sequelize: Sequelize,
     private readonly schema: string,
@@ -36,6 +38,7 @@ export class HealthLogStatistics {
               width_bucket(checked_at, ARRAY[:slotEnds]::timestamp with time zone[]) AS "slot",
               count(*)::int AS "checks",
               count(*) FILTER (WHERE status = 'UP')::int AS "upChecks",
+              count(*) FILTER (WHERE status = 'DOWN')::int AS "downChecks",
               sum(response_time_ms)::float8 AS "latencySumMs",
               count(*) FILTER (WHERE checked_at >= :dayAgo)::int AS "recentChecks",
               count(*) FILTER (WHERE checked_at >= :dayAgo AND status = 'UP')::int
@@ -111,5 +114,11 @@ export class HealthLogStatistics {
       { replacements: { from, to }, type: QueryTypes.SELECT },
     );
     return saved.length;
+  }
+
+  public async purgeChecksBefore(cutoff: Date): Promise<number> {
+    return MicroServiceHealthLogModel.destroy({
+      where: { checkedAt: { [Op.lt]: cutoff } },
+    });
   }
 }

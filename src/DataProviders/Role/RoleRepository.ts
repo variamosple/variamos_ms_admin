@@ -1,5 +1,5 @@
-import logger from "jet-logger";
 import { Op, QueryTypes, type WhereOptions } from "sequelize";
+import logger from "#src/common/logger.js";
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -51,7 +51,10 @@ export class RoleRepositoryImpl
         where,
         limit: pageSize,
         offset: (pageNumber - 1) * pageSize,
-        order: [["name", "ASC"]],
+        order: [
+          [filter.sortBy, filter.sortOrder.toUpperCase()],
+          ["id", "ASC"],
+        ],
       }).then((res) => res.map(({ id, name }) => new Role(id, name)));
     } catch (error) {
       const err = error as Error;
@@ -246,5 +249,3 @@ export class RoleRepositoryImpl
     return response;
   }
 }
-
-export const RoleRepositoryInstance = new RoleRepositoryImpl();

@@ -54,8 +54,10 @@ MicroServiceAuditLogModel.init(
     tableName: "microservice_audit_logs",
     sequelize: VARIAMOS_ORM,
     schema: DB_SCHEMA,
+    // underscored maps the createdAt attribute to the created_at column.
+    // Naming the attribute "created_at" left createdAt undefined, so every
+    // entry of the audit trail showed N/A for its date.
     timestamps: true,
-    createdAt: "created_at",
     updatedAt: false,
     underscored: true,
   },

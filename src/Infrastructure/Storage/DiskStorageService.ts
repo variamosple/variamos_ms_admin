@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import logger from "jet-logger";
+import logger from "#src/common/logger.js";
 import type { IStorageService } from "#src/Domain/Core/Service/IStorageService.js";
 
 const __filename = fileURLToPath(import.meta.url);

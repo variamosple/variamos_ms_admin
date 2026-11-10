@@ -8,6 +8,7 @@ import { mock } from "vitest-mock-extended";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { User } from "#src/Domain/User/Entity/User.js";
 import { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
 import { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
@@ -74,10 +75,12 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
       mock<IMailService>(),
       mock<UserPasswordUseCaseConfig>(),
       mock<IActivityJournal>(),
+      mock<ILogger>(),
     );
     const mockUserManagementUseCase = new UserManagementUseCase(
       mock<IUserRepository>(),
       mock<IActivityJournal>(),
+      mock<ILogger>(),
     );
     const mockUserRolesRouter = express.Router();
     app.use(
@@ -145,6 +148,41 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
       );
       expect(body.data).toHaveLength(2);
       expect(body.data[0].id).toBe("1");
+    });
+
+    it("passes the sort of a list column to the query (EV-95)", async () => {
+      (UserQueryUseCase.prototype.queryList as vi.Mock).mockResolvedValue(
+        new ResponseModel("queryUsers").withResponse([]),
+      );
+
+      await supertest(app)
+        .get("/v1/users")
+        .query({ sortBy: "lastLogin", sortOrder: "desc" });
+
+      expect(UserQueryUseCase.prototype.queryList).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            sortBy: "lastLogin",
+            sortOrder: "desc",
+          }),
+        }),
+      );
+    });
+
+    it("sorts by name, ascending, when the sort is unknown (EV-95)", async () => {
+      (UserQueryUseCase.prototype.queryList as vi.Mock).mockResolvedValue(
+        new ResponseModel("queryUsers").withResponse([]),
+      );
+
+      await supertest(app)
+        .get("/v1/users")
+        .query({ sortBy: "password", sortOrder: "up" });
+
+      expect(UserQueryUseCase.prototype.queryList).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ sortBy: "name", sortOrder: "asc" }),
+        }),
+      );
     });
 
     it("should return error status code when query fails", async () => {

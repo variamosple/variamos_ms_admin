@@ -1,5 +1,17 @@
 import type { Sequelize } from "sequelize";
 import { describe, expect, it, vi } from "vitest";
+import {
+  SECURITY_ALERT_KEYS,
+  SecurityAlertPolicy,
+} from "#src/Domain/Activity/SecurityAlertPolicy.js";
+import {
+  BUG_SYNC_INTERVAL_KEY,
+  bugSyncIntervalMsOf,
+  isAcceptedBugSyncInterval,
+  isAcceptedRejectedBugRetention,
+  REJECTED_BUG_RETENTION_KEY,
+  rejectedBugRetentionDaysOf,
+} from "#src/Domain/Bug/Entity/BugSchedule.js";
 import { AccountLockoutPolicy } from "#src/Domain/User/Entity/AccountLockoutPolicy.js";
 import { ACCOUNT_LOCKOUT_KEYS } from "#src/Domain/User/Service/AccountLockoutService.js";
 import { BASELINE_TABLES, baseline } from "./0001-baseline.js";
@@ -7,6 +19,18 @@ import {
   ACCOUNT_LOCKOUT_ROWS,
   accountLockoutKeys,
 } from "./0002-account-lockout-keys.js";
+import {
+  SECURITY_ALERT_ROWS,
+  securityAlertKeys,
+} from "./0010-security-alert-keys.js";
+import {
+  BUG_SCHEDULE_ROWS,
+  bugScheduleKeys,
+} from "./0011-bug-schedule-keys.js";
+import {
+  BUG_ISSUE_INDEX,
+  bugIssueUniqueIndex,
+} from "./0013-bug-issue-unique-index.js";
 import {
   ADMIN_MIGRATIONS,
   createMigrator,
@@ -136,6 +160,121 @@ describe("account lockout keys migration", () => {
   });
 });
 
+describe("security alert keys migration", () => {
+  it("adds every key the code reads, with its defaults", () => {
+    const policy = SecurityAlertPolicy.fromConfiguration(
+      Object.fromEntries(
+        Object.entries(SECURITY_ALERT_KEYS).map(([name, key]) => [
+          name,
+          SECURITY_ALERT_ROWS.find((row) => row.key === key)?.value,
+        ]),
+      ),
+    );
+
+    expect(SECURITY_ALERT_ROWS.map(({ key }) => key).sort()).toEqual(
+      Object.values(SECURITY_ALERT_KEYS).sort(),
+    );
+    expect(policy).toEqual(SecurityAlertPolicy.DEFAULT);
+  });
+
+  it("never overwrites a key, in the configured schema", async () => {
+    const { sequelize, statements } = fakeSequelize([]);
+
+    await securityAlertKeys.up({
+      name: securityAlertKeys.name,
+      context: { sequelize, schema: "custom" },
+    });
+
+    expect(statements).toHaveLength(SECURITY_ALERT_ROWS.length);
+    for (const sql of statements) {
+      expect(sql).toContain('INSERT INTO "custom"."configurations"');
+      expect(sql).toContain('ON CONFLICT ("key") DO NOTHING');
+    }
+  });
+
+  it("refuses to be reverted", async () => {
+    const { sequelize } = fakeSequelize([]);
+
+    await expect(
+      securityAlertKeys.down?.({
+        name: securityAlertKeys.name,
+        context: { sequelize, schema: "custom" },
+      }),
+    ).rejects.toThrow("cannot be reverted");
+  });
+});
+
+describe("bug schedule keys migration", () => {
+  it("adds both keys the code reads, with their defaults", () => {
+    const seededValue = (key: string) =>
+      BUG_SCHEDULE_ROWS.find((row) => row.key === key)?.value;
+
+    expect(BUG_SCHEDULE_ROWS.map(({ key }) => key).sort()).toEqual(
+      [BUG_SYNC_INTERVAL_KEY, REJECTED_BUG_RETENTION_KEY].sort(),
+    );
+    expect(bugSyncIntervalMsOf(seededValue(BUG_SYNC_INTERVAL_KEY))).toBe(
+      bugSyncIntervalMsOf(undefined),
+    );
+    expect(isAcceptedBugSyncInterval(seededValue(BUG_SYNC_INTERVAL_KEY))).toBe(
+      true,
+    );
+    expect(
+      rejectedBugRetentionDaysOf(seededValue(REJECTED_BUG_RETENTION_KEY)),
+    ).toBe(rejectedBugRetentionDaysOf(undefined));
+    expect(
+      isAcceptedRejectedBugRetention(seededValue(REJECTED_BUG_RETENTION_KEY)),
+    ).toBe(true);
+  });
+
+  it("never overwrites a key, in the configured schema", async () => {
+    const { sequelize, statements } = fakeSequelize([]);
+
+    await bugScheduleKeys.up({
+      name: bugScheduleKeys.name,
+      context: { sequelize, schema: "custom" },
+    });
+
+    expect(statements).toHaveLength(BUG_SCHEDULE_ROWS.length);
+    for (const sql of statements) {
+      expect(sql).toContain('INSERT INTO "custom"."configurations"');
+      expect(sql).toContain('ON CONFLICT ("key") DO NOTHING');
+    }
+  });
+
+  it("refuses to be reverted", async () => {
+    const { sequelize } = fakeSequelize([]);
+
+    await expect(
+      bugScheduleKeys.down?.({
+        name: bugScheduleKeys.name,
+        context: { sequelize, schema: "custom" },
+      }),
+    ).rejects.toThrow("cannot be reverted");
+  });
+});
+
+// Checked on PostgreSQL by Migrator.integration.test.ts
+describe("bug issue unique index migration", () => {
+  it("adds the index in the configured schema, and removes it when reverted", async () => {
+    const { sequelize, statements } = fakeSequelize([]);
+    const params = {
+      name: bugIssueUniqueIndex.name,
+      context: { sequelize, schema: "custom" },
+    };
+
+    await bugIssueUniqueIndex.up(params);
+    await bugIssueUniqueIndex.down?.(params);
+
+    expect(statements[0]).toContain(
+      `CREATE UNIQUE INDEX IF NOT EXISTS "${BUG_ISSUE_INDEX}"`,
+    );
+    expect(statements[0]).toContain('ON "custom"."bugs"');
+    expect(statements[1]).toBe(
+      `DROP INDEX IF EXISTS "custom"."${BUG_ISSUE_INDEX}"`,
+    );
+  });
+});
+
 describe("createMigrator", () => {
   it.each(["", "  "])("refuses an empty schema (%j)", (schema) => {
     const { sequelize } = fakeSequelize([]);
@@ -156,6 +295,10 @@ describe("createMigrator", () => {
       "0007-bug-assignees",
       "0008-bug-severity-component",
       "0009-health-log-indexes",
+      "0010-security-alert-keys",
+      "0011-bug-schedule-keys",
+      "0012-laboratory-access-permission",
+      "0013-bug-issue-unique-index",
     ]);
   });
 });

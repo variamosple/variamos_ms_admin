@@ -1,32 +1,35 @@
-import logger from "jet-logger";
 import { type MockProxy, mock } from "vitest-mock-extended";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
-import type { GitHubTokenResolver } from "#src/Domain/Bug/Service/GitHubTokenResolver.js";
+import type { IGitHubTokenProvider } from "#src/Domain/Bug/Service/IGitHubTokenProvider.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { IIssueTrackerService } from "#src/Domain/Core/Service/IIssueTrackerService.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IStorageService } from "#src/Domain/Core/Service/IStorageService.js";
 import { BugLifecycleUseCase } from "./BugLifecycleUseCase.js";
 
 describe("BugLifecycleUseCase", () => {
   let useCase: BugLifecycleUseCase;
+  let logger: MockProxy<ILogger>;
   let mockBugRepository: MockProxy<IBugRepository>;
   let mockIssueTracker: MockProxy<IIssueTrackerService>;
   let mockStorageService: MockProxy<IStorageService>;
   let mockGithubConfig: MockProxy<IBugTrackerConfig>;
-  let mockTokenResolver: MockProxy<GitHubTokenResolver>;
+  let mockTokenResolver: MockProxy<IGitHubTokenProvider>;
   let mockJournal: MockProxy<IActivityJournal>;
+  let retentionDays = 7;
 
   beforeEach(() => {
+    logger = mock<ILogger>();
     mockBugRepository = mock<IBugRepository>();
     mockIssueTracker = mock<IIssueTrackerService>();
     mockStorageService = mock<IStorageService>();
     mockGithubConfig = mock<IBugTrackerConfig>();
-    mockTokenResolver = mock<GitHubTokenResolver>();
+    mockTokenResolver = mock<IGitHubTokenProvider>();
     mockJournal = mock<IActivityJournal>();
     useCase = new BugLifecycleUseCase(
       mockBugRepository,
@@ -35,6 +38,8 @@ describe("BugLifecycleUseCase", () => {
       mockGithubConfig,
       mockTokenResolver,
       mockJournal,
+      logger,
+      { getRejectedRetentionDays: async () => retentionDays },
     );
   });
 
@@ -154,6 +159,55 @@ describe("BugLifecycleUseCase", () => {
       expect(res.message).toBe("Only pending bugs can be rejected.");
       expect(mockBugRepository.rejectBug).not.toHaveBeenCalled();
     });
+
+    it("records the rejection and its refusal in the activity journal", async () => {
+      mockBugRepository.findById.mockResolvedValueOnce(
+        new ResponseModel<Bug>("tx-1").withResponse(
+          createMockBug("bug-1", "Pending Bug", "pending"),
+        ),
+      );
+      mockBugRepository.rejectBug.mockResolvedValue(
+        new ResponseModel<Bug>("tx-1").withResponse(
+          createMockBug("bug-1", "Pending Bug", "rejected"),
+        ),
+      );
+      await useCase.rejectBug(
+        new RequestModel("tx-1", { id: "bug-1", adminId: "admin-1" }),
+      );
+      mockBugRepository.findById.mockResolvedValueOnce(
+        new ResponseModel<Bug>("tx-2").withResponse(
+          createMockBug("bug-2", "Open Bug", "open"),
+        ),
+      );
+      await useCase.rejectBug(
+        new RequestModel(
+          "tx-2",
+          { id: "bug-2", adminId: "admin-1" },
+          "admin-2",
+        ),
+      );
+
+      expect(mockJournal.record).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          actorId: "admin-1",
+          action: "bug.reject",
+          entityType: "bug",
+          entityId: "bug-1",
+          outcome: "success",
+        }),
+      );
+      expect(mockJournal.record).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          actorId: "admin-2",
+          action: "bug.reject",
+          entityId: "bug-2",
+          outcome: "failed",
+          errorCode: DomainErrorCodes.INVALID_INPUT,
+        }),
+      );
+    });
   });
 
   describe("restoreBug", () => {
@@ -174,6 +228,15 @@ describe("BugLifecycleUseCase", () => {
       });
       const res = await useCase.restoreBug(req);
 
+      expect(mockJournal.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actorId: "admin-123",
+          action: "bug.restore",
+          entityType: "bug",
+          entityId: "bug-1",
+          outcome: "success",
+        }),
+      );
       expect(res.data?.status).toBe("pending");
       expect(mockBugRepository.restoreBug).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -220,6 +283,27 @@ describe("BugLifecycleUseCase", () => {
   });
 
   describe("purgeExpiredRejectedBugs", () => {
+    afterEach(() => {
+      retentionDays = 7;
+    });
+
+    it("purges the rejected bugs older than the configured retention", async () => {
+      retentionDays = 30;
+      mockBugRepository.findExpiredRejectedBugs.mockResolvedValue(
+        new ResponseModel<Bug[]>("tx-id").withResponse([]),
+      );
+
+      await useCase.purgeExpiredRejectedBugs();
+
+      const threshold = mockBugRepository.findExpiredRejectedBugs.mock
+        .calls[0]?.[0].data as Date;
+      const expected = new Date();
+      expected.setDate(expected.getDate() - 30);
+      expect(Math.abs(threshold.getTime() - expected.getTime())).toBeLessThan(
+        5000,
+      );
+    });
+
     it("should process purge for expired bugs and delete attachments", async () => {
       const expiredBug = createMockBug("999", "Old rejected bug", "rejected");
       expiredBug.attachments = [
@@ -232,8 +316,6 @@ describe("BugLifecycleUseCase", () => {
         { id: 2, filePath: "/purged", fileType: "image/png", bugId: "999" },
         { id: 3, filePath: "", fileType: "image/png", bugId: "999" },
       ];
-
-      const infoLogSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
 
       mockBugRepository.findExpiredRejectedBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([expiredBug]),
@@ -254,10 +336,10 @@ describe("BugLifecycleUseCase", () => {
         5000,
       );
 
-      expect(infoLogSpy).toHaveBeenCalledWith(
+      expect(logger.info).toHaveBeenCalledWith(
         "Found 1 expired rejected bugs to purge.",
       );
-      expect(infoLogSpy).toHaveBeenCalledWith(
+      expect(logger.info).toHaveBeenCalledWith(
         "Expired rejected bugs purging complete.",
       );
 
@@ -300,15 +382,11 @@ describe("BugLifecycleUseCase", () => {
           },
         }),
       );
-
-      infoLogSpy.mockRestore();
     });
 
     it("should process purge for expired bugs with no attachments", async () => {
       const expiredBug = createMockBug("999", "Old rejected bug", "rejected");
       expiredBug.attachments = [];
-
-      const infoLogSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
 
       mockBugRepository.findExpiredRejectedBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([expiredBug]),
@@ -328,15 +406,11 @@ describe("BugLifecycleUseCase", () => {
           },
         }),
       );
-
-      infoLogSpy.mockRestore();
     });
 
     it("should process purge for expired bugs with undefined attachments", async () => {
       const expiredBug = createMockBug("999", "Old rejected bug", "rejected");
       expiredBug.attachments = undefined;
-
-      const infoLogSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
 
       mockBugRepository.findExpiredRejectedBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([expiredBug]),
@@ -355,8 +429,6 @@ describe("BugLifecycleUseCase", () => {
           },
         }),
       );
-
-      infoLogSpy.mockRestore();
     });
 
     it("should process purge for expired bugs with non-array attachments and not throw loop exceptions", async () => {
@@ -367,8 +439,6 @@ describe("BugLifecycleUseCase", () => {
       );
       Object.assign(expiredBugNonArray, { attachments: { notAnArray: true } });
 
-      const infoLogSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
-
       mockBugRepository.findExpiredRejectedBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([expiredBugNonArray]),
       );
@@ -377,23 +447,17 @@ describe("BugLifecycleUseCase", () => {
 
       expect(mockStorageService.deleteFile).not.toHaveBeenCalled();
       expect(mockBugRepository.updateStatus).toHaveBeenCalled();
-
-      infoLogSpy.mockRestore();
     });
 
     it("should return early and do nothing when no expired bugs are found", async () => {
-      const infoLogSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
-
       mockBugRepository.findExpiredRejectedBugs.mockResolvedValue(
         new ResponseModel<Bug[]>("tx-id").withResponse([]),
       );
 
       await useCase.purgeExpiredRejectedBugs();
 
-      expect(infoLogSpy).not.toHaveBeenCalled();
+      expect(logger.info).not.toHaveBeenCalled();
       expect(mockBugRepository.updateStatus).not.toHaveBeenCalled();
-
-      infoLogSpy.mockRestore();
     });
 
     it("should log audit comment with modified description, category, priority, and target repo", async () => {
@@ -1412,16 +1476,14 @@ describe("BugLifecycleUseCase", () => {
       mockBugRepository.findExpiredRejectedBugs.mockImplementation(() => {
         throw new Error("Purge Failed");
       });
-      const errLogSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
 
       await useCase.purgeExpiredRejectedBugs();
 
-      expect(errLogSpy).toHaveBeenCalledWith(
+      expect(logger.err).toHaveBeenCalledWith(
         expect.stringContaining(
           "Failed to purge expired rejected bugs: Purge Failed",
         ),
       );
-      errLogSpy.mockRestore();
     });
   });
 });

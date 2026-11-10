@@ -1,7 +1,7 @@
 import type { Request, RequestHandler, Response, Router } from "express";
 import { ipKeyGenerator, type Options, rateLimit } from "express-rate-limit";
-import logger from "jet-logger";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import logger from "#src/common/logger.js";
 import { maskEmail } from "#src/common/maskEmail.js";
 import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -27,6 +27,10 @@ export const RATE_LIMITS = {
   signInPerAddress: { windowMs: 15 * MINUTE_MS, limit: 100 },
   forgotPasswordPerEmail: { windowMs: HOUR_MS, limit: 5 },
   forgotPasswordPerAddress: { windowMs: HOUR_MS, limit: 20 },
+  // A class signs up together behind one school address
+  signUpPerAddress: { windowMs: HOUR_MS, limit: 100 },
+  // Bounds the notices mailed to the owner of a taken address (UX-33)
+  signUpPerEmail: { windowMs: HOUR_MS, limit: 5 },
   resetPasswordPerAddress: { windowMs: HOUR_MS, limit: 20 },
   guestSignInPerAddress: { windowMs: HOUR_MS, limit: 300 },
   bugReportPerAddress: { windowMs: HOUR_MS, limit: 20 },
@@ -186,6 +190,11 @@ export function applyRateLimits(
     limiter("forgotPassword", RATE_LIMITS.forgotPasswordPerEmail, {
       keyGenerator: emailKey,
     }),
+  );
+  router.post(
+    `${AUTH_ROUTE}/sign-up`,
+    limiter("signUp", RATE_LIMITS.signUpPerAddress),
+    limiter("signUp", RATE_LIMITS.signUpPerEmail, { keyGenerator: emailKey }),
   );
   router.post(
     `${AUTH_ROUTE}/reset-password`,

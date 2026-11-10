@@ -1,7 +1,7 @@
-import logger from "jet-logger";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { ISecretCipher } from "#src/Domain/Core/Secret/ISecretCipher.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IUserMfaRepository } from "#src/Domain/Mfa/Repository/IUserMfaRepository.js";
 import type { PendingMfaSignIns } from "#src/Domain/Mfa/Service/PendingMfaSignIns.js";
 import type {
@@ -32,6 +32,7 @@ export class MfaSignInUseCase {
       TrustedDeviceUseCase,
       "days" | "isTrusted" | "trust"
     >,
+    private readonly logger: ILogger,
     private readonly now: () => number = Date.now,
   ) {}
 
@@ -48,7 +49,7 @@ export class MfaSignInUseCase {
     const record = await this.mfaRepository.findByUser(userId);
     if (!record?.enabledAt) return null;
     if (await this.trustedDevices.isTrusted(userId, deviceToken)) {
-      logger.info(
+      this.logger.info(
         `[MFA] User ${userId} signed in without a code on a trusted browser`,
       );
       return null;
@@ -69,11 +70,11 @@ export class MfaSignInUseCase {
     try {
       const trusted = await this.trustedDevices.trust(userId);
       if (trusted) {
-        logger.info(`[MFA] User ${userId} trusted a browser`);
+        this.logger.info(`[MFA] User ${userId} trusted a browser`);
       }
       return trusted;
     } catch (error) {
-      logger.warn(
+      this.logger.warn(
         `[MFA] Could not trust the browser of user ${userId}: ${(error as Error).message}`,
       );
       return null;
@@ -144,7 +145,9 @@ export class MfaSignInUseCase {
       return response.withResponse(userId);
     } catch (error) {
       this.pending.release(token);
-      logger.err(`[MFA] Sign-in check failed: ${(error as Error).message}`);
+      this.logger.err(
+        `[MFA] Sign-in check failed: ${(error as Error).message}`,
+      );
       return response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
@@ -174,7 +177,7 @@ export class MfaSignInUseCase {
   private warnWhenBlocked(userId: string): void {
     const count = this.failures.get(userId)?.length ?? 0;
     if (count === MFA_SIGN_IN_FAILURES_PER_ACCOUNT.limit) {
-      logger.warn(
+      this.logger.warn(
         `[MFA] User ${userId} blocked for 15 min after ${count} wrong sign-in codes`,
       );
     }

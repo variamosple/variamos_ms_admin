@@ -64,11 +64,16 @@ describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
       );
     });
 
-    it("should return 400 when userId is missing", async () => {
+    it("ignores the former test header that emptied the account (EV-75)", async () => {
+      (UserRoleUseCase.prototype.queryUserRoles as vi.Mock).mockResolvedValue(
+        new ResponseModel("queryUserRoles").withResponse([]),
+      );
+
       const response = await supertest(app)
         .get("/v1/users/user-123/roles")
         .set("x-test-no-user-id", "true");
-      expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
     });
 
     it("should return error status code when query fails", async () => {
@@ -118,13 +123,6 @@ describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
       ).toHaveBeenCalledWith(
         expect.objectContaining({ transactionId: "queryUserRolesDetails" }),
       );
-    });
-
-    it("should return 400 when userId is missing", async () => {
-      const response = await supertest(app)
-        .get("/v1/users/user-123/roles/details")
-        .set("x-test-no-user-id", "true");
-      expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
     });
 
     it("should return error status code when query details fails", async () => {
@@ -184,21 +182,24 @@ describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
     });
 
-    it("should return 400 when userId is missing", async () => {
-      const response = await supertest(app)
-        .post("/v1/users/user-123/roles")
-        .set("x-test-no-user-id", "true")
-        .send({ roleId: 2 });
-
-      expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
-    });
-
     it("should return 400 when roleId is not a number", async () => {
       const response = await supertest(app)
         .post("/v1/users/user-123/roles")
         .send({ roleId: "abc" });
 
       expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
+    });
+
+    // Number([5]) is 5: a list passed the id checks of the access guard
+    // and of the route, and reached the use case (EV-97 lot 6b)
+    it("refuses a role id sent as a list, before the use case", async () => {
+      const response = await supertest(app)
+        .post("/v1/users/user-123/roles")
+        .send({ roleId: [5] });
+
+      expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
+      expect(response.body.message).toBe('The field "roleId" is invalid.');
+      expect(UserRoleUseCase.prototype.createUserRole).not.toHaveBeenCalled();
     });
 
     it("should return error status code when create fails", async () => {
@@ -248,14 +249,6 @@ describe("UserRolesV1Router Integration Tests - Extended Coverage", () => {
       expect(UserRoleUseCase.prototype.deleteUserRole).toHaveBeenCalledWith(
         expect.objectContaining({ transactionId: "deleteUserRole" }),
       );
-    });
-
-    it("should return 400 when userId is missing", async () => {
-      const response = await supertest(app)
-        .delete("/v1/users/user-123/roles/2")
-        .set("x-test-no-user-id", "true");
-
-      expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
     });
 
     it("should return 400 when roleId is invalid", async () => {

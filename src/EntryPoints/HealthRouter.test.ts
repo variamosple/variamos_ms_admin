@@ -3,26 +3,19 @@ import supertest from "supertest";
 import { describe, expect, it, vi } from "vitest";
 import { createHealthRouter, HEALTH_ROUTE } from "./HealthRouter.js";
 
-// Mock VARIAMOS_ORM to test behavior without requiring a live PostgreSQL instance
-vi.mock("#src/Infrastructure/VariamosORM.js", () => ({
-  default: {
-    authenticate: vi.fn(),
-  },
-  DB_SCHEMA: "public",
-}));
-
-import VARIAMOS_ORM from "#src/Infrastructure/VariamosORM.js";
+// Stands for the database, without a live PostgreSQL instance
+const authenticate = vi.fn<() => Promise<void>>();
 
 describe("HealthRouter - Black-Box Contract & Resilience Tests", () => {
   const buildApp = () => {
     const app = express();
     app.use(express.json());
-    app.use(HEALTH_ROUTE, createHealthRouter());
+    app.use(HEALTH_ROUTE, createHealthRouter(authenticate));
     return app;
   };
 
   it("should return HTTP 200 with UP status when database is reachable", async () => {
-    vi.mocked(VARIAMOS_ORM.authenticate).mockResolvedValueOnce();
+    authenticate.mockResolvedValueOnce();
 
     const app = buildApp();
     const response = await supertest(app).get("/health");
@@ -37,7 +30,7 @@ describe("HealthRouter - Black-Box Contract & Resilience Tests", () => {
   });
 
   it("should return HTTP 503 with DEGRADED status when database authentication fails", async () => {
-    vi.mocked(VARIAMOS_ORM.authenticate).mockRejectedValueOnce(
+    authenticate.mockRejectedValueOnce(
       new Error("Database connection refused"),
     );
 
@@ -52,16 +45,10 @@ describe("HealthRouter - Black-Box Contract & Resilience Tests", () => {
   // The check after each deployment reads serviceName, status and
   // uptimeSeconds; the monitoring reads the whole contract (EV-108)
   it.each([
-    [
-      "reachable",
-      () => vi.mocked(VARIAMOS_ORM.authenticate).mockResolvedValueOnce(),
-    ],
+    ["reachable", () => authenticate.mockResolvedValueOnce()],
     [
       "unreachable",
-      () =>
-        vi
-          .mocked(VARIAMOS_ORM.authenticate)
-          .mockRejectedValueOnce(new Error("refused")),
+      () => authenticate.mockRejectedValueOnce(new Error("refused")),
     ],
   ])(
     "keeps the shared /health contract when the database is %s",

@@ -1,27 +1,60 @@
-import logger from "jet-logger";
+import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
+import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import { BugFilter } from "#src/Domain/Bug/Entity/BugFilter.js";
 import type { BugPriorityValue } from "#src/Domain/Bug/Entity/BugPriority.js";
 import { statusFromGitHub } from "#src/Domain/Bug/Entity/BugStatus.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
-import type { GitHubTokenResolver } from "#src/Domain/Bug/Service/GitHubTokenResolver.js";
+import type { IGitHubTokenProvider } from "#src/Domain/Bug/Service/IGitHubTokenProvider.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { INTERNAL_ERROR_MESSAGE } from "#src/Domain/Core/Error/InternalErrorMessage.js";
 import type { IIssueTrackerService } from "#src/Domain/Core/Service/IIssueTrackerService.js";
+import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { ALLOWED_CATEGORIES } from "./BugQueryUseCase.js";
 
 export class BugSyncUseCase {
+  private running: Promise<ResponseModel<void>> | null = null;
+
   public constructor(
     private readonly bugRepository: IBugRepository,
     private readonly issueTrackerService: IIssueTrackerService,
     private readonly githubConfig: IBugTrackerConfig,
-    private readonly tokenResolver: GitHubTokenResolver,
+    private readonly tokenResolver: IGitHubTokenProvider,
+    private readonly logger: ILogger,
+    private readonly journal: IActivityJournal,
   ) {}
 
-  public async syncBugs(
+  /**
+   * One synchronization at a time (EV-18): a call made while one runs, from
+   * the schedule or the sync button, gets the result of the running one
+   * rather than reading GitHub a second time and creating the same bugs.
+   * A synchronization asked by an administrator is recorded in the activity
+   * journal; the scheduled one, with no actor, is not.
+   */
+  public syncBugs(request: RequestModel<void>): Promise<ResponseModel<void>> {
+    if (!this.running) {
+      this.running = this.synchronize(request).finally(() => {
+        this.running = null;
+      });
+    }
+    const running = this.running;
+    if (!request.actorId) return running;
+    return withJournal(
+      this.journal,
+      {
+        actorId: request.actorId,
+        action: "bug.sync",
+        entityType: "bug",
+        transactionId: request.transactionId,
+      },
+      () => running,
+    );
+  }
+
+  private async synchronize(
     request: RequestModel<void>,
   ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
@@ -34,7 +67,7 @@ export class BugSyncUseCase {
       const hasPatConfig = !!patToken;
 
       if (!hasAppConfig && !hasPatConfig) {
-        logger.warn(
+        this.logger.warn(
           "GitHub token is not defined in environment variables. Synchronization aborted.",
         );
         return response.withError(
@@ -44,7 +77,7 @@ export class BugSyncUseCase {
       }
 
       const repos = this.githubConfig.getGitHubManagedRepos();
-      logger.info(`Starting bugs sync for repos: ${repos.join(", ")}`);
+      this.logger.info(`Starting bugs sync for repos: ${repos.join(", ")}`);
 
       let totalCreated = 0;
       let totalUpdated = 0;
@@ -52,7 +85,7 @@ export class BugSyncUseCase {
       for (const repo of repos) {
         const token = await this.tokenResolver.resolveGitHubToken(repo);
         if (!token) {
-          logger.warn(
+          this.logger.warn(
             `GitHub token could not be resolved for repo: ${repo}. Skipping.`,
           );
           continue;
@@ -67,7 +100,7 @@ export class BugSyncUseCase {
           request.transactionId,
         );
         if (!localStatuses) {
-          logger.warn(
+          this.logger.warn(
             `Local bugs of ${repo} could not be read. Skipping its synchronization.`,
           );
           continue;
@@ -149,12 +182,12 @@ export class BugSyncUseCase {
         }
       }
 
-      logger.info(
+      this.logger.info(
         `Synchronization finished: Created ${totalCreated} and Updated ${totalUpdated} bugs.`,
       );
     } catch (error) {
       const err = error as Error;
-      logger.err(err);
+      this.logger.err(err);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;

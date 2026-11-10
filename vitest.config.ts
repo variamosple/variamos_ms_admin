@@ -16,6 +16,10 @@ export default defineConfig({
     globals: true,
     environment: "node",
     setupFiles: ["./vitest.setup.ts"],
+    // Variables and globals stubbed by vi.stubEnv and vi.stubGlobal come back
+    // after each test, whatever the test does (EV-53)
+    unstubEnvs: true,
+    unstubGlobals: true,
     exclude: [...configDefaults.exclude, "**/dist/**", "**/.stryker-tmp/**"],
     coverage: {
       provider: "v8",

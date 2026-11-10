@@ -9,9 +9,11 @@ import { RoleFilter } from "#src/Domain/Role/Entity/RoleFilter.js";
 import type { RoleManagementUseCase } from "#src/Domain/Role/UseCase/RoleManagementUseCase.js";
 import type { RoleQueryUseCase } from "#src/Domain/Role/UseCase/RoleQueryUseCase.js";
 import { actorOf } from "./actor.js";
+import { nameBody } from "./adminRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
 import { ROLE_PERMISSIONS_V1_ROUTE } from "./RolePermissionsV1Router.js";
+import { validBody } from "./requestBody.js";
 import { type AccessGuard, requireAccess, toId } from "./requireAccess.js";
 
 export const ROLES_V1_ROUTE = "/v1/roles";
@@ -26,12 +28,13 @@ export function createRolesRouter(
 
   rolesV1Router.get("/", hasPermissions(["roles::query"]), async (req, res) => {
     const transactionId = "queryRoles";
-    const { pageNumber, pageSize, name = null } = req.query;
+    const { pageNumber, pageSize, name = null, sortBy, sortOrder } = req.query;
     try {
       const filter: RoleFilter = RoleFilter.builder()
         .setName(name as string)
         .setPageNumber(Number(pageNumber))
         .setPageSize(Number(pageSize))
+        .setSort(sortBy, sortOrder)
         .build();
 
       const request = new RequestModel<RoleFilter>(transactionId, filter);
@@ -47,6 +50,7 @@ export function createRolesRouter(
   rolesV1Router.post(
     "/",
     hasPermissions(["roles::create"]),
+    validBody(nameBody, "createRole"),
     async (req, res) => {
       const transactionId = "createRole";
       const { name } = req.body as { name?: string };
@@ -162,6 +166,7 @@ export function createRolesRouter(
   rolesV1Router.put(
     "/:roleId",
     hasPermissions(["roles::update"]),
+    validBody(nameBody, "updateRole"),
     requireAccess(accessGuard, (req) => {
       const roleId = toId(req.params.roleId);
       return roleId ? { kind: "update-role", roleId } : null;

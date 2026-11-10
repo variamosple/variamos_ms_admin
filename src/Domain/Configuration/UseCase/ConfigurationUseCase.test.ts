@@ -7,6 +7,7 @@ import type { IConfigEventPublisher } from "../Event/IConfigEventPublisher.js";
 import type { IConfigurationRepository } from "../Repository/IConfigurationRepository.js";
 import {
   ConfigurationUseCase,
+  SITE_NAME_CACHE_MS,
   type UpdateConfigurationRequest,
 } from "./ConfigurationUseCase.js";
 
@@ -204,6 +205,42 @@ describe("ConfigurationUseCase Unit Tests", () => {
     expect(mockPublisher.publishConfigUpdated).not.toHaveBeenCalled();
   });
 
+  it("refuses a value the code would not use, without saving it", async () => {
+    const mockRepo = mock<IConfigurationRepository>();
+    const mockPublisher = mock<IConfigEventPublisher>();
+    const useCase = new ConfigurationUseCase(
+      mockRepo,
+      mockPublisher,
+      activityJournal,
+    );
+    mockRepo.queryByKey.mockResolvedValue(
+      new ResponseModel<Configuration>("queryByKey").withResponse(
+        Configuration.builder()
+          .setKey(new ConfigurationKey("bugs.sync_interval_minutes"))
+          .setValue(15)
+          .setType("number")
+          .setCategory("general")
+          .setTargetServices(["variamos_ms_admin"])
+          .build(),
+      ),
+    );
+
+    const response = await useCase.updateConfiguration(
+      new RequestModel("updateConfiguration", {
+        key: "bugs.sync_interval_minutes",
+        value: 1,
+        operatorId: "admin_user",
+      }),
+    );
+
+    expect(response.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+    expect(response.message).toBe(
+      "Configuration 'bugs.sync_interval_minutes' expects a whole number of minutes from 5 to 1440.",
+    );
+    expect(mockRepo.updateConfiguration).not.toHaveBeenCalled();
+    expect(mockPublisher.publishConfigUpdated).not.toHaveBeenCalled();
+  });
+
   it("should fail update if new value type is mismatched", async () => {
     const mockRepo = mock<IConfigurationRepository>();
     const mockPublisher = mock<IConfigEventPublisher>();
@@ -214,8 +251,8 @@ describe("ConfigurationUseCase Unit Tests", () => {
     );
 
     const config = Configuration.builder()
-      .setKey(new ConfigurationKey("general.site_name"))
-      .setValue("VariaMos")
+      .setKey(new ConfigurationKey("general.default_language"))
+      .setValue("en")
       .setType("string")
       .setCategory("general")
       .setTargetServices(["all"])
@@ -226,7 +263,7 @@ describe("ConfigurationUseCase Unit Tests", () => {
     );
 
     const request = new RequestModel("updateConfiguration", {
-      key: "general.site_name",
+      key: "general.default_language",
       value: 123,
       operatorId: "admin_user",
     });
@@ -300,5 +337,143 @@ describe("ConfigurationUseCase Unit Tests", () => {
     expect(response.message).toBe("Database error");
     expect(mockRepo.updateConfiguration).not.toHaveBeenCalled();
     expect(mockPublisher.publishConfigUpdated).not.toHaveBeenCalled();
+  });
+});
+
+/** The name the browser tabs show, read by a route open to all (EV-87 lot 2). */
+describe("ConfigurationUseCase.getSiteName", () => {
+  const siteNameConfig = (value: string) =>
+    Configuration.builder()
+      .setKey(new ConfigurationKey("general.site_name"))
+      .setValue(value)
+      .setType("string")
+      .setCategory("general")
+      .setTargetServices(["all"])
+      .build();
+
+  const setUp = () => {
+    const repo = mock<IConfigurationRepository>();
+    let time = 0;
+    const useCase = new ConfigurationUseCase(
+      repo,
+      mock<IConfigEventPublisher>(),
+      activityJournal,
+      () => time,
+    );
+    const stores = (value: string) =>
+      repo.queryByKey.mockResolvedValue(
+        new ResponseModel<Configuration>("queryByKey").withResponse(
+          siteNameConfig(value),
+        ),
+      );
+    return {
+      repo,
+      useCase,
+      stores,
+      waitMs: (ms: number) => {
+        time += ms;
+      },
+    };
+  };
+
+  it("gives the configured name", async () => {
+    const { repo, useCase, stores } = setUp();
+    stores("VariaMos Lab");
+
+    await expect(useCase.getSiteName()).resolves.toBe("VariaMos Lab");
+    expect(repo.queryByKey).toHaveBeenCalledWith(
+      expect.objectContaining({ data: "general.site_name" }),
+    );
+  });
+
+  it("gives VariaMos when the key is missing, unreadable or cannot be shown", async () => {
+    const { repo, useCase, stores, waitMs } = setUp();
+
+    repo.queryByKey.mockResolvedValueOnce(
+      new ResponseModel<Configuration>("queryByKey").withError(
+        DomainErrorCodes.ENTITY_NOT_FOUND,
+        "missing",
+      ),
+    );
+    await expect(useCase.getSiteName()).resolves.toBe("VariaMos");
+
+    waitMs(SITE_NAME_CACHE_MS);
+    repo.queryByKey.mockRejectedValueOnce(new Error("database down"));
+    await expect(useCase.getSiteName()).resolves.toBe("VariaMos");
+
+    waitMs(SITE_NAME_CACHE_MS);
+    stores("Varia\nMos");
+    await expect(useCase.getSiteName()).resolves.toBe("VariaMos");
+    expect(repo.queryByKey).toHaveBeenCalledTimes(3);
+  });
+
+  it("reads the database once a minute at most", async () => {
+    const { repo, useCase, stores, waitMs } = setUp();
+    stores("First");
+    await useCase.getSiteName();
+    stores("Second");
+
+    waitMs(SITE_NAME_CACHE_MS - 1);
+    await expect(useCase.getSiteName()).resolves.toBe("First");
+    expect(repo.queryByKey).toHaveBeenCalledTimes(1);
+
+    waitMs(1);
+    await expect(useCase.getSiteName()).resolves.toBe("Second");
+    expect(repo.queryByKey).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps a failed read the same minute, then tries again", async () => {
+    const { repo, useCase, stores, waitMs } = setUp();
+    repo.queryByKey.mockRejectedValueOnce(new Error("database down"));
+    await useCase.getSiteName();
+    stores("VariaMos Lab");
+
+    await expect(useCase.getSiteName()).resolves.toBe("VariaMos");
+    waitMs(SITE_NAME_CACHE_MS);
+    await expect(useCase.getSiteName()).resolves.toBe("VariaMos Lab");
+  });
+
+  it("gives a new name at once after it is saved", async () => {
+    const { repo, useCase, stores } = setUp();
+    stores("First");
+    await useCase.getSiteName();
+
+    repo.updateConfiguration.mockResolvedValue(
+      new ResponseModel<Configuration>("updateConfiguration").withResponse(
+        siteNameConfig("Second"),
+      ),
+    );
+    await useCase.updateConfiguration(
+      new RequestModel<UpdateConfigurationRequest>("updateConfiguration", {
+        key: "general.site_name",
+        value: "Second",
+        operatorId: "admin-1",
+      }),
+    );
+    stores("Second");
+
+    await expect(useCase.getSiteName()).resolves.toBe("Second");
+  });
+
+  it("keeps the name in memory when another key is saved", async () => {
+    const { repo, useCase, stores } = setUp();
+    stores("First");
+    await useCase.getSiteName();
+
+    repo.updateConfiguration.mockResolvedValue(
+      new ResponseModel<Configuration>("updateConfiguration").withResponse(
+        siteNameConfig("First"),
+      ),
+    );
+    await useCase.updateConfiguration(
+      new RequestModel<UpdateConfigurationRequest>("updateConfiguration", {
+        key: "general.welcome_text",
+        value: "Hello",
+        operatorId: "admin-1",
+      }),
+    );
+    stores("Second");
+
+    await expect(useCase.getSiteName()).resolves.toBe("First");
   });
 });

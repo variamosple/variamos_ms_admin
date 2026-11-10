@@ -1,18 +1,28 @@
 /* cspell:disable */
+import { numberFromEnv } from "./numberFromEnv.js";
+
 /**
  * Environments variables declared here.
  */
 
 export default {
   NodeEnv: process.env.NODE_ENV ?? "",
-  Port: process.env.PORT ?? 0,
+  // Read on each access: the tests switch NODE_ENV while the process runs
+  get IsDevelopment(): boolean {
+    return process.env.NODE_ENV === "development";
+  },
+  // Set by npm when the service starts through an npm script
+  get PackageVersion(): string {
+    return process.env.npm_package_version || "1.0.0";
+  },
+  Port: numberFromEnv(process.env.PORT, 0),
   VERSION: "1.24.10.27.08",
   DB: {
     USER: process.env.DB_USER ?? "db_user_test",
     HOST: process.env.DB_HOST ?? "db_host_test",
     PASSWORD: process.env.DB_PASSWORD ?? "",
     DATABASE: process.env.DB_DATABASE ?? "db_database_test",
-    PORT: process.env.DB_PORT ?? 5432,
+    PORT: numberFromEnv(process.env.DB_PORT, 5432),
     SSL: process.env.DB_SSL === "true",
     SCHEMA: process.env.DB_SCHEMA ?? "variamos",
   },
@@ -27,7 +37,7 @@ export default {
       httpOnly: true,
       signed: true,
       path: process.env.COOKIE_PATH ?? "",
-      maxAge: Number(process.env.COOKIE_EXP_IN_MS ?? 0),
+      maxAge: numberFromEnv(process.env.COOKIE_EXP_IN_MS, 0),
       domain: process.env.COOKIE_DOMAIN ?? "",
       secure: process.env.SECURE_COOKIE === "true",
     },
@@ -42,10 +52,11 @@ export default {
       HOME_REDIRECT_URI: process.env.HOME_REDIRECT_URI,
       LOGIN_REDIRECT_URI: process.env.LOGIN_REDIRECT_URI,
       ADMIN_HOME_URI: process.env.ADMIN_HOME_URI ?? "http://localhost:3000",
-      PASSWORD_RESET_EXPIRY_IN_MS: Number(
-        process.env.PASSWORD_RESET_EXPIRY_IN_MS ?? 60 * 60 * 1000,
+      PASSWORD_RESET_EXPIRY_IN_MS: numberFromEnv(
+        process.env.PASSWORD_RESET_EXPIRY_IN_MS,
+        60 * 60 * 1000,
       ),
-      BCRYPT_SALT_ROUNDS: Number(process.env.BCRYPT_SALT_ROUNDS ?? 10),
+      BCRYPT_SALT_ROUNDS: numberFromEnv(process.env.BCRYPT_SALT_ROUNDS, 10),
       // 32 bytes in base64; empty, two-factor enrollment is unavailable
       MFA_ENCRYPTION_KEY: process.env.MFA_ENCRYPTION_KEY ?? "",
       // 32 bytes in base64; empty, secret configurations cannot be changed
@@ -56,13 +67,14 @@ export default {
     SOCKET_PATH: process.env.DOCKER_SOCKET_PATH ?? "",
   },
   MONITORING: {
-    HEALTH_CHECK_INTERVAL_MS: Number(
-      process.env.HEALTH_CHECK_INTERVAL_MS ?? 30000,
+    HEALTH_CHECK_INTERVAL_MS: numberFromEnv(
+      process.env.HEALTH_CHECK_INTERVAL_MS,
+      30000,
     ),
   },
   SMTP: {
     HOST: process.env.SMTP_HOST ?? "smtp-relay.brevo.com",
-    PORT: Number(process.env.SMTP_PORT ?? 587),
+    PORT: numberFromEnv(process.env.SMTP_PORT, 587),
     USER: process.env.SMTP_USER ?? "",
     PASSWORD: process.env.SMTP_PASSWORD ?? "",
     FROM: process.env.SMTP_FROM ?? '"VariaMos" <noreply@variamos.com>',

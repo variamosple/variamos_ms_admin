@@ -14,7 +14,7 @@
  * `purged` is the deletion of a rejected bug after its retention (EV-67).
  * The stored values of the existing rows do not change.
  */
-export const BUG_STATUSES = [
+const BUG_STATUSES = [
   "pending",
   "open",
   "in_progress",

@@ -7,6 +7,7 @@ import type {
 } from "#src/Domain/MicroService/Entity/MicroServiceHealth.js";
 import {
   buildUptimeSummary,
+  UPTIME_SLOTS,
   type UptimeWindow,
   uptimeWindow,
 } from "#src/Domain/MicroService/Service/UptimeSummary.js";
@@ -65,14 +66,15 @@ function referenceSummary(
       continue;
     }
     const slotUp = slotLogs.filter((l) => l.status === "UP");
+    const slotDown = slotLogs.filter((l) => l.status === "DOWN");
     history.push({
       timestamp: slotStart,
       status:
         slotUp.length === slotLogs.length
           ? "UP"
-          : slotUp.length > 0
-            ? "DEGRADED"
-            : "DOWN",
+          : slotDown.length === slotLogs.length
+            ? "DOWN"
+            : "DEGRADED",
       responseTimeMs: Math.round(
         slotLogs.reduce((acc, l) => acc + l.responseTimeMs, 0) /
           slotLogs.length,
@@ -166,13 +168,14 @@ function dataset(): Log[] {
     add("ms_steady", at + Math.floor(next() * MINUTE));
     const gapsAt = at + 1 + Math.floor(next() * MINUTE);
     const day = Math.floor((until.getTime() - gapsAt) / DAY);
-    // Five days without a check, a day down and a day up
+    // Five days without a check, a day down, a day degraded and a day up
+    const forced: Record<number, HealthStatus> = {
+      20: "DOWN",
+      22: "DEGRADED",
+      25: "UP",
+    };
     if (day < 10 || day > 14) {
-      add(
-        "ms_gaps",
-        gapsAt,
-        day === 20 ? "DOWN" : day === 25 ? "UP" : undefined,
-      );
+      add("ms_gaps", gapsAt, forced[day]);
     }
     // On the slot and day edges
     add("ms_other", at);
@@ -245,6 +248,11 @@ describe.skipIf(!url)("Health log statistics on PostgreSQL", () => {
     expect(gaps?.history.map((slot) => slot.status)).toEqual(
       expect.arrayContaining(["NO_DATA", "DOWN", "UP"]),
     );
+    // A slot of degraded checks only is degraded, not down
+    expect(gaps?.history[UPTIME_SLOTS - 1 - 22]).toMatchObject({
+      status: "DEGRADED",
+      uptimePercentage: 0,
+    });
     expect(gone?.currentStatus).toBe("NO_DATA");
   });
 

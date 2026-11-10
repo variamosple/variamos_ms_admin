@@ -1,11 +1,9 @@
-import crypto from "node:crypto";
-import bcrypt from "bcrypt";
-import logger from "jet-logger";
 import { Op, QueryTypes, type Transaction, type WhereOptions } from "sequelize";
+import logger from "#src/common/logger.js";
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
-import type { Credentials } from "#src/Domain/User/Entity/Credentials.js";
+import { accountRefusalOf } from "#src/Domain/User/Entity/AccountAccess.js";
 import type { PasswordUpdate } from "#src/Domain/User/Entity/PasswordUpdate.js";
 import type { PersonalInformationUpdate } from "#src/Domain/User/Entity/PersonalInformationUpdate.js";
 import { User } from "#src/Domain/User/Entity/User.js";
@@ -13,8 +11,10 @@ import { UserFilter } from "#src/Domain/User/Entity/UserFilter.js";
 import type { UserRegistration } from "#src/Domain/User/Entity/UserRegistration.js";
 import type {
   IUserRepository,
+  PasswordAccount,
   PasswordResetOutcome,
 } from "#src/Domain/User/IUserRepository.js";
+import type { IPasswordHasher } from "#src/Domain/User/Service/IPasswordHasher.js";
 import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 import { BaseRepository } from "../BaseRepository.js";
 import { CountryModel } from "../Countries/Country.js";
@@ -30,12 +30,8 @@ export class UserRepositoryImpl
   extends BaseRepository
   implements IUserRepository
 {
-  private readonly bcryptSaltRounds: number;
-  private dummyHashPromise?: Promise<string>;
-
-  public constructor(config: { bcryptSaltRounds: number }) {
+  public constructor(private readonly passwordHasher: IPasswordHasher) {
     super();
-    this.bcryptSaltRounds = config.bcryptSaltRounds;
   }
 
   public async queryUsers(
@@ -79,7 +75,12 @@ export class UserRepositoryImpl
         where,
         limit: pageSize,
         offset: (pageNumber - 1) * pageSize,
-        order: [["name", "ASC"]],
+        // Never signed in users last in both directions; the id keeps the
+        // pages stable between equal values
+        order: [
+          [filter.sortBy, `${filter.sortOrder.toUpperCase()} NULLS LAST`],
+          ["id", "ASC"],
+        ],
       }).then((res) =>
         res.map(
           ({
@@ -143,26 +144,8 @@ export class UserRepositoryImpl
         );
       }
 
-      if (!dbUser.isEnabled) {
-        return response.withError(
-          DomainErrorCodes.INVALID_INPUT,
-          "Your account is disabled.",
-        );
-      }
-
-      if (dbUser.isDeleted) {
-        return response.withError(
-          DomainErrorCodes.INVALID_INPUT,
-          "Your account is deleted.",
-        );
-      }
-
-      response.data = User.builder()
-        .setId(dbUser.id)
-        .setUser(dbUser.user)
-        .setName(dbUser.name)
-        .setEmail(dbUser.email)
-        .build();
+      // The state goes with the user: the domain decides (AccountAccess)
+      response.data = this.accountOf(dbUser);
 
       await this.enrichUserRolesAndPermissions(response.data);
     } catch (error) {
@@ -204,7 +187,7 @@ export class UserRepositoryImpl
         );
       }
 
-      const [dbUser, crated] = await UserModel.findOrCreate({
+      const [dbUser] = await UserModel.findOrCreate({
         where: { email },
         defaults: {
           user,
@@ -217,39 +200,8 @@ export class UserRepositoryImpl
         },
       });
 
-      if (!dbUser.isEnabled) {
-        return response.withError(
-          DomainErrorCodes.FORBIDDEN,
-          "Your account is disabled.",
-        );
-      }
-
-      if (dbUser.isDeleted) {
-        return response.withError(
-          DomainErrorCodes.FORBIDDEN,
-          "Your account is deleted.",
-        );
-      }
-
-      if (!crated) {
-        await UserModel.update(
-          { lastLogin: new Date() },
-          {
-            where: {
-              id: dbUser.id,
-            },
-          },
-        );
-      }
-
-      response.data = User.builder()
-        .setId(dbUser.id)
-        .setUser(dbUser.user)
-        .setName(dbUser.name)
-        .setEmail(dbUser.email)
-        .build();
-
-      await this.enrichUserRolesAndPermissions(response.data);
+      // The use case refuses a closed account, then records the sign-in
+      response.data = this.accountOf(dbUser);
     } catch (error) {
       const err = error as Error;
       logger.err("Error in findOrCreateUser:");
@@ -263,85 +215,42 @@ export class UserRepositoryImpl
     return response;
   }
 
-  /** A hash of a random value, compared when no account can sign in. */
-  private dummyHash(): Promise<string> {
-    this.dummyHashPromise ??= bcrypt.hash(
-      crypto.randomUUID(),
-      this.bcryptSaltRounds,
-    );
-    return this.dummyHashPromise;
+  public async findPasswordAccount(
+    by: { email: string } | { id: string },
+  ): Promise<PasswordAccount | null> {
+    const dbUser = await UserModel.findOne({
+      where: "email" in by ? { email: by.email } : { id: by.id },
+    });
+    return dbUser
+      ? { user: this.accountOf(dbUser), passwordHash: dbUser.password || null }
+      : null;
   }
 
-  public async signIn(
-    request: RequestModel<Credentials>,
-  ): Promise<ResponseModel<User>> {
-    const response = new ResponseModel<User>(request.transactionId);
+  public async recordSignIn(
+    user: User,
+    rehashedPassword?: string,
+  ): Promise<User> {
+    await UserModel.update(
+      {
+        lastLogin: new Date(),
+        ...(rehashedPassword && { password: rehashedPassword }),
+      },
+      { where: { id: user.id as string } },
+    );
+    await this.enrichUserRolesAndPermissions(user);
+    return user;
+  }
 
-    try {
-      const { data } = request;
-      if (!data) {
-        return response.withError(
-          DomainErrorCodes.INVALID_INPUT,
-          "Credentials are required.",
-        );
-      }
-
-      const email = data.email;
-      const password = data.password;
-      if (!email || !password) {
-        return response.withError(
-          DomainErrorCodes.INVALID_INPUT,
-          "email and password are required.",
-        );
-      }
-
-      const dbUser = await UserModel.findOne({
-        where: { email },
-      });
-
-      const errorMessage = "Incorrect username or password.";
-      const canSignIn =
-        !!dbUser?.password && dbUser.isEnabled && !dbUser.isDeleted;
-
-      // Unknown and disabled accounts pay the same bcrypt cost as a wrong
-      // password: the response time does not reveal whether an account exists.
-      const passwordMatch = await bcrypt.compare(
-        password,
-        canSignIn ? (dbUser.password as string) : await this.dummyHash(),
-      );
-
-      if (!canSignIn || !passwordMatch) {
-        return response.withError(DomainErrorCodes.INVALID_INPUT, errorMessage);
-      }
-
-      await UserModel.update(
-        { lastLogin: new Date() },
-        {
-          where: {
-            id: dbUser.id,
-          },
-        },
-      );
-
-      response.data = User.builder()
-        .setId(dbUser.id)
-        .setUser(dbUser.user)
-        .setName(dbUser.name)
-        .setEmail(dbUser.email)
-        .build();
-
-      await this.enrichUserRolesAndPermissions(response.data);
-    } catch (error) {
-      const err = error as Error;
-      logger.err("Error in signIn:");
-      logger.err(err);
-      response.withError(
-        DomainErrorCodes.SYSTEM_ERROR,
-        "Internal server error",
-      );
-    }
-
-    return response;
+  /** The user and the state of its account, as stored. */
+  private accountOf(dbUser: UserModel): User {
+    return User.builder()
+      .setId(dbUser.id)
+      .setUser(dbUser.user)
+      .setName(dbUser.name)
+      .setEmail(dbUser.email)
+      .setIsEnabled(dbUser.isEnabled === true)
+      .setIsDeleted(dbUser.isDeleted === true)
+      .build();
   }
 
   public async signUp(
@@ -358,17 +267,12 @@ export class UserRepositoryImpl
         );
       }
 
-      const email = data.email;
-      const password = data.password;
-      const name = data.name;
+      // A UserRegistration is checked when built, in the use case (EV-98)
+      const { email, password, name } = data;
 
-      if (!email || !password || !name) {
-        return response.withError(
-          DomainErrorCodes.INVALID_INPUT,
-          "email, password, and name are required.",
-        );
-      }
-
+      // Hashed before the check, so that a taken address does not answer
+      // faster than a free one (the sign-up answer is the same for both)
+      const hashedPassword = await this.passwordHasher.hash(password);
       const dbUser = await UserModel.findOne({
         where: { email },
       });
@@ -377,7 +281,6 @@ export class UserRepositoryImpl
         logger.warn("User already registered");
         return response.withError(DomainErrorCodes.DUPLICATE_ENTITY, "");
       }
-      const hashedPassword = await bcrypt.hash(password, 10);
 
       const newUser = await UserModel.create({
         user: name,
@@ -625,9 +528,9 @@ export class UserRepositoryImpl
         );
       }
 
-      const passwordMatch = await bcrypt.compare(
+      const passwordMatch = await this.passwordHasher.verify(
         passwordUpdate.getCurrentPassword(),
-        dbUser.password ?? "",
+        dbUser.password ?? null,
       );
 
       if (!passwordMatch) {
@@ -637,9 +540,8 @@ export class UserRepositoryImpl
         );
       }
 
-      const newHashedPassword = await bcrypt.hash(
+      const newHashedPassword = await this.passwordHasher.hash(
         passwordUpdate.getNewPassword(),
-        10,
       );
 
       await VARIAMOS_ORM.transaction(async (transaction) => {
@@ -674,21 +576,6 @@ export class UserRepositoryImpl
       `DELETE FROM "${DB_SCHEMA}"."user_mfa_trusted_device" WHERE "user_id" = :userId`,
       { replacements: { userId }, transaction },
     );
-  }
-
-  /** Same cost whatever the account, as at sign-in. */
-  public async verifyPassword(
-    userId: string,
-    password: string,
-  ): Promise<boolean> {
-    const dbUser = await UserModel.findOne({ where: { id: userId } });
-    const canSignIn =
-      !!dbUser?.password && dbUser.isEnabled && !dbUser.isDeleted;
-    const passwordMatch = await bcrypt.compare(
-      password,
-      canSignIn ? (dbUser.password as string) : await this.dummyHash(),
-    );
-    return canSignIn === true && passwordMatch;
   }
 
   public async getUserByEmail(email: string): Promise<User | null> {
@@ -753,14 +640,16 @@ export class UserRepositoryImpl
         userId: string;
         expiresAt: Date;
         usedAt?: Date | null;
-        isUserActive: boolean;
+        // Null when the account no longer exists
+        isEnabled: boolean | null;
+        isDeleted: boolean | null;
       }
 
       const results = await VARIAMOS_ORM.query<PasswordResetTokenRow>(
         `
         SELECT t."user_id" AS "userId", t."expires_at" AS "expiresAt",
           t."used_at" AS "usedAt",
-          COALESCE(u."is_enabled" AND NOT u."is_deleted", false) AS "isUserActive"
+          u."is_enabled" AS "isEnabled", u."is_deleted" AS "isDeleted"
         FROM "${DB_SCHEMA}"."password_reset_tokens" t
         LEFT JOIN "${DB_SCHEMA}"."user" u ON u."id"::text = t."user_id"
         WHERE t."token_hash" = :tokenHash
@@ -771,7 +660,15 @@ export class UserRepositoryImpl
           type: QueryTypes.SELECT,
         },
       );
-      return results.length > 0 ? results[0] : null;
+      const row = results[0];
+      return row
+        ? {
+            userId: row.userId,
+            expiresAt: row.expiresAt,
+            usedAt: row.usedAt,
+            isUserActive: accountRefusalOf(row) === null,
+          }
+        : null;
     } catch (error) {
       logger.err(`Error in getPasswordResetToken: ${error}`);
       return null;
@@ -812,21 +709,21 @@ export class UserRepositoryImpl
         transaction,
         lock: transaction.LOCK.UPDATE,
       });
-      if (!dbUser?.isEnabled || dbUser.isDeleted) {
+      // Decided here, inside the transaction that locks the account
+      if (!dbUser || accountRefusalOf(dbUser) !== null) {
         await transaction.rollback();
         return "inactive_account";
       }
 
-      if (await bcrypt.compare(passwordPlain, dbUser.password || "")) {
+      if (
+        await this.passwordHasher.verify(passwordPlain, dbUser.password || null)
+      ) {
         // Rolled back: the link stays usable for another password
         await transaction.rollback();
         return "same_password";
       }
 
-      const passwordHash = await bcrypt.hash(
-        passwordPlain,
-        this.bcryptSaltRounds,
-      );
+      const passwordHash = await this.passwordHasher.hash(passwordPlain);
       await UserModel.update(
         { password: passwordHash },
         { where: { id: userId }, transaction },

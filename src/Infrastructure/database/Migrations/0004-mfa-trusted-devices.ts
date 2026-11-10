@@ -1,5 +1,5 @@
-import logger from "jet-logger";
 import { QueryTypes } from "sequelize";
+import logger from "#src/common/logger.js";
 import type { MigrationContext, SchemaMigration } from "./MigrationContext.js";
 
 export const TRUSTED_DEVICE_TABLE = "user_mfa_trusted_device";

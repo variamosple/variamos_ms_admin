@@ -1,5 +1,5 @@
-import logger from "jet-logger";
 import { QueryTypes } from "sequelize";
+import logger from "#src/common/logger.js";
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -11,6 +11,9 @@ import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 import { BaseRepository } from "../BaseRepository.js";
 import type { PermissionModel } from "../Permission/Permission.js";
 import { RolePermissionModel } from "./RolePermission.js";
+
+// A permission matches the search by a part of its name or by its exact id
+const SEARCH_CONDITION = `(:search IS NULL OR p.name ILIKE '%' || :search || '%' OR CAST(p.id AS TEXT) = :search)`;
 
 export class RolePermissionRepositoryImpl
   extends BaseRepository
@@ -29,6 +32,7 @@ export class RolePermissionRepositoryImpl
 
       const replacements = super.initializeReplacements({
         roleId: filter?.roleId,
+        search: filter?.search || null,
         limit: pageSize,
         offset: (pageNumber - 1) * pageSize,
       });
@@ -38,7 +42,8 @@ export class RolePermissionRepositoryImpl
             SELECT COUNT(1)
             FROM ${DB_SCHEMA}.permission p
             INNER JOIN ${DB_SCHEMA}.role_permission rp ON (p.id = rp.permission_id)
-            WHERE rp.role_id = :roleId;   
+            WHERE rp.role_id = :roleId
+              AND ${SEARCH_CONDITION};
         `,
         { type: QueryTypes.SELECT, replacements },
       ).then((result: object[]) => {
@@ -52,6 +57,8 @@ export class RolePermissionRepositoryImpl
         FROM ${DB_SCHEMA}.permission p
         INNER JOIN ${DB_SCHEMA}.role_permission rp ON p.id = rp.permission_id
         WHERE rp.role_id = :roleId
+          AND ${SEARCH_CONDITION}
+        ORDER BY p.name ASC, p.id ASC
         LIMIT :limit OFFSET :offset;
       `,
         {
@@ -171,6 +178,3 @@ export class RolePermissionRepositoryImpl
     return response;
   }
 }
-
-export const RolePermissionRepositoryInstance =
-  new RolePermissionRepositoryImpl();

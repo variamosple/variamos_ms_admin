@@ -1,6 +1,6 @@
-import logger from "jet-logger";
 import type { Sequelize } from "sequelize";
 import { SequelizeStorage, Umzug } from "umzug";
+import logger from "#src/common/logger.js";
 import { baseline } from "./0001-baseline.js";
 import { accountLockoutKeys } from "./0002-account-lockout-keys.js";
 import { userMfa } from "./0003-user-mfa.js";
@@ -10,6 +10,10 @@ import { adminAccessLogs } from "./0006-admin-access-logs.js";
 import { bugAssignees } from "./0007-bug-assignees.js";
 import { bugSeverityComponent } from "./0008-bug-severity-component.js";
 import { healthLogIndexes } from "./0009-health-log-indexes.js";
+import { securityAlertKeys } from "./0010-security-alert-keys.js";
+import { bugScheduleKeys } from "./0011-bug-schedule-keys.js";
+import { laboratoryAccessPermission } from "./0012-laboratory-access-permission.js";
+import { bugIssueUniqueIndex } from "./0013-bug-issue-unique-index.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 
 // Applied in order at start-up, each one once; append new migrations here
@@ -23,6 +27,10 @@ export const ADMIN_MIGRATIONS: SchemaMigration[] = [
   bugAssignees,
   bugSeverityComponent,
   healthLogIndexes,
+  securityAlertKeys,
+  bugScheduleKeys,
+  laboratoryAccessPermission,
+  bugIssueUniqueIndex,
 ];
 
 // The schema is shared with other services: a name of our own
