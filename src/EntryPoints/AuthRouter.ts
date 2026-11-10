@@ -1,5 +1,4 @@
 import {
-  audienceHost,
   createJwt,
   getToken,
   hasPermissions,
@@ -74,6 +73,19 @@ const MFA_FAILURES: Record<string, string> = {
   [DomainErrorCodes.TOO_MANY_REQUESTS]: "too_many_attempts",
   [DomainErrorCodes.UNAUTHORIZED_ACCESS]: "expired",
   [DomainErrorCodes.UNAVAILABLE]: "unavailable",
+};
+
+/**
+ * The host a session token was issued for. Its audience is that host, or,
+ * for a token issued between #183 and its revert, the list
+ * ["variamos-platform", host].
+ */
+export const audienceHostOf = (aud: unknown): string | undefined => {
+  const entries = Array.isArray(aud) ? aud : [aud];
+  return entries.find(
+    (entry): entry is string =>
+      typeof entry === "string" && entry !== "variamos-platform",
+  );
 };
 
 export function createAuthRouter(
@@ -322,9 +334,12 @@ export function createAuthRouter(
         roles,
         permissions,
       };
-      // The host the token was issued for is kept; the library sets the
-      // issuer and the platform audience again (variamos-security 0.0.17)
-      const token = (await createJwt(sessionUser, user.aud)) as string;
+      // A token issued between #183 and its revert holds the audience
+      // ["variamos-platform", host], which vms_projects (Python
+      // variamos-security 0.0.2) cannot read: the refreshed token holds the
+      // host alone again
+      const host = audienceHostOf(user.aud);
+      const token = (await createJwt(sessionUser, host)) as string;
 
       // The page to go back to receives the refreshed token, not the
       // expired one it replaces
@@ -338,7 +353,7 @@ export function createAuthRouter(
           response.withResponse({
             user: sessionUser,
             authToken:
-              isExternalDomain(audienceHost(user.aud)) &&
+              isExternalDomain(host) &&
               isExternalDomain(
                 getUrl(response.transactionId || "", req.headers.origin)
                   ?.hostname,
