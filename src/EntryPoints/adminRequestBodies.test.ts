@@ -31,6 +31,16 @@ describe("administration request bodies (EV-97 lot 6b)", () => {
       { audience: "users", userIds: ["u-1"], title: "Hi", body: "Text" },
     ],
     [
+      "dispatch with its key (EV-99)",
+      notificationDispatchBody,
+      {
+        audience: "broadcast",
+        title: "Hi",
+        body: "Text",
+        eventId: "5f0c2d4e-8a1b-4c3d-9e2f-1a2b3c4d5e6f",
+      },
+    ],
+    [
       "bug creation (multipart text fields)",
       bugCreateBody,
       {
@@ -74,6 +84,11 @@ describe("administration request bodies (EV-97 lot 6b)", () => {
       "a title over 1 000 characters",
       notificationDispatchBody,
       { title: "x".repeat(1_001) },
+    ],
+    [
+      "a dispatch key that is not a UUID",
+      notificationDispatchBody,
+      { eventId: "send-1" },
     ],
     ["a repeated multipart field", bugCreateBody, { title: ["a", "b"] }],
     [
