@@ -36,6 +36,9 @@ describe("BugSubmissionUseCase", () => {
     mockUserRepository = mock<IUserRepository>();
     mockIssueTracker = mock<IIssueTrackerService>();
     mockGithubConfig = mock<IBugTrackerConfig>();
+    mockGithubConfig.getGitHubManagedRepos.mockReturnValue([
+      "VariaMos/VariaMosAdmin",
+    ]);
     mockTokenResolver = mock<IGitHubTokenProvider>();
     mockStorageService = mock<IStorageService>();
     mockStorageService.saveFile.mockResolvedValue("/uploads/generated.png");
@@ -338,6 +341,123 @@ describe("BugSubmissionUseCase", () => {
     const res = await useCase.createBug(req);
     expect(res.errorCode).toBe("INVALID_INPUT");
     expect(res.message).toBe("Reporter email could not be resolved.");
+  });
+
+  it("refuses a repository missing from GITHUB_MANAGED_REPOS, before any file or GitHub call", async () => {
+    mockUserRepository.findSessionUser.mockResolvedValue(
+      new ResponseModel<User>("tx-1").withResponse(
+        openUser().setId("admin-123").setEmail("admin@test.com").build(),
+      ),
+    );
+
+    const res = await useCase.createBug(
+      new RequestModel("tx-1", {
+        title: "Title",
+        description: "Desc",
+        category: "Editor",
+        createdById: "admin-123",
+        githubRepo: "someone-else/their-repo",
+        priority: "medium" as const,
+        file: {
+          content: Buffer.from([
+            0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+          ]),
+          originalName: "shot.png",
+        },
+      }),
+    );
+
+    expect(res.errorCode).toBe("INVALID_INPUT");
+    expect(res.message).toBe("This repository is not managed by VariaMos.");
+    expect(mockStorageService.saveFile).not.toHaveBeenCalled();
+    expect(mockTokenResolver.resolveGitHubToken).not.toHaveBeenCalled();
+    expect(mockIssueTracker.createIssue).not.toHaveBeenCalled();
+    expect(mockBugRepository.createBug).not.toHaveBeenCalled();
+  });
+
+  it("publishes nowhere when GITHUB_MANAGED_REPOS is empty", async () => {
+    mockGithubConfig.getGitHubManagedRepos.mockReturnValue([]);
+
+    const res = await useCase.createBug(
+      new RequestModel("tx-1", {
+        title: "Title",
+        description: "Desc",
+        category: "Editor",
+        reporterEmail: "guest@test.com",
+        githubRepo: "VariaMos/VariaMosAdmin",
+        priority: "medium" as const,
+      }),
+    );
+
+    expect(res.errorCode).toBe("INVALID_INPUT");
+    expect(mockIssueTracker.createIssue).not.toHaveBeenCalled();
+    expect(mockBugRepository.createBug).not.toHaveBeenCalled();
+  });
+
+  it("keeps the report pending when the session has no account in the database", async () => {
+    mockUserRepository.findSessionUser.mockResolvedValue(
+      new ResponseModel<User>("tx-1"),
+    );
+    mockBugRepository.createBug.mockResolvedValue(
+      new ResponseModel<Bug>("tx-1").withResponse(
+        Bug.builder().setId("bug-guest").setStatus("pending").build(),
+      ),
+    );
+
+    const res = await useCase.createBug(
+      new RequestModel("tx-1", {
+        title: "Title",
+        description: "Desc",
+        category: "Editor",
+        createdById: "guest-session-id",
+        reporterEmail: "guest@test.com",
+        githubRepo: "VariaMos/VariaMosAdmin",
+        priority: "medium" as const,
+      }),
+    );
+
+    expect(res.errorCode).toBeUndefined();
+    expect(mockTokenResolver.resolveGitHubToken).not.toHaveBeenCalled();
+    expect(mockIssueTracker.createIssue).not.toHaveBeenCalled();
+    expect(mockBugRepository.createBug).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "pending",
+          createdById: "",
+          logComment: "Bug submitted locally by guest.",
+        }),
+      }),
+    );
+  });
+
+  it("writes no email address in the body of a directly published issue", async () => {
+    mockUserRepository.findSessionUser.mockResolvedValue(
+      new ResponseModel<User>("tx-1").withResponse(
+        openUser().setId("admin-123").setEmail("admin@test.com").build(),
+      ),
+    );
+    mockTokenResolver.resolveGitHubToken.mockResolvedValue("token");
+    mockIssueTracker.createIssue.mockResolvedValue(7);
+    mockBugRepository.createBug.mockResolvedValue(
+      new ResponseModel<Bug>("tx-1").withResponse(
+        Bug.builder().setId("bug-7").build(),
+      ),
+    );
+
+    await useCase.createBug(
+      new RequestModel("tx-1", {
+        title: "Title",
+        description: "Desc",
+        category: "Editor",
+        createdById: "admin-123",
+        githubRepo: "VariaMos/VariaMosAdmin",
+        priority: "medium" as const,
+      }),
+    );
+
+    const body = mockIssueTracker.createIssue.mock.calls[0]?.[2];
+    expect(body).toBeDefined();
+    expect(body).not.toContain("@");
   });
 
   it("should return error if GitHub token resolution fails", async () => {

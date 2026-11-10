@@ -478,7 +478,6 @@ export function createBugRouter(
         githubRepo?: string;
       };
       const adminId = (req as RequestWithUser).user.id;
-      const adminEmail = (req as RequestWithUser).user.email || "";
 
       try {
         const resolvedPriority = isBugPriority(priority || "")
@@ -490,7 +489,6 @@ export function createBugRouter(
           status: status || "",
           comment: comment || undefined,
           adminId,
-          adminEmail: adminEmail || undefined,
           title: title || undefined,
           description: description || undefined,
           priority: resolvedPriority,

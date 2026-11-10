@@ -1,4 +1,8 @@
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
+import {
+  isManagedRepository,
+  UNMANAGED_REPOSITORY_MESSAGE,
+} from "#src/Domain/Bug/Config/ManagedRepository.js";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import {
   BUG_COMPONENT_LABELS,
@@ -91,6 +95,17 @@ export class BugSubmissionUseCase {
       return response.withErrorPromise(
         DomainErrorCodes.INVALID_INPUT,
         `Invalid category selected. Allowed: ${ALLOWED_CATEGORIES.join(", ")}`,
+      );
+    }
+
+    if (
+      data.githubRepo &&
+      !isManagedRepository(this.githubConfig, data.githubRepo)
+    ) {
+      const response = new ResponseModel<Bug>(request.transactionId);
+      return response.withErrorPromise(
+        DomainErrorCodes.INVALID_INPUT,
+        UNMANAGED_REPOSITORY_MESSAGE,
       );
     }
 
@@ -187,7 +202,9 @@ export class BugSubmissionUseCase {
     let gitIssueNumber: number | undefined;
     let githubHtmlUrl: string | undefined;
 
-    if (data.githubRepo && data.createdById) {
+    // Only a session tied to an existing account publishes directly; the
+    // other reports wait for an administrator's approval
+    if (data.githubRepo && resolvedCreatedById) {
       const gitHubToken = await this.tokenResolver.resolveGitHubToken(
         data.githubRepo,
       );
