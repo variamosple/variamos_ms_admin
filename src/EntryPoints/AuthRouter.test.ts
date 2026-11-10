@@ -66,7 +66,7 @@ import {
   type UserPasswordUseCaseConfig,
 } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
 import { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
-import { AUTH_ROUTE, createAuthRouter } from "./AuthRouter.js";
+import { AUTH_ROUTE, audienceHostOf, createAuthRouter } from "./AuthRouter.js";
 
 /** Accounts of these tests have no second factor. */
 const noMfaSignIn = {
@@ -723,7 +723,16 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       });
     });
 
-    describe("token of variamos-security 0.0.17: issuer and platform audience", () => {
+    describe("audience of a token issued between #183 and its revert", () => {
+      it("reads the host of either audience, never the platform", () => {
+        expect(
+          audienceHostOf(["variamos-platform", "allowed-origin.com"]),
+        ).toBe("allowed-origin.com");
+        expect(audienceHostOf("allowed-origin.com")).toBe("allowed-origin.com");
+        expect(audienceHostOf("variamos-platform")).toBeUndefined();
+        expect(audienceHostOf(undefined)).toBeUndefined();
+      });
+
       const refreshAs = async (aud: string | string[]) => {
         const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
         Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
@@ -742,7 +751,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
               exp: 1000,
               iat: Math.floor(Date.now() / 1000),
               roles: ["admin"],
-            } as SessionInfo),
+            } as unknown as SessionInfo),
           );
           vi.mocked(isSessionExpired).mockReturnValue(true);
           (UserQueryUseCase.prototype.sessionUser as vi.Mock).mockResolvedValue(
@@ -750,6 +759,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
               User.builder().setId("user-123").setName("Admin User").build(),
             ),
           );
+          vi.mocked(createJwt).mockClear();
           vi.mocked(createJwt).mockResolvedValue("new-refreshed-jwt-token");
 
           return await supertest(app)
@@ -764,7 +774,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         }
       };
 
-      it("reads the host behind the platform audience", async () => {
+      it("refreshes it with the host alone, which vms_projects can read", async () => {
         const response = await refreshAs([
           "variamos-platform",
           "allowed-origin.com",
@@ -773,12 +783,17 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         expect(response.status).toBe(HttpStatusCodes.OK);
         const body = response.body as { data: { authToken: string } };
         expect(body.data.authToken).toBe("new-refreshed-jwt-token");
-        // The audience of the expired token goes back to the library,
-        // which keeps its host
-        expect(vi.mocked(createJwt).mock.calls[0][1]).toEqual([
-          "variamos-platform",
+        expect(vi.mocked(createJwt).mock.calls[0][1]).toBe(
           "allowed-origin.com",
-        ]);
+        );
+      });
+
+      it("keeps the host of a token issued before", async () => {
+        await refreshAs("allowed-origin.com");
+
+        expect(vi.mocked(createJwt).mock.calls[0][1]).toBe(
+          "allowed-origin.com",
+        );
       });
 
       it("sends the refreshed token, not the expired one, to the page to go back to", async () => {
