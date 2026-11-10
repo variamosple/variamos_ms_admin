@@ -722,6 +722,75 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         configurable: true,
       });
     });
+
+    describe("token of variamos-security 0.0.17: issuer and platform audience", () => {
+      const refreshAs = async (aud: string | string[]) => {
+        const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
+        Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
+          value: [/^https?:\/\/allowed-origin\.com$/],
+          configurable: true,
+        });
+        try {
+          vi.mocked(getToken).mockReturnValue("expired-token");
+          vi.mocked(validateToken).mockResolvedValue(
+            new SecurityResponseModel<SessionInfo>(
+              "getSessionInfo",
+            ).withResponse({
+              sub: "user-123",
+              iss: "variamos_ms_admin",
+              aud,
+              exp: 1000,
+              iat: Math.floor(Date.now() / 1000),
+              roles: ["admin"],
+            } as SessionInfo),
+          );
+          vi.mocked(isSessionExpired).mockReturnValue(true);
+          (UserQueryUseCase.prototype.sessionUser as vi.Mock).mockResolvedValue(
+            new ResponseModel("getSessionInfo").withResponse(
+              User.builder().setId("user-123").setName("Admin User").build(),
+            ),
+          );
+          vi.mocked(createJwt).mockResolvedValue("new-refreshed-jwt-token");
+
+          return await supertest(app)
+            .get("/auth/session-info")
+            .set("Origin", "http://allowed-origin.com")
+            .set("Cookie", ["redirectTo=http://allowed-origin.com/dashboard"]);
+        } finally {
+          Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
+            value: originalPatterns,
+            configurable: true,
+          });
+        }
+      };
+
+      it("reads the host behind the platform audience", async () => {
+        const response = await refreshAs([
+          "variamos-platform",
+          "allowed-origin.com",
+        ]);
+
+        expect(response.status).toBe(HttpStatusCodes.OK);
+        const body = response.body as { data: { authToken: string } };
+        expect(body.data.authToken).toBe("new-refreshed-jwt-token");
+        // The audience of the expired token goes back to the library,
+        // which keeps its host
+        expect(vi.mocked(createJwt).mock.calls[0][1]).toEqual([
+          "variamos-platform",
+          "allowed-origin.com",
+        ]);
+      });
+
+      it("sends the refreshed token, not the expired one, to the page to go back to", async () => {
+        const response = await refreshAs("allowed-origin.com");
+
+        const body = response.body as { data: { redirect: string } };
+        const redirect = new URL(body.data.redirect);
+        expect(redirect.searchParams.get("authToken")).toBe(
+          "new-refreshed-jwt-token",
+        );
+      });
+    });
   });
 
   describe("POST /auth/sign-in", () => {

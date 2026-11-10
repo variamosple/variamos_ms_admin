@@ -1,4 +1,5 @@
 import {
+  audienceHost,
   createJwt,
   getToken,
   hasPermissions,
@@ -321,10 +322,14 @@ export function createAuthRouter(
         roles,
         permissions,
       };
+      // The host the token was issued for is kept; the library sets the
+      // issuer and the platform audience again (variamos-security 0.0.17)
       const token = (await createJwt(sessionUser, user.aud)) as string;
 
+      // The page to go back to receives the refreshed token, not the
+      // expired one it replaces
       const redirect = getRedirectUrl("getSessionInfo", req, res);
-      setRedirectAuthToken(redirect, authToken);
+      setRedirectAuthToken(redirect, token);
 
       res
         .cookie("authToken", token, getCookieOptions())
@@ -333,7 +338,7 @@ export function createAuthRouter(
           response.withResponse({
             user: sessionUser,
             authToken:
-              isExternalDomain(user.aud) &&
+              isExternalDomain(audienceHost(user.aud)) &&
               isExternalDomain(
                 getUrl(response.transactionId || "", req.headers.origin)
                   ?.hostname,
