@@ -620,7 +620,6 @@ describe("BugRouter HTTP Integration Tests", () => {
             status: "closed",
             comment: "Issue resolved.",
             adminId: "admin-123",
-            adminEmail: "admin@example.com",
             title: "New Title",
             description: "New Desc",
             priority: undefined,

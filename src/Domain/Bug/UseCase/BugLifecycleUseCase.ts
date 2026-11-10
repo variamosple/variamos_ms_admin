@@ -1,6 +1,10 @@
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
+import {
+  isManagedRepository,
+  UNMANAGED_REPOSITORY_MESSAGE,
+} from "#src/Domain/Bug/Config/ManagedRepository.js";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import {
   BUG_COMPONENT_LABELS,
@@ -27,7 +31,6 @@ interface StatusChange {
   status: string;
   comment?: string;
   adminId: string;
-  adminEmail?: string;
   title?: string;
   description?: string;
   priority?: BugPriorityValue;
@@ -170,19 +173,34 @@ export class BugLifecycleUseCase {
     let gitIssueNumber: number | undefined;
     let githubHtmlUrl: string | undefined;
 
+    if (
+      data.status === "open" &&
+      !bug.gitIssueNumber &&
+      bug.githubRepo &&
+      !isManagedRepository(this.githubConfig, bug.githubRepo)
+    ) {
+      const response = new ResponseModel<Bug>(transactionId);
+      return response.withErrorPromise(
+        DomainErrorCodes.INVALID_INPUT,
+        UNMANAGED_REPOSITORY_MESSAGE,
+      );
+    }
+
     if (data.status === "open" && !bug.gitIssueNumber && bug.githubRepo) {
       const gitHubToken = await this.tokenResolver.resolveGitHubToken(
         bug.githubRepo,
       );
       if (gitHubToken) {
+        // The issue is public: who reported and who approved stay in the
+        // database and the bug history, never in its text
         let issueBody = bug.description || "No description provided.";
-        issueBody += `\n\n---\n*Reported locally by: ${bug.reporterEmail || "Guest"}*`;
-        if (data.adminEmail) {
-          const approvalComment = data.comment
-            ? ` (Comment: "${data.comment}")`
-            : "";
-          issueBody += `\n*Approved and pushed to GitHub by: ${data.adminEmail}${approvalComment}*`;
-        }
+        issueBody += bug.createdById
+          ? "\n\n---\n*Reported from VariaMos*"
+          : "\n\n---\n*Reported by a guest*";
+        const approvalComment = data.comment
+          ? ` (Comment: "${data.comment}")`
+          : "";
+        issueBody += `\n*Approved by an administrator${approvalComment}*`;
         if (bug.priority) {
           issueBody += `\n*Priority: ${bug.priority}*`;
         }

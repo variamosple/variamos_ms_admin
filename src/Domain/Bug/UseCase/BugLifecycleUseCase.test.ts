@@ -29,6 +29,9 @@ describe("BugLifecycleUseCase", () => {
     mockIssueTracker = mock<IIssueTrackerService>();
     mockStorageService = mock<IStorageService>();
     mockGithubConfig = mock<IBugTrackerConfig>();
+    mockGithubConfig.getGitHubManagedRepos.mockReturnValue([
+      "VariaMos/VariaMosAdmin",
+    ]);
     mockTokenResolver = mock<IGitHubTokenProvider>();
     mockJournal = mock<IActivityJournal>();
     useCase = new BugLifecycleUseCase(
@@ -87,7 +90,6 @@ describe("BugLifecycleUseCase", () => {
         id: "bug-123",
         status: "open",
         adminId: "admin-123",
-        adminEmail: "admin@test.com",
       });
 
       const res = await useCase.updateStatus(req);
@@ -466,6 +468,7 @@ describe("BugLifecycleUseCase", () => {
       bug.category = "Editor";
       bug.priority = "low";
       bug.githubRepo = "Old/Repo";
+      mockGithubConfig.getGitHubManagedRepos.mockReturnValue(["New/Repo"]);
 
       mockBugRepository.findById.mockResolvedValue(
         new ResponseModel<Bug>("tx-1").withResponse(bug),
@@ -480,7 +483,6 @@ describe("BugLifecycleUseCase", () => {
         id: "bug-123",
         status: "open",
         adminId: "admin-123",
-        adminEmail: "admin@test.com",
         description: "New Desc",
         category: "Model",
         priority: "high" as const,
@@ -657,7 +659,7 @@ describe("BugLifecycleUseCase", () => {
         "- [Attachment](http://localhost:4000/file2.png) (Type: unknown)",
       );
       expect(calledBody).not.toContain("/purged");
-      expect(calledBody).not.toContain("Approved and pushed to GitHub by:");
+      expect(calledBody).toContain("*Approved by an administrator*");
     });
 
     it("should format attachments list with custom config API base url when pushing to GitHub", async () => {
@@ -1044,7 +1046,6 @@ describe("BugLifecycleUseCase", () => {
         id: "bug-123",
         status: "open",
         adminId: "admin-123",
-        adminEmail: "admin@test.com",
         comment: "This is a comment",
       });
 
@@ -1059,12 +1060,81 @@ describe("BugLifecycleUseCase", () => {
       );
 
       const calledBody = mockIssueTracker.createIssue.mock.calls[0][2];
-      expect(calledBody).toContain("*Reported locally by: Guest*");
+      expect(calledBody).toContain("*Reported by a guest*");
       expect(calledBody).toContain(
-        '*Approved and pushed to GitHub by: admin@test.com (Comment: "This is a comment")*',
+        '*Approved by an administrator (Comment: "This is a comment")*',
       );
       expect(calledBody).toContain("*Priority: high*");
       expect(calledBody).toContain("*Category: Editor*");
+    });
+
+    it("refuses to approve a bug whose repository is missing from GITHUB_MANAGED_REPOS", async () => {
+      const bug = createMockBug("bug-123", "Title", "pending");
+      bug.githubRepo = "someone-else/their-repo";
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug>("tx-1").withResponse(bug),
+      );
+
+      const res = await useCase.updateStatus(
+        new RequestModel("tx-1", {
+          id: "bug-123",
+          status: "open",
+          adminId: "admin-123",
+        }),
+      );
+
+      expect(res.errorCode).toBe("INVALID_INPUT");
+      expect(res.message).toBe("This repository is not managed by VariaMos.");
+      expect(mockTokenResolver.resolveGitHubToken).not.toHaveBeenCalled();
+      expect(mockIssueTracker.createIssue).not.toHaveBeenCalled();
+      expect(mockBugRepository.updateStatus).not.toHaveBeenCalled();
+    });
+
+    it("refuses an approval that moves the bug to a repository outside the list", async () => {
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug>("tx-1").withResponse(
+          createMockBug("bug-123", "Title", "pending"),
+        ),
+      );
+
+      const res = await useCase.updateStatus(
+        new RequestModel("tx-1", {
+          id: "bug-123",
+          status: "open",
+          adminId: "admin-123",
+          githubRepo: "someone-else/their-repo",
+        }),
+      );
+
+      expect(res.errorCode).toBe("INVALID_INPUT");
+      expect(mockIssueTracker.createIssue).not.toHaveBeenCalled();
+    });
+
+    it("writes no email address in the issue of an approved bug reported from an account", async () => {
+      const bug = createMockBug("bug-123", "Title", "pending");
+      bug.createdById = "user-1";
+      bug.reporterEmail = "reporter@test.com";
+      mockBugRepository.findById.mockResolvedValue(
+        new ResponseModel<Bug>("tx-1").withResponse(bug),
+      );
+      mockTokenResolver.resolveGitHubToken.mockResolvedValue("token");
+      mockIssueTracker.createIssue.mockResolvedValue(106);
+      mockBugRepository.updateStatus.mockResolvedValue(
+        new ResponseModel<Bug>("tx-1").withResponse(bug),
+      );
+
+      await useCase.updateStatus(
+        new RequestModel("tx-1", {
+          id: "bug-123",
+          status: "open",
+          adminId: "admin-123",
+        }),
+      );
+
+      const body = mockIssueTracker.createIssue.mock.calls[0]?.[2];
+      expect(body).toContain("*Reported from VariaMos*");
+      expect(body).toContain("*Approved by an administrator*");
+      expect(body).not.toContain("@");
     });
 
     it("should build issueBody without priority and category sections if they are missing on the bug", async () => {
