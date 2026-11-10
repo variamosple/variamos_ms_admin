@@ -9,6 +9,9 @@ export interface NotificationPayload {
   actorId?: string | null;
   // Delivered whatever the recipients muted in their preferences (EV-99)
   mandatory?: boolean;
+  // Key of the send: sent again with it, it reaches each recipient once
+  // (EV-99, CA-NT-05)
+  eventId?: string;
 }
 
 /** Sends a notification through the notification service. */

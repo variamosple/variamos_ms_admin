@@ -16,6 +16,9 @@ export interface NotificationDispatchRequest extends NotificationAudience {
   title: string;
   body: string;
   actorId: string | null;
+  // Chosen by the interface for one message, the same when the
+  // administrator sends it again after an error (EV-99, CA-NT-05)
+  eventId?: string;
 }
 
 /**
@@ -93,6 +96,10 @@ export class NotificationDispatchUseCase {
           templateKey: "admin_alert",
           variables: { title: data.title, body: data.body },
           actorId: data.actorId,
+          // Prefixed: the keys of other senders cannot meet these
+          ...(data.eventId
+            ? { eventId: `admin-dispatch:${data.eventId}` }
+            : {}),
         });
         response.message = "Notification dispatched successfully.";
         return response;

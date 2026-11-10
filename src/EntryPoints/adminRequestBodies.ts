@@ -19,6 +19,8 @@ export const notificationAudienceBody = z.object({
 export const notificationDispatchBody = notificationAudienceBody.extend({
   title: optionalText(1_000),
   body: optionalText(LONG_TEXT_MAX),
+  // A UUID made by the interface for one message (EV-99)
+  eventId: z.uuid().optional(),
 });
 
 const bugFields = {

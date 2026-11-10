@@ -237,6 +237,48 @@ describe("AdminNotificationsRouter Integration Tests", () => {
       expect(response.body.errorCode).toBeUndefined();
     });
 
+    it("passes the key of the message, prefixed, to the notification service (EV-99)", async () => {
+      vi.mocked(
+        NotificationClientInstance.dispatchNotification,
+      ).mockResolvedValue(undefined);
+
+      const response = await supertest(app)
+        .post("/v1/admin/notifications/dispatch")
+        .send({
+          audience: "users",
+          title: "User Title",
+          body: "User Body",
+          userIds: ["user-1"],
+          eventId: "5f0c2d4e-8a1b-4c3d-9e2f-1a2b3c4d5e6f",
+        });
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(
+        vi.mocked(NotificationClientInstance.dispatchNotification).mock
+          .calls[0][0].eventId,
+      ).toBe("admin-dispatch:5f0c2d4e-8a1b-4c3d-9e2f-1a2b3c4d5e6f");
+    });
+
+    it("sends no key when the interface gives none", async () => {
+      vi.mocked(
+        NotificationClientInstance.dispatchNotification,
+      ).mockResolvedValue(undefined);
+
+      await supertest(app)
+        .post("/v1/admin/notifications/dispatch")
+        .send({
+          audience: "users",
+          title: "User Title",
+          body: "User Body",
+          userIds: ["user-1"],
+        });
+
+      expect(
+        vi.mocked(NotificationClientInstance.dispatchNotification).mock
+          .calls[0][0],
+      ).not.toHaveProperty("eventId");
+    });
+
     it("journals the dispatch without the body of the message (T-24)", async () => {
       vi.mocked(
         NotificationClientInstance.dispatchNotification,
