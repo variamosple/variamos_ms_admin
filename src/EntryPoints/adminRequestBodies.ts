@@ -21,8 +21,8 @@ export const notificationDispatchBody = notificationAudienceBody.extend({
   body: optionalText(LONG_TEXT_MAX),
   // A UUID made by the interface for one message (EV-99)
   eventId: z.uuid().optional(),
-  // The setting this message announces (EV-115 lot A)
-  announces: optionalText(NAME_MAX),
+  // The settings this message announces (EV-115 lot A)
+  announces: z.array(z.string().max(NAME_MAX)).max(20).optional(),
 });
 
 const bugFields = {

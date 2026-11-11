@@ -6,16 +6,19 @@ import { PASSWORD_POLICY_KEYS } from "#src/Domain/User/Service/PasswordPolicySer
 export interface ConfigurationAnnouncement {
   title: string;
   body: string;
+  // Said once when several settings are announced together
+  note?: string;
 }
 
 // The policy is checked when a password is chosen (sign-up, change, reset),
 // never at sign-in
 const PASSWORD_NOTE =
-  " It applies when you next choose a password; your current password keeps working.";
+  "The rules apply when you next choose a password; your current password keeps working.";
 
 const passwordRule = (text: string): ConfigurationAnnouncement => ({
   title: "Password rules updated",
-  body: `${text}${PASSWORD_NOTE}`,
+  body: text,
+  note: PASSWORD_NOTE,
 });
 
 const requirement =
@@ -30,10 +33,10 @@ const requirement =
       : null;
 
 const count =
-  (text: (n: number) => string, title: string) =>
+  (text: (n: number) => string, title: string, note?: (n: number) => string) =>
   (value: unknown): ConfigurationAnnouncement | null =>
     typeof value === "number" && Number.isInteger(value)
-      ? { title, body: text(value) }
+      ? { title, body: text(value), ...(note ? { note: note(value) } : {}) }
       : null;
 
 /**
@@ -76,8 +79,9 @@ const ANNOUNCED_CONFIGURATIONS: ReadonlyMap<
       (n) =>
         n === 0
           ? "The two-factor sign-in code is now asked at every sign-in, on every browser."
-          : `A browser you choose to trust can now skip the two-factor sign-in code for ${n} days. Browsers already trusted follow this delay.`,
+          : `A browser you choose to trust can now skip the two-factor sign-in code for ${n} days.`,
       "Two-factor sign-in updated",
+      () => "Browsers already trusted follow the new delay.",
     ),
   ],
 ]);

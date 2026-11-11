@@ -328,7 +328,10 @@ describe("AdminNotificationsRouter Integration Tests", () => {
           title: "Password rules updated",
           body: "Passwords must now have at least 14 characters.",
           userIds: ["user-1"],
-          announces: "security.password.min_length",
+          announces: [
+            "security.password.min_length",
+            "security.password.require_special",
+          ],
         })
         .expect(HttpStatusCodes.OK);
 
@@ -337,7 +340,10 @@ describe("AdminNotificationsRouter Integration Tests", () => {
           action: "notification.dispatch",
           outcome: "success",
           after: expect.objectContaining({
-            announces: "security.password.min_length",
+            announces: [
+              "security.password.min_length",
+              "security.password.require_special",
+            ],
           }),
         }),
       );
@@ -353,7 +359,10 @@ describe("AdminNotificationsRouter Integration Tests", () => {
           title: "T",
           body: "B",
           userIds: ["user-1"],
-          announces: "security.cookie.max_age",
+          announces: [
+            "security.password.min_length",
+            "security.cookie.max_age",
+          ],
         })
         .expect(HttpStatusCodes.BAD_REQUEST);
 

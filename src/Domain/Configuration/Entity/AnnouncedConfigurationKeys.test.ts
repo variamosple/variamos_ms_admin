@@ -34,14 +34,15 @@ describe("AnnouncedConfigurationKeys (EV-115 lot A)", () => {
   it("says what a password rule asks, and that current passwords keep working", () => {
     expect(announcementOf(PASSWORD_POLICY_KEYS.minLength, 14)).toEqual({
       title: "Password rules updated",
-      body: "Passwords must now have at least 14 characters. It applies when you next choose a password; your current password keeps working.",
+      body: "Passwords must now have at least 14 characters.",
+      note: "The rules apply when you next choose a password; your current password keeps working.",
     });
     expect(
       announcementOf(PASSWORD_POLICY_KEYS.requireSpecial, true)?.body,
-    ).toMatch(/^Passwords must now contain a special character\./);
+    ).toBe("Passwords must now contain a special character.");
     expect(
       announcementOf(PASSWORD_POLICY_KEYS.requireUppercase, false)?.body,
-    ).toMatch(/^Passwords no longer need an uppercase letter\./);
+    ).toBe("Passwords no longer need an uppercase letter.");
   });
 
   it("says how the sign-in protection now behaves", () => {
@@ -54,9 +55,11 @@ describe("AnnouncedConfigurationKeys (EV-115 lot A)", () => {
     expect(announcementOf(TRUSTED_DEVICE_DAYS_KEY, 0)?.body).toBe(
       "The two-factor sign-in code is now asked at every sign-in, on every browser.",
     );
-    expect(announcementOf(TRUSTED_DEVICE_DAYS_KEY, 14)?.body).toContain(
-      "for 14 days",
-    );
+    expect(announcementOf(TRUSTED_DEVICE_DAYS_KEY, 14)).toEqual({
+      title: "Two-factor sign-in updated",
+      body: "A browser you choose to trust can now skip the two-factor sign-in code for 14 days.",
+      note: "Browsers already trusted follow the new delay.",
+    });
   });
 
   it.each([

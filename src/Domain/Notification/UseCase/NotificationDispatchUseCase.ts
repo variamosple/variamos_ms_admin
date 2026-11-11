@@ -20,9 +20,9 @@ export interface NotificationDispatchRequest extends NotificationAudience {
   // Chosen by the interface for one message, the same when the
   // administrator sends it again after an error (EV-99, CA-NT-05)
   eventId?: string;
-  // The key of the setting this message announces, recorded with it
+  // The keys of the settings this message announces, recorded with it
   // (EV-115 lot A)
-  announces?: string;
+  announces?: string[];
 }
 
 /**
@@ -84,7 +84,7 @@ export class NotificationDispatchUseCase {
             "Title and body are required.",
           );
         }
-        if (data.announces && !isAnnouncedConfiguration(data.announces)) {
+        if (data.announces?.some((key) => !isAnnouncedConfiguration(key))) {
           return response.withError(
             DomainErrorCodes.INVALID_INPUT,
             "This setting is not one that users are told about.",
