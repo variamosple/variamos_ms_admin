@@ -51,7 +51,7 @@ describe.skipIf(!url)(
       expect((await preferences.find("user-1")).timeZone).toBeNull();
       expect(
         await sequelize.query(
-          `SELECT count(*)::int AS "rows" FROM "${SCHEMA}"."user_preferences"`,
+          `SELECT count(*)::int AS "rows" FROM "${SCHEMA}"."user_display_preferences"`,
           { plain: true },
         ),
       ).toEqual({ rows: 1 });

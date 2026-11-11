@@ -35,7 +35,8 @@ import { ABSOLUTE_INSTANT_COLUMNS } from "./0016-absolute-instants.js";
 import { GOOGLE_IDENTITY_TABLE } from "./0017-google-identity.js";
 import { USAGE_METRICS_FUNCTIONS } from "./0018-usage-metrics.js";
 import { SCHEDULED_CHANGES_TABLE } from "./0019-scheduled-configuration-changes.js";
-import { USER_PREFERENCES_TABLE } from "./0020-user-preferences.js";
+import { retiredUserPreferences } from "./0020-user-preferences.js";
+import { USER_DISPLAY_PREFERENCES_TABLE } from "./0021-user-display-preferences.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 import {
   ADMIN_MIGRATIONS,
@@ -152,7 +153,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         BUG_ASSIGNEES_TABLE,
         GOOGLE_IDENTITY_TABLE,
         SCHEDULED_CHANGES_TABLE,
-        USER_PREFERENCES_TABLE,
+        USER_DISPLAY_PREFERENCES_TABLE,
       ].sort(),
     );
   });
@@ -262,7 +263,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         BUG_ASSIGNEES_TABLE,
         GOOGLE_IDENTITY_TABLE,
         SCHEDULED_CHANGES_TABLE,
-        USER_PREFERENCES_TABLE,
+        USER_DISPLAY_PREFERENCES_TABLE,
       ]),
     ).toEqual(before);
     expect(await columnsOf("t07_prod", "bugs")).toEqual(
@@ -739,7 +740,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
     ).toEqual([]);
   });
   it("keeps one row of preferences per account, dropped with the account (EV-115 lot C)", async () => {
-    const table = `"t07_fresh"."${USER_PREFERENCES_TABLE}"`;
+    const table = `"t07_fresh"."${USER_DISPLAY_PREFERENCES_TABLE}"`;
     await sequelize.query(
       `INSERT INTO "t07_fresh"."user" ("id") VALUES ('p-1'), ('p-2')`,
     );
@@ -760,6 +761,52 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         type: QueryTypes.SELECT,
       }),
     ).toEqual([{ user_id: "p-2", time_zone: null }]);
+  });
+  it("leaves the user_preferences table of the notifications untouched, even going back (0020)", async () => {
+    const S = "t20_notifications";
+    await createSchema(S);
+    // As the notifications service made it in production
+    await sequelize.query(`
+      CREATE TABLE "${S}".user_preferences (
+        user_id character varying(100) NOT NULL PRIMARY KEY,
+        email_enabled boolean DEFAULT true NOT NULL,
+        in_app_enabled boolean DEFAULT true NOT NULL,
+        muted_event_types text[] DEFAULT '{}'::text[] NOT NULL);
+      INSERT INTO "${S}".user_preferences (user_id, email_enabled) VALUES ('n-1', false);`);
+    const notificationTable = () =>
+      sequelize.query(
+        `SELECT column_name, data_type, column_default FROM information_schema.columns
+          WHERE table_schema = :S AND table_name = 'user_preferences'
+         UNION ALL
+         SELECT k.conname, pg_get_constraintdef(k.oid), NULL FROM pg_constraint k
+          WHERE k.conrelid = :table::regclass
+         ORDER BY 1`,
+        {
+          replacements: { S, table: `"${S}".user_preferences` },
+          type: QueryTypes.SELECT,
+        },
+      );
+    const before = await notificationTable();
+    expect(before).toHaveLength(5);
+
+    expect(await migrate(S)).toEqual(ALL_MIGRATIONS);
+    await retiredUserPreferences.down?.({
+      name: retiredUserPreferences.name,
+      context: { sequelize, schema: S },
+    });
+
+    expect(await notificationTable()).toEqual(before);
+    expect(
+      await sequelize.query(
+        `SELECT user_id, email_enabled FROM "${S}".user_preferences`,
+        { type: QueryTypes.SELECT },
+      ),
+    ).toEqual([{ user_id: "n-1", email_enabled: false }]);
+    expect(await columnsOf(S, USER_DISPLAY_PREFERENCES_TABLE)).toEqual([
+      "time_zone",
+      "updated_at",
+      "user_id",
+    ]);
   });
   describe("usage statistics (EV-90 lots A.2 and A.3)", () => {
     const S = "t18_usage";

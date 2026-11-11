@@ -16,7 +16,8 @@ export class UserPreferencesRepositoryImpl
   ) {}
 
   private get table() {
-    return `"${this.schema}"."user_preferences"`;
+    // "user_preferences" belongs to the notifications service
+    return `"${this.schema}"."user_display_preferences"`;
   }
 
   public async find(userId: string): Promise<UserPreferences> {
