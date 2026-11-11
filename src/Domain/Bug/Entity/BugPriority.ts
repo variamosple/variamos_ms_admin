@@ -12,6 +12,11 @@ export class BugPriority {
   private readonly value: BugPriorityValue;
 
   public constructor(value: string) {
+    this.value = BugPriority.parse(value);
+  }
+
+  /** The priority in lower case; throws INVALID_INPUT when it is unknown. */
+  public static parse(value: string): BugPriorityValue {
     const lower = value?.toLowerCase() ?? "";
     if (!isBugPriority(lower)) {
       throw new DomainError(
@@ -19,7 +24,7 @@ export class BugPriority {
         `Bug priority must be one of: ${BUG_PRIORITIES.join(", ")}.`,
       );
     }
-    this.value = lower;
+    return lower;
   }
 
   public getValue(): BugPriorityValue {

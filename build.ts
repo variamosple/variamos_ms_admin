@@ -9,7 +9,7 @@ import logger from "jet-logger";
 /**
  * Start
  */
-(async () => {
+void (async () => {
   try {
     // Remove current build
     await remove("./dist/");

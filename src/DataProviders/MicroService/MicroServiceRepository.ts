@@ -169,7 +169,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
             .join(" ");
 
         const internalPort = labels["variamos.service.internal-port"]
-          ? parseInt(labels["variamos.service.internal-port"], 10)
+          ? Number.parseInt(labels["variamos.service.internal-port"], 10)
           : c.Ports?.[0]?.PrivatePort || 4000;
 
         const healthPath = labels["variamos.service.health-path"] || "/health";

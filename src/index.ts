@@ -90,7 +90,12 @@ if (SecretConfigurationValueInstance.canEncrypt()) {
 }
 
 const server = app.listen(EnvVars.Port, async () => {
-  initKeyStore().then();
+  // Without its keys the service cannot check a token: it stops, as the
+  // unhandled rejection did, but with the reason in its log
+  initKeyStore().catch((error: unknown) => {
+    logger.err(error);
+    process.exit(1);
+  });
   logger.info(SERVER_START_MSG);
   await startBackgroundJobs({
     collector: HealthCheckCollectorInstance,
