@@ -306,6 +306,7 @@ describe("createMigrator", () => {
       "0018-usage-metrics",
       "0019-scheduled-configuration-changes",
       "0020-user-preferences",
+      "0021-user-display-preferences",
     ]);
   });
 });

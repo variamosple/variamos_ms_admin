@@ -1,34 +1,18 @@
 import logger from "#src/common/logger.js";
-import type { MigrationContext, SchemaMigration } from "./MigrationContext.js";
+import type { SchemaMigration } from "./MigrationContext.js";
 
-export const USER_PREFERENCES_TABLE = "user_preferences";
-
-// What each account chose for its display (EV-115 lot C), beside the shared
-// "user" table rather than in it: a time zone now, the language of the site
-// later. The row goes with the account.
-const statement = (s: string) =>
-  `CREATE TABLE IF NOT EXISTS "${s}"."${USER_PREFERENCES_TABLE}" (
-    "user_id" text NOT NULL,
-    "time_zone" character varying(64),
-    "updated_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT "user_preferences_pkey" PRIMARY KEY ("user_id"),
-    CONSTRAINT "user_preferences_user_id_fkey" FOREIGN KEY ("user_id")
-      REFERENCES "${s}"."user" ("id") ON DELETE CASCADE
-  )`;
-
-export const userPreferences: SchemaMigration = {
+// 0020 was to create "user_preferences" (EV-115 lot C), a name the
+// notifications service already gives to its own table in the shared
+// schema: in production, CREATE TABLE IF NOT EXISTS changed nothing. It now
+// does nothing anywhere, so that it never takes that name on a new database,
+// and going back never drops the table of the notifications. 0021 creates
+// the table of the admin under another name.
+export const retiredUserPreferences: SchemaMigration = {
   name: "0020-user-preferences",
-  up: async ({ context }: { context: MigrationContext }) => {
-    const { sequelize, schema } = context;
-    await sequelize.query(statement(schema));
-    logger.info(
-      `[MIGRATION] 0020-user-preferences: table ${USER_PREFERENCES_TABLE} ready`,
-    );
+  up: async () => {
+    logger.info("[MIGRATION] 0020-user-preferences: retired, nothing to do");
   },
-  down: async ({ context }: { context: MigrationContext }) => {
-    const { sequelize, schema } = context;
-    await sequelize.query(
-      `DROP TABLE IF EXISTS "${schema}"."${USER_PREFERENCES_TABLE}"`,
-    );
+  down: async () => {
+    // Nothing was created: nothing to drop
   },
 };
