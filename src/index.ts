@@ -17,6 +17,7 @@ import {
   productionConfigurationUseCase,
   productionMicroServiceQueryUseCase,
   productionRouterDependencies,
+  productionScheduledConfigurationChangeUseCase,
   SecretConfigurationValueInstance,
 } from "./CompositionRoot.js";
 import { registerBugAssociations } from "./DataProviders/Bug/BugAssociations.js";
@@ -97,6 +98,7 @@ const server = app.listen(EnvVars.Port, async () => {
     bugLifecycle: productionBugLifecycleUseCase,
     bugSchedule: productionBugSchedule,
     bugSyncTask: BugSyncTask,
+    scheduledChanges: productionScheduledConfigurationChangeUseCase,
   });
 });
 

@@ -2,7 +2,9 @@ import { TRUSTED_DEVICE_DAYS_KEY } from "#src/Domain/Mfa/UseCase/TrustedDeviceUs
 import { ACCOUNT_LOCKOUT_KEYS } from "#src/Domain/User/Service/AccountLockoutService.js";
 import { PASSWORD_POLICY_KEYS } from "#src/Domain/User/Service/PasswordPolicyService.js";
 import {
+  announcedInstant,
   announcementOf,
+  cancellationOf,
   isAnnouncedConfiguration,
 } from "./AnnouncedConfigurationKeys.js";
 import { isConfigurationApplied } from "./AppliedConfigurationKeys.js";
@@ -69,5 +71,73 @@ describe("AnnouncedConfigurationKeys (EV-115 lot A)", () => {
     [TRUSTED_DEVICE_DAYS_KEY, null],
   ])("suggests nothing for %s set to %j", (key, value) => {
     expect(announcementOf(key, value)).toBeNull();
+  });
+
+  describe("from a later date (EV-115 lot B)", () => {
+    const FROM = new Date("2026-11-15T13:05:00Z");
+
+    it("says the date in UTC", () => {
+      expect(announcedInstant(FROM)).toBe("15 November 2026 at 13:05 UTC");
+      expect(announcedInstant(new Date("2027-01-02T08:00:00+05:00"))).toBe(
+        "2 January 2027 at 03:00 UTC",
+      );
+    });
+
+    it.each([
+      [
+        PASSWORD_POLICY_KEYS.minLength,
+        14,
+        "From 15 November 2026 at 13:05 UTC, passwords must have at least 14 characters.",
+      ],
+      [
+        PASSWORD_POLICY_KEYS.requireNumbers,
+        true,
+        "From 15 November 2026 at 13:05 UTC, passwords must contain a number.",
+      ],
+      [
+        PASSWORD_POLICY_KEYS.requireUppercase,
+        false,
+        "From 15 November 2026 at 13:05 UTC, passwords no longer need an uppercase letter.",
+      ],
+      [
+        ACCOUNT_LOCKOUT_KEYS.maxAttempts,
+        5,
+        "From 15 November 2026 at 13:05 UTC, an account is locked after 5 failed sign-in attempts.",
+      ],
+      [
+        ACCOUNT_LOCKOUT_KEYS.durationMinutes,
+        30,
+        "From 15 November 2026 at 13:05 UTC, a locked account stays locked for 30 minutes.",
+      ],
+      [
+        TRUSTED_DEVICE_DAYS_KEY,
+        0,
+        "From 15 November 2026 at 13:05 UTC, the two-factor sign-in code is asked at every sign-in, on every browser.",
+      ],
+      [
+        TRUSTED_DEVICE_DAYS_KEY,
+        7,
+        "From 15 November 2026 at 13:05 UTC, a browser you choose to trust can skip the two-factor sign-in code for 7 days.",
+      ],
+    ])("announces %s set to %j ahead", (key, value, body) => {
+      expect(announcementOf(key, value, FROM)?.body).toBe(body);
+    });
+
+    it("keeps the title and the note of the setting", () => {
+      expect(announcementOf(PASSWORD_POLICY_KEYS.minLength, 14, FROM)).toEqual(
+        expect.objectContaining({
+          title: "Password rules updated",
+          note: "The rules apply when you next choose a password; your current password keeps working.",
+        }),
+      );
+    });
+
+    it("tells that a planned change will not happen", () => {
+      expect(cancellationOf(ACCOUNT_LOCKOUT_KEYS.maxAttempts, FROM)).toEqual({
+        title: "Planned change cancelled",
+        body: "The change to the sign-in protection announced for 15 November 2026 at 13:05 UTC will not happen.",
+      });
+      expect(cancellationOf("site.name", FROM)).toBeNull();
+    });
   });
 });

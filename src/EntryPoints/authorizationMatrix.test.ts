@@ -40,6 +40,11 @@ const GUARDED: Record<string, string> = {
   "DELETE /auth/mfa/trusted-devices": "my-account::update",
   "GET /v1/configurations": "configurations::query",
   "PUT /v1/configurations/:key": "configurations::update",
+  "GET /v1/configurations/scheduled-changes": "configurations::query",
+  "POST /v1/configurations/scheduled-changes": "configurations::update",
+  "PUT /v1/configurations/scheduled-changes/:id": "configurations::update",
+  "POST /v1/configurations/scheduled-changes/:id/cancel":
+    "configurations::update",
   "GET /v1/users/:userId/mfa": "users::reset-mfa",
   "DELETE /v1/users/:userId/mfa": "users::reset-mfa",
   "GET /v1/users": "users::query",
@@ -182,6 +187,7 @@ function buildRouter(accessGuard: AccessGuard) {
       visits: mock(),
       countries: mock(),
       configuration: mock(),
+      scheduledConfiguration: mock(),
       upload: multer(),
       accessGuard,
       accountLockout: new AccountLockout({

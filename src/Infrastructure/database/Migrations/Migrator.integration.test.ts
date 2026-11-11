@@ -34,6 +34,7 @@ import {
 import { ABSOLUTE_INSTANT_COLUMNS } from "./0016-absolute-instants.js";
 import { GOOGLE_IDENTITY_TABLE } from "./0017-google-identity.js";
 import { USAGE_METRICS_FUNCTIONS } from "./0018-usage-metrics.js";
+import { SCHEDULED_CHANGES_TABLE } from "./0019-scheduled-configuration-changes.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 import {
   ADMIN_MIGRATIONS,
@@ -149,6 +150,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         ACCESS_LOG_TABLE,
         BUG_ASSIGNEES_TABLE,
         GOOGLE_IDENTITY_TABLE,
+        SCHEDULED_CHANGES_TABLE,
       ].sort(),
     );
   });
@@ -257,6 +259,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         ACCESS_LOG_TABLE,
         BUG_ASSIGNEES_TABLE,
         GOOGLE_IDENTITY_TABLE,
+        SCHEDULED_CHANGES_TABLE,
       ]),
     ).toEqual(before);
     expect(await columnsOf("t07_prod", "bugs")).toEqual(
@@ -689,6 +692,48 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         { type: QueryTypes.SELECT },
       ),
     ).toEqual([{ google_sub: "sub-2", user_id: "g-2" }]);
+  });
+  it("keeps one planned change per setting, dropped with the setting (EV-115 lot B)", async () => {
+    const table = `"t07_fresh"."${SCHEDULED_CHANGES_TABLE}"`;
+    await sequelize.query(
+      `INSERT INTO "t07_fresh"."configurations"
+         ("key", "value", "type", "category", "target_services", "created_at", "updated_at")
+       VALUES ('test.planned', '1', 'number', 'general', '{all}', now(), now())`,
+    );
+    const plan = (status = "scheduled") =>
+      sequelize.query(
+        `INSERT INTO ${table} ("config_key", "previous_value", "new_value", "due_at", "status", "created_by")
+         VALUES ('test.planned', '1', '2', now() + interval '1 day', :status, 'admin')`,
+        { replacements: { status } },
+      );
+
+    await plan();
+    await expect(plan()).rejects.toThrow();
+    await plan("applied");
+    await plan("cancelled");
+    await expect(plan("pending")).rejects.toThrow();
+    await sequelize.query(`UPDATE ${table} SET "status" = 'conflict'`);
+    await plan();
+    expect(
+      await sequelize.query(
+        `SELECT "status", "new_value" FROM ${table} ORDER BY "id"`,
+        { type: QueryTypes.SELECT },
+      ),
+    ).toEqual([
+      { status: "conflict", new_value: 2 },
+      { status: "conflict", new_value: 2 },
+      { status: "conflict", new_value: 2 },
+      { status: "scheduled", new_value: 2 },
+    ]);
+
+    await sequelize.query(
+      `DELETE FROM "t07_fresh"."configurations" WHERE "key" = 'test.planned'`,
+    );
+    expect(
+      await sequelize.query(`SELECT 1 FROM ${table}`, {
+        type: QueryTypes.SELECT,
+      }),
+    ).toEqual([]);
   });
   describe("usage statistics (EV-90 lots A.2 and A.3)", () => {
     const S = "t18_usage";

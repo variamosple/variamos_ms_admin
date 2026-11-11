@@ -12,6 +12,7 @@ import type { BugQueryUseCase } from "#src/Domain/Bug/UseCase/BugQueryUseCase.js
 import type { BugSubmissionUseCase } from "#src/Domain/Bug/UseCase/BugSubmissionUseCase.js";
 import type { BugSyncUseCase } from "#src/Domain/Bug/UseCase/BugSyncUseCase.js";
 import type { ConfigurationUseCase } from "#src/Domain/Configuration/UseCase/ConfigurationUseCase.js";
+import type { ScheduledConfigurationChangeUseCase } from "#src/Domain/Configuration/UseCase/ScheduledConfigurationChangeUseCase.js";
 import type { CountriesQueryUseCase } from "#src/Domain/Countries/UseCase/CountriesQueryUseCase.js";
 // Other Use Cases
 import type { MetricsQueryUseCase } from "#src/Domain/Metrics/UseCase/MetricsQueryUseCase.js";
@@ -79,6 +80,10 @@ import { applyRateLimits } from "./RateLimits.js";
 import { createRolePermissionsRouter } from "./RolePermissionsV1Router.js";
 import { createRolesRouter, ROLES_V1_ROUTE } from "./RolesV1Router.js";
 import type { AccessGuard } from "./requireAccess.js";
+import {
+  createScheduledConfigurationChangeRouter,
+  SCHEDULED_CHANGES_V1_ROUTE,
+} from "./ScheduledConfigurationChangeRouter.js";
 import { createUserMfaRouter, USER_MFA_V1_ROUTE } from "./UserMfaV1Router.js";
 import { createUserRolesRouter } from "./UserRolesV1Router.js";
 import { createUsersRouter, USERS_V1_ROUTE } from "./UsersV1Router.js";
@@ -137,6 +142,7 @@ export interface BaseRouterDependencies {
   visits: VisitUseCase;
   countries: CountriesQueryUseCase;
   configuration: ConfigurationUseCase;
+  scheduledConfiguration: ScheduledConfigurationChangeUseCase;
   upload: MulterUpload;
   accessGuard: AccessGuard;
   accountLockout: AccountLockout;
@@ -157,6 +163,7 @@ export function createBaseRouter({
   visits: visitsUseCase,
   countries: countriesUseCase,
   configuration: configurationUseCase,
+  scheduledConfiguration,
   upload,
   accessGuard,
   accountLockout,
@@ -227,6 +234,10 @@ export function createBaseRouter({
   applyRateLimits(baseRouter, accountLockout, accessJournal);
   baseRouter.use(MFA_ROUTE, createMfaRouter(mfa.user, mfa.trustedDevices));
   baseRouter.use(AUTH_ROUTE, authRouter);
+  baseRouter.use(
+    SCHEDULED_CHANGES_V1_ROUTE,
+    createScheduledConfigurationChangeRouter(scheduledConfiguration),
+  );
   baseRouter.use(CONFIGURATION_V1_ROUTE, configurationV1Router);
   baseRouter.use(
     USER_MFA_V1_ROUTE,

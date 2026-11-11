@@ -40,6 +40,11 @@ export class RepeatingTask {
     this.timer = setInterval(() => this.runOnce(), this.intervalMs);
   }
 
+  /** Runs the task once now, logged like the other runs. */
+  public runNow(): Promise<void> {
+    return this.runOnce();
+  }
+
   private async runOnce(): Promise<void> {
     try {
       logger.info(`${this.name}: running...`);

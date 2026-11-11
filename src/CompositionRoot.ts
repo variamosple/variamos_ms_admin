@@ -9,6 +9,7 @@ import { ActivityJournalRepositoryImpl } from "./DataProviders/Activity/Activity
 import { JournalReaderRepositoryImpl } from "./DataProviders/Activity/JournalReaderRepository.js";
 import { BugRepositoryImpl } from "./DataProviders/Bug/BugRepository.js";
 import { ConfigurationRepositoryImpl } from "./DataProviders/Configuration/ConfigurationRepository.js";
+import { ScheduledConfigurationChangeRepositoryImpl } from "./DataProviders/Configuration/ScheduledConfigurationChangeRepository.js";
 import { SecretConfigurationValue } from "./DataProviders/Configuration/SecretConfigurationValue.js";
 import { CountriesRepositoryImpl } from "./DataProviders/Countries/CountriesRepository.js";
 import { MetricsRepositoryImpl } from "./DataProviders/Metrics/MetricsRepository.js";
@@ -47,6 +48,7 @@ import { BugQueryUseCase } from "./Domain/Bug/UseCase/BugQueryUseCase.js";
 import { BugSubmissionUseCase } from "./Domain/Bug/UseCase/BugSubmissionUseCase.js";
 import { BugSyncUseCase } from "./Domain/Bug/UseCase/BugSyncUseCase.js";
 import { ConfigurationUseCase } from "./Domain/Configuration/UseCase/ConfigurationUseCase.js";
+import { ScheduledConfigurationChangeUseCase } from "./Domain/Configuration/UseCase/ScheduledConfigurationChangeUseCase.js";
 import { RequestModel } from "./Domain/Core/Entity/RequestModel.js";
 import { CountriesQueryUseCase } from "./Domain/Countries/UseCase/CountriesQueryUseCase.js";
 // Other Use Cases
@@ -88,6 +90,7 @@ import { ConfigEventPublisherImpl } from "./Infrastructure/Messaging/ConfigEvent
 import { BugAssignmentNotifier } from "./Infrastructure/Notification/BugAssignmentNotifier.js";
 import { NotificationAccessTokenIssuer } from "./Infrastructure/Notification/NotificationAccessTokenIssuer.js";
 import { NotificationClientInstance } from "./Infrastructure/Notification/NotificationClient.js";
+import { ScheduledChangeNotifier } from "./Infrastructure/Notification/ScheduledChangeNotifier.js";
 import { SecurityAlertNotifier } from "./Infrastructure/Notification/SecurityAlertNotifier.js";
 import {
   followBugSyncInterval,
@@ -197,6 +200,15 @@ export const productionConfigurationUseCase = new ConfigurationUseCase(
   ConfigEventPublisherInstance,
   WatchedActivityJournal,
 );
+
+// Changes of the settings users notice, planned ahead (EV-115 lot B)
+export const productionScheduledConfigurationChangeUseCase =
+  new ScheduledConfigurationChangeUseCase(
+    new ScheduledConfigurationChangeRepositoryImpl(VARIAMOS_ORM, DB_SCHEMA),
+    productionConfigurationUseCase,
+    WatchedActivityJournal,
+    new ScheduledChangeNotifier(NotificationClientInstance),
+  );
 
 // User Use Case Instantiations
 // security.password.* keys, read at each sign-up, change and reset
@@ -489,6 +501,7 @@ export const productionRouterDependencies: BaseRouterDependencies = {
   visits: productionVisitUseCase,
   countries: productionCountriesQueryUseCase,
   configuration: productionConfigurationUseCase,
+  scheduledConfiguration: productionScheduledConfigurationChangeUseCase,
   upload: productionUpload,
   accessGuard: productionAccessHierarchyUseCase,
   accountLockout: AccountLockoutInstance,
