@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TIME_ZONE_MAX } from "#src/Domain/User/Entity/UserPreferences.js";
 import { EMAIL_MAX, NAME_MAX, SECRET_MAX, text } from "./requestBody.js";
 
 // Bodies of the authentication routes (EV-97 lot 6a). Business rules stay
@@ -31,6 +32,11 @@ export const googleCallbackBody = z.object({
 
 export const personalInformationBody = z.object({
   countryCode: z.string().max(16).nullable().optional(),
+});
+
+// An IANA time zone, or null for the browser's (EV-115 lot C)
+export const preferencesBody = z.object({
+  timeZone: z.string().max(TIME_ZONE_MAX).nullable(),
 });
 
 export const passwordUpdateBody = z.object({

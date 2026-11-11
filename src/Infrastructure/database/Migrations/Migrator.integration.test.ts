@@ -35,6 +35,7 @@ import { ABSOLUTE_INSTANT_COLUMNS } from "./0016-absolute-instants.js";
 import { GOOGLE_IDENTITY_TABLE } from "./0017-google-identity.js";
 import { USAGE_METRICS_FUNCTIONS } from "./0018-usage-metrics.js";
 import { SCHEDULED_CHANGES_TABLE } from "./0019-scheduled-configuration-changes.js";
+import { USER_PREFERENCES_TABLE } from "./0020-user-preferences.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 import {
   ADMIN_MIGRATIONS,
@@ -151,6 +152,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         BUG_ASSIGNEES_TABLE,
         GOOGLE_IDENTITY_TABLE,
         SCHEDULED_CHANGES_TABLE,
+        USER_PREFERENCES_TABLE,
       ].sort(),
     );
   });
@@ -260,6 +262,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         BUG_ASSIGNEES_TABLE,
         GOOGLE_IDENTITY_TABLE,
         SCHEDULED_CHANGES_TABLE,
+        USER_PREFERENCES_TABLE,
       ]),
     ).toEqual(before);
     expect(await columnsOf("t07_prod", "bugs")).toEqual(
@@ -734,6 +737,29 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         type: QueryTypes.SELECT,
       }),
     ).toEqual([]);
+  });
+  it("keeps one row of preferences per account, dropped with the account (EV-115 lot C)", async () => {
+    const table = `"t07_fresh"."${USER_PREFERENCES_TABLE}"`;
+    await sequelize.query(
+      `INSERT INTO "t07_fresh"."user" ("id") VALUES ('p-1'), ('p-2')`,
+    );
+    const save = (user: string, zone: string | null) =>
+      sequelize.query(
+        `INSERT INTO ${table} ("user_id", "time_zone") VALUES (:user, :zone)`,
+        { replacements: { user, zone } },
+      );
+
+    await save("p-1", "America/Bogota");
+    await expect(save("p-1", "Europe/Paris")).rejects.toThrow();
+    await expect(save("nobody", null)).rejects.toThrow();
+    await save("p-2", null);
+    await sequelize.query(`DELETE FROM "t07_fresh"."user" WHERE "id" = 'p-1'`);
+
+    expect(
+      await sequelize.query(`SELECT "user_id", "time_zone" FROM ${table}`, {
+        type: QueryTypes.SELECT,
+      }),
+    ).toEqual([{ user_id: "p-2", time_zone: null }]);
   });
   describe("usage statistics (EV-90 lots A.2 and A.3)", () => {
     const S = "t18_usage";

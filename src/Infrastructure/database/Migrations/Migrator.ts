@@ -20,6 +20,7 @@ import { absoluteInstants } from "./0016-absolute-instants.js";
 import { googleIdentity } from "./0017-google-identity.js";
 import { usageMetrics } from "./0018-usage-metrics.js";
 import { scheduledConfigurationChanges } from "./0019-scheduled-configuration-changes.js";
+import { userPreferences } from "./0020-user-preferences.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 
 // Applied in order at start-up, each one once; append new migrations here
@@ -43,6 +44,7 @@ export const ADMIN_MIGRATIONS: SchemaMigration[] = [
   googleIdentity,
   usageMetrics,
   scheduledConfigurationChanges,
+  userPreferences,
 ];
 
 // The schema is shared with other services: a name of our own

@@ -305,6 +305,7 @@ describe("createMigrator", () => {
       "0017-google-identity",
       "0018-usage-metrics",
       "0019-scheduled-configuration-changes",
+      "0020-user-preferences",
     ]);
   });
 });
