@@ -1,5 +1,6 @@
 import express from "express";
 import supertest from "supertest";
+import type { Mock } from "vitest";
 import { mock } from "vitest-mock-extended";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -47,9 +48,9 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
       const expectedResponse = new ResponseModel(
         "queryPermissions",
       ).withResponse([]);
-      (
-        PermissionUseCase.prototype.queryPermissions as vi.Mock
-      ).mockResolvedValue(expectedResponse);
+      (PermissionUseCase.prototype.queryPermissions as Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .get("/v1/permissions")
@@ -67,9 +68,7 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("passes the search and a known sort to the use case (EV-32)", async () => {
-      (
-        PermissionUseCase.prototype.queryPermissions as vi.Mock
-      ).mockResolvedValue(
+      (PermissionUseCase.prototype.queryPermissions as Mock).mockResolvedValue(
         new ResponseModel("queryPermissions").withResponse([]),
       );
 
@@ -91,9 +90,7 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("sorts by name, ascending, when the sort is unknown (EV-32)", async () => {
-      (
-        PermissionUseCase.prototype.queryPermissions as vi.Mock
-      ).mockResolvedValue(
+      (PermissionUseCase.prototype.queryPermissions as Mock).mockResolvedValue(
         new ResponseModel("queryPermissions").withResponse([]),
       );
 
@@ -115,9 +112,9 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Query failed",
       );
-      (
-        PermissionUseCase.prototype.queryPermissions as vi.Mock
-      ).mockResolvedValue(expectedResponse);
+      (PermissionUseCase.prototype.queryPermissions as Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app).get("/v1/permissions");
 
@@ -125,9 +122,9 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when query throws an exception", async () => {
-      (
-        PermissionUseCase.prototype.queryPermissions as vi.Mock
-      ).mockRejectedValue(new Error("Unexpected error"));
+      (PermissionUseCase.prototype.queryPermissions as Mock).mockRejectedValue(
+        new Error("Unexpected error"),
+      );
 
       const response = await supertest(app).get("/v1/permissions");
 
@@ -144,9 +141,9 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
       const expectedResponse = new ResponseModel(
         "createPermission",
       ).withResponse(mockPerm);
-      (
-        PermissionUseCase.prototype.createPermission as vi.Mock
-      ).mockResolvedValue(expectedResponse);
+      (PermissionUseCase.prototype.createPermission as Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .post("/v1/permissions")
@@ -174,9 +171,9 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.DUPLICATE_ENTITY,
         "Conflict",
       );
-      (
-        PermissionUseCase.prototype.createPermission as vi.Mock
-      ).mockResolvedValue(expectedResponse);
+      (PermissionUseCase.prototype.createPermission as Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .post("/v1/permissions")
@@ -186,9 +183,9 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when create throws an exception", async () => {
-      (
-        PermissionUseCase.prototype.createPermission as vi.Mock
-      ).mockRejectedValue(new Error("Unexpected error"));
+      (PermissionUseCase.prototype.createPermission as Mock).mockRejectedValue(
+        new Error("Unexpected error"),
+      );
 
       const response = await supertest(app)
         .post("/v1/permissions")
@@ -206,9 +203,9 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
       const expectedResponse = new ResponseModel(
         "deletePermission",
       ).withResponse(null);
-      (
-        PermissionUseCase.prototype.deletePermission as vi.Mock
-      ).mockResolvedValue(expectedResponse);
+      (PermissionUseCase.prototype.deletePermission as Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app).delete("/v1/permissions/123");
 
@@ -236,9 +233,9 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.ENTITY_NOT_FOUND,
         "Not found",
       );
-      (
-        PermissionUseCase.prototype.deletePermission as vi.Mock
-      ).mockResolvedValue(expectedResponse);
+      (PermissionUseCase.prototype.deletePermission as Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app).delete("/v1/permissions/123");
 
@@ -246,9 +243,9 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when delete throws an exception", async () => {
-      (
-        PermissionUseCase.prototype.deletePermission as vi.Mock
-      ).mockRejectedValue(new Error("Unexpected error"));
+      (PermissionUseCase.prototype.deletePermission as Mock).mockRejectedValue(
+        new Error("Unexpected error"),
+      );
 
       const response = await supertest(app).delete("/v1/permissions/123");
 
@@ -265,7 +262,7 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
       const expectedResponse = new ResponseModel(
         "queryPermissionById",
       ).withResponse(mockPerm);
-      (PermissionUseCase.prototype.queryById as vi.Mock).mockResolvedValue(
+      (PermissionUseCase.prototype.queryById as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -288,7 +285,7 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
       const expectedResponse = new ResponseModel(
         "queryPermissionById",
       ).withError(DomainErrorCodes.ENTITY_NOT_FOUND, "Not found");
-      (PermissionUseCase.prototype.queryById as vi.Mock).mockResolvedValue(
+      (PermissionUseCase.prototype.queryById as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -298,7 +295,7 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when queryById throws an exception", async () => {
-      (PermissionUseCase.prototype.queryById as vi.Mock).mockRejectedValue(
+      (PermissionUseCase.prototype.queryById as Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -317,9 +314,9 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
       const expectedResponse = new ResponseModel(
         "updatePermission",
       ).withResponse(mockPerm);
-      (
-        PermissionUseCase.prototype.updatePermission as vi.Mock
-      ).mockResolvedValue(expectedResponse);
+      (PermissionUseCase.prototype.updatePermission as Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .put("/v1/permissions/123")
@@ -355,9 +352,9 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.ENTITY_NOT_FOUND,
         "Not found",
       );
-      (
-        PermissionUseCase.prototype.updatePermission as vi.Mock
-      ).mockResolvedValue(expectedResponse);
+      (PermissionUseCase.prototype.updatePermission as Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .put("/v1/permissions/123")
@@ -367,9 +364,9 @@ describe("PermissionsV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when update throws an exception", async () => {
-      (
-        PermissionUseCase.prototype.updatePermission as vi.Mock
-      ).mockRejectedValue(new Error("Unexpected error"));
+      (PermissionUseCase.prototype.updatePermission as Mock).mockRejectedValue(
+        new Error("Unexpected error"),
+      );
 
       const response = await supertest(app)
         .put("/v1/permissions/123")

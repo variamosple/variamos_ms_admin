@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import axios from "axios";
+import type { Mock, MockInstance } from "vitest";
 import { type MockProxy, mock } from "vitest-mock-extended";
 import logger from "#src/common/logger.js";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
@@ -25,8 +26,8 @@ vi.mock("crypto", async () => {
 describe("GitHubTokenResolver - Unit Tests", () => {
   let resolver: GitHubTokenResolver;
   let mockConfig: MockProxy<IBugTrackerConfig>;
-  let mockSign: { update: vi.Mock; sign: vi.Mock };
-  let dateSpy: vi.SpyInstance;
+  let mockSign: { update: Mock; sign: Mock };
+  let dateSpy: MockInstance;
   const mockNow = 1711800000000; // Fixed timestamp: 1711800000 seconds
 
   beforeEach(() => {
@@ -39,7 +40,7 @@ describe("GitHubTokenResolver - Unit Tests", () => {
       update: vi.fn(),
       sign: vi.fn().mockReturnValue("mock-signature"),
     };
-    (crypto.createSign as vi.Mock).mockReturnValue(mockSign);
+    (crypto.createSign as Mock).mockReturnValue(mockSign);
   });
 
   afterEach(() => {
@@ -68,10 +69,10 @@ describe("GitHubTokenResolver - Unit Tests", () => {
         .fn()
         .mockReturnValue("  mock\\nkey  ");
 
-      (axios.get as vi.Mock).mockResolvedValue({
+      (axios.get as Mock).mockResolvedValue({
         data: { id: 987 },
       });
-      (axios.post as vi.Mock).mockResolvedValue({
+      (axios.post as Mock).mockResolvedValue({
         data: {
           token: "new-app-token",
           expires_at: new Date(Date.now() + 600000).toISOString(),
@@ -134,7 +135,7 @@ describe("GitHubTokenResolver - Unit Tests", () => {
       );
 
       // Verify second call hits cache
-      (axios.get as vi.Mock).mockClear();
+      (axios.get as Mock).mockClear();
       const token2 = await resolver.resolveGitHubToken(
         "VariaMos/VariaMosAdmin",
       );
@@ -152,10 +153,10 @@ describe("GitHubTokenResolver - Unit Tests", () => {
         expiresAt: Date.now() + 60000,
       });
 
-      (axios.get as vi.Mock).mockResolvedValue({
+      (axios.get as Mock).mockResolvedValue({
         data: { id: 987 },
       });
-      (axios.post as vi.Mock).mockResolvedValue({
+      (axios.post as Mock).mockResolvedValue({
         data: {
           token: "refreshed-token",
           expires_at: new Date(Date.now() + 600000).toISOString(),
@@ -192,7 +193,7 @@ describe("GitHubTokenResolver - Unit Tests", () => {
       mockConfig.getGitHubPrivateKey = vi.fn().mockReturnValue("mock-key");
       mockConfig.getGitHubToken.mockReturnValue("fallback-token");
 
-      (axios.get as vi.Mock).mockRejectedValue({
+      (axios.get as Mock).mockRejectedValue({
         response: { data: { message: "Not Found" } },
       });
 
@@ -210,7 +211,7 @@ describe("GitHubTokenResolver - Unit Tests", () => {
       mockConfig.getGitHubPrivateKey = vi.fn().mockReturnValue("mock-key");
       mockConfig.getGitHubToken.mockReturnValue("fallback-token");
 
-      (axios.get as vi.Mock).mockRejectedValue(new Error("Network Error"));
+      (axios.get as Mock).mockRejectedValue(new Error("Network Error"));
 
       const token = await resolver.resolveGitHubToken("VariaMos/VariaMosAdmin");
       expect(token).toBe("fallback-token");

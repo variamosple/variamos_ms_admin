@@ -1,5 +1,6 @@
 import express from "express";
 import supertest from "supertest";
+import type { Mock } from "vitest";
 import { mock } from "vitest-mock-extended";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -62,7 +63,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
   describe("GET /v1/roles", () => {
     it("should return 200 on success", async () => {
       const expectedResponse = new ResponseModel("queryRoles").withResponse([]);
-      (RoleQueryUseCase.prototype.queryRoles as vi.Mock).mockResolvedValue(
+      (RoleQueryUseCase.prototype.queryRoles as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -78,7 +79,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("passes the sort by id or name to the query (EV-95)", async () => {
-      (RoleQueryUseCase.prototype.queryRoles as vi.Mock).mockResolvedValue(
+      (RoleQueryUseCase.prototype.queryRoles as Mock).mockResolvedValue(
         new ResponseModel("queryRoles").withResponse([]),
       );
 
@@ -94,7 +95,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("sorts by name, ascending, when the sort is unknown (EV-95)", async () => {
-      (RoleQueryUseCase.prototype.queryRoles as vi.Mock).mockResolvedValue(
+      (RoleQueryUseCase.prototype.queryRoles as Mock).mockResolvedValue(
         new ResponseModel("queryRoles").withResponse([]),
       );
 
@@ -114,7 +115,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Query failed",
       );
-      (RoleQueryUseCase.prototype.queryRoles as vi.Mock).mockResolvedValue(
+      (RoleQueryUseCase.prototype.queryRoles as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -124,7 +125,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when query throws an exception", async () => {
-      (RoleQueryUseCase.prototype.queryRoles as vi.Mock).mockRejectedValue(
+      (RoleQueryUseCase.prototype.queryRoles as Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -143,7 +144,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
       const expectedResponse = new ResponseModel("createRole").withResponse(
         mockRole,
       );
-      (RoleManagementUseCase.prototype.createRole as vi.Mock).mockResolvedValue(
+      (RoleManagementUseCase.prototype.createRole as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -173,7 +174,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.DUPLICATE_ENTITY,
         "Conflict",
       );
-      (RoleManagementUseCase.prototype.createRole as vi.Mock).mockResolvedValue(
+      (RoleManagementUseCase.prototype.createRole as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -185,7 +186,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when create throws an exception", async () => {
-      (RoleManagementUseCase.prototype.createRole as vi.Mock).mockRejectedValue(
+      (RoleManagementUseCase.prototype.createRole as Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -205,7 +206,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
       const expectedResponse = new ResponseModel("deleteRole").withResponse(
         null,
       );
-      (RoleManagementUseCase.prototype.deleteRole as vi.Mock).mockResolvedValue(
+      (RoleManagementUseCase.prototype.deleteRole as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -233,7 +234,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.ENTITY_NOT_FOUND,
         "Not found",
       );
-      (RoleManagementUseCase.prototype.deleteRole as vi.Mock).mockResolvedValue(
+      (RoleManagementUseCase.prototype.deleteRole as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -243,7 +244,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when delete throws an exception", async () => {
-      (RoleManagementUseCase.prototype.deleteRole as vi.Mock).mockRejectedValue(
+      (RoleManagementUseCase.prototype.deleteRole as Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -262,7 +263,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
       const expectedResponse = new ResponseModel("queryRoleById").withResponse(
         mockRole,
       );
-      (RoleQueryUseCase.prototype.queryById as vi.Mock).mockResolvedValue(
+      (RoleQueryUseCase.prototype.queryById as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -286,7 +287,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.ENTITY_NOT_FOUND,
         "Not found",
       );
-      (RoleQueryUseCase.prototype.queryById as vi.Mock).mockResolvedValue(
+      (RoleQueryUseCase.prototype.queryById as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -296,7 +297,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when queryById throws an exception", async () => {
-      (RoleQueryUseCase.prototype.queryById as vi.Mock).mockRejectedValue(
+      (RoleQueryUseCase.prototype.queryById as Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -315,7 +316,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
       const expectedResponse = new ResponseModel("updateRole").withResponse(
         mockRole,
       );
-      (RoleManagementUseCase.prototype.updateRole as vi.Mock).mockResolvedValue(
+      (RoleManagementUseCase.prototype.updateRole as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -353,7 +354,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.ENTITY_NOT_FOUND,
         "Not found",
       );
-      (RoleManagementUseCase.prototype.updateRole as vi.Mock).mockResolvedValue(
+      (RoleManagementUseCase.prototype.updateRole as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -365,7 +366,7 @@ describe("RolesV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when update throws an exception", async () => {
-      (RoleManagementUseCase.prototype.updateRole as vi.Mock).mockRejectedValue(
+      (RoleManagementUseCase.prototype.updateRole as Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 

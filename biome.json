@@ -41,6 +41,10 @@
   },
   "overrides": [
     {
+      "includes": ["**/*.md", "**/*.yml", "**/*.yaml"],
+      "formatter": { "enabled": false }
+    },
+    {
       "includes": [
         "src/**",
         "!src/common/EnvVars.ts",

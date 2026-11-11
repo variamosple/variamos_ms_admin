@@ -1,5 +1,6 @@
 import express from "express";
 import supertest from "supertest";
+import type { Mock } from "vitest";
 import { mock } from "vitest-mock-extended";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -56,7 +57,7 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
         "queryRolePermissions",
       ).withResponse([]);
       (
-        RolePermissionUseCase.prototype.queryRolePermissions as vi.Mock
+        RolePermissionUseCase.prototype.queryRolePermissions as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
@@ -76,7 +77,7 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
 
     it("passes the search to the use case (EV-31)", async () => {
       (
-        RolePermissionUseCase.prototype.queryRolePermissions as vi.Mock
+        RolePermissionUseCase.prototype.queryRolePermissions as Mock
       ).mockResolvedValue(
         new ResponseModel("queryRolePermissions").withResponse([]),
       );
@@ -115,7 +116,7 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
         "queryRolePermissions",
       ).withError(DomainErrorCodes.INVALID_INPUT, "Query failed");
       (
-        RolePermissionUseCase.prototype.queryRolePermissions as vi.Mock
+        RolePermissionUseCase.prototype.queryRolePermissions as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).get("/v1/roles/1/permissions");
@@ -125,7 +126,7 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
 
     it("should return 500 when query throws an exception", async () => {
       (
-        RolePermissionUseCase.prototype.queryRolePermissions as vi.Mock
+        RolePermissionUseCase.prototype.queryRolePermissions as Mock
       ).mockRejectedValue(new Error("Unexpected error"));
 
       const response = await supertest(app).get("/v1/roles/1/permissions");
@@ -158,7 +159,7 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
         "createRolePermission",
       ).withResponse(mockRolePerm);
       (
-        RolePermissionUseCase.prototype.createRolePermission as vi.Mock
+        RolePermissionUseCase.prototype.createRolePermission as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
@@ -197,7 +198,7 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
         "createRolePermission",
       ).withError(DomainErrorCodes.DUPLICATE_ENTITY, "Already exists");
       (
-        RolePermissionUseCase.prototype.createRolePermission as vi.Mock
+        RolePermissionUseCase.prototype.createRolePermission as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
@@ -209,7 +210,7 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
 
     it("should return 500 when create throws an exception", async () => {
       (
-        RolePermissionUseCase.prototype.createRolePermission as vi.Mock
+        RolePermissionUseCase.prototype.createRolePermission as Mock
       ).mockRejectedValue(new Error("Unexpected error"));
 
       const response = await supertest(app)
@@ -229,7 +230,7 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
         "deleteRolePermission",
       ).withResponse(null);
       (
-        RolePermissionUseCase.prototype.deleteRolePermission as vi.Mock
+        RolePermissionUseCase.prototype.deleteRolePermission as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).delete("/v1/roles/1/permissions/2");
@@ -266,7 +267,7 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
         "deleteRolePermission",
       ).withError(DomainErrorCodes.ENTITY_NOT_FOUND, "Not found");
       (
-        RolePermissionUseCase.prototype.deleteRolePermission as vi.Mock
+        RolePermissionUseCase.prototype.deleteRolePermission as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).delete("/v1/roles/1/permissions/2");
@@ -276,7 +277,7 @@ describe("RolePermissionsV1Router Integration Tests - Extended Coverage", () => 
 
     it("should return 500 when delete throws an exception", async () => {
       (
-        RolePermissionUseCase.prototype.deleteRolePermission as vi.Mock
+        RolePermissionUseCase.prototype.deleteRolePermission as Mock
       ).mockRejectedValue(new Error("Unexpected error"));
 
       const response = await supertest(app).delete("/v1/roles/1/permissions/2");

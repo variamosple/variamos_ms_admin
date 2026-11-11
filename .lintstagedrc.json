@@ -1,14 +1,7 @@
 {
-  "src/**/*.ts": [
-    "biome check --write",
-    "cspell"
+  "*.{ts,js,cjs,mjs,json}": [
+    "biome check --write --no-errors-on-unmatched",
+    "cspell --no-must-find-files"
   ],
-  "src/**/*.{js,json}": [
-    "biome check --write",
-    "cspell"
-  ],
-  "src/**/*.md": [
-    "biome format --write",
-    "cspell"
-  ]
+  "src/**/*.md": ["cspell"]
 }

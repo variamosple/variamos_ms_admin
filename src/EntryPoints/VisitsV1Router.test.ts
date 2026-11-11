@@ -1,5 +1,6 @@
 import express from "express";
 import supertest from "supertest";
+import type { Mock } from "vitest";
 import { mock } from "vitest-mock-extended";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -51,7 +52,7 @@ describe("VisitsV1Router Integration Tests - Extended Coverage", () => {
       const expectedResponse = new ResponseModel("createVisit").withResponse(
         mockVisit,
       );
-      (VisitUseCase.prototype.registerVisit as vi.Mock).mockResolvedValue(
+      (VisitUseCase.prototype.registerVisit as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -72,7 +73,7 @@ describe("VisitsV1Router Integration Tests - Extended Coverage", () => {
       const expectedResponse = new ResponseModel("createVisit").withResponse(
         mockVisit,
       );
-      (VisitUseCase.prototype.registerVisit as vi.Mock).mockResolvedValue(
+      (VisitUseCase.prototype.registerVisit as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -98,7 +99,7 @@ describe("VisitsV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.INVALID_INPUT,
         "register failed",
       );
-      (VisitUseCase.prototype.registerVisit as vi.Mock).mockResolvedValue(
+      (VisitUseCase.prototype.registerVisit as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -110,7 +111,7 @@ describe("VisitsV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when register throws an exception", async () => {
-      (VisitUseCase.prototype.registerVisit as vi.Mock).mockRejectedValue(
+      (VisitUseCase.prototype.registerVisit as Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 

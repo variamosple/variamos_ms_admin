@@ -1,3 +1,5 @@
+import type { Mock } from "vitest";
+
 // Mock google-auth-library as a standard class to bypass Vitest restoreMocks: true
 vi.mock("google-auth-library", () => {
   return {
@@ -473,7 +475,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       vi.mocked(getToken).mockReturnValue(mockToken);
       vi.mocked(validateToken).mockResolvedValue(validationResponse);
       vi.mocked(isSessionExpired).mockReturnValue(true);
-      (UserQueryUseCase.prototype.sessionUser as vi.Mock).mockResolvedValue(
+      (UserQueryUseCase.prototype.sessionUser as Mock).mockResolvedValue(
         new ResponseModel<User>("getSessionInfo").withResponse(mockDomainUser),
       );
 
@@ -538,7 +540,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       vi.mocked(validateToken).mockResolvedValue(validationResponse);
       vi.mocked(isSessionExpired).mockReturnValue(true);
       vi.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
-      (UserQueryUseCase.prototype.sessionUser as vi.Mock).mockResolvedValue(
+      (UserQueryUseCase.prototype.sessionUser as Mock).mockResolvedValue(
         refreshedResponse,
       );
       vi.mocked(createJwt).mockResolvedValue("new-jwt-token");
@@ -591,7 +593,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       vi.mocked(validateToken).mockResolvedValue(validationResponse);
       vi.mocked(isSessionExpired).mockReturnValue(true);
       vi.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
-      (UserAuthUseCase.prototype.getGuestData as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.getGuestData as Mock).mockResolvedValue(
         refreshedResponse,
       );
 
@@ -626,7 +628,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       vi.mocked(validateToken).mockResolvedValue(validationResponse);
       vi.mocked(isSessionExpired).mockReturnValue(true);
       vi.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
-      (UserAuthUseCase.prototype.getGuestData as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.getGuestData as Mock).mockResolvedValue(
         refreshedResponse,
       );
 
@@ -662,7 +664,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       vi.mocked(validateToken).mockResolvedValue(validationResponse);
       vi.mocked(isSessionExpired).mockReturnValue(true);
       vi.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
-      (UserQueryUseCase.prototype.sessionUser as vi.Mock).mockResolvedValue(
+      (UserQueryUseCase.prototype.sessionUser as Mock).mockResolvedValue(
         refreshedResponse,
       );
 
@@ -705,7 +707,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       vi.mocked(validateToken).mockResolvedValue(validationResponse);
       vi.mocked(isSessionExpired).mockReturnValue(true);
       vi.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
-      (UserQueryUseCase.prototype.sessionUser as vi.Mock).mockResolvedValue(
+      (UserQueryUseCase.prototype.sessionUser as Mock).mockResolvedValue(
         refreshedResponse,
       );
       vi.mocked(createJwt).mockResolvedValue("new-refreshed-jwt-token");
@@ -756,7 +758,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
             } as unknown as SessionInfo),
           );
           vi.mocked(isSessionExpired).mockReturnValue(true);
-          (UserQueryUseCase.prototype.sessionUser as vi.Mock).mockResolvedValue(
+          (UserQueryUseCase.prototype.sessionUser as Mock).mockResolvedValue(
             new ResponseModel("getSessionInfo").withResponse(
               User.builder().setId("user-123").setName("Admin User").build(),
             ),
@@ -821,7 +823,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       );
 
       vi.mocked(createJwt).mockResolvedValue("jwt-token");
-      (UserAuthUseCase.prototype.signIn as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signIn as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -848,7 +850,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.UNAUTHORIZED_ACCESS,
         "Invalid credentials",
       );
-      (UserAuthUseCase.prototype.signIn as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signIn as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -861,7 +863,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("records a successful sign-in in the access journal", async () => {
       vi.mocked(createJwt).mockResolvedValue("jwt-token");
-      (UserAuthUseCase.prototype.signIn as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signIn as Mock).mockResolvedValue(
         new ResponseModel("signIn").withResponse(
           User.builder().setId("user-123").setName("John Doe").build(),
         ),
@@ -893,7 +895,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       "records a failed sign-in with the account it names (%o)",
       async (account, userId, reason) => {
         accessJournal.accountByEmail.mockResolvedValueOnce(account);
-        (UserAuthUseCase.prototype.signIn as vi.Mock).mockResolvedValue(
+        (UserAuthUseCase.prototype.signIn as Mock).mockResolvedValue(
           new ResponseModel("signIn").withError(
             DomainErrorCodes.INVALID_INPUT,
             "Incorrect username or password.",
@@ -927,7 +929,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         id: "user-7",
         active: true,
       });
-      (UserAuthUseCase.prototype.signIn as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signIn as Mock).mockResolvedValue(
         new ResponseModel("signIn").withError(
           DomainErrorCodes.SYSTEM_ERROR,
           "An unexpected error occurred.",
@@ -965,7 +967,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       );
 
       vi.mocked(createJwt).mockResolvedValue("jwt-token");
-      (UserAuthUseCase.prototype.signIn as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signIn as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -1012,7 +1014,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when sign-in throws an exception", async () => {
-      (UserAuthUseCase.prototype.signIn as vi.Mock).mockRejectedValue(
+      (UserAuthUseCase.prototype.signIn as Mock).mockRejectedValue(
         new Error("Unexpected sign-in error"),
       );
 
@@ -1035,7 +1037,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         mockUser,
       );
 
-      (UserAuthUseCase.prototype.signUp as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signUp as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -1052,7 +1054,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("should return 200 with signup successful message even on conflict (already exists)", async () => {
       // The use case answers a taken address as a free one (EV-98)
-      (UserAuthUseCase.prototype.signUp as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signUp as Mock).mockResolvedValue(
         new ResponseModel("signUp"),
       );
 
@@ -1075,7 +1077,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Passwords do not match",
       );
-      (UserAuthUseCase.prototype.signUp as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signUp as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -1094,7 +1096,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Invalid name",
       );
-      (UserAuthUseCase.prototype.signUp as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signUp as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -1109,7 +1111,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when sign-up throws an exception", async () => {
-      (UserAuthUseCase.prototype.signUp as vi.Mock).mockRejectedValue(
+      (UserAuthUseCase.prototype.signUp as Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -1145,7 +1147,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       );
 
       vi.mocked(createJwt).mockResolvedValue("guest-jwt-token");
-      (UserAuthUseCase.prototype.getGuestData as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.getGuestData as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -1162,7 +1164,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Invalid guest id",
       );
-      (UserAuthUseCase.prototype.getGuestData as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.getGuestData as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -1174,7 +1176,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when guest sign-in throws an exception", async () => {
-      (UserAuthUseCase.prototype.getGuestData as vi.Mock).mockRejectedValue(
+      (UserAuthUseCase.prototype.getGuestData as Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -1201,7 +1203,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       );
 
       vi.mocked(createJwt).mockResolvedValue("guest-jwt-token");
-      (UserAuthUseCase.prototype.getGuestData as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.getGuestData as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -1232,7 +1234,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       const expectedResponse = new ResponseModel("myAccount").withResponse(
         mockUser,
       );
-      (UserQueryUseCase.prototype.myAccount as vi.Mock).mockResolvedValue(
+      (UserQueryUseCase.prototype.myAccount as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -1242,7 +1244,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when getMyAccount throws an exception", async () => {
-      (UserQueryUseCase.prototype.myAccount as vi.Mock).mockRejectedValue(
+      (UserQueryUseCase.prototype.myAccount as Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -1257,9 +1259,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       const expectedResponse = new ResponseModel(
         "updateMyAccountInformation",
       ).withResponse(null);
-      (
-        UserManagementUseCase.prototype.updateProfile as vi.Mock
-      ).mockResolvedValue(expectedResponse);
+      (UserManagementUseCase.prototype.updateProfile as Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .put("/auth/my-account/information")
@@ -1269,9 +1271,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when updatePersonalInformation throws an exception", async () => {
-      (
-        UserManagementUseCase.prototype.updateProfile as vi.Mock
-      ).mockRejectedValue(new Error("Unexpected error"));
+      (UserManagementUseCase.prototype.updateProfile as Mock).mockRejectedValue(
+        new Error("Unexpected error"),
+      );
 
       const response = await supertest(app)
         .put("/auth/my-account/information")
@@ -1288,7 +1290,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       );
 
       (
-        UserManagementUseCase.prototype.updatePassword as vi.Mock
+        UserManagementUseCase.prototype.updatePassword as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).put("/auth/password-update").send({
@@ -1306,7 +1308,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         "Invalid password",
       );
       (
-        UserManagementUseCase.prototype.updatePassword as vi.Mock
+        UserManagementUseCase.prototype.updatePassword as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).put("/auth/password-update").send({
@@ -1320,7 +1322,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("should return 500 when updatePassword throws an exception", async () => {
       (
-        UserManagementUseCase.prototype.updatePassword as vi.Mock
+        UserManagementUseCase.prototype.updatePassword as Mock
       ).mockRejectedValue(new Error("Unexpected error"));
 
       const response = await supertest(app).put("/auth/password-update").send({
@@ -1344,7 +1346,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         "loginWithGoogle",
       ).withResponse(mockUser);
       vi.mocked(createJwt).mockResolvedValue("google-jwt-token");
-      (UserAuthUseCase.prototype.signInWithGoogle as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signInWithGoogle as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -1361,7 +1363,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Creation failed",
       );
-      (UserAuthUseCase.prototype.signInWithGoogle as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signInWithGoogle as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -1375,7 +1377,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("redirects an inactive account with its own reason", async () => {
-      (UserAuthUseCase.prototype.signInWithGoogle as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signInWithGoogle as Mock).mockResolvedValue(
         new ResponseModel("loginWithGoogle").withError(
           DomainErrorCodes.FORBIDDEN,
           "Your account is disabled.",
@@ -1396,7 +1398,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         id: "user-8",
         active: false,
       });
-      (UserAuthUseCase.prototype.signInWithGoogle as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signInWithGoogle as Mock).mockResolvedValue(
         new ResponseModel("loginWithGoogle").withError(
           DomainErrorCodes.FORBIDDEN,
           "Your account is disabled.",
@@ -1420,7 +1422,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       );
 
       vi.mocked(createJwt).mockResolvedValue("google-jwt-token");
-      (UserAuthUseCase.prototype.signInWithGoogle as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signInWithGoogle as Mock).mockResolvedValue(
         new ResponseModel("loginWithGoogle").withResponse(
           User.builder().setId("user-123").setEmail("john@example.com").build(),
         ),
@@ -1443,7 +1445,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("hands the use case the Google account, its identifier and whether its address is verified", async () => {
       vi.mocked(createJwt).mockResolvedValue("google-jwt-token");
-      (UserAuthUseCase.prototype.signInWithGoogle as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signInWithGoogle as Mock).mockResolvedValue(
         new ResponseModel("loginWithGoogle").withResponse(
           User.builder().setId("user-123").setEmail("john@example.com").build(),
         ),
@@ -1467,7 +1469,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("records why Google may not open an account", async () => {
-      (UserAuthUseCase.prototype.signInWithGoogle as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signInWithGoogle as Mock).mockResolvedValue(
         new ResponseModel("loginWithGoogle").withError(
           DomainErrorCodes.UNAUTHORIZED_ACCESS,
           "google_password_account",
@@ -1493,7 +1495,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     it("only logs a missing or different g_csrf_token for now", async () => {
       const warn = vi.spyOn(logger, "warn").mockImplementation(() => {});
       vi.mocked(createJwt).mockResolvedValue("google-jwt-token");
-      (UserAuthUseCase.prototype.signInWithGoogle as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signInWithGoogle as Mock).mockResolvedValue(
         new ResponseModel("loginWithGoogle").withResponse(
           User.builder().setId("user-123").setEmail("john@example.com").build(),
         ),
@@ -1530,7 +1532,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("records a Google sign-in once, even when the session fails after it", async () => {
-      (UserAuthUseCase.prototype.signInWithGoogle as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signInWithGoogle as Mock).mockResolvedValue(
         new ResponseModel("loginWithGoogle").withResponse(
           User.builder().setId("user-123").setEmail("john@example.com").build(),
         ),
@@ -1600,7 +1602,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         "loginWithGoogle",
       ).withResponse(mockUser);
       vi.mocked(createJwt).mockResolvedValue("google-jwt-token");
-      (UserAuthUseCase.prototype.signInWithGoogle as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signInWithGoogle as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -1630,7 +1632,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         undefined,
         "Password reset email sent",
       ).withResponse(null);
-      (UserPasswordUseCase.prototype.requestReset as vi.Mock).mockResolvedValue(
+      (UserPasswordUseCase.prototype.requestReset as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -1647,7 +1649,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Email not found",
       );
-      (UserPasswordUseCase.prototype.requestReset as vi.Mock).mockResolvedValue(
+      (UserPasswordUseCase.prototype.requestReset as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -1659,7 +1661,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when forgot-password throws an exception", async () => {
-      (UserPasswordUseCase.prototype.requestReset as vi.Mock).mockRejectedValue(
+      (UserPasswordUseCase.prototype.requestReset as Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -1678,7 +1680,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         undefined,
         "Token verified",
       ).withResponse(null);
-      (UserPasswordUseCase.prototype.verifyToken as vi.Mock).mockResolvedValue(
+      (UserPasswordUseCase.prototype.verifyToken as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -1695,7 +1697,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Token expired",
       );
-      (UserPasswordUseCase.prototype.verifyToken as vi.Mock).mockResolvedValue(
+      (UserPasswordUseCase.prototype.verifyToken as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -1707,7 +1709,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when verify-token throws an exception", async () => {
-      (UserPasswordUseCase.prototype.verifyToken as vi.Mock).mockRejectedValue(
+      (UserPasswordUseCase.prototype.verifyToken as Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -1731,7 +1733,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
   describe("GET /auth/password-policy", () => {
     it("returns the policy without a session", async () => {
       (
-        UserPasswordUseCase.prototype.getPasswordPolicy as vi.Mock
+        UserPasswordUseCase.prototype.getPasswordPolicy as Mock
       ).mockResolvedValue(
         new ResponseModel("getPasswordPolicy").withResponse({ minLength: 12 }),
       );
@@ -1744,7 +1746,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("answers 500 when the policy cannot be read", async () => {
       (
-        UserPasswordUseCase.prototype.getPasswordPolicy as vi.Mock
+        UserPasswordUseCase.prototype.getPasswordPolicy as Mock
       ).mockRejectedValue(new Error("db down"));
 
       const response = await supertest(app).get("/auth/password-policy");
@@ -1755,7 +1757,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
   describe("POST /auth/verify-token", () => {
     it("reads the token from the body, not from the URL", async () => {
-      (UserPasswordUseCase.prototype.verifyToken as vi.Mock).mockResolvedValue(
+      (UserPasswordUseCase.prototype.verifyToken as Mock).mockResolvedValue(
         new ResponseModel("verifyToken"),
       );
 
@@ -1787,9 +1789,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         undefined,
         "Password updated successfully",
       ).withResponse(null);
-      (
-        UserPasswordUseCase.prototype.resetPassword as vi.Mock
-      ).mockResolvedValue(expectedResponse);
+      (UserPasswordUseCase.prototype.resetPassword as Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .post("/auth/reset-password")
@@ -1804,9 +1806,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Invalid token",
       );
-      (
-        UserPasswordUseCase.prototype.resetPassword as vi.Mock
-      ).mockResolvedValue(expectedResponse);
+      (UserPasswordUseCase.prototype.resetPassword as Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .post("/auth/reset-password")
@@ -1816,9 +1818,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("answers 400 with PASSWORD_REUSED for the current password", async () => {
-      (
-        UserPasswordUseCase.prototype.resetPassword as vi.Mock
-      ).mockResolvedValue(
+      (UserPasswordUseCase.prototype.resetPassword as Mock).mockResolvedValue(
         new ResponseModel("resetPassword").withError(
           DomainErrorCodes.PASSWORD_REUSED,
           "New password cannot be the same as the old password.",
@@ -1834,9 +1834,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return 500 when resetPassword throws an exception", async () => {
-      (
-        UserPasswordUseCase.prototype.resetPassword as vi.Mock
-      ).mockRejectedValue(new Error("Unexpected error"));
+      (UserPasswordUseCase.prototype.resetPassword as Mock).mockRejectedValue(
+        new Error("Unexpected error"),
+      );
 
       const response = await supertest(app)
         .post("/auth/reset-password")
@@ -2080,7 +2080,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         mockUser,
       );
       vi.mocked(createJwt).mockResolvedValue("jwt-token");
-      (UserAuthUseCase.prototype.signIn as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signIn as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -2166,7 +2166,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       vi.mocked(getToken).mockReturnValue(mockToken);
       vi.mocked(validateToken).mockResolvedValue(validationResponse);
       vi.mocked(isSessionExpired).mockReturnValue(true);
-      (UserQueryUseCase.prototype.sessionUser as vi.Mock).mockResolvedValue(
+      (UserQueryUseCase.prototype.sessionUser as Mock).mockResolvedValue(
         new ResponseModel<User>("getSessionInfo").withResponse(mockDomainUser),
       );
       vi.mocked(createJwt).mockResolvedValue("new-jwt-token");
@@ -2217,7 +2217,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       vi.mocked(validateToken).mockResolvedValue(validationResponseA);
       vi.mocked(isSessionExpired).mockReturnValue(true);
       vi.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
-      (UserQueryUseCase.prototype.sessionUser as vi.Mock).mockResolvedValue(
+      (UserQueryUseCase.prototype.sessionUser as Mock).mockResolvedValue(
         refreshedResponse,
       );
       vi.mocked(createJwt).mockResolvedValue("new-refreshed-jwt-token");
@@ -2256,7 +2256,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     it("should call logger.err with error and true flag when signIn throws (Line 290)", async () => {
       const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
 
-      (UserAuthUseCase.prototype.signIn as vi.Mock).mockRejectedValue(
+      (UserAuthUseCase.prototype.signIn as Mock).mockRejectedValue(
         new Error("Unexpected sign-in error"),
       );
 
@@ -2281,7 +2281,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         mockUser,
       );
       vi.mocked(createJwt).mockResolvedValue("jwt-token");
-      (UserAuthUseCase.prototype.signIn as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signIn as Mock).mockResolvedValue(
         expectedSignInResponse,
       );
 
@@ -2295,7 +2295,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       const expectedSignUpResponse = new ResponseModel("signUp").withResponse(
         mockUser,
       );
-      (UserAuthUseCase.prototype.signUp as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signUp as Mock).mockResolvedValue(
         expectedSignUpResponse,
       );
 
@@ -2315,7 +2315,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.SYSTEM_ERROR,
         "System failure",
       );
-      (UserAuthUseCase.prototype.signUp as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signUp as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -2332,7 +2332,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("should call logger.err with true flag when signUp throws (Line 344)", async () => {
       const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
-      (UserAuthUseCase.prototype.signUp as vi.Mock).mockRejectedValue(
+      (UserAuthUseCase.prototype.signUp as Mock).mockRejectedValue(
         new Error("Database offline"),
       );
 
@@ -2382,7 +2382,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         "loginWithGoogle",
       ).withResponse(mockUser);
       vi.mocked(createJwt).mockResolvedValue("google-jwt-token");
-      (UserAuthUseCase.prototype.signInWithGoogle as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signInWithGoogle as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -2400,7 +2400,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       const expectedResponse = new ResponseModel(
         "loginWithGoogle",
       ).withResponse(null);
-      (UserAuthUseCase.prototype.signInWithGoogle as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signInWithGoogle as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -2428,7 +2428,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       const expectedResponse = new ResponseModel("myAccount").withResponse(
         null,
       );
-      (UserQueryUseCase.prototype.myAccount as vi.Mock).mockResolvedValue(
+      (UserQueryUseCase.prototype.myAccount as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -2440,7 +2440,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("should call logger.err with true flag when my-account throws (Line 456)", async () => {
       const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
-      (UserQueryUseCase.prototype.myAccount as vi.Mock).mockRejectedValue(
+      (UserQueryUseCase.prototype.myAccount as Mock).mockRejectedValue(
         new Error("MyAccount failed"),
       );
 
@@ -2453,9 +2453,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       const expectedResponse = new ResponseModel(
         "updateMyAccountInformation",
       ).withResponse(null);
-      (
-        UserManagementUseCase.prototype.updateProfile as vi.Mock
-      ).mockResolvedValue(expectedResponse);
+      (UserManagementUseCase.prototype.updateProfile as Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       await supertest(app)
         .put("/auth/my-account/information")
@@ -2472,9 +2472,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("should call logger.err with true flag when updateProfile throws (Line 490)", async () => {
       const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
-      (
-        UserManagementUseCase.prototype.updateProfile as vi.Mock
-      ).mockRejectedValue(new Error("Update failed"));
+      (UserManagementUseCase.prototype.updateProfile as Mock).mockRejectedValue(
+        new Error("Update failed"),
+      );
 
       await supertest(app)
         .put("/auth/my-account/information")
@@ -2489,7 +2489,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         null,
       );
       (
-        UserManagementUseCase.prototype.updatePassword as vi.Mock
+        UserManagementUseCase.prototype.updatePassword as Mock
       ).mockResolvedValue(expectedResponse);
 
       await supertest(app).put("/auth/password-update").send({
@@ -2508,7 +2508,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     it("should call logger.err with true flag when updatePassword throws (Line 523)", async () => {
       const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
       (
-        UserManagementUseCase.prototype.updatePassword as vi.Mock
+        UserManagementUseCase.prototype.updatePassword as Mock
       ).mockRejectedValue(new Error("Pass failed"));
 
       await supertest(app).put("/auth/password-update").send({
@@ -2525,7 +2525,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       const expectedResponse = new ResponseModel("signInAsGuest").withResponse(
         null,
       );
-      (UserAuthUseCase.prototype.getGuestData as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.getGuestData as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -2545,7 +2545,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         mockUser,
       );
       vi.mocked(createJwt).mockResolvedValue("guest-token");
-      (UserAuthUseCase.prototype.getGuestData as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.getGuestData as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -2561,7 +2561,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("should call logger.err with true flag when guest sign-in throws (Line 577)", async () => {
       const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
-      (UserAuthUseCase.prototype.getGuestData as vi.Mock).mockRejectedValue(
+      (UserAuthUseCase.prototype.getGuestData as Mock).mockRejectedValue(
         new Error("Guest throw"),
       );
 
@@ -2626,7 +2626,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       const expectedResponse = new ResponseModel("forgotPassword").withResponse(
         null,
       );
-      (UserPasswordUseCase.prototype.requestReset as vi.Mock).mockResolvedValue(
+      (UserPasswordUseCase.prototype.requestReset as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -2644,7 +2644,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Email missing",
       );
-      (UserPasswordUseCase.prototype.requestReset as vi.Mock).mockResolvedValue(
+      (UserPasswordUseCase.prototype.requestReset as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -2657,7 +2657,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("should call logger.err with true flag when forgot-password throws (Line 633)", async () => {
       const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
-      (UserPasswordUseCase.prototype.requestReset as vi.Mock).mockRejectedValue(
+      (UserPasswordUseCase.prototype.requestReset as Mock).mockRejectedValue(
         new Error("Forgot error"),
       );
 
@@ -2673,7 +2673,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       const expectedResponse = new ResponseModel("verifyToken").withResponse(
         null,
       );
-      (UserPasswordUseCase.prototype.verifyToken as vi.Mock).mockResolvedValue(
+      (UserPasswordUseCase.prototype.verifyToken as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -2692,7 +2692,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Expired",
       );
-      (UserPasswordUseCase.prototype.verifyToken as vi.Mock).mockResolvedValue(
+      (UserPasswordUseCase.prototype.verifyToken as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -2705,7 +2705,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("should call logger.err with true flag when verifyToken throws (Line 662)", async () => {
       const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
-      (UserPasswordUseCase.prototype.verifyToken as vi.Mock).mockRejectedValue(
+      (UserPasswordUseCase.prototype.verifyToken as Mock).mockRejectedValue(
         new Error("Verify throw"),
       );
 
@@ -2719,9 +2719,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       const expectedResponse = new ResponseModel("resetPassword").withResponse(
         null,
       );
-      (
-        UserPasswordUseCase.prototype.resetPassword as vi.Mock
-      ).mockResolvedValue(expectedResponse);
+      (UserPasswordUseCase.prototype.resetPassword as Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       await supertest(app)
         .post("/auth/reset-password")
@@ -2737,9 +2737,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Fail",
       );
-      (
-        UserPasswordUseCase.prototype.resetPassword as vi.Mock
-      ).mockResolvedValue(expectedResponse);
+      (UserPasswordUseCase.prototype.resetPassword as Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app)
         .post("/auth/reset-password")
@@ -2750,9 +2750,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("should call logger.err with true flag when resetPassword throws (Line 692)", async () => {
       const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});
-      (
-        UserPasswordUseCase.prototype.resetPassword as vi.Mock
-      ).mockRejectedValue(new Error("Reset throw"));
+      (UserPasswordUseCase.prototype.resetPassword as Mock).mockRejectedValue(
+        new Error("Reset throw"),
+      );
 
       await supertest(app)
         .post("/auth/reset-password")
@@ -2851,7 +2851,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       vi.mocked(validateToken).mockResolvedValue(validationResponse);
       vi.mocked(isSessionExpired).mockReturnValue(true);
       vi.mocked(sessionInfoToSessionUser).mockReturnValue(sessionUser);
-      (UserQueryUseCase.prototype.sessionUser as vi.Mock).mockResolvedValue(
+      (UserQueryUseCase.prototype.sessionUser as Mock).mockResolvedValue(
         refreshedResponse,
       );
       vi.mocked(createJwt).mockResolvedValue("new-jwt-token");
@@ -2986,7 +2986,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       vi.mocked(getToken).mockReturnValue(mockToken);
       vi.mocked(validateToken).mockResolvedValue(validationResponse);
       vi.mocked(isSessionExpired).mockReturnValue(true);
-      (UserAuthUseCase.prototype.getGuestData as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.getGuestData as Mock).mockResolvedValue(
         new ResponseModel<User>("getSessionInfo").withResponse(mockDomainUser),
       );
       vi.mocked(createJwt).mockResolvedValue("guest-jwt");
