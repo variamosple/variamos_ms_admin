@@ -56,6 +56,13 @@ jobs:
       run: |
         npm run test:coverage
 
+    # The organization's token is not given to Dependabot pull requests
+    - name: Analyze with SonarCloud, coverage included
+      if: github.event.pull_request.user.login != 'dependabot[bot]'
+      uses: SonarSource/sonarqube-scan-action@4d1dc0c91ee400dcf8a6dddf2f705ac36542e304 # v8.4.0
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
     - name: Verify production build
       run: |
         npm run build
