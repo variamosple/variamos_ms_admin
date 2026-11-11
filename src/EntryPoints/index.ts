@@ -33,6 +33,7 @@ import type { AccountLockout } from "#src/Domain/User/Service/AccountLockoutServ
 import type { UserAuthUseCase } from "#src/Domain/User/UseCase/UserAuthUseCase.js";
 import type { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
 import type { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
+import type { UserPreferencesUseCase } from "#src/Domain/User/UseCase/UserPreferencesUseCase.js";
 import type { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
 import type { UserRoleUseCase } from "#src/Domain/User/UseCase/UserRoleUseCase.js";
 import type { VisitUseCase } from "#src/Domain/Visit/UseCase/VisitUseCase.js";
@@ -69,6 +70,10 @@ import {
   MICRO_SERVICES_V1_ROUTE,
 } from "./MicroServicesV1Router.js";
 import {
+  createMyAccountPreferencesRouter,
+  MY_ACCOUNT_PREFERENCES_ROUTE,
+} from "./MyAccountPreferencesRouter.js";
+import {
   createNotificationAccessRouter,
   NOTIFICATION_ACCESS_V1_ROUTE,
 } from "./NotificationAccessRouter.js";
@@ -95,6 +100,7 @@ interface UserFlowUseCases {
   management: UserManagementUseCase;
   query: UserQueryUseCase;
   role: UserRoleUseCase;
+  preferences: UserPreferencesUseCase;
 }
 
 interface BugFlowUseCases {
@@ -233,6 +239,10 @@ export function createBaseRouter({
   baseRouter.use(recordRefusals(accessJournal));
   applyRateLimits(baseRouter, accountLockout, accessJournal);
   baseRouter.use(MFA_ROUTE, createMfaRouter(mfa.user, mfa.trustedDevices));
+  baseRouter.use(
+    MY_ACCOUNT_PREFERENCES_ROUTE,
+    createMyAccountPreferencesRouter(usersUseCases.preferences),
+  );
   baseRouter.use(AUTH_ROUTE, authRouter);
   baseRouter.use(
     SCHEDULED_CHANGES_V1_ROUTE,

@@ -21,6 +21,7 @@ import { NotificationRecipientDirectory } from "./DataProviders/Notification/Not
 import { PermissionRepositoryImpl } from "./DataProviders/Permission/PermissionRepository.js";
 import { RolePermissionRepositoryImpl } from "./DataProviders/Role/RolePermissionRepository.js";
 import { RoleRepositoryImpl } from "./DataProviders/Role/RoleRepository.js";
+import { UserPreferencesRepositoryImpl } from "./DataProviders/User/UserPreferencesRepository.js";
 import { UserRepositoryImpl } from "./DataProviders/User/UserRepository.js";
 import { UserRoleRepositoryImpl } from "./DataProviders/User/UserRoleRepository.js";
 import { VisitRepositoryImpl } from "./DataProviders/Visit/VisitRepository.js";
@@ -77,6 +78,7 @@ import { PasswordPolicyService } from "./Domain/User/Service/PasswordPolicyServi
 import { UserAuthUseCase } from "./Domain/User/UseCase/UserAuthUseCase.js";
 import { UserManagementUseCase } from "./Domain/User/UseCase/UserManagementUseCase.js";
 import { UserPasswordUseCase } from "./Domain/User/UseCase/UserPasswordUseCase.js";
+import { UserPreferencesUseCase } from "./Domain/User/UseCase/UserPreferencesUseCase.js";
 import { UserQueryUseCase } from "./Domain/User/UseCase/UserQueryUseCase.js";
 import { UserRoleUseCase } from "./Domain/User/UseCase/UserRoleUseCase.js";
 import { VisitUseCase } from "./Domain/Visit/UseCase/VisitUseCase.js";
@@ -468,6 +470,9 @@ export const productionRouterDependencies: BaseRouterDependencies = {
     management: productionUserManagementUseCase,
     query: productionUserQueryUseCase,
     role: productionUserRoleUseCase,
+    preferences: new UserPreferencesUseCase(
+      new UserPreferencesRepositoryImpl(VARIAMOS_ORM, DB_SCHEMA),
+    ),
   },
   bugs: {
     submission: productionBugSubmissionUseCase,
