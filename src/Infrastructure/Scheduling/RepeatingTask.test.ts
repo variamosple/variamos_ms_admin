@@ -73,4 +73,14 @@ describe("RepeatingTask", () => {
     await vi.advanceTimersByTimeAsync(60 * MINUTE_MS);
     expect(run).toHaveBeenCalledOnce();
   });
+
+  it("runs once on demand, a failure logged and not thrown", async () => {
+    const run = vi.fn().mockRejectedValueOnce(new Error("db down"));
+    const task = new RepeatingTask("Planned changes", run, MINUTE_MS);
+
+    await expect(task.runNow()).resolves.toBeUndefined();
+
+    expect(run).toHaveBeenCalledOnce();
+    expect(logger.err).toHaveBeenCalledWith("Planned changes failed: db down");
+  });
 });

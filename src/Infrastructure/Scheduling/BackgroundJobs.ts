@@ -7,6 +7,7 @@ import type { IBugScheduleProvider } from "#src/Domain/Bug/Service/BugScheduleSe
 import type { BugLifecycleUseCase } from "#src/Domain/Bug/UseCase/BugLifecycleUseCase.js";
 import type { Configuration } from "#src/Domain/Configuration/Entity/Configuration.js";
 import type { ConfigurationUseCase } from "#src/Domain/Configuration/UseCase/ConfigurationUseCase.js";
+import type { ScheduledConfigurationChangeUseCase } from "#src/Domain/Configuration/UseCase/ScheduledConfigurationChangeUseCase.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import {
   HEALTH_CHECK_INTERVAL_KEY,
@@ -17,12 +18,16 @@ import { RepeatingTask } from "./RepeatingTask.js";
 
 const BUG_PURGE_EVERY_MS = 24 * 60 * 60 * 1000;
 
+/** Planned changes are applied within a minute of their date (EV-115). */
+export const SCHEDULED_CHANGES_EVERY_MS = 60 * 1000;
+
 export interface BackgroundJobs {
   collector: Pick<HealthCheckCollector, "setIntervalMs" | "start">;
   configuration: Pick<ConfigurationUseCase, "queryByKey">;
   bugLifecycle: Pick<BugLifecycleUseCase, "purgeExpiredRejectedBugs">;
   bugSchedule: Pick<IBugScheduleProvider, "getSyncIntervalMs">;
   bugSyncTask: Pick<RepeatingTask, "setIntervalMs" | "start">;
+  scheduledChanges: Pick<ScheduledConfigurationChangeUseCase, "applyDue">;
 }
 
 /** Applies a change of the health check interval at once (T-18 lot 4b). */
@@ -84,4 +89,13 @@ export async function startBackgroundJobs(jobs: BackgroundJobs): Promise<void> {
     () => jobs.bugLifecycle.purgeExpiredRejectedBugs(),
     BUG_PURGE_EVERY_MS,
   ).start();
+
+  // Changes due while the service was stopped are applied at once
+  const scheduledChanges = new RepeatingTask(
+    "Scheduled configuration changes",
+    () => jobs.scheduledChanges.applyDue(),
+    SCHEDULED_CHANGES_EVERY_MS,
+  );
+  await scheduledChanges.runNow();
+  scheduledChanges.start();
 }

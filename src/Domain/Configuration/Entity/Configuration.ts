@@ -105,6 +105,17 @@ export class Configuration {
    * Modifies the value while guaranteeing domain invariants
    */
   public updateValue(newValue: ConfigurationValue, operatorId: string): void {
+    this.checkNewValue(newValue);
+    this.value = newValue;
+    this.updatedBy = operatorId;
+    this.updatedAt = new Date();
+  }
+
+  /**
+   * Throws when updateValue would refuse this value, without changing
+   * anything: a change planned for later is checked now (EV-115 lot B).
+   */
+  public checkNewValue(newValue: ConfigurationValue): void {
     if (this.isReadOnly) {
       throw new Error(
         `Configuration '${this.key.getValue()}' is read-only and cannot be updated.`,
@@ -118,10 +129,6 @@ export class Configuration {
     }
 
     Configuration.validateValueType(this.key.getValue(), newValue, this.type);
-
-    this.value = newValue;
-    this.updatedBy = operatorId;
-    this.updatedAt = new Date();
   }
 
   /**

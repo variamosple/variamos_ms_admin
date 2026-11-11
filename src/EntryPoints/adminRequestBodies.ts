@@ -51,16 +51,23 @@ export const bugNoteBody = z.object({
 
 // The value types a configuration accepts; its own type is checked by the
 // use case
+const configurationValue = z.union([
+  z.string().max(LONG_TEXT_MAX),
+  z.number(),
+  z.boolean(),
+  z.array(z.string().max(LONG_TEXT_MAX)).max(1_000),
+  z.record(z.string(), z.unknown()),
+]);
+
 export const configurationUpdateBody = z.object({
-  value: z
-    .union([
-      z.string().max(LONG_TEXT_MAX),
-      z.number(),
-      z.boolean(),
-      z.array(z.string().max(LONG_TEXT_MAX)).max(1_000),
-      z.record(z.string(), z.unknown()),
-    ])
-    .optional(),
+  value: configurationValue.optional(),
+});
+
+// A change planned for later (EV-115 lot B): an instant with its offset
+export const scheduledChangeBody = z.object({
+  key: optionalText(100),
+  value: configurationValue.optional(),
+  dueAt: z.iso.datetime({ offset: true }).optional(),
 });
 
 export const microServiceCheckBody = z.object({

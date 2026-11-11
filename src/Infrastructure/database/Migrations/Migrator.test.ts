@@ -304,6 +304,7 @@ describe("createMigrator", () => {
       "0016-absolute-instants",
       "0017-google-identity",
       "0018-usage-metrics",
+      "0019-scheduled-configuration-changes",
     ]);
   });
 });

@@ -10,6 +10,7 @@ import {
   type BackgroundJobs,
   followBugSyncInterval,
   followHealthCheckInterval,
+  SCHEDULED_CHANGES_EVERY_MS,
   startBackgroundJobs,
 } from "./BackgroundJobs.js";
 
@@ -33,6 +34,7 @@ function jobsReading(configured: Promise<ResponseModel<Configuration>>) {
     bugLifecycle: mock<BackgroundJobs["bugLifecycle"]>(),
     bugSchedule: { getSyncIntervalMs: vi.fn(async () => 60 * MINUTE_MS) },
     bugSyncTask: { setIntervalMs: vi.fn(), start: vi.fn() },
+    scheduledChanges: { applyDue: vi.fn(async () => 0) },
   };
   jobs.bugLifecycle.purgeExpiredRejectedBugs.mockResolvedValue();
   return jobs;
@@ -96,6 +98,23 @@ describe("background jobs", () => {
     expect(jobs.bugLifecycle.purgeExpiredRejectedBugs).toHaveBeenCalledTimes(2);
     await vi.advanceTimersByTimeAsync(24 * 60 * MINUTE_MS);
     expect(jobs.bugLifecycle.purgeExpiredRejectedBugs).toHaveBeenCalledTimes(3);
+  });
+
+  it("applies the planned changes at start-up, then every minute, past a failed pass (EV-115 lot B)", async () => {
+    const jobs = jobsReading(
+      Promise.resolve(new ResponseModel<Configuration>("t")),
+    );
+    jobs.scheduledChanges.applyDue
+      .mockResolvedValueOnce(1)
+      .mockRejectedValueOnce(new Error("db down"))
+      .mockResolvedValue(0);
+
+    await startBackgroundJobs(jobs);
+    expect(jobs.scheduledChanges.applyDue).toHaveBeenCalledOnce();
+
+    await vi.advanceTimersByTimeAsync(SCHEDULED_CHANGES_EVERY_MS);
+    await vi.advanceTimersByTimeAsync(SCHEDULED_CHANGES_EVERY_MS);
+    expect(jobs.scheduledChanges.applyDue).toHaveBeenCalledTimes(3);
   });
 
   it("follows a change of the bugs sync interval only", () => {

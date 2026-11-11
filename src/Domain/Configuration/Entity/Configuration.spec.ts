@@ -231,6 +231,22 @@ describe("Configuration Entity Invariants", () => {
     expect(config.updatedAt).toBeDefined();
   });
 
+  it("checks a new value without changing anything (EV-115 lot B)", () => {
+    const config = Configuration.builder()
+      .setKey(validKey)
+      .setValue(8)
+      .setType("number")
+      .setCategory("security")
+      .setTargetServices(["all"])
+      .build();
+
+    expect(() => config.checkNewValue(12)).not.toThrow();
+    expect(() => config.checkNewValue("12")).toThrow();
+    expect(config.value).toBe(8);
+    expect(config.updatedBy).toBeUndefined();
+    expect(config.updatedAt).toBeUndefined();
+  });
+
   it("should mask values if it is a secret", () => {
     const secretConfig = Configuration.builder()
       .setKey(new ConfigurationKey("notification.smtp.password"))
