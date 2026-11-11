@@ -306,12 +306,72 @@ describe("AdminNotificationsRouter Integration Tests", () => {
             roles: null,
             title: "User Title",
             recipientCount: 2,
+            announces: null,
           },
         }),
       );
       expect(JSON.stringify(activityJournal.record.mock.calls)).not.toContain(
         "User Body",
       );
+    });
+
+    it("records the setting a message announces (EV-115 lot A)", async () => {
+      vi.mocked(
+        NotificationClientInstance.dispatchNotification,
+      ).mockResolvedValue(undefined);
+      activityJournal.record.mockClear();
+
+      await supertest(app)
+        .post("/v1/admin/notifications/dispatch")
+        .send({
+          audience: "users",
+          title: "Password rules updated",
+          body: "Passwords must now have at least 14 characters.",
+          userIds: ["user-1"],
+          announces: [
+            "security.password.min_length",
+            "security.password.require_special",
+          ],
+        })
+        .expect(HttpStatusCodes.OK);
+
+      expect(activityJournal.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "notification.dispatch",
+          outcome: "success",
+          after: expect.objectContaining({
+            announces: [
+              "security.password.min_length",
+              "security.password.require_special",
+            ],
+          }),
+        }),
+      );
+    });
+
+    it("refuses to announce a setting users are not told about, and sends nothing", async () => {
+      vi.mocked(NotificationClientInstance.dispatchNotification).mockClear();
+
+      const response = await supertest(app)
+        .post("/v1/admin/notifications/dispatch")
+        .send({
+          audience: "users",
+          title: "T",
+          body: "B",
+          userIds: ["user-1"],
+          announces: [
+            "security.password.min_length",
+            "security.cookie.max_age",
+          ],
+        })
+        .expect(HttpStatusCodes.BAD_REQUEST);
+
+      expect(response.body.message).toBe(
+        "This setting is not one that users are told about.",
+      );
+      expect(
+        NotificationClientInstance.dispatchNotification,
+      ).not.toHaveBeenCalled();
     });
 
     it("journals a refused dispatch as failed", async () => {

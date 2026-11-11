@@ -320,6 +320,13 @@ describe("ConfigurationRouter Integration Tests", () => {
         unit: "characters",
       });
       expect(response.body.data[1]).not.toHaveProperty("accepts");
+      // A setting users notice comes with the announcement its value suggests
+      expect(response.body.data[0].announcement).toEqual({
+        title: "Password rules updated",
+        body: "Passwords must now have at least 12 characters.",
+        note: "The rules apply when you next choose a password; your current password keeps working.",
+      });
+      expect(response.body.data[1]).not.toHaveProperty("announcement");
     });
 
     it("should cover false branch when queryConfigurations returns no data", async () => {
