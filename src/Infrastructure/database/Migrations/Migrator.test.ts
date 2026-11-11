@@ -299,6 +299,9 @@ describe("createMigrator", () => {
       "0011-bug-schedule-keys",
       "0012-laboratory-access-permission",
       "0013-bug-issue-unique-index",
+      "0014-permission-name-format",
+      "0015-versioned-functions",
+      "0016-absolute-instants",
     ]);
   });
 });

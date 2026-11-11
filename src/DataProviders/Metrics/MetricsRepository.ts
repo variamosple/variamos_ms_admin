@@ -10,7 +10,7 @@ import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 import { BaseRepository } from "../BaseRepository.js";
 
 // Keyed by the ids that get_metrics() gives the dashboard, which sends them
-// back to filter a chart; the functions are those of get_metrics.sql
+// back to filter a chart; the functions come from migration 0015
 const METRICS_FUNCTIONS = new Map<string, string>([
   [
     "daily_visits",
