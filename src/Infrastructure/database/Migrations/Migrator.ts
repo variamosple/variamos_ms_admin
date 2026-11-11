@@ -17,6 +17,7 @@ import { bugIssueUniqueIndex } from "./0013-bug-issue-unique-index.js";
 import { permissionNameFormat } from "./0014-permission-name-format.js";
 import { versionedFunctions } from "./0015-versioned-functions.js";
 import { absoluteInstants } from "./0016-absolute-instants.js";
+import { googleIdentity } from "./0017-google-identity.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 
 // Applied in order at start-up, each one once; append new migrations here
@@ -37,6 +38,7 @@ export const ADMIN_MIGRATIONS: SchemaMigration[] = [
   permissionNameFormat,
   versionedFunctions,
   absoluteInstants,
+  googleIdentity,
 ];
 
 // The schema is shared with other services: a name of our own

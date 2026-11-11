@@ -215,6 +215,30 @@ export class UserRepositoryImpl
     return response;
   }
 
+  public async findGoogleAccount(googleSub: string): Promise<User | null> {
+    const [link] = await VARIAMOS_ORM.query<{ userId: string }>(
+      `SELECT "user_id" AS "userId" FROM "${DB_SCHEMA}"."user_google_identity"
+        WHERE "google_sub" = :googleSub`,
+      { replacements: { googleSub }, type: QueryTypes.SELECT },
+    );
+    if (!link) return null;
+    const dbUser = await UserModel.findOne({ where: { id: link.userId } });
+    return dbUser ? this.accountOf(dbUser) : null;
+  }
+
+  public async linkGoogleIdentity(
+    userId: string,
+    googleSub: string,
+  ): Promise<void> {
+    // Two first sign-ins at once both try: the first link stays
+    await VARIAMOS_ORM.query(
+      `INSERT INTO "${DB_SCHEMA}"."user_google_identity" ("google_sub", "user_id")
+       VALUES (:googleSub, :userId)
+       ON CONFLICT DO NOTHING`,
+      { replacements: { googleSub, userId } },
+    );
+  }
+
   public async findPasswordAccount(
     by: { email: string } | { id: string },
   ): Promise<PasswordAccount | null> {

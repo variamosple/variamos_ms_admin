@@ -25,6 +25,8 @@ export const signUpBody = z.object({
 // A Google ID token is a signed JWT of one to two kilobytes
 export const googleCallbackBody = z.object({
   credential: text(8192),
+  // Random value Google also sets in a cookie of our domain (redirect mode)
+  g_csrf_token: text(256).optional(),
 });
 
 export const personalInformationBody = z.object({

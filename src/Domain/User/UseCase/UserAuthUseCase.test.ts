@@ -8,6 +8,7 @@ import { Permission } from "#src/Domain/Permission/Entity/Permission.js";
 import { Role } from "#src/Domain/Role/Entity/Role.js";
 import type { IGuestRoleRepository } from "#src/Domain/Role/Repository/IGuestRoleRepository.js";
 import { Credentials } from "#src/Domain/User/Entity/Credentials.js";
+import type { GoogleProfile } from "#src/Domain/User/Entity/GoogleIdentity.js";
 import { User } from "#src/Domain/User/Entity/User.js";
 import { UserRegistration } from "#src/Domain/User/Entity/UserRegistration.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
@@ -250,8 +251,8 @@ describe("UserAuthUseCase", () => {
     });
   });
 
-  describe("findOrCreate", () => {
-    const googleUser = (isEnabled = true, isDeleted = false) =>
+  describe("signInWithGoogle", () => {
+    const account = (isEnabled = true, isDeleted = false) =>
       User.builder()
         .setId("user-123")
         .setUser("testuser")
@@ -260,68 +261,170 @@ describe("UserAuthUseCase", () => {
         .setIsEnabled(isEnabled)
         .setIsDeleted(isDeleted)
         .build();
+    const profile = (over: Partial<GoogleProfile> = {}): GoogleProfile => ({
+      sub: "google-sub-1",
+      email: "test@e.com",
+      name: "Test User",
+      emailVerified: true,
+      ...over,
+    });
+    const signInWith = (p: GoogleProfile) =>
+      useCase.signInWithGoogle(new RequestModel<GoogleProfile>("tx-1", p));
+    const signedIn = User.builder().setId("user-123").build();
 
-    it("records the sign-in of an open account", async () => {
-      const found = googleUser();
-      const signedIn = User.builder().setId("user-123").build();
-      mockUserRepository.findOrCreateUser.mockResolvedValue(
-        new ResponseModel<User>("tx-1").withResponse(found),
-      );
+    beforeEach(() => {
+      mockUserRepository.findGoogleAccount.mockResolvedValue(null);
+      mockUserRepository.findPasswordAccount.mockResolvedValue(null);
       mockUserRepository.recordSignIn.mockResolvedValue(signedIn);
+    });
 
-      const req = new RequestModel<User>("tx-1", found);
-      const res = await useCase.findOrCreate(req);
+    it("refuses an address Google has not verified, before reading any account", async () => {
+      const res = await signInWith(profile({ emailVerified: false }));
+
+      expect(res.errorCode).toBe(DomainErrorCodes.UNAUTHORIZED_ACCESS);
+      expect(res.message).toBe("google_email_unverified");
+      expect(mockUserRepository.linkGoogleIdentity).not.toHaveBeenCalled();
+      expect(mockUserRepository.findOrCreateUser).not.toHaveBeenCalled();
+      expect(mockUserRepository.recordSignIn).not.toHaveBeenCalled();
+    });
+
+    it("opens the account linked to the Google account, whatever its address", async () => {
+      const linked = account();
+      mockUserRepository.findGoogleAccount.mockResolvedValue(linked);
+
+      const res = await signInWith(profile({ email: "renamed@e.com" }));
 
       expect(res.data).toBe(signedIn);
-      expect(mockUserRepository.findOrCreateUser).toHaveBeenCalledWith(req);
-      expect(mockUserRepository.recordSignIn).toHaveBeenCalledWith(found);
+      expect(mockUserRepository.findGoogleAccount).toHaveBeenCalledWith(
+        "google-sub-1",
+      );
+      expect(mockUserRepository.findPasswordAccount).not.toHaveBeenCalled();
+      expect(mockUserRepository.linkGoogleIdentity).not.toHaveBeenCalled();
+      expect(mockUserRepository.recordSignIn).toHaveBeenCalledWith(linked);
     });
 
     it.each([
-      ["disabled", googleUser(false), "Your account is disabled."],
-      ["deleted", googleUser(true, true), "Your account is deleted."],
+      ["a Gmail address", "someone@gmail.com", undefined, "hash"],
+      ["a Google Workspace address", "someone@uni.edu", "uni.edu", "hash"],
+      ["an account without a password", "someone@outlook.com", undefined, null],
     ])(
-      "refuses a %s account without recording it",
-      async (_, found, message) => {
-        mockUserRepository.findOrCreateUser.mockResolvedValue(
-          new ResponseModel<User>("tx-1").withResponse(found),
-        );
+      "links an account found by %s",
+      async (_label, email, hostedDomain, passwordHash) => {
+        const found = account();
+        mockUserRepository.findPasswordAccount.mockResolvedValue({
+          user: found,
+          passwordHash,
+        });
 
-        const res = await useCase.findOrCreate(
-          new RequestModel<User>("tx-1", found),
+        const res = await signInWith(profile({ email, hostedDomain }));
+
+        expect(res.data).toBe(signedIn);
+        expect(mockUserRepository.findPasswordAccount).toHaveBeenCalledWith({
+          email,
+        });
+        expect(mockUserRepository.linkGoogleIdentity).toHaveBeenCalledWith(
+          "user-123",
+          "google-sub-1",
         );
+        expect(mockUserRepository.recordSignIn).toHaveBeenCalledWith(found);
+      },
+    );
+
+    it("leaves an account with a password to it when Google does not vouch for the address", async () => {
+      mockUserRepository.findPasswordAccount.mockResolvedValue({
+        user: account(),
+        passwordHash: "hash",
+      });
+
+      const res = await signInWith(profile({ email: "someone@outlook.com" }));
+
+      expect(res.errorCode).toBe(DomainErrorCodes.UNAUTHORIZED_ACCESS);
+      expect(res.message).toBe("google_password_account");
+      expect(mockUserRepository.linkGoogleIdentity).not.toHaveBeenCalled();
+      expect(mockUserRepository.recordSignIn).not.toHaveBeenCalled();
+    });
+
+    it("creates and links the account of an unknown address", async () => {
+      const created = account();
+      mockUserRepository.findOrCreateUser.mockResolvedValue(
+        new ResponseModel<User>("tx-1").withResponse(created),
+      );
+
+      const res = await signInWith(profile());
+
+      expect(res.data).toBe(signedIn);
+      expect(mockUserRepository.findOrCreateUser).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionId: "tx-1",
+          data: expect.objectContaining({
+            email: "test@e.com",
+            name: "Test User",
+            user: "Test User",
+          }),
+        }),
+      );
+      expect(mockUserRepository.linkGoogleIdentity).toHaveBeenCalledWith(
+        "user-123",
+        "google-sub-1",
+      );
+    });
+
+    it.each([
+      ["disabled", account(false), "Your account is disabled."],
+      ["deleted", account(true, true), "Your account is deleted."],
+    ])(
+      "refuses a %s account without linking or recording it",
+      async (_, found, message) => {
+        mockUserRepository.findPasswordAccount.mockResolvedValue({
+          user: found,
+          passwordHash: null,
+        });
+
+        const res = await signInWith(profile());
 
         expect(res.errorCode).toBe(DomainErrorCodes.FORBIDDEN);
         expect(res.message).toBe(message);
         expect(res.data).toBeUndefined();
+        expect(mockUserRepository.linkGoogleIdentity).not.toHaveBeenCalled();
         expect(mockUserRepository.recordSignIn).not.toHaveBeenCalled();
       },
     );
 
-    it("passes on a failure to read the account", async () => {
+    it("refuses a closed account linked to the Google account", async () => {
+      mockUserRepository.findGoogleAccount.mockResolvedValue(account(false));
+
+      const res = await signInWith(profile());
+
+      expect(res.errorCode).toBe(DomainErrorCodes.FORBIDDEN);
+      expect(mockUserRepository.recordSignIn).not.toHaveBeenCalled();
+    });
+
+    it("passes on a failure to create the account", async () => {
       const failure = new ResponseModel<User>("tx-1").withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
       );
       mockUserRepository.findOrCreateUser.mockResolvedValue(failure);
 
-      const res = await useCase.findOrCreate(
-        new RequestModel<User>("tx-1", googleUser()),
-      );
+      const res = await signInWith(profile());
 
       expect(res).toBe(failure);
+      expect(mockUserRepository.linkGoogleIdentity).not.toHaveBeenCalled();
       expect(mockUserRepository.recordSignIn).not.toHaveBeenCalled();
     });
 
+    it("refuses a profile without a Google identifier", async () => {
+      const res = await signInWith(profile({ sub: "" }));
+
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(mockUserRepository.findGoogleAccount).not.toHaveBeenCalled();
+    });
+
     it("answers a system error when the sign-in cannot be recorded", async () => {
-      mockUserRepository.findOrCreateUser.mockResolvedValue(
-        new ResponseModel<User>("tx-1").withResponse(googleUser()),
-      );
+      mockUserRepository.findGoogleAccount.mockResolvedValue(account());
       mockUserRepository.recordSignIn.mockRejectedValue(new Error("db down"));
 
-      const res = await useCase.findOrCreate(
-        new RequestModel<User>("tx-1", googleUser()),
-      );
+      const res = await signInWith(profile());
 
       expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
       expect(res.message).toBe("Internal server error");
