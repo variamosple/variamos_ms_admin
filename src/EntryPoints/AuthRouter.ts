@@ -26,10 +26,15 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { MFA_SIGN_IN_TTL_MS } from "#src/Domain/Mfa/Service/PendingMfaSignIns.js";
 import type { MfaSignInUseCase } from "#src/Domain/Mfa/UseCase/MfaSignInUseCase.js";
 import { Credentials } from "#src/Domain/User/Entity/Credentials.js";
+import {
+  GOOGLE_SIGN_IN_REFUSALS,
+  type GoogleProfile,
+  isVerifiedClaim,
+} from "#src/Domain/User/Entity/GoogleIdentity.js";
 import { PasswordUpdate } from "#src/Domain/User/Entity/PasswordUpdate.js";
 import { PersonalInformationUpdate } from "#src/Domain/User/Entity/PersonalInformationUpdate.js";
 import type { SingInResponse } from "#src/Domain/User/Entity/SingInResponse.js";
-import { User } from "#src/Domain/User/Entity/User.js";
+import type { User } from "#src/Domain/User/Entity/User.js";
 import type { UserAuthUseCase } from "#src/Domain/User/UseCase/UserAuthUseCase.js";
 import type { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
 import type { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
@@ -85,6 +90,23 @@ export const audienceHostOf = (aud: unknown): string | undefined => {
   return entries.find(
     (entry): entry is string =>
       typeof entry === "string" && entry !== "variamos-platform",
+  );
+};
+
+/**
+ * Whether the g_csrf_token cookie Google sets on our domain matches the one
+ * it posts with the credential (redirect mode of Sign In With Google).
+ */
+export const hasMatchingGoogleCsrfToken = (
+  req: Request,
+  bodyToken: string | undefined,
+): boolean => {
+  const cookieToken = (req.cookies as Record<string, unknown> | undefined)
+    ?.g_csrf_token;
+  return (
+    typeof cookieToken === "string" &&
+    cookieToken !== "" &&
+    cookieToken === bodyToken
   );
 };
 
@@ -628,9 +650,7 @@ export function createAuthRouter(
     res.status(200).json(new ResponseModel<void>("logout"));
   });
 
-  const validateGoogleCode = async (
-    token: string,
-  ): Promise<User | undefined> => {
+  const validateGoogleCode = async (token: string): Promise<GoogleProfile> => {
     try {
       const client = new OAuth2Client(EnvVars.Auth.GOOGLE.CLIENT_ID);
 
@@ -645,16 +665,13 @@ export function createAuthRouter(
         throw new Error("Invalid JWT token format.");
       }
 
-      const name = payload.name;
-      const email = payload.email;
-
-      const user: User = User.builder()
-        .setUser(name || "")
-        .setName(name || "")
-        .setEmail(email || "")
-        .build();
-
-      return user;
+      return {
+        sub: payload.sub,
+        email: payload.email || "",
+        name: payload.name || "",
+        emailVerified: isVerifiedClaim(payload.email_verified),
+        hostedDomain: payload.hd || undefined,
+      };
     } catch (err) {
       logger.err(err as Error);
       throw new Error("Error when validating Google's user data.");
@@ -666,23 +683,34 @@ export function createAuthRouter(
     const body = readBody(googleCallbackBody, req, res, transactionId);
     if (!body) return;
     const { credential } = body;
+    // Google posts the same random value in a cookie of our domain and in
+    // the body; only a page of ours can set the cookie. Logged only until
+    // production shows that the cookie arrives (EV-70 lot 5).
+    if (!hasMatchingGoogleCsrfToken(req, body.g_csrf_token)) {
+      logger.warn(
+        "POST /auth/google/callback: g_csrf_token missing or not matching (not enforced yet)",
+      );
+    }
     try {
-      const user = await validateGoogleCode(credential);
+      const profile = await validateGoogleCode(credential);
 
-      const request = new RequestModel<User>(transactionId, user);
-      const response = await userAuthUseCase.findOrCreate(request);
+      const request = new RequestModel<GoogleProfile>(transactionId, profile);
+      const response = await userAuthUseCase.signInWithGoogle(request);
 
       // The login page shows the message of a reason code, never a text
       // read from its address (T-16)
       if (response.errorCode) {
         const inactive = response.errorCode === DomainErrorCodes.FORBIDDEN;
-        const account = user?.email
-          ? await accessJournal.accountByEmail(user.email)
+        const refusal = GOOGLE_SIGN_IN_REFUSALS.find(
+          (reason) => reason === response.message,
+        );
+        const account = profile.email
+          ? await accessJournal.accountByEmail(profile.email)
           : null;
         recordAccess(accessJournal, req, res, {
           event: "sign-in.google",
           outcome: "failed",
-          reason: inactive ? "account_inactive" : "sign_in_failed",
+          reason: inactive ? "account_inactive" : (refusal ?? "sign_in_failed"),
           userId: account?.id,
         });
         const reason = inactive ? "account-inactive" : "sign-in-failed";

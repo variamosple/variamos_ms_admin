@@ -302,6 +302,7 @@ describe("createMigrator", () => {
       "0014-permission-name-format",
       "0015-versioned-functions",
       "0016-absolute-instants",
+      "0017-google-identity",
     ]);
   });
 });

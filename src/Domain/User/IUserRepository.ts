@@ -30,6 +30,10 @@ export interface IUserRepository {
   findSessionUser(request: RequestModel<string>): Promise<ResponseModel<User>>;
   /** The user of a Google address with its state, created when unknown. */
   findOrCreateUser(request: RequestModel<User>): Promise<ResponseModel<User>>;
+  /** The account linked to this Google account, with its state; null if none. */
+  findGoogleAccount(googleSub: string): Promise<User | null>;
+  /** Links an account to its Google account; an existing link is kept. */
+  linkGoogleIdentity(userId: string, googleSub: string): Promise<void>;
   /** Null for an unknown account. */
   findPasswordAccount(
     by: { email: string } | { id: string },

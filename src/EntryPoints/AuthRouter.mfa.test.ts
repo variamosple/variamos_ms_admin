@@ -43,7 +43,12 @@ vi.mock("google-auth-library", () => ({
   OAuth2Client: class {
     public verifyIdToken() {
       return Promise.resolve({
-        getPayload: () => ({ name: "Ana", email: "ana@example.com" }),
+        getPayload: () => ({
+          sub: "google-sub-ana",
+          name: "Ana",
+          email: "ana@example.com",
+          email_verified: true,
+        }),
       });
     }
   },
@@ -87,7 +92,7 @@ function setUp(mfaEnabled: boolean, trustedDeviceDays = 14) {
   auth.signIn.mockResolvedValue(
     new ResponseModel<User>("signIn").withResponse(ana()),
   );
-  auth.findOrCreate.mockResolvedValue(
+  auth.signInWithGoogle.mockResolvedValue(
     new ResponseModel<User>("loginWithGoogle").withResponse(ana()),
   );
   query.sessionUser.mockResolvedValue(

@@ -8,6 +8,10 @@ import type { IMailService } from "#src/Domain/Mail/IMailService.js";
 import type { IGuestRoleRepository } from "#src/Domain/Role/Repository/IGuestRoleRepository.js";
 import { refuseClosedAccount } from "#src/Domain/User/Entity/AccountAccess.js";
 import type { Credentials } from "#src/Domain/User/Entity/Credentials.js";
+import {
+  decideGoogleSignIn,
+  type GoogleProfile,
+} from "#src/Domain/User/Entity/GoogleIdentity.js";
 import { User } from "#src/Domain/User/Entity/User.js";
 import { UserRegistration } from "#src/Domain/User/Entity/UserRegistration.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
@@ -164,26 +168,84 @@ export class UserAuthUseCase {
     return response;
   }
 
-  /** Opens the account of a Google address, created at the first sign-in. */
-  public async findOrCreate(
-    request: RequestModel<User>,
+  /**
+   * Opens the account of a Google sign-in (EV-70 lot 5): found by its link
+   * to the Google account, else by its address, else created; see
+   * decideGoogleSignIn for when an address may be linked.
+   */
+  public async signInWithGoogle(
+    request: RequestModel<GoogleProfile>,
   ): Promise<ResponseModel<User>> {
-    const found = refuseClosedAccount(
-      await this.userRepository.findOrCreateUser(request),
-      DomainErrorCodes.FORBIDDEN,
-    );
-    if (found.errorCode || !found.data) return found;
+    const response = new ResponseModel<User>(request.transactionId);
+    const profile = request.data;
+    if (!profile?.sub || !profile.email) {
+      return response.withError(
+        DomainErrorCodes.INVALID_INPUT,
+        "The Google account has no identifier or no address.",
+      );
+    }
     try {
-      found.data = await this.userRepository.recordSignIn(found.data);
+      const linked = await this.userRepository.findGoogleAccount(profile.sub);
+      const byEmail = linked
+        ? null
+        : await this.userRepository.findPasswordAccount({
+            email: profile.email,
+          });
+      const decision = decideGoogleSignIn(
+        profile,
+        linked
+          ? { kind: "linked" }
+          : byEmail
+            ? { kind: "by-email", hasPassword: Boolean(byEmail.passwordHash) }
+            : { kind: "none" },
+      );
+      if (decision.action === "refuse") {
+        return response.withError(
+          DomainErrorCodes.UNAUTHORIZED_ACCESS,
+          decision.reason,
+        );
+      }
+
+      let account = linked ?? byEmail?.user ?? null;
+      if (decision.action === "create") {
+        const created = await this.userRepository.findOrCreateUser(
+          new RequestModel(
+            request.transactionId,
+            User.builder()
+              .setUser(profile.name)
+              .setName(profile.name)
+              .setEmail(profile.email)
+              .build(),
+          ),
+        );
+        if (created.errorCode || !created.data) return created;
+        account = created.data;
+      }
+      if (!account?.id) {
+        return response.withError(
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal server error",
+        );
+      }
+
+      const open = refuseClosedAccount(
+        response.withResponse(account),
+        DomainErrorCodes.FORBIDDEN,
+      );
+      if (open.errorCode) return open;
+      if (decision.action !== "sign-in") {
+        await this.userRepository.linkGoogleIdentity(account.id, profile.sub);
+      }
+      open.data = await this.userRepository.recordSignIn(account);
+      return open;
     } catch (error) {
-      this.logger.err("Error in findOrCreateUser:");
+      this.logger.err("Error in signInWithGoogle:");
       this.logger.err(error);
       return new ResponseModel<User>(request.transactionId).withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
       );
     }
-    return found;
   }
 
   public async getGuestData(

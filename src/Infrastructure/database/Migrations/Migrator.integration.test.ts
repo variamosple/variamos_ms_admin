@@ -32,6 +32,7 @@ import {
   SIGN_UP_DEFAULT_ROLE_IDS,
 } from "./0015-versioned-functions.js";
 import { ABSOLUTE_INSTANT_COLUMNS } from "./0016-absolute-instants.js";
+import { GOOGLE_IDENTITY_TABLE } from "./0017-google-identity.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 import {
   ADMIN_MIGRATIONS,
@@ -146,6 +147,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         ACTIVITY_LOG_TABLE,
         ACCESS_LOG_TABLE,
         BUG_ASSIGNEES_TABLE,
+        GOOGLE_IDENTITY_TABLE,
       ].sort(),
     );
   });
@@ -253,6 +255,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         ACTIVITY_LOG_TABLE,
         ACCESS_LOG_TABLE,
         BUG_ASSIGNEES_TABLE,
+        GOOGLE_IDENTITY_TABLE,
       ]),
     ).toEqual(before);
     expect(await columnsOf("t07_prod", "bugs")).toEqual(
@@ -656,5 +659,28 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         created: "2026-11-10 22:30",
       },
     ]);
+  });
+  it("links one Google account per account, dropped with the account (EV-70 lot 5)", async () => {
+    await sequelize.query(
+      `INSERT INTO "t07_fresh"."user" ("id") VALUES ('g-1'), ('g-2')`,
+    );
+    const link = (sub: string, user: string) =>
+      sequelize.query(
+        `INSERT INTO "t07_fresh"."${GOOGLE_IDENTITY_TABLE}" ("google_sub", "user_id") VALUES (:sub, :user)`,
+        { replacements: { sub, user } },
+      );
+
+    await link("sub-1", "g-1");
+    await expect(link("sub-1", "g-2")).rejects.toThrow();
+    await expect(link("sub-2", "g-1")).rejects.toThrow();
+    await link("sub-2", "g-2");
+    await sequelize.query(`DELETE FROM "t07_fresh"."user" WHERE "id" = 'g-1'`);
+
+    expect(
+      await sequelize.query(
+        `SELECT "google_sub", "user_id" FROM "t07_fresh"."${GOOGLE_IDENTITY_TABLE}"`,
+        { type: QueryTypes.SELECT },
+      ),
+    ).toEqual([{ google_sub: "sub-2", user_id: "g-2" }]);
   });
 });

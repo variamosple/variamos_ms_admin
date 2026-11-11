@@ -12,8 +12,10 @@ vi.mock("google-auth-library", () => {
               return undefined;
             }
             return {
+              sub: "google-sub-john",
               name: "John Doe",
               email: "john@example.com",
+              email_verified: idToken !== "unverified-token",
             };
           },
         });
@@ -1342,7 +1344,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         "loginWithGoogle",
       ).withResponse(mockUser);
       vi.mocked(createJwt).mockResolvedValue("google-jwt-token");
-      (UserAuthUseCase.prototype.findOrCreate as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signInWithGoogle as vi.Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -1359,7 +1361,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Creation failed",
       );
-      (UserAuthUseCase.prototype.findOrCreate as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signInWithGoogle as vi.Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -1373,7 +1375,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("redirects an inactive account with its own reason", async () => {
-      (UserAuthUseCase.prototype.findOrCreate as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signInWithGoogle as vi.Mock).mockResolvedValue(
         new ResponseModel("loginWithGoogle").withError(
           DomainErrorCodes.FORBIDDEN,
           "Your account is disabled.",
@@ -1394,7 +1396,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         id: "user-8",
         active: false,
       });
-      (UserAuthUseCase.prototype.findOrCreate as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signInWithGoogle as vi.Mock).mockResolvedValue(
         new ResponseModel("loginWithGoogle").withError(
           DomainErrorCodes.FORBIDDEN,
           "Your account is disabled.",
@@ -1418,7 +1420,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       );
 
       vi.mocked(createJwt).mockResolvedValue("google-jwt-token");
-      (UserAuthUseCase.prototype.findOrCreate as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signInWithGoogle as vi.Mock).mockResolvedValue(
         new ResponseModel("loginWithGoogle").withResponse(
           User.builder().setId("user-123").setEmail("john@example.com").build(),
         ),
@@ -1439,8 +1441,96 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       );
     });
 
+    it("hands the use case the Google account, its identifier and whether its address is verified", async () => {
+      vi.mocked(createJwt).mockResolvedValue("google-jwt-token");
+      (UserAuthUseCase.prototype.signInWithGoogle as vi.Mock).mockResolvedValue(
+        new ResponseModel("loginWithGoogle").withResponse(
+          User.builder().setId("user-123").setEmail("john@example.com").build(),
+        ),
+      );
+
+      await supertest(app)
+        .post("/auth/google/callback")
+        .send({ credential: "unverified-token" });
+
+      expect(UserAuthUseCase.prototype.signInWithGoogle).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: {
+            sub: "google-sub-john",
+            email: "john@example.com",
+            name: "John Doe",
+            emailVerified: false,
+            hostedDomain: undefined,
+          },
+        }),
+      );
+    });
+
+    it("records why Google may not open an account", async () => {
+      (UserAuthUseCase.prototype.signInWithGoogle as vi.Mock).mockResolvedValue(
+        new ResponseModel("loginWithGoogle").withError(
+          DomainErrorCodes.UNAUTHORIZED_ACCESS,
+          "google_password_account",
+        ),
+      );
+
+      const response = await supertest(app)
+        .post("/auth/google/callback")
+        .send({ credential: "mock-google-id-token" });
+
+      expect(response.headers.location).toContain("reason=sign-in-failed");
+      await vi.waitFor(() =>
+        expect(accessJournal.record).toHaveBeenCalledWith(
+          expect.objectContaining({
+            event: "sign-in.google",
+            outcome: "failed",
+            reason: "google_password_account",
+          }),
+        ),
+      );
+    });
+
+    it("only logs a missing or different g_csrf_token for now", async () => {
+      const warn = vi.spyOn(logger, "warn").mockImplementation(() => {});
+      vi.mocked(createJwt).mockResolvedValue("google-jwt-token");
+      (UserAuthUseCase.prototype.signInWithGoogle as vi.Mock).mockResolvedValue(
+        new ResponseModel("loginWithGoogle").withResponse(
+          User.builder().setId("user-123").setEmail("john@example.com").build(),
+        ),
+      );
+
+      const missing = await supertest(app)
+        .post("/auth/google/callback")
+        .send({ credential: "mock-google-id-token" });
+      const different = await supertest(app)
+        .post("/auth/google/callback")
+        .set("Cookie", ["g_csrf_token=from-cookie"])
+        .send({ credential: "mock-google-id-token", g_csrf_token: "other" });
+
+      expect(missing.headers.location).toBe("http://localhost:3000");
+      expect(different.headers.location).toBe("http://localhost:3000");
+      expect(warn).toHaveBeenCalledTimes(2);
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining("g_csrf_token missing or not matching"),
+      );
+
+      warn.mockClear();
+      await supertest(app)
+        .post("/auth/google/callback")
+        .set("Cookie", ["g_csrf_token=same-value"])
+        .send({
+          credential: "mock-google-id-token",
+          g_csrf_token: "same-value",
+        });
+
+      expect(warn).not.toHaveBeenCalledWith(
+        expect.stringContaining("g_csrf_token"),
+      );
+      warn.mockRestore();
+    });
+
     it("records a Google sign-in once, even when the session fails after it", async () => {
-      (UserAuthUseCase.prototype.findOrCreate as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signInWithGoogle as vi.Mock).mockResolvedValue(
         new ResponseModel("loginWithGoogle").withResponse(
           User.builder().setId("user-123").setEmail("john@example.com").build(),
         ),
@@ -1510,7 +1600,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         "loginWithGoogle",
       ).withResponse(mockUser);
       vi.mocked(createJwt).mockResolvedValue("google-jwt-token");
-      (UserAuthUseCase.prototype.findOrCreate as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signInWithGoogle as vi.Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -2292,7 +2382,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         "loginWithGoogle",
       ).withResponse(mockUser);
       vi.mocked(createJwt).mockResolvedValue("google-jwt-token");
-      (UserAuthUseCase.prototype.findOrCreate as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signInWithGoogle as vi.Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -2301,7 +2391,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .send({ credential: "mock-google-id-token" });
 
       expect(response.status).toBe(302);
-      expect(UserAuthUseCase.prototype.findOrCreate).toHaveBeenCalledWith(
+      expect(UserAuthUseCase.prototype.signInWithGoogle).toHaveBeenCalledWith(
         expect.objectContaining({ transactionId: "loginWithGoogle" }),
       );
     });
@@ -2310,7 +2400,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       const expectedResponse = new ResponseModel(
         "loginWithGoogle",
       ).withResponse(null);
-      (UserAuthUseCase.prototype.findOrCreate as vi.Mock).mockResolvedValue(
+      (UserAuthUseCase.prototype.signInWithGoogle as vi.Mock).mockResolvedValue(
         expectedResponse,
       );
 
