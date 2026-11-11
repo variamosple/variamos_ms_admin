@@ -26,6 +26,12 @@ import {
   HEALTH_LOG_INDEX,
 } from "./0009-health-log-indexes.js";
 import { BUG_ISSUE_INDEX } from "./0013-bug-issue-unique-index.js";
+import { PERMISSION_NAME_CHECK } from "./0014-permission-name-format.js";
+import {
+  METRICS_FUNCTIONS,
+  SIGN_UP_DEFAULT_ROLE_IDS,
+} from "./0015-versioned-functions.js";
+import { ABSOLUTE_INSTANT_COLUMNS } from "./0016-absolute-instants.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 import {
   ADMIN_MIGRATIONS,
@@ -225,7 +231,12 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
       "microservice_health_logs",
       "microservice_daily_stats",
     ];
-    const before = await structureOf("t07_prod", ["bugs", ...healthTables]);
+    // 0016 gives the reset tokens absolute instants, tested on their own
+    const before = await structureOf("t07_prod", [
+      "bugs",
+      "password_reset_tokens",
+      ...healthTables,
+    ]);
     const bugColumns = await columnsOf("t07_prod", "bugs");
 
     expect(await migrate("t07_prod")).toEqual(ALL_MIGRATIONS);
@@ -235,6 +246,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
     expect(
       await structureOf("t07_prod", [
         "bugs",
+        "password_reset_tokens",
         ...healthTables,
         ...USER_MFA_TABLES,
         TRUSTED_DEVICE_TABLE,
@@ -483,5 +495,166 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         { type: QueryTypes.SELECT },
       ),
     ).toEqual([{ factors: 0, codes: 1 }]);
+  });
+  // The permission tables belong to the shared schema: created here by hand
+  const createPermissionTables = async (schema: string, names: string[]) => {
+    await sequelize.query(
+      `CREATE TABLE "${schema}"."role" ("id" serial PRIMARY KEY, "name" text NOT NULL)`,
+    );
+    await sequelize.query(
+      `CREATE TABLE "${schema}"."permission" ("id" serial PRIMARY KEY, "name" text NOT NULL)`,
+    );
+    await sequelize.query(
+      `CREATE TABLE "${schema}"."role_permission" ("role_id" int, "permission_id" int)`,
+    );
+    await sequelize.query(
+      `CREATE TABLE "${schema}"."user_role" ("user_id" text, "role_id" int)`,
+    );
+    for (const name of names) {
+      await sequelize.query(
+        `INSERT INTO "${schema}"."permission" ("name") VALUES (:name)`,
+        { replacements: { name } },
+      );
+    }
+  };
+
+  const insertPermission = (schema: string, name: string) =>
+    sequelize.query(
+      `INSERT INTO "${schema}"."permission" ("name") VALUES (:name)`,
+      { replacements: { name } },
+    );
+
+  const checkOf = async (schema: string) =>
+    sequelize.query<{ validated: boolean }>(
+      `SELECT convalidated AS validated FROM pg_constraint
+        WHERE conname = :check AND connamespace = :schema::regnamespace`,
+      {
+        replacements: { schema, check: PERMISSION_NAME_CHECK },
+        type: QueryTypes.SELECT,
+      },
+    );
+
+  it("refuses a permission name out of format (EV-70 lot 4)", async () => {
+    await createSchema("t14_perm");
+    await createPermissionTables("t14_perm", ["bugs::query"]);
+
+    await migrate("t14_perm");
+
+    expect(await checkOf("t14_perm")).toEqual([{ validated: true }]);
+    await insertPermission("t14_perm", "admin::notifications::dispatch");
+    await expect(insertPermission("t14_perm", "Bugs:update")).rejects.toThrow(
+      PERMISSION_NAME_CHECK,
+    );
+  });
+
+  it("keeps the names already out of format, and checks the new ones", async () => {
+    await createSchema("t14_legacy");
+    await createPermissionTables("t14_legacy", ["bugs::query", "Old Name"]);
+
+    await migrate("t14_legacy");
+
+    expect(await checkOf("t14_legacy")).toEqual([{ validated: false }]);
+    expect(
+      await sequelize.query(
+        `SELECT "name" FROM "t14_legacy"."permission" ORDER BY "id"`,
+        { type: QueryTypes.SELECT },
+      ),
+    ).toEqual([
+      { name: "bugs::query" },
+      { name: "Old Name" },
+      // Added by 0012, which finds the permission tables here
+      { name: "laboratory::access" },
+    ]);
+    await expect(insertPermission("t14_legacy", "new name")).rejects.toThrow(
+      PERMISSION_NAME_CHECK,
+    );
+  });
+
+  it("gives a new account its default roles, and every statistics function (EV-90)", async () => {
+    await createSchema("t15_signup");
+    await createPermissionTables("t15_signup", []);
+
+    await migrate("t15_signup");
+    await sequelize.query(
+      `INSERT INTO "t15_signup"."user" ("id") VALUES ('new-user')`,
+    );
+
+    expect(
+      await sequelize.query(
+        `SELECT "role_id" FROM "t15_signup"."user_role" WHERE "user_id" = 'new-user' ORDER BY "role_id"`,
+        { type: QueryTypes.SELECT },
+      ),
+    ).toEqual(SIGN_UP_DEFAULT_ROLE_IDS.map((role_id) => ({ role_id })));
+    expect(
+      await sequelize.query(
+        `SELECT p.proname FROM pg_proc p
+          WHERE p.pronamespace = 't15_signup'::regnamespace
+            AND p.proname NOT LIKE '%_append_only' ORDER BY p.proname`,
+        { type: QueryTypes.SELECT },
+      ),
+    ).toEqual(
+      [...METRICS_FUNCTIONS, "insert_user_role"]
+        .sort()
+        .map((proname) => ({ proname })),
+    );
+  });
+
+  it("adds no sign-up trigger without the shared user_role table", async () => {
+    expect(
+      await sequelize.query(
+        `SELECT t.tgname FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
+          WHERE c.relnamespace = 't07_fresh'::regnamespace AND t.tgname = 'after_insert_user'`,
+        { type: QueryTypes.SELECT },
+      ),
+    ).toEqual([]);
+  });
+
+  it("keeps each stored instant when the columns gain a time zone (EV-116)", async () => {
+    await sequelize.query(`DROP SCHEMA IF EXISTS "t16_dates" CASCADE`);
+    await sequelize.query(`CREATE SCHEMA "t16_dates"`);
+    await sequelize.query(productionSchema("t16_dates"));
+    await sequelize.query(
+      `INSERT INTO "t16_dates"."user" ("id") VALUES ('u-1')`,
+    );
+    await sequelize.query(
+      `INSERT INTO "t16_dates"."password_reset_tokens"
+         ("user_id", "token_hash", "expires_at", "used_at", "created_at")
+       VALUES ('u-1', 'h', '2026-11-10 23:30:00', '2026-11-10 23:00:00', '2026-11-10 22:30:00')`,
+    );
+
+    await migrate("t16_dates");
+
+    const types = await sequelize.query<{
+      table_name: string;
+      column_name: string;
+      udt_name: string;
+    }>(
+      `SELECT table_name, column_name, udt_name FROM information_schema.columns
+        WHERE table_schema = 't16_dates' AND udt_name LIKE 'timestamp%'`,
+      { type: QueryTypes.SELECT },
+    );
+    expect(types.filter((c) => c.udt_name !== "timestamptz")).toEqual([]);
+    for (const { table, column } of ABSOLUTE_INSTANT_COLUMNS) {
+      expect(types).toContainEqual({
+        table_name: table,
+        column_name: column,
+        udt_name: "timestamptz",
+      });
+    }
+    expect(
+      await sequelize.query(
+        `SELECT to_char("expires_at" AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS expires,
+                to_char("used_at" AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS used,
+                to_char("created_at" AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS created
+           FROM "t16_dates"."password_reset_tokens"`,
+        { type: QueryTypes.SELECT },
+      ),
+    ).toEqual([
+      {
+        expires: "2026-11-10 23:30",
+        used: "2026-11-10 23:00",
+        created: "2026-11-10 22:30",
+      },
+    ]);
   });
 });
