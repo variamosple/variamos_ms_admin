@@ -99,7 +99,13 @@ describe("MetricsRepositoryImpl.queryMetric", () => {
     ["daily_unique_visits", "get_daily_unique_visits_metrics(:startDate"],
     ["monthly_visits", "get_monthly_visits_metrics(:startDate"],
     ["yearly_visits", "get_yearly_visits_metrics()"],
-    ["top_visited_pages", "get_top_visited_pages_metrics()"],
+    ["top_visited_pages", "get_top_visited_pages_metrics(:startDate"],
+    ["monthly_active_users", "get_monthly_active_users_metrics(:startDate"],
+    [
+      "monthly_active_projects",
+      "get_monthly_active_projects_metrics(:startDate",
+    ],
+    ["top_languages", "get_top_languages_metrics(:startDate"],
   ])("knows the chart %s of the dashboard", async (id, call) => {
     const query = vi
       .spyOn(VARIAMOS_ORM, "query")

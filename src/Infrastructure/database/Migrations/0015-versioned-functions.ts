@@ -11,7 +11,7 @@ import type { MigrationContext, SchemaMigration } from "./MigrationContext.js";
 // the same functions.
 
 // Written without quotes, as production has it: a plain schema name only
-const PLAIN_SCHEMA = /^[a-z_][a-z0-9_]*$/;
+export const PLAIN_SCHEMA = /^[a-z_][a-z0-9_]*$/;
 
 export const METRICS_FUNCTIONS = [
   "get_daily_unique_visits_metrics",
