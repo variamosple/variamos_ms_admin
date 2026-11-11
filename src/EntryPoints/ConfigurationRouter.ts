@@ -2,6 +2,10 @@ import { hasPermissions } from "@variamosple/variamos-security";
 import { type Request, Router } from "express";
 import EnvVars from "#src/common/EnvVars.js";
 import {
+  announcementOf,
+  type ConfigurationAnnouncement,
+} from "#src/Domain/Configuration/Entity/AnnouncedConfigurationKeys.js";
+import {
   type AcceptedConfigurationValues,
   acceptedValuesOf,
   isConfigurationApplied,
@@ -39,6 +43,8 @@ export interface ConfigurationResponseDto {
   isApplied: boolean;
   /** What a key the code reads accepts, for the form (EV-18 lot C). */
   accepts?: AcceptedConfigurationValues;
+  /** The announcement its value suggests, for a setting users notice (EV-115). */
+  announcement?: ConfigurationAnnouncement;
   targetServices: string[];
   description?: string;
   updatedBy?: string;
@@ -61,6 +67,9 @@ const toConfigurationResponse = (
   isReadOnly: config.isReadOnly,
   isApplied: isConfigurationApplied(config.key.getValue()),
   accepts: acceptedValuesOf(config.key.getValue()),
+  announcement:
+    announcementOf(config.key.getValue(), config.getDisplayValue()) ??
+    undefined,
   targetServices: config.targetServices,
   description: config.description,
   updatedBy: config.updatedBy,

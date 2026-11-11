@@ -1,5 +1,6 @@
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import { withJournal } from "#src/Domain/Activity/withJournal.js";
+import { isAnnouncedConfiguration } from "#src/Domain/Configuration/Entity/AnnouncedConfigurationKeys.js";
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -19,6 +20,9 @@ export interface NotificationDispatchRequest extends NotificationAudience {
   // Chosen by the interface for one message, the same when the
   // administrator sends it again after an error (EV-99, CA-NT-05)
   eventId?: string;
+  // The key of the setting this message announces, recorded with it
+  // (EV-115 lot A)
+  announces?: string;
 }
 
 /**
@@ -68,6 +72,7 @@ export class NotificationDispatchUseCase {
           audience: data.audience ?? null,
           roles: data.roles ?? null,
           title: data.title ?? null,
+          announces: data.announces ?? null,
         },
         transactionId: request.transactionId,
       },
@@ -77,6 +82,12 @@ export class NotificationDispatchUseCase {
           return response.withError(
             DomainErrorCodes.INVALID_INPUT,
             "Title and body are required.",
+          );
+        }
+        if (data.announces && !isAnnouncedConfiguration(data.announces)) {
+          return response.withError(
+            DomainErrorCodes.INVALID_INPUT,
+            "This setting is not one that users are told about.",
           );
         }
         const recipients = await this.recipientsOf(data);
@@ -110,6 +121,7 @@ export class NotificationDispatchUseCase {
           roles: data.roles ?? null,
           title: data.title,
           recipientCount,
+          announces: data.announces ?? null,
         },
       }),
     );
