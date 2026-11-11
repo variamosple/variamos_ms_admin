@@ -33,6 +33,7 @@ import {
 } from "./0015-versioned-functions.js";
 import { ABSOLUTE_INSTANT_COLUMNS } from "./0016-absolute-instants.js";
 import { GOOGLE_IDENTITY_TABLE } from "./0017-google-identity.js";
+import { USAGE_METRICS_FUNCTIONS } from "./0018-usage-metrics.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 import {
   ADMIN_MIGRATIONS,
@@ -596,7 +597,13 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         { type: QueryTypes.SELECT },
       ),
     ).toEqual(
-      [...METRICS_FUNCTIONS, "insert_user_role"]
+      [
+        ...METRICS_FUNCTIONS,
+        ...USAGE_METRICS_FUNCTIONS,
+        // A second one, with a period (0018)
+        "get_top_visited_pages_metrics",
+        "insert_user_role",
+      ]
         .sort()
         .map((proname) => ({ proname })),
     );
@@ -682,5 +689,130 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         { type: QueryTypes.SELECT },
       ),
     ).toEqual([{ google_sub: "sub-2", user_id: "g-2" }]);
+  });
+  describe("usage statistics (EV-90 lots A.2 and A.3)", () => {
+    const S = "t18_usage";
+    const chartOf = async (call: string) => {
+      const [row] = await sequelize.query<{ char_data: { data: unknown } }>(
+        `SELECT char_data FROM "${S}".${call}`,
+        { type: QueryTypes.SELECT },
+      );
+      return row?.char_data.data;
+    };
+    const period = "('2026-09-01', '2026-10-31')";
+
+    beforeAll(async () => {
+      await createSchema(S);
+      // Tables of the other services, reduced to what the statistics read
+      await sequelize.query(`
+        CREATE TABLE "${S}".country ("code" varchar(2), "name" text);
+        CREATE TABLE "${S}".page_visit ("page_id" varchar(48), "user_id" text NOT NULL,
+          "visit_date" date NOT NULL, "country_code" varchar(2));
+        CREATE TABLE "${S}".project ("id" text PRIMARY KEY, "date" timestamptz);
+        CREATE TABLE "${S}".project_history ("project_id" varchar(255), "user_id" varchar(255),
+          "created_at" timestamptz NOT NULL);
+        CREATE TABLE "${S}".model ("id" text, "project_id" text, "language_id" integer);
+        CREATE TABLE "${S}".language ("id" integer, "name" text);
+        INSERT INTO "${S}".country VALUES ('CO', 'Colombia'), ('FR', 'France');
+        INSERT INTO "${S}".page_visit VALUES
+          ('home', 'u1', '2026-09-03', 'CO'), ('home', 'u1', '2026-09-03', 'CO'),
+          ('home', 'u2', '2026-09-03', 'FR'), ('list', 'u2', '2026-09-20', 'FR'),
+          ('home', 'u3', '2025-12-31', NULL);
+        INSERT INTO "${S}".project VALUES
+          ('p1', '2026-09-10T12:00:00Z'), ('p2', '2026-10-05T12:00:00Z'), ('p3', NULL),
+          ('p4', '2025-01-01T12:00:00Z');
+        INSERT INTO "${S}".project_history VALUES
+          ('p3', 'u6', '2026-09-15T12:00:00Z'), ('p1', 'u1', '2026-09-12T12:00:00Z');
+        INSERT INTO "${S}".model VALUES
+          ('m1', 'p1', 1), ('m2', 'p1', 1), ('m3', 'p2', 2), ('m4', 'p3', 1), ('m5', 'p4', 2);
+        INSERT INTO "${S}".language VALUES (1, 'Feature'), (2, 'Class');
+      `);
+      await migrate(S);
+      // 23:30 in Bogotá on 30 September is 1 October in UTC
+      await sequelize.query(`
+        INSERT INTO "${S}".admin_access_logs ("occurred_at", "event", "outcome", "user_id") VALUES
+          ('2026-09-30T23:30:00-05:00', 'sign-in', 'success', 'u4'),
+          ('2026-09-10T12:00:00Z', 'sign-in', 'failed', 'u5')
+      `);
+    });
+
+    it("counts the recorded visits by page and day, month and year", async () => {
+      expect(await chartOf(`get_daily_visits_metrics${period}`)).toEqual([
+        { page: "home", count: 3, date: "2026-09-03" },
+        { page: "list", count: 1, date: "2026-09-20" },
+      ]);
+      expect(await chartOf(`get_daily_unique_visits_metrics${period}`)).toEqual(
+        [
+          { page: "home", count: 2, date: "2026-09-03" },
+          { page: "list", count: 1, date: "2026-09-20" },
+        ],
+      );
+      expect(await chartOf(`get_monthly_visits_metrics${period}`)).toEqual([
+        { page: "home", count: 3, date: "2026-09" },
+        { page: "list", count: 1, date: "2026-09" },
+      ]);
+      expect(await chartOf(`get_top_visited_pages_metrics${period}`)).toEqual([
+        { page: "home", count: 3 },
+        { page: "list", count: 1 },
+      ]);
+      expect(await chartOf("get_yearly_visits_metrics()")).toEqual({
+        "2025": [["NO COUNTRY", 1]],
+        "2026": [
+          ["Colombia", 2],
+          ["France", 2],
+        ],
+      });
+    });
+
+    it("counts an account once a month, whether it visited, signed in or changed a project", async () => {
+      expect(
+        await chartOf(`get_monthly_active_users_metrics${period}`),
+      ).toEqual([
+        { series: "Active users", count: 3, date: "2026-09" },
+        { series: "Active users", count: 1, date: "2026-10" },
+      ]);
+    });
+
+    it("counts a project changed or saved in the month, once", async () => {
+      expect(
+        await chartOf(`get_monthly_active_projects_metrics${period}`),
+      ).toEqual([
+        { series: "Active projects", count: 2, date: "2026-09" },
+        { series: "Active projects", count: 1, date: "2026-10" },
+      ]);
+    });
+
+    it("ranks the languages by the active projects that use them", async () => {
+      expect(await chartOf(`get_top_languages_metrics${period}`)).toEqual([
+        { language: "Feature", count: 2 },
+        { language: "Class", count: 1 },
+      ]);
+    });
+
+    it("gives every chart to the dashboard, empty without the tables of the other services", async () => {
+      const read = async (schema: string) => {
+        const [row] = await sequelize.query<{
+          data: { id: string; data: unknown }[];
+        }>(`SELECT "${schema}".get_metrics() AS data`, {
+          type: QueryTypes.SELECT,
+        });
+        return row?.data ?? [];
+      };
+      const ids = [
+        "yearly_visits",
+        "daily_visits",
+        "daily_unique_visits",
+        "monthly_visits",
+        "top_visited_pages",
+        "monthly_active_users",
+        "monthly_active_projects",
+        "top_languages",
+      ];
+
+      expect((await read(S)).map((c) => c.id)).toEqual(ids);
+      const empty = await read("t07_fresh");
+      expect(empty.map((c) => c.id)).toEqual(ids);
+      expect(empty.every((c) => c.data === null)).toBe(true);
+    });
   });
 });

@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { Permission } from "#src/Domain/Permission/Entity/Permission.js";
 import { PERMISSION_NAME_PATTERN } from "./0014-permission-name-format.js";
 import { versionedFunctions } from "./0015-versioned-functions.js";
+import { usageMetrics } from "./0018-usage-metrics.js";
 import type { MigrationContext } from "./MigrationContext.js";
 
 const DIR = import.meta.dirname;
@@ -52,21 +53,30 @@ describe("migration rules", () => {
     expect(new RegExp(PERMISSION_NAME_PATTERN).test(name)).toBe(domain);
   });
 
-  it("writes the functions only into a plain schema name", async () => {
-    const sequelize = { transaction: vi.fn(), query: vi.fn() };
-    const context = {
-      sequelize: sequelize as unknown as Sequelize,
-      schema: 'variamos"; DROP',
-    } satisfies MigrationContext;
+  it.each([
+    ["0015", versionedFunctions],
+    ["0018", usageMetrics],
+  ])(
+    "writes the functions of %s only into a plain schema name",
+    async (_name, migration) => {
+      const sequelize = { transaction: vi.fn(), query: vi.fn() };
+      const context = {
+        sequelize: sequelize as unknown as Sequelize,
+        schema: 'variamos"; DROP',
+      } satisfies MigrationContext;
 
-    await expect(versionedFunctions.up({ context, name: "x" })).rejects.toThrow(
-      "not a plain name",
-    );
-    expect(sequelize.transaction).not.toHaveBeenCalled();
-  });
+      await expect(migration.up({ context, name: "x" })).rejects.toThrow(
+        "not a plain name",
+      );
+      expect(sequelize.transaction).not.toHaveBeenCalled();
+    },
+  );
 
-  it("names no schema of its own in the functions", () => {
-    const code = readFileSync(join(DIR, "0015-versioned-functions.ts"), "utf8");
-    expect(code).not.toContain("variamos.");
-  });
+  it.each(["0015-versioned-functions.ts", "0018-usage-metrics.ts"])(
+    "names no schema of its own in the functions of %s",
+    (file) => {
+      const code = readFileSync(join(DIR, file), "utf8");
+      expect(code).not.toContain("variamos.");
+    },
+  );
 });

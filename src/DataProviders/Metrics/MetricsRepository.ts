@@ -10,7 +10,7 @@ import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 import { BaseRepository } from "../BaseRepository.js";
 
 // Keyed by the ids that get_metrics() gives the dashboard, which sends them
-// back to filter a chart; the functions come from migration 0015
+// back to filter a chart; the functions come from migrations 0015 and 0018
 const METRICS_FUNCTIONS = new Map<string, string>([
   [
     "daily_visits",
@@ -24,9 +24,24 @@ const METRICS_FUNCTIONS = new Map<string, string>([
     "monthly_visits",
     `${DB_SCHEMA}.get_monthly_visits_metrics(:startDate, :endDate)`,
   ],
-  // These two take no period: they answer as on the dashboard
+  [
+    "top_visited_pages",
+    `${DB_SCHEMA}.get_top_visited_pages_metrics(:startDate, :endDate)`,
+  ],
+  [
+    "monthly_active_users",
+    `${DB_SCHEMA}.get_monthly_active_users_metrics(:startDate, :endDate)`,
+  ],
+  [
+    "monthly_active_projects",
+    `${DB_SCHEMA}.get_monthly_active_projects_metrics(:startDate, :endDate)`,
+  ],
+  [
+    "top_languages",
+    `${DB_SCHEMA}.get_top_languages_metrics(:startDate, :endDate)`,
+  ],
+  // Takes no period: it answers every year, by country
   ["yearly_visits", `${DB_SCHEMA}.get_yearly_visits_metrics()`],
-  ["top_visited_pages", `${DB_SCHEMA}.get_top_visited_pages_metrics()`],
 ]);
 
 export class MetricsRepositoryImpl

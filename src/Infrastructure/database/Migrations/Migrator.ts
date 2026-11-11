@@ -18,6 +18,7 @@ import { permissionNameFormat } from "./0014-permission-name-format.js";
 import { versionedFunctions } from "./0015-versioned-functions.js";
 import { absoluteInstants } from "./0016-absolute-instants.js";
 import { googleIdentity } from "./0017-google-identity.js";
+import { usageMetrics } from "./0018-usage-metrics.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 
 // Applied in order at start-up, each one once; append new migrations here
@@ -39,6 +40,7 @@ export const ADMIN_MIGRATIONS: SchemaMigration[] = [
   versionedFunctions,
   absoluteInstants,
   googleIdentity,
+  usageMetrics,
 ];
 
 // The schema is shared with other services: a name of our own
