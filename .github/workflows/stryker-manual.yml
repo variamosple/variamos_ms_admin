@@ -40,7 +40,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm ci
+          npm ci --ignore-scripts
 
       # Each partition fails under the break threshold of its config file (set
       # just under the measured score). continue-on-error lets the publish step
@@ -51,7 +51,7 @@ jobs:
         if: ${{ github.event_name == 'schedule' || inputs.partition == 'domain' || inputs.partition == 'all' }}
         continue-on-error: true
         run: |
-          npx stryker run stryker.domain.config.json --reporters progress,clear-text,html,json
+          npm run stryker:domain -- --reporters progress,clear-text,html,json
 
       - name: Keep Domain mutation report
         if: ${{ always() && steps.stryker_domain.outcome != 'skipped' }}
@@ -65,7 +65,7 @@ jobs:
         if: ${{ github.event_name == 'schedule' || inputs.partition == 'entrypoints' || inputs.partition == 'all' }}
         continue-on-error: true
         run: |
-          npx stryker run stryker.entrypoints.config.json --reporters progress,clear-text,html,json
+          npm run stryker:entrypoints -- --reporters progress,clear-text,html,json
 
       - name: Keep EntryPoints mutation report
         if: ${{ always() && steps.stryker_entrypoints.outcome != 'skipped' }}

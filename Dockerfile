@@ -4,7 +4,9 @@ FROM node:24-alpine AS build
 WORKDIR /variaMosAdminService
 # Dependencies first: a change of the source code reuses this layer
 COPY ./package.json ./package-lock.json ./
-RUN npm ci
+# No lifecycle script of the dependencies runs; bcrypt ships its prebuilt
+# binaries, musl included
+RUN npm ci --ignore-scripts
 
 COPY ./tsconfig.prod.json ./tsconfig.json ./build.ts ./
 COPY ./src ./src

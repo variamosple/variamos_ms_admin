@@ -103,7 +103,8 @@ export class HealthCheckCollector {
     logger.info(
       `Starting HealthCheckCollector (interval: ${this.pollIntervalMs}ms)...`,
     );
-    this.collectAll();
+    // triggerHealthChecks catches its own errors
+    void this.collectAll();
     this.intervalTimer = setInterval(
       () => this.collectAll(),
       this.pollIntervalMs,

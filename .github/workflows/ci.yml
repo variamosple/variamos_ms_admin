@@ -27,9 +27,11 @@ jobs:
         cache: 'npm'
         cache-dependency-path: package-lock.json
 
+    # No lifecycle script of the dependencies runs (Husky is not needed here;
+    # bcrypt ships its prebuilt binaries)
     - name: Install dependencies
       run: |
-        npm ci
+        npm ci --ignore-scripts
 
     - name: Verify commit message format
       if: github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]'

@@ -176,7 +176,7 @@ class BugBuilder {
       );
     }
     if (this.priority !== undefined) {
-      new BugPriority(this.priority);
+      BugPriority.parse(this.priority);
     }
     if (this.component !== undefined && !isBugComponent(this.component)) {
       throw new DomainError(
