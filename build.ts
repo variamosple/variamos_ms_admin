@@ -2,7 +2,7 @@
  * Remove old files, copy front-end ones.
  */
 
-import childProcess from "child_process";
+import childProcess from "node:child_process";
 import fs from "fs-extra";
 import logger from "jet-logger";
 
@@ -17,7 +17,9 @@ void (async () => {
     await exec("tsc --build tsconfig.prod.json", "./");
     // Verify production entrypoint exists to prevent deploy startup crashes
     if (!fs.existsSync("./dist/index.js")) {
-      throw new Error("Build Error: dist/index.js was not generated. Check compilerOptions.rootDir configuration!");
+      throw new Error(
+        "Build Error: dist/index.js was not generated. Check compilerOptions.rootDir configuration!",
+      );
     }
   } catch (err) {
     logger.err(err);
@@ -31,18 +33,7 @@ void (async () => {
 function remove(loc: string): Promise<void> {
   return new Promise((res, rej) => {
     return fs.remove(loc, (err) => {
-      return !!err ? rej(err) : res();
-    });
-  });
-}
-
-/**
- * Copy file.
- */
-function copy(src: string, dest: string): Promise<void> {
-  return new Promise((res, rej) => {
-    return fs.copy(src, dest, (err) => {
-      return !!err ? rej(err) : res();
+      return err ? rej(err) : res();
     });
   });
 }
@@ -53,13 +44,13 @@ function copy(src: string, dest: string): Promise<void> {
 function exec(cmd: string, loc: string): Promise<void> {
   return new Promise((res, rej) => {
     return childProcess.exec(cmd, { cwd: loc }, (err, stdout, stderr) => {
-      if (!!stdout) {
+      if (stdout) {
         logger.info(stdout);
       }
-      if (!!stderr) {
+      if (stderr) {
         logger.warn(stderr);
       }
-      return !!err ? rej(err) : res();
+      return err ? rej(err) : res();
     });
   });
 }

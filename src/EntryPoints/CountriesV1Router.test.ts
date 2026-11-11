@@ -1,5 +1,6 @@
 import express from "express";
 import supertest from "supertest";
+import type { Mock } from "vitest";
 import { mock } from "vitest-mock-extended";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -47,9 +48,9 @@ describe("CountriesV1Router Integration Tests", () => {
         mockCountries,
       );
 
-      (
-        CountriesQueryUseCase.prototype.getCountries as vi.Mock
-      ).mockResolvedValue(expectedResponse);
+      (CountriesQueryUseCase.prototype.getCountries as Mock).mockResolvedValue(
+        expectedResponse,
+      );
 
       const response = await supertest(app).get("/v1/countries");
 
@@ -67,9 +68,9 @@ describe("CountriesV1Router Integration Tests", () => {
     });
 
     it("should return 500 when CountriesQueryUseCase throws an exception", async () => {
-      (
-        CountriesQueryUseCase.prototype.getCountries as vi.Mock
-      ).mockRejectedValue(new Error("Database error"));
+      (CountriesQueryUseCase.prototype.getCountries as Mock).mockRejectedValue(
+        new Error("Database error"),
+      );
 
       const response = await supertest(app).get("/v1/countries");
 

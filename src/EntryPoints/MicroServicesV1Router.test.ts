@@ -1,6 +1,7 @@
 import { Readable } from "node:stream";
 import express from "express";
 import supertest from "supertest";
+import type { Mock } from "vitest";
 import { mock } from "vitest-mock-extended";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
@@ -75,7 +76,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         "queryMicroService",
       ).withResponse([]);
       (
-        MicroServiceQueryUseCase.prototype.queryMicroServices as vi.Mock
+        MicroServiceQueryUseCase.prototype.queryMicroServices as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
@@ -99,7 +100,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         "Query failed",
       );
       (
-        MicroServiceQueryUseCase.prototype.queryMicroServices as vi.Mock
+        MicroServiceQueryUseCase.prototype.queryMicroServices as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).get("/v1/micro-services");
@@ -109,7 +110,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return 500 when query throws an exception", async () => {
       (
-        MicroServiceQueryUseCase.prototype.queryMicroServices as vi.Mock
+        MicroServiceQueryUseCase.prototype.queryMicroServices as Mock
       ).mockRejectedValue(new Error("Unexpected error"));
 
       const response = await supertest(app).get("/v1/micro-services");
@@ -127,7 +128,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         "triggerMicroServicesHealthCheck",
       ).withResponse(null);
       (
-        MicroServiceManagementUseCase.prototype.triggerHealthChecks as vi.Mock
+        MicroServiceManagementUseCase.prototype.triggerHealthChecks as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
@@ -142,7 +143,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return 500 when triggerHealthChecks throws an exception", async () => {
       (
-        MicroServiceManagementUseCase.prototype.triggerHealthChecks as vi.Mock
+        MicroServiceManagementUseCase.prototype.triggerHealthChecks as Mock
       ).mockRejectedValue(new Error("Unexpected failure"));
 
       const response = await supertest(app)
@@ -159,7 +160,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         "triggerMicroServiceHealthCheck",
       ).withResponse(null);
       (
-        MicroServiceManagementUseCase.prototype.triggerHealthChecks as vi.Mock
+        MicroServiceManagementUseCase.prototype.triggerHealthChecks as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).post(
@@ -171,7 +172,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return 500 when single service check throws an error", async () => {
       (
-        MicroServiceManagementUseCase.prototype.triggerHealthChecks as vi.Mock
+        MicroServiceManagementUseCase.prototype.triggerHealthChecks as Mock
       ).mockRejectedValue(new Error("Collector failed"));
 
       const response = await supertest(app).post(
@@ -197,7 +198,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         "getMicroServiceHealthHistory",
       ).withResponse(mockSummary);
       (
-        MicroServiceQueryUseCase.prototype.getHealthHistory as vi.Mock
+        MicroServiceQueryUseCase.prototype.getHealthHistory as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).get(
@@ -210,7 +211,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return 500 when getHealthHistory throws an error", async () => {
       (
-        MicroServiceQueryUseCase.prototype.getHealthHistory as vi.Mock
+        MicroServiceQueryUseCase.prototype.getHealthHistory as Mock
       ).mockRejectedValue(new Error("Telemetry DB unavailable"));
 
       const response = await supertest(app).get(
@@ -229,7 +230,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
       ["stop", "stopMicroService"],
     ] as const)("passes the caller's e-mail on %s", async (path, method) => {
       (
-        MicroServiceManagementUseCase.prototype[method] as vi.Mock
+        MicroServiceManagementUseCase.prototype[method] as Mock
       ).mockResolvedValue(new ResponseModel(method).withResponse(null));
 
       await supertest(app)
@@ -244,7 +245,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
     it("passes the caller's identifier when there is no e-mail", async () => {
       (
-        MicroServiceManagementUseCase.prototype.startMicroService as vi.Mock
+        MicroServiceManagementUseCase.prototype.startMicroService as Mock
       ).mockResolvedValue(new ResponseModel("start").withResponse(null));
 
       await supertest(app)
@@ -263,7 +264,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         "startMicroService",
       ).withResponse(null);
       (
-        MicroServiceManagementUseCase.prototype.startMicroService as vi.Mock
+        MicroServiceManagementUseCase.prototype.startMicroService as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).put(
@@ -288,7 +289,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         "Start failed",
       );
       (
-        MicroServiceManagementUseCase.prototype.startMicroService as vi.Mock
+        MicroServiceManagementUseCase.prototype.startMicroService as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).put(
@@ -300,7 +301,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return 500 when start throws an exception", async () => {
       (
-        MicroServiceManagementUseCase.prototype.startMicroService as vi.Mock
+        MicroServiceManagementUseCase.prototype.startMicroService as Mock
       ).mockRejectedValue(new Error("Unexpected error"));
 
       const response = await supertest(app).put(
@@ -320,7 +321,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         "restartMicroService",
       ).withResponse(null);
       (
-        MicroServiceManagementUseCase.prototype.restartMicroService as vi.Mock
+        MicroServiceManagementUseCase.prototype.restartMicroService as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).put(
@@ -344,7 +345,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         "restartMicroService",
       ).withError(DomainErrorCodes.INVALID_INPUT, "Restart failed");
       (
-        MicroServiceManagementUseCase.prototype.restartMicroService as vi.Mock
+        MicroServiceManagementUseCase.prototype.restartMicroService as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).put(
@@ -356,7 +357,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return 500 when restart throws an exception", async () => {
       (
-        MicroServiceManagementUseCase.prototype.restartMicroService as vi.Mock
+        MicroServiceManagementUseCase.prototype.restartMicroService as Mock
       ).mockRejectedValue(new Error("Unexpected error"));
 
       const response = await supertest(app).put(
@@ -376,7 +377,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         "stopMicroService",
       ).withResponse(null);
       (
-        MicroServiceManagementUseCase.prototype.stopMicroService as vi.Mock
+        MicroServiceManagementUseCase.prototype.stopMicroService as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).put(
@@ -401,7 +402,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         "Stop failed",
       );
       (
-        MicroServiceManagementUseCase.prototype.stopMicroService as vi.Mock
+        MicroServiceManagementUseCase.prototype.stopMicroService as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).put(
@@ -413,7 +414,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return 500 when stop throws an exception", async () => {
       (
-        MicroServiceManagementUseCase.prototype.stopMicroService as vi.Mock
+        MicroServiceManagementUseCase.prototype.stopMicroService as Mock
       ).mockRejectedValue(new Error("Unexpected error"));
 
       const response = await supertest(app).put(
@@ -441,7 +442,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         "watchMicroServiceLogs",
       ).withResponse(mockStream);
       (
-        MicroServiceQueryUseCase.prototype.watchMicroServiceLogs as vi.Mock
+        MicroServiceQueryUseCase.prototype.watchMicroServiceLogs as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
@@ -461,7 +462,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         "watchMicroServiceLogs",
       ).withError(DomainErrorCodes.INVALID_INPUT, "Failed to watch logs");
       (
-        MicroServiceQueryUseCase.prototype.watchMicroServiceLogs as vi.Mock
+        MicroServiceQueryUseCase.prototype.watchMicroServiceLogs as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).get(
@@ -476,7 +477,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         "watchMicroServiceLogs",
       ).withResponse(null);
       (
-        MicroServiceQueryUseCase.prototype.watchMicroServiceLogs as vi.Mock
+        MicroServiceQueryUseCase.prototype.watchMicroServiceLogs as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).get(
@@ -497,7 +498,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         "watchMicroServiceLogs",
       ).withResponse(mockStream);
       (
-        MicroServiceQueryUseCase.prototype.watchMicroServiceLogs as vi.Mock
+        MicroServiceQueryUseCase.prototype.watchMicroServiceLogs as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
@@ -509,7 +510,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return 500 when logs watch throws an exception", async () => {
       (
-        MicroServiceQueryUseCase.prototype.watchMicroServiceLogs as vi.Mock
+        MicroServiceQueryUseCase.prototype.watchMicroServiceLogs as Mock
       ).mockRejectedValue(new Error("Unexpected error"));
 
       const response = await supertest(app).get(
@@ -538,7 +539,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
       ).withResponse(mockLogs);
 
       (
-        MicroServiceQueryUseCase.prototype.queryAuditLogs as vi.Mock
+        MicroServiceQueryUseCase.prototype.queryAuditLogs as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).get(
@@ -551,7 +552,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return 500 when queryAuditLogs throws an unexpected error", async () => {
       (
-        MicroServiceQueryUseCase.prototype.queryAuditLogs as vi.Mock
+        MicroServiceQueryUseCase.prototype.queryAuditLogs as Mock
       ).mockRejectedValue(new Error("Database crash"));
 
       const response = await supertest(app).get(
@@ -566,7 +567,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
   describe("PUT /v1/micro-services/:name/scale", () => {
     it("answers 501 with the reason: scaling is not provided (D3)", async () => {
       (
-        MicroServiceManagementUseCase.prototype.scaleMicroService as vi.Mock
+        MicroServiceManagementUseCase.prototype.scaleMicroService as Mock
       ).mockResolvedValue(
         new ResponseModel("scaleMicroService").withError(
           DomainErrorCodes.NOT_IMPLEMENTED,
@@ -588,7 +589,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return 500 when scaling throws an unexpected error", async () => {
       (
-        MicroServiceManagementUseCase.prototype.scaleMicroService as vi.Mock
+        MicroServiceManagementUseCase.prototype.scaleMicroService as Mock
       ).mockRejectedValue(new Error("Docker daemon down"));
 
       const response = await supertest(app)
@@ -613,7 +614,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
     it("GET configurations never returns a secret value", async () => {
       (
-        MicroServiceQueryUseCase.prototype.queryConfigurations as vi.Mock
+        MicroServiceQueryUseCase.prototype.queryConfigurations as Mock
       ).mockResolvedValue(
         new ResponseModel("queryMicroServiceConfigurations").withResponse([
           secretItem,
@@ -631,7 +632,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
     it("PUT configuration never echoes a secret value", async () => {
       (
-        MicroServiceManagementUseCase.prototype.updateConfiguration as vi.Mock
+        MicroServiceManagementUseCase.prototype.updateConfiguration as Mock
       ).mockResolvedValue(
         new ResponseModel("updateMicroServiceConfiguration").withResponse(
           secretItem,
@@ -664,7 +665,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         "queryMicroServiceConfigurations",
       ).withResponse(mockConfigs);
       (
-        MicroServiceQueryUseCase.prototype.queryConfigurations as vi.Mock
+        MicroServiceQueryUseCase.prototype.queryConfigurations as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).get(
@@ -680,7 +681,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         "queryMicroServiceConfigurations",
       ).withError(DomainErrorCodes.INVALID_INPUT, "Service name is required.");
       (
-        MicroServiceQueryUseCase.prototype.queryConfigurations as vi.Mock
+        MicroServiceQueryUseCase.prototype.queryConfigurations as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app).get(
@@ -693,7 +694,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return 500 when queryConfigurations throws unexpected error", async () => {
       (
-        MicroServiceQueryUseCase.prototype.queryConfigurations as vi.Mock
+        MicroServiceQueryUseCase.prototype.queryConfigurations as Mock
       ).mockRejectedValue(new Error("Database connection lost"));
 
       const response = await supertest(app).get(
@@ -718,7 +719,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         "updateMicroServiceConfiguration",
       ).withResponse(updatedConfig);
       (
-        MicroServiceManagementUseCase.prototype.updateConfiguration as vi.Mock
+        MicroServiceManagementUseCase.prototype.updateConfiguration as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
@@ -737,7 +738,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
         "Service name, key and value are required.",
       );
       (
-        MicroServiceManagementUseCase.prototype.updateConfiguration as vi.Mock
+        MicroServiceManagementUseCase.prototype.updateConfiguration as Mock
       ).mockResolvedValue(expectedResponse);
 
       const response = await supertest(app)
@@ -752,7 +753,7 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
 
     it("should return 500 when updateConfiguration throws unexpected error", async () => {
       (
-        MicroServiceManagementUseCase.prototype.updateConfiguration as vi.Mock
+        MicroServiceManagementUseCase.prototype.updateConfiguration as Mock
       ).mockRejectedValue(new Error("Write failed"));
 
       const response = await supertest(app)

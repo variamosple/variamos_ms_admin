@@ -1,25 +1,14 @@
 {
   "$schema": "https://schema.stryker-mutator.io/stryker-config.json",
-  "mutate": [
-    "src/EntryPoints/**/*.ts",
-    "!src/EntryPoints/**/*.{test,spec}.ts"
-  ],
+  "mutate": ["src/EntryPoints/**/*.ts", "!src/EntryPoints/**/*.{test,spec}.ts"],
   "testRunner": "vitest",
-  "checkers": [
-    "typescript"
-  ],
+  "checkers": ["typescript"],
   "tsconfigFile": "tsconfig.json",
-  "testRunnerNodeArgs": [
-    "--env-file=env/test.env"
-  ],
+  "testRunnerNodeArgs": ["--env-file=env/test.env"],
   "vitest": {
     "configFile": "vitest.config.ts"
   },
-  "reporters": [
-    "progress",
-    "clear-text",
-    "html"
-  ],
+  "reporters": ["progress", "clear-text", "html"],
   "concurrency": 2,
   "incremental": false,
   "ignoreStatic": true,

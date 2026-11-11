@@ -1,3 +1,4 @@
+import type { Mocked } from "vitest";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { Country } from "#src/Domain/Countries/Entity/Country.js";
@@ -107,7 +108,7 @@ describe("CountriesQueryUseCase Unit Tests", () => {
       ).withResponse(mockCountries);
 
       // Create a mock of the pure Domain Interface (no data provider imports needed!)
-      const mockCountriesRepository: vi.Mocked<ICountriesRepository> = {
+      const mockCountriesRepository: Mocked<ICountriesRepository> = {
         getCountries: vi.fn().mockResolvedValue(mockResponse),
         getUserCountryCode: vi.fn(),
         getIpCountryCode: vi.fn(),

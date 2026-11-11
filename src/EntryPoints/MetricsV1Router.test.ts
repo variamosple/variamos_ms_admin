@@ -1,5 +1,6 @@
 import express from "express";
 import supertest from "supertest";
+import type { Mock } from "vitest";
 import { mock } from "vitest-mock-extended";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -68,7 +69,7 @@ describe("MetricsV1Router Integration Tests", () => {
         mockMetrics,
       );
 
-      (MetricsQueryUseCase.prototype.getMetrics as vi.Mock).mockResolvedValue(
+      (MetricsQueryUseCase.prototype.getMetrics as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -84,7 +85,7 @@ describe("MetricsV1Router Integration Tests", () => {
     });
 
     it("should return 500 when MetricsQueryUseCase throws an exception", async () => {
-      (MetricsQueryUseCase.prototype.getMetrics as vi.Mock).mockRejectedValue(
+      (MetricsQueryUseCase.prototype.getMetrics as Mock).mockRejectedValue(
         new Error("Query error"),
       );
 
@@ -109,7 +110,7 @@ describe("MetricsV1Router Integration Tests", () => {
         mockMetric,
       );
 
-      (MetricsQueryUseCase.prototype.queryMetric as vi.Mock).mockResolvedValue(
+      (MetricsQueryUseCase.prototype.queryMetric as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -131,7 +132,7 @@ describe("MetricsV1Router Integration Tests", () => {
     });
 
     it("should return 500 when queryMetric throws an exception", async () => {
-      (MetricsQueryUseCase.prototype.queryMetric as vi.Mock).mockRejectedValue(
+      (MetricsQueryUseCase.prototype.queryMetric as Mock).mockRejectedValue(
         new Error("Query error"),
       );
 

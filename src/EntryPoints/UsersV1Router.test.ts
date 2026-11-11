@@ -4,6 +4,7 @@ import express, {
   type Response,
 } from "express";
 import supertest from "supertest";
+import type { Mock } from "vitest";
 import { mock } from "vitest-mock-extended";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -133,7 +134,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         "Success",
       ).withResponse(mockUsers);
 
-      (UserQueryUseCase.prototype.queryList as vi.Mock).mockResolvedValue(
+      (UserQueryUseCase.prototype.queryList as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -151,7 +152,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("passes the sort of a list column to the query (EV-95)", async () => {
-      (UserQueryUseCase.prototype.queryList as vi.Mock).mockResolvedValue(
+      (UserQueryUseCase.prototype.queryList as Mock).mockResolvedValue(
         new ResponseModel("queryUsers").withResponse([]),
       );
 
@@ -170,7 +171,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("sorts by name, ascending, when the sort is unknown (EV-95)", async () => {
-      (UserQueryUseCase.prototype.queryList as vi.Mock).mockResolvedValue(
+      (UserQueryUseCase.prototype.queryList as Mock).mockResolvedValue(
         new ResponseModel("queryUsers").withResponse([]),
       );
 
@@ -190,7 +191,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.INVALID_INPUT,
         "Invalid query",
       );
-      (UserQueryUseCase.prototype.queryList as vi.Mock).mockResolvedValue(
+      (UserQueryUseCase.prototype.queryList as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -203,7 +204,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when query fails with database exception", async () => {
-      (UserQueryUseCase.prototype.queryList as vi.Mock).mockRejectedValue(
+      (UserQueryUseCase.prototype.queryList as Mock).mockRejectedValue(
         new Error("Database Error"),
       );
 
@@ -225,7 +226,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         "Success",
       ).withResponse(mockUser);
 
-      (UserQueryUseCase.prototype.queryById as vi.Mock).mockResolvedValue(
+      (UserQueryUseCase.prototype.queryById as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -244,7 +245,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.ENTITY_NOT_FOUND,
         "Not found",
       );
-      (UserQueryUseCase.prototype.queryById as vi.Mock).mockResolvedValue(
+      (UserQueryUseCase.prototype.queryById as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -257,7 +258,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when queryById throws exception", async () => {
-      (UserQueryUseCase.prototype.queryById as vi.Mock).mockRejectedValue(
+      (UserQueryUseCase.prototype.queryById as Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -280,7 +281,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         recoveryUrl: "http://localhost:3000/#/reset-password?token=some-token",
       });
 
-      (UserPasswordUseCase.prototype.generateLink as vi.Mock).mockResolvedValue(
+      (UserPasswordUseCase.prototype.generateLink as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -300,7 +301,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
       const expectedResponse = new ResponseModel(
         "generateRecoveryLink",
       ).withError(DomainErrorCodes.ENTITY_NOT_FOUND, "User not found");
-      (UserPasswordUseCase.prototype.generateLink as vi.Mock).mockResolvedValue(
+      (UserPasswordUseCase.prototype.generateLink as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -313,7 +314,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when generateRecoveryLink throws exception", async () => {
-      (UserPasswordUseCase.prototype.generateLink as vi.Mock).mockRejectedValue(
+      (UserPasswordUseCase.prototype.generateLink as Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -334,7 +335,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         "User disabled",
       ).withResponse(null);
 
-      (UserManagementUseCase.prototype.disable as vi.Mock).mockResolvedValue(
+      (UserManagementUseCase.prototype.disable as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -355,7 +356,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.ENTITY_NOT_FOUND,
         "User not found",
       );
-      (UserManagementUseCase.prototype.disable as vi.Mock).mockResolvedValue(
+      (UserManagementUseCase.prototype.disable as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -368,7 +369,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when disableUser throws exception", async () => {
-      (UserManagementUseCase.prototype.disable as vi.Mock).mockRejectedValue(
+      (UserManagementUseCase.prototype.disable as Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -389,7 +390,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         "User enabled",
       ).withResponse(null);
 
-      (UserManagementUseCase.prototype.enable as vi.Mock).mockResolvedValue(
+      (UserManagementUseCase.prototype.enable as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -406,7 +407,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.ENTITY_NOT_FOUND,
         "User not found",
       );
-      (UserManagementUseCase.prototype.enable as vi.Mock).mockResolvedValue(
+      (UserManagementUseCase.prototype.enable as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -419,7 +420,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when enableUser throws exception", async () => {
-      (UserManagementUseCase.prototype.enable as vi.Mock).mockRejectedValue(
+      (UserManagementUseCase.prototype.enable as Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
@@ -440,7 +441,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         "User deleted",
       ).withResponse(null);
 
-      (UserManagementUseCase.prototype.delete as vi.Mock).mockResolvedValue(
+      (UserManagementUseCase.prototype.delete as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -457,7 +458,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         DomainErrorCodes.ENTITY_NOT_FOUND,
         "User not found",
       );
-      (UserManagementUseCase.prototype.delete as vi.Mock).mockResolvedValue(
+      (UserManagementUseCase.prototype.delete as Mock).mockResolvedValue(
         expectedResponse,
       );
 
@@ -470,7 +471,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
     });
 
     it("should return 500 when deleteUser throws exception", async () => {
-      (UserManagementUseCase.prototype.delete as vi.Mock).mockRejectedValue(
+      (UserManagementUseCase.prototype.delete as Mock).mockRejectedValue(
         new Error("Unexpected error"),
       );
 
