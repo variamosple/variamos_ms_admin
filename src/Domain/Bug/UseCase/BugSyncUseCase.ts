@@ -15,17 +15,42 @@ import type { IIssueTrackerService } from "#src/Domain/Core/Service/IIssueTracke
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { ALLOWED_CATEGORIES } from "./BugQueryUseCase.js";
 
+/** What the GitHub sync of the bugs reads and writes. */
+export interface BugSyncUseCaseDependencies {
+  bugRepository: IBugRepository;
+  issueTrackerService: IIssueTrackerService;
+  githubConfig: IBugTrackerConfig;
+  tokenResolver: IGitHubTokenProvider;
+  logger: ILogger;
+  journal: IActivityJournal;
+}
+
 export class BugSyncUseCase {
   private running: Promise<ResponseModel<void>> | null = null;
 
-  public constructor(
-    private readonly bugRepository: IBugRepository,
-    private readonly issueTrackerService: IIssueTrackerService,
-    private readonly githubConfig: IBugTrackerConfig,
-    private readonly tokenResolver: IGitHubTokenProvider,
-    private readonly logger: ILogger,
-    private readonly journal: IActivityJournal,
-  ) {}
+  private readonly bugRepository: IBugRepository;
+  private readonly issueTrackerService: IIssueTrackerService;
+  private readonly githubConfig: IBugTrackerConfig;
+  private readonly tokenResolver: IGitHubTokenProvider;
+  private readonly logger: ILogger;
+  private readonly journal: IActivityJournal;
+
+  public constructor(dependencies: BugSyncUseCaseDependencies) {
+    const {
+      bugRepository,
+      issueTrackerService,
+      githubConfig,
+      tokenResolver,
+      logger,
+      journal,
+    } = dependencies;
+    this.bugRepository = bugRepository;
+    this.issueTrackerService = issueTrackerService;
+    this.githubConfig = githubConfig;
+    this.tokenResolver = tokenResolver;
+    this.logger = logger;
+    this.journal = journal;
+  }
 
   /**
    * One synchronization at a time (EV-18): a call made while one runs, from
@@ -195,7 +220,12 @@ export class BugSyncUseCase {
     transactionId: string | undefined,
   ): Promise<Map<number, string> | null> {
     const response = await this.bugRepository.queryBugs(
-      new RequestModel(transactionId, new BugFilter(repo)),
+      new RequestModel(
+        transactionId,
+        new BugFilter({
+          repo,
+        }),
+      ),
     );
     if (response.errorCode || !response.data) return null;
     const statuses = new Map<number, string>();

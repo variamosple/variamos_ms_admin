@@ -18,22 +18,39 @@ export interface MfaResetResult {
   emailSent: boolean;
 }
 
+/** What the reset of a second factor reads and records. */
+export interface MfaResetUseCaseDependencies {
+  mfaRepository: Pick<IUserMfaRepository, "findByUser" | "remove">;
+  userRepository: Pick<IUserRepository, "queryById">;
+  mailService: Pick<IMailService, "sendMfaResetMail">;
+  journal: IActivityJournal;
+  logger: ILogger;
+}
+
 /**
  * An administrator turns off the second factor of an account that lost it,
  * phone and recovery codes included (SPC-2026-10-17-001, lot 4). The role
  * hierarchy is checked by the route; the owner is told by e-mail.
  */
 export class MfaResetUseCase {
-  public constructor(
-    private readonly mfaRepository: Pick<
-      IUserMfaRepository,
-      "findByUser" | "remove"
-    >,
-    private readonly userRepository: Pick<IUserRepository, "queryById">,
-    private readonly mailService: Pick<IMailService, "sendMfaResetMail">,
-    private readonly journal: IActivityJournal,
-    private readonly logger: ILogger,
-  ) {}
+  private readonly mfaRepository: Pick<
+    IUserMfaRepository,
+    "findByUser" | "remove"
+  >;
+  private readonly userRepository: Pick<IUserRepository, "queryById">;
+  private readonly mailService: Pick<IMailService, "sendMfaResetMail">;
+  private readonly journal: IActivityJournal;
+  private readonly logger: ILogger;
+
+  public constructor(dependencies: MfaResetUseCaseDependencies) {
+    const { mfaRepository, userRepository, mailService, journal, logger } =
+      dependencies;
+    this.mfaRepository = mfaRepository;
+    this.userRepository = userRepository;
+    this.mailService = mailService;
+    this.journal = journal;
+    this.logger = logger;
+  }
 
   public async status(
     transactionId: string,

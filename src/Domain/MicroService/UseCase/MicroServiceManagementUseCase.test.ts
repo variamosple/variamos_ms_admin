@@ -36,13 +36,13 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
     configurations = mock<IConfigurationRepository>();
     configEvents = mock<IConfigEventPublisher>();
     journal = mock<IActivityJournal>();
-    useCase = new MicroServiceManagementUseCase(
-      mockMicroServiceRepository,
+    useCase = new MicroServiceManagementUseCase({
+      microServiceRepository: mockMicroServiceRepository,
       logger,
-      configurations,
-      configEvents,
+      configurationRepository: configurations,
+      configEventPublisher: configEvents,
       journal,
-    );
+    });
   });
 
   // Actions follow the container state; the health status is kept apart
@@ -51,17 +51,17 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
     containerState: "running" | "exited",
     status: ServiceStatus = containerState === "running" ? "UP" : "DOWN",
   ) => {
-    return new MicroServiceDetailed(
-      name,
-      "Test Service",
-      {
+    return new MicroServiceDetailed({
+      serviceName: name,
+      displayName: "Test Service",
+      health: {
         status,
         serviceName: name,
         responseTimeMs: 25,
         checkedAt: new Date(),
       },
-      1,
-      [
+      replicasCount: 1,
+      containers: [
         {
           id: `${name}-1`,
           name,
@@ -71,7 +71,7 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
           labels: {},
         },
       ],
-    );
+    });
   };
 
   describe("activity journal of the container actions", () => {
@@ -367,15 +367,15 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
       configurations.queryByKey.mockResolvedValue(
         new ResponseModel<Configuration>("tx-cfg"),
       );
-      const configItem = new MicroServiceConfigItem(
-        1,
-        "ms-1",
-        "LOG_LEVEL",
-        "debug",
-        "string",
-        false,
-        false,
-      );
+      const configItem = new MicroServiceConfigItem({
+        id: 1,
+        serviceName: "ms-1",
+        key: "LOG_LEVEL",
+        value: "debug",
+        type: "string",
+        isSecret: false,
+        isReadOnly: false,
+      });
       mockMicroServiceRepository.updateConfiguration.mockResolvedValue(
         new ResponseModel<MicroServiceConfigItem>("tx-cfg").withResponse(
           configItem,

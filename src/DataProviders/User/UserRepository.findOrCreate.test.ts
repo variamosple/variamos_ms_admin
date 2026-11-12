@@ -19,14 +19,14 @@ describe("Google sign-in (signInWithGoogle)", () => {
   const repository = new UserRepositoryImpl(
     new BcryptPasswordHasher({ getCost: async () => 4 }),
   );
-  const useCase = new UserAuthUseCase(
-    repository,
-    { queryGuestRole: vi.fn() },
-    mock<ILogger>(),
-    { sendExistingAccountMail: vi.fn() },
-    { adminHomeUri: "" },
-    mock<AccountPasswordService>(),
-  );
+  const useCase = new UserAuthUseCase({
+    userRepository: repository,
+    roleRepository: { queryGuestRole: vi.fn() },
+    logger: mock<ILogger>(),
+    mailService: { sendExistingAccountMail: vi.fn() },
+    config: { adminHomeUri: "" },
+    accountPasswords: mock<AccountPasswordService>(),
+  });
   const googleUser = new RequestModel<User>("loginWithGoogle", {
     email: "someone@example.com",
     user: "someone",

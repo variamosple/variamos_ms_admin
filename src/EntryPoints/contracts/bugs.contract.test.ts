@@ -161,16 +161,16 @@ app.use(express.json());
 app.use(signedIn);
 app.use(
   "/bugs",
-  createBugRouter(
-    mock<BugSubmissionUseCase>(),
-    mock<BugLifecycleUseCase>(),
-    sync,
-    queries,
-    attachments,
-    multer({ storage: multer.memoryStorage() }),
-    signedIn,
-    assignments,
-  ),
+  createBugRouter({
+    bugSubmissionUseCase: mock<BugSubmissionUseCase>(),
+    bugLifecycleUseCase: mock<BugLifecycleUseCase>(),
+    bugSyncUseCase: sync,
+    bugQueryUseCase: queries,
+    bugAttachmentUseCase: attachments,
+    upload: multer({ storage: multer.memoryStorage() }),
+    authMiddleware: signedIn,
+    bugAssignmentUseCase: assignments,
+  }),
 );
 
 const PNG_BYTES = Buffer.from([
@@ -187,10 +187,9 @@ describe("Bug routes keep the shape VariaMosAdmin reads", () => {
     ["GET /bugs/local", "/bugs/local", "queryLocalBugs"],
   ] as const)("%s", async (_, path, method) => {
     queries[method].mockResolvedValue(
-      new ResponseModel<Bug[]>("tx", undefined, undefined, 2).withResponse([
-        fullBug(),
-        localBug(),
-      ]),
+      new ResponseModel<Bug[]>("tx", {
+        totalCount: 2,
+      }).withResponse([fullBug(), localBug()]),
     );
 
     const res = await request(app).get(path);

@@ -67,16 +67,16 @@ function createApp(permissions: string[]) {
   const passThrough: RequestHandler = (_req, _res, next) => next();
   app.use(
     "/bugs",
-    createBugRouter(
-      mock<BugSubmissionUseCase>(),
-      lifecycle,
-      sync,
-      query,
-      attachment,
-      { single: () => passThrough } as never,
-      passThrough,
-      assignment,
-    ),
+    createBugRouter({
+      bugSubmissionUseCase: mock<BugSubmissionUseCase>(),
+      bugLifecycleUseCase: lifecycle,
+      bugSyncUseCase: sync,
+      bugQueryUseCase: query,
+      bugAttachmentUseCase: attachment,
+      upload: { single: () => passThrough } as never,
+      authMiddleware: passThrough,
+      bugAssignmentUseCase: assignment,
+    }),
   );
   return app;
 }

@@ -33,7 +33,9 @@ describe("BugQueryUseCase", () => {
       mockGithubConfig.getGitHubManagedRepos.mockReturnValue([
         "VariaMos/VariaMosAdmin",
       ]);
-      const filter = new BugFilter("VariaMos/VariaMosAdmin");
+      const filter = new BugFilter({
+        repo: "VariaMos/VariaMosAdmin",
+      });
       const request = new RequestModel("tx-id", filter);
       await useCase.queryBugs(request);
 

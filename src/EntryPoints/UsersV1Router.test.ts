@@ -71,13 +71,13 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
     app = express();
     app.use(express.json());
     const mockUserQueryUseCase = new UserQueryUseCase(mock<IUserRepository>());
-    const mockUserPasswordUseCase = new UserPasswordUseCase(
-      mock<IUserRepository>(),
-      mock<IMailService>(),
-      mock<UserPasswordUseCaseConfig>(),
-      mock<IActivityJournal>(),
-      mock<ILogger>(),
-    );
+    const mockUserPasswordUseCase = new UserPasswordUseCase({
+      userRepository: mock<IUserRepository>(),
+      mailService: mock<IMailService>(),
+      config: mock<UserPasswordUseCaseConfig>(),
+      journal: mock<IActivityJournal>(),
+      logger: mock<ILogger>(),
+    });
     const mockUserManagementUseCase = new UserManagementUseCase(
       mock<IUserRepository>(),
       mock<IActivityJournal>(),
@@ -86,13 +86,13 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
     const mockUserRolesRouter = express.Router();
     app.use(
       "/v1/users",
-      createUsersRouter(
-        mockUserQueryUseCase,
-        mockUserPasswordUseCase,
-        mockUserManagementUseCase,
-        mockUserRolesRouter,
-        allowAll,
-      ),
+      createUsersRouter({
+        userQueryUseCase: mockUserQueryUseCase,
+        userPasswordUseCase: mockUserPasswordUseCase,
+        userManagementUseCase: mockUserManagementUseCase,
+        userRolesRouter: mockUserRolesRouter,
+        accessGuard: allowAll,
+      }),
     );
     permissionsCalls = [...mockHasPermissions.mock.calls];
   });
@@ -128,11 +128,9 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
           .setEmail("two@example.com")
           .build(),
       ];
-      const expectedResponse = new ResponseModel(
-        "queryUsers",
-        undefined,
-        "Success",
-      ).withResponse(mockUsers);
+      const expectedResponse = new ResponseModel("queryUsers", {
+        message: "Success",
+      }).withResponse(mockUsers);
 
       (UserQueryUseCase.prototype.queryList as Mock).mockResolvedValue(
         expectedResponse,
@@ -220,11 +218,9 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
   describe("GET /v1/users/:userId", () => {
     it("should return 200 and the user detail", async () => {
       const mockUser = User.builder().setId("123").setName("John Doe").build();
-      const expectedResponse = new ResponseModel(
-        "queryUserById",
-        undefined,
-        "Success",
-      ).withResponse(mockUser);
+      const expectedResponse = new ResponseModel("queryUserById", {
+        message: "Success",
+      }).withResponse(mockUser);
 
       (UserQueryUseCase.prototype.queryById as Mock).mockResolvedValue(
         expectedResponse,
@@ -273,11 +269,9 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
 
   describe("POST /v1/users/:userId/recovery-link", () => {
     it("should return 200 and recoveryUrl", async () => {
-      const expectedResponse = new ResponseModel(
-        "generateRecoveryLink",
-        undefined,
-        "Success",
-      ).withResponse({
+      const expectedResponse = new ResponseModel("generateRecoveryLink", {
+        message: "Success",
+      }).withResponse({
         recoveryUrl: "http://localhost:3000/#/reset-password?token=some-token",
       });
 
@@ -329,11 +323,9 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
 
   describe("PUT /v1/users/:userId/disable", () => {
     it("should return 200 on success", async () => {
-      const expectedResponse = new ResponseModel(
-        "disableUser",
-        undefined,
-        "User disabled",
-      ).withResponse(null);
+      const expectedResponse = new ResponseModel("disableUser", {
+        message: "User disabled",
+      }).withResponse(null);
 
       (UserManagementUseCase.prototype.disable as Mock).mockResolvedValue(
         expectedResponse,
@@ -384,11 +376,9 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
 
   describe("PUT /v1/users/:userId/enable", () => {
     it("should return 200 on success", async () => {
-      const expectedResponse = new ResponseModel(
-        "enableUser",
-        undefined,
-        "User enabled",
-      ).withResponse(null);
+      const expectedResponse = new ResponseModel("enableUser", {
+        message: "User enabled",
+      }).withResponse(null);
 
       (UserManagementUseCase.prototype.enable as Mock).mockResolvedValue(
         expectedResponse,
@@ -435,11 +425,9 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
 
   describe("DELETE /v1/users/:userId", () => {
     it("should return 200 on success", async () => {
-      const expectedResponse = new ResponseModel(
-        "deleteUser",
-        undefined,
-        "User deleted",
-      ).withResponse(null);
+      const expectedResponse = new ResponseModel("deleteUser", {
+        message: "User deleted",
+      }).withResponse(null);
 
       (UserManagementUseCase.prototype.delete as Mock).mockResolvedValue(
         expectedResponse,

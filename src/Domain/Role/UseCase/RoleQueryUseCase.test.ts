@@ -16,7 +16,10 @@ describe("RoleQueryUseCase - Unit Tests", () => {
   });
 
   test("should query roles", async () => {
-    const mockFilter = new RoleFilter(1, "Admin");
+    const mockFilter = new RoleFilter({
+      id: 1,
+      name: "Admin",
+    });
     const mockRoles = [new Role(1, "Admin")];
     const mockResponse = new ResponseModel<Role[]>("tx-1").withResponse(
       mockRoles,

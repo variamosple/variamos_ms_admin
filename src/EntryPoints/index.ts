@@ -179,26 +179,26 @@ export function createBaseRouter({
 }: BaseRouterDependencies): Router {
   const baseRouter = Router();
 
-  const authRouter = createAuthRouter(
-    usersUseCases.auth,
-    usersUseCases.password,
-    usersUseCases.management,
-    usersUseCases.query,
-    mfa.signIn,
+  const authRouter = createAuthRouter({
+    userAuthUseCase: usersUseCases.auth,
+    userPasswordUseCase: usersUseCases.password,
+    userManagementUseCase: usersUseCases.management,
+    userQueryUseCase: usersUseCases.query,
+    mfaSignIn: mfa.signIn,
     accessJournal,
-  );
+  });
   const configurationV1Router = createConfigurationRouter(configurationUseCase);
   const userRolesRouter = createUserRolesRouter(
     usersUseCases.role,
     accessGuard,
   );
-  const usersV1Router = createUsersRouter(
-    usersUseCases.query,
-    usersUseCases.password, // needed for generateRecoveryLink
-    usersUseCases.management,
+  const usersV1Router = createUsersRouter({
+    userQueryUseCase: usersUseCases.query,
+    userPasswordUseCase: usersUseCases.password, // needed for generateRecoveryLink
+    userManagementUseCase: usersUseCases.management,
     userRolesRouter,
     accessGuard,
-  );
+  });
   const rolePermissionsRouter = createRolePermissionsRouter(
     rolesUseCases.permission,
     accessGuard,
@@ -217,16 +217,16 @@ export function createBaseRouter({
   const visitsV1Router = createVisitsRouter(visitsUseCase);
   const metricsV1Router = createMetricsRouter(metricsUseCase);
   const countriesV1Router = createCountriesRouter(countriesUseCase);
-  const bugV1Router = createBugRouter(
-    bugUseCases.submission,
-    bugUseCases.lifecycle,
-    bugUseCases.sync,
-    bugUseCases.query,
-    bugUseCases.attachment,
+  const bugV1Router = createBugRouter({
+    bugSubmissionUseCase: bugUseCases.submission,
+    bugLifecycleUseCase: bugUseCases.lifecycle,
+    bugSyncUseCase: bugUseCases.sync,
+    bugQueryUseCase: bugUseCases.query,
+    bugAttachmentUseCase: bugUseCases.attachment,
     upload,
-    isAuthenticated,
-    bugUseCases.assignment,
-  );
+    authMiddleware: isAuthenticated,
+    bugAssignmentUseCase: bugUseCases.assignment,
+  });
   const adminNotificationsV1Router = createAdminNotificationsRouter(
     notifications.dispatch,
   );

@@ -1,14 +1,14 @@
 import { MicroServiceAuditEntry } from "./MicroServiceAuditEntry.js";
 
 const entry = (details: Record<string, unknown>) =>
-  new MicroServiceAuditEntry(
-    7,
-    "variamos_ms_notifications",
-    "CONFIG_UPDATE",
+  new MicroServiceAuditEntry({
+    id: 7,
+    serviceName: "variamos_ms_notifications",
+    actionType: "CONFIG_UPDATE",
     details,
-    "admin@example.com",
-    new Date("2026-10-16T00:00:00Z"),
-  );
+    performedBy: "admin@example.com",
+    createdAt: new Date("2026-10-16T00:00:00Z"),
+  });
 
 describe("MicroServiceAuditEntry.withSecretsMasked", () => {
   const secretKeys = new Set(["notification.smtp.password"]);

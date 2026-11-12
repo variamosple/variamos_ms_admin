@@ -104,16 +104,16 @@ app.use((req, _res, next) => {
 });
 app.use(
   "/bugs",
-  createBugRouter(
-    mockBugSubmissionUseCase,
-    mockBugLifecycleUseCase,
-    mockBugSyncUseCase,
-    mockBugQueryUseCase,
-    mockBugAttachmentUseCase,
-    mockUpload,
-    mockAuth,
-    mockBugAssignmentUseCase,
-  ),
+  createBugRouter({
+    bugSubmissionUseCase: mockBugSubmissionUseCase,
+    bugLifecycleUseCase: mockBugLifecycleUseCase,
+    bugSyncUseCase: mockBugSyncUseCase,
+    bugQueryUseCase: mockBugQueryUseCase,
+    bugAttachmentUseCase: mockBugAttachmentUseCase,
+    upload: mockUpload,
+    authMiddleware: mockAuth,
+    bugAssignmentUseCase: mockBugAssignmentUseCase,
+  }),
 );
 
 describe("BugRouter HTTP Integration Tests", () => {
@@ -854,16 +854,16 @@ describe("BugRouter HTTP Integration Tests", () => {
       const noAuth: RequestHandler = (_req, _res, next) => next();
       guestApp.use(
         "/bugs",
-        createBugRouter(
-          mockBugSubmissionUseCase,
-          mockBugLifecycleUseCase,
-          mockBugSyncUseCase,
-          mockBugQueryUseCase,
-          mockBugAttachmentUseCase,
-          mockUpload,
-          noAuth,
-          mockBugAssignmentUseCase,
-        ),
+        createBugRouter({
+          bugSubmissionUseCase: mockBugSubmissionUseCase,
+          bugLifecycleUseCase: mockBugLifecycleUseCase,
+          bugSyncUseCase: mockBugSyncUseCase,
+          bugQueryUseCase: mockBugQueryUseCase,
+          bugAttachmentUseCase: mockBugAttachmentUseCase,
+          upload: mockUpload,
+          authMiddleware: noAuth,
+          bugAssignmentUseCase: mockBugAssignmentUseCase,
+        }),
       );
       mockValidateSession.mockReset();
     });
@@ -1283,16 +1283,16 @@ describe("BugRouter upload limits and anonymous files", () => {
     limitedApp.use(cookieParser());
     limitedApp.use(
       "/bugs",
-      createBugRouter(
-        mockBugSubmissionUseCase,
-        mockBugLifecycleUseCase,
-        mockBugSyncUseCase,
-        mockBugQueryUseCase,
-        mockBugAttachmentUseCase,
-        limitedUpload,
-        mockAuth,
-        mockBugAssignmentUseCase,
-      ),
+      createBugRouter({
+        bugSubmissionUseCase: mockBugSubmissionUseCase,
+        bugLifecycleUseCase: mockBugLifecycleUseCase,
+        bugSyncUseCase: mockBugSyncUseCase,
+        bugQueryUseCase: mockBugQueryUseCase,
+        bugAttachmentUseCase: mockBugAttachmentUseCase,
+        upload: limitedUpload,
+        authMiddleware: mockAuth,
+        bugAssignmentUseCase: mockBugAssignmentUseCase,
+      }),
     );
     mockBugSubmissionUseCase.createBug.mockResolvedValue(
       new ResponseModel<Bug>("tx-id").withResponse(

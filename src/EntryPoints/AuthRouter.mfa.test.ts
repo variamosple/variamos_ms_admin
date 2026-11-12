@@ -123,17 +123,17 @@ function setUp(mfaEnabled: boolean, trustedDeviceDays = 14) {
     configuration,
     mock<ILogger>(),
   );
-  const mfaSignIn = new MfaSignInUseCase(
-    repository,
-    {
+  const mfaSignIn = new MfaSignInUseCase({
+    mfaRepository: repository,
+    mfaUseCase: {
       verifySecondFactor: async (_record: UserMfaRecord, code: string) =>
         code === RIGHT_CODE,
     },
     cipher,
-    new PendingMfaSignIns(),
+    pending: new PendingMfaSignIns(),
     trustedDevices,
-    mock<ILogger>(),
-  );
+    logger: mock<ILogger>(),
+  });
 
   const app = express();
   app.use(express.json());
@@ -141,14 +141,14 @@ function setUp(mfaEnabled: boolean, trustedDeviceDays = 14) {
   app.use(cookieParser("secret"));
   app.use(
     AUTH_ROUTE,
-    createAuthRouter(
-      auth,
-      mock<UserPasswordUseCase>(),
-      mock<UserManagementUseCase>(),
-      query,
+    createAuthRouter({
+      userAuthUseCase: auth,
+      userPasswordUseCase: mock<UserPasswordUseCase>(),
+      userManagementUseCase: mock<UserManagementUseCase>(),
+      userQueryUseCase: query,
       mfaSignIn,
       accessJournal,
-    ),
+    }),
   );
   return { app, query, repository, devices };
 }

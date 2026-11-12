@@ -12,17 +12,11 @@ describe("BugRepositoryImpl paging", () => {
   const onPage = (pageNumber?: number, pageSize?: number) =>
     new RequestModel(
       "tx",
-      new BugFilter(
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        [],
-        undefined,
-        undefined,
+      new BugFilter({
+        managedRepos: [],
         pageNumber,
         pageSize,
-      ),
+      }),
     );
 
   beforeEach(() => {

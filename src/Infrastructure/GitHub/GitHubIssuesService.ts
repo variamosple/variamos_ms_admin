@@ -3,6 +3,7 @@ import logger from "#src/common/logger.js";
 import type {
   GitHubIssue,
   IIssueTrackerService,
+  IssueContent,
 } from "#src/Domain/Core/Service/IIssueTrackerService.js";
 import {
   httpFailure,
@@ -42,9 +43,7 @@ export class GitHubIssuesService implements IIssueTrackerService {
 
   public async createIssue(
     repo: string,
-    title: string,
-    body: string,
-    labels: string[],
+    { title, body, labels }: IssueContent,
     token: string,
   ): Promise<number | null> {
     const url = `https://api.github.com/repos/${repo}/issues`;
@@ -66,36 +65,6 @@ export class GitHubIssuesService implements IIssueTrackerService {
       logger.err(`GitHub error [createIssue] on ${repo}:`);
       logger.err(httpFailure(error));
       return null;
-    }
-  }
-
-  public async updateIssue(
-    repo: string,
-    issueNumber: number,
-    title: string,
-    body: string,
-    labels: string[],
-    token: string,
-  ): Promise<boolean> {
-    const url = `https://api.github.com/repos/${repo}/issues/${issueNumber}`;
-
-    try {
-      await axios.patch(
-        url,
-        {
-          title,
-          body,
-          labels,
-        },
-        {
-          headers: this.getHeaders(token),
-        },
-      );
-      return true;
-    } catch (error) {
-      logger.err(`GitHub error [updateIssue] on ${repo}:`);
-      logger.err(httpFailure(error));
-      return false;
     }
   }
 

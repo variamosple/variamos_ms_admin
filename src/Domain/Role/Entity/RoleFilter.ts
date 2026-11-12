@@ -8,16 +8,36 @@ import {
 const ROLE_SORT_FIELDS = ["id", "name"] as const;
 export type RoleSortField = (typeof ROLE_SORT_FIELDS)[number];
 
+/** The criteria of a role search; every one is optional. */
+export interface RoleFilterFields {
+  id?: Nullable<number>;
+  name?: Nullable<string>;
+  pageNumber?: number;
+  pageSize?: number;
+  sortBy?: RoleSortField;
+  sortOrder?: SortOrder;
+}
+
 export class RoleFilter extends PagedModel {
-  public constructor(
-    public id?: Nullable<number>,
-    public name?: Nullable<string>,
-    pageNumber?: number,
-    pageSize?: number,
-    public sortBy: RoleSortField = "name",
-    public sortOrder: SortOrder = "asc",
-  ) {
+  public id?: Nullable<number>;
+  public name?: Nullable<string>;
+  public sortBy: RoleSortField;
+  public sortOrder: SortOrder;
+
+  public constructor(fields: RoleFilterFields = {}) {
+    const {
+      id,
+      name,
+      pageNumber,
+      pageSize,
+      sortBy = "name",
+      sortOrder = "asc",
+    } = fields;
     super(pageNumber, pageSize);
+    this.id = id;
+    this.name = name;
+    this.sortBy = sortBy;
+    this.sortOrder = sortOrder;
   }
 
   public static builder(): RoleFilterBuilder {
@@ -25,14 +45,14 @@ export class RoleFilter extends PagedModel {
   }
 
   public static build(builder: RoleFilterBuilder): RoleFilter {
-    return new RoleFilter(
-      builder.id,
-      builder.name,
-      builder.pageNumber,
-      builder.pageSize,
-      builder.sortBy,
-      builder.sortOrder,
-    );
+    return new RoleFilter({
+      id: builder.id,
+      name: builder.name,
+      pageNumber: builder.pageNumber,
+      pageSize: builder.pageSize,
+      sortBy: builder.sortBy,
+      sortOrder: builder.sortOrder,
+    });
   }
 }
 

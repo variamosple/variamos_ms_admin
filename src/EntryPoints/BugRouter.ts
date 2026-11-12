@@ -39,6 +39,18 @@ import { sendError } from "./errorResponse.js";
 import { queryText } from "./queryText.js";
 import { checkedBody, validBody } from "./requestBody.js";
 
+/** What the bug routes use. */
+export interface BugRouterDependencies {
+  bugSubmissionUseCase: BugSubmissionUseCase;
+  bugLifecycleUseCase: BugLifecycleUseCase;
+  bugSyncUseCase: BugSyncUseCase;
+  bugQueryUseCase: BugQueryUseCase;
+  bugAttachmentUseCase: BugAttachmentUseCase;
+  upload: MulterUpload;
+  authMiddleware: RequestHandler;
+  bugAssignmentUseCase: BugAssignmentUseCase;
+}
+
 /**
  * Factory function to create Bug Router with decoupled dependency injection
  */
@@ -164,16 +176,17 @@ function sendInvalidPage(res: Response, transactionId: string): void {
     );
 }
 
-export function createBugRouter(
-  bugSubmissionUseCase: BugSubmissionUseCase,
-  bugLifecycleUseCase: BugLifecycleUseCase,
-  bugSyncUseCase: BugSyncUseCase,
-  bugQueryUseCase: BugQueryUseCase,
-  bugAttachmentUseCase: BugAttachmentUseCase,
-  upload: MulterUpload,
-  authMiddleware: RequestHandler,
-  bugAssignmentUseCase: BugAssignmentUseCase,
-): Router {
+export function createBugRouter(dependencies: BugRouterDependencies): Router {
+  const {
+    bugSubmissionUseCase,
+    bugLifecycleUseCase,
+    bugSyncUseCase,
+    bugQueryUseCase,
+    bugAttachmentUseCase,
+    upload,
+    authMiddleware,
+    bugAssignmentUseCase,
+  } = dependencies;
   const router = Router();
 
   // Get all bugs
@@ -190,17 +203,17 @@ export function createBugRouter(
       }
       const { repo, status, priority, search, assignee, component } = req.query;
       try {
-        const filter = new BugFilter(
-          queryText(repo),
-          queryText(status),
-          queryText(priority),
-          queryText(search),
-          undefined,
-          typeof assignee === "string" && assignee ? assignee : undefined,
-          queryText(component),
-          page.pageNumber,
-          page.pageSize,
-        );
+        const filter = new BugFilter({
+          repo: queryText(repo),
+          status: queryText(status),
+          priority: queryText(priority),
+          search: queryText(search),
+          assigneeId:
+            typeof assignee === "string" && assignee ? assignee : undefined,
+          component: queryText(component),
+          pageNumber: page.pageNumber,
+          pageSize: page.pageSize,
+        });
         const request = new RequestModel<BugFilter>(transactionId, filter);
         const response = await bugQueryUseCase.queryBugs(request);
         response.data = maskReporterEmails(req, response.data);
@@ -227,17 +240,15 @@ export function createBugRouter(
       }
       const { repo, status, priority, search, component } = req.query;
       try {
-        const filter = new BugFilter(
-          queryText(repo),
-          queryText(status),
-          queryText(priority),
-          queryText(search),
-          undefined,
-          undefined,
-          queryText(component),
-          page.pageNumber,
-          page.pageSize,
-        );
+        const filter = new BugFilter({
+          repo: queryText(repo),
+          status: queryText(status),
+          priority: queryText(priority),
+          search: queryText(search),
+          component: queryText(component),
+          pageNumber: page.pageNumber,
+          pageSize: page.pageSize,
+        });
         const request = new RequestModel<BugFilter>(transactionId, filter);
         const response = await bugQueryUseCase.queryLocalBugs(request);
         response.data = maskReporterEmails(req, response.data);
@@ -567,15 +578,11 @@ export function createBugRouter(
         if (response.errorCode) {
           res.status(code).json(response);
         } else {
-          res
-            .status(code)
-            .json(
-              new ResponseModel<void>(
-                transactionId,
-                undefined,
-                "GitHub bugs synchronization completed successfully.",
-              ),
-            );
+          res.status(code).json(
+            new ResponseModel<void>(transactionId, {
+              message: "GitHub bugs synchronization completed successfully.",
+            }),
+          );
         }
       } catch (error) {
         sendError(res, error, transactionId);

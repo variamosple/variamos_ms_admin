@@ -19,7 +19,10 @@ describe("PermissionUseCase - Unit Tests", () => {
   });
 
   test("should query permissions", async () => {
-    const mockFilter = new PermissionFilter(1, "permissions::query");
+    const mockFilter = new PermissionFilter({
+      id: 1,
+      name: "permissions::query",
+    });
     const mockPermissions = [new Permission(1, "permissions::query")];
     const mockResponse = new ResponseModel<Permission[]>("tx-1").withResponse(
       mockPermissions,

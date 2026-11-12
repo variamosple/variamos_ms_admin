@@ -31,14 +31,14 @@ describe("BugSyncUseCase", () => {
     mockGithubConfig = mock<IBugTrackerConfig>();
     mockTokenResolver = mock<IGitHubTokenProvider>();
     mockJournal = mock<IActivityJournal>();
-    useCase = new BugSyncUseCase(
-      mockBugRepository,
-      mockIssueTracker,
-      mockGithubConfig,
-      mockTokenResolver,
+    useCase = new BugSyncUseCase({
+      bugRepository: mockBugRepository,
+      issueTrackerService: mockIssueTracker,
+      githubConfig: mockGithubConfig,
+      tokenResolver: mockTokenResolver,
       logger,
-      mockJournal,
-    );
+      journal: mockJournal,
+    });
     // No local bug yet for the synchronized repositories
     mockBugRepository.queryBugs.mockResolvedValue(
       new ResponseModel<Bug[]>("tx-1").withResponse([]),

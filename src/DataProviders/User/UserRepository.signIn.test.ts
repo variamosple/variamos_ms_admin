@@ -18,14 +18,14 @@ vi.mock("#src/common/logger.js");
 // writes, bcrypt compares (EV-98)
 const signInWith = (hasher: IPasswordHasher, logger = mock<ILogger>()) => {
   const repository = new UserRepositoryImpl(hasher);
-  const useCase = new UserAuthUseCase(
-    repository,
-    { queryGuestRole: vi.fn() },
+  const useCase = new UserAuthUseCase({
+    userRepository: repository,
+    roleRepository: { queryGuestRole: vi.fn() },
     logger,
-    { sendExistingAccountMail: vi.fn() },
-    { adminHomeUri: "" },
-    new AccountPasswordService(repository, hasher, logger),
-  );
+    mailService: { sendExistingAccountMail: vi.fn() },
+    config: { adminHomeUri: "" },
+    accountPasswords: new AccountPasswordService(repository, hasher, logger),
+  });
   return (password = "Password1!") =>
     useCase.signIn(
       new RequestModel<Credentials>("signIn", {

@@ -43,15 +43,15 @@ describe("BugSubmissionUseCase", () => {
     mockStorageService = mock<IStorageService>();
     mockStorageService.saveFile.mockResolvedValue("/uploads/generated.png");
     logger = mock<ILogger>();
-    useCase = new BugSubmissionUseCase(
-      mockBugRepository,
-      mockUserRepository,
-      mockIssueTracker,
-      mockGithubConfig,
-      mockTokenResolver,
-      mockStorageService,
+    useCase = new BugSubmissionUseCase({
+      bugRepository: mockBugRepository,
+      userRepository: mockUserRepository,
+      issueTrackerService: mockIssueTracker,
+      githubConfig: mockGithubConfig,
+      tokenResolver: mockTokenResolver,
+      storageService: mockStorageService,
       logger,
-    );
+    });
   });
 
   it("should successfully create a local bug for a guest", async () => {
@@ -147,9 +147,11 @@ describe("BugSubmissionUseCase", () => {
     );
     expect(mockIssueTracker.createIssue).toHaveBeenCalledWith(
       "VariaMos/VariaMosAdmin",
-      "GitHub Issue Bug",
-      "Test Desc\n\n---\n*Reported directly by Admin*\n*Priority: high*\n*Category: Model*",
-      ["bug", "model", "high"],
+      {
+        title: "GitHub Issue Bug",
+        body: "Test Desc\n\n---\n*Reported directly by Admin*\n*Priority: high*\n*Category: Model*",
+        labels: ["bug", "model", "high"],
+      },
       "github-token-abc",
     );
     expect(mockBugRepository.createBug).toHaveBeenCalledWith(
@@ -193,9 +195,11 @@ describe("BugSubmissionUseCase", () => {
 
     expect(mockIssueTracker.createIssue).toHaveBeenCalledWith(
       "VariaMos/VariaMosAdmin",
-      "Crash",
-      "On save\n\n---\n*Reported directly by Admin*\n*Priority: critical*\n*Category: Model*\n*Component: Administration interface*",
-      ["bug", "model", "critical"],
+      {
+        title: "Crash",
+        body: "On save\n\n---\n*Reported directly by Admin*\n*Priority: critical*\n*Category: Model*\n*Component: Administration interface*",
+        labels: ["bug", "model", "critical"],
+      },
       "github-token-abc",
     );
     expect(mockBugRepository.createBug).toHaveBeenCalledWith(
@@ -455,7 +459,7 @@ describe("BugSubmissionUseCase", () => {
       }),
     );
 
-    const body = mockIssueTracker.createIssue.mock.calls[0]?.[2];
+    const body = mockIssueTracker.createIssue.mock.calls[0]?.[1].body;
     expect(body).toBeDefined();
     expect(body).not.toContain("@");
   });
@@ -556,11 +560,13 @@ describe("BugSubmissionUseCase", () => {
     expect(res.data).toBe(bug);
     expect(mockIssueTracker.createIssue).toHaveBeenCalledWith(
       "VariaMos/VariaMosAdmin",
-      "Bug Title",
-      expect.stringContaining(
-        "[Attachment](http://localhost:4000/uploads/generated.png) (Type: image/png)",
-      ),
-      expect.any(Array),
+      {
+        title: "Bug Title",
+        body: expect.stringContaining(
+          "[Attachment](http://localhost:4000/uploads/generated.png) (Type: image/png)",
+        ),
+        labels: expect.any(Array),
+      },
       "token",
     );
   });
@@ -600,11 +606,13 @@ describe("BugSubmissionUseCase", () => {
     expect(res.data).toBe(bug);
     expect(mockIssueTracker.createIssue).toHaveBeenCalledWith(
       "VariaMos/VariaMosAdmin",
-      "Bug Title",
-      expect.stringContaining(
-        "[Attachment](http://localhost:4000/uploads/generated.png) (Type: image/png)",
-      ),
-      expect.any(Array),
+      {
+        title: "Bug Title",
+        body: expect.stringContaining(
+          "[Attachment](http://localhost:4000/uploads/generated.png) (Type: image/png)",
+        ),
+        labels: expect.any(Array),
+      },
       "token",
     );
   });
@@ -700,9 +708,11 @@ describe("BugSubmissionUseCase", () => {
     expect(res.data).toBe(bug);
     expect(mockIssueTracker.createIssue).toHaveBeenCalledWith(
       "VariaMos/VariaMosAdmin",
-      "Bug Title",
-      "Desc\n\n---\n*Reported directly by Admin*\n*Category: Editor*",
-      ["bug", "editor"],
+      {
+        title: "Bug Title",
+        body: "Desc\n\n---\n*Reported directly by Admin*\n*Category: Editor*",
+        labels: ["bug", "editor"],
+      },
       "token",
     );
   });

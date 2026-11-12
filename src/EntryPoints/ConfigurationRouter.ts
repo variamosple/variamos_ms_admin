@@ -319,9 +319,11 @@ export function createConfigurationRouter(
 
         const response = new ResponseModel<ConfigurationResponseDto[]>(
           useCaseResponse.transactionId,
-          useCaseResponse.errorCode,
-          useCaseResponse.message,
-          useCaseResponse.totalCount,
+          {
+            errorCode: useCaseResponse.errorCode,
+            message: useCaseResponse.message,
+            totalCount: useCaseResponse.totalCount,
+          },
         );
 
         if (useCaseResponse.data) {
@@ -362,9 +364,11 @@ export function createConfigurationRouter(
 
         const response = new ResponseModel<ConfigurationResponseDto>(
           useCaseResponse.transactionId,
-          useCaseResponse.errorCode,
-          useCaseResponse.message,
-          useCaseResponse.totalCount,
+          {
+            errorCode: useCaseResponse.errorCode,
+            message: useCaseResponse.message,
+            totalCount: useCaseResponse.totalCount,
+          },
         );
 
         if (useCaseResponse.data) {

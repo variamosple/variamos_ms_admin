@@ -8,17 +8,38 @@ import {
 const PERMISSION_SORT_FIELDS = ["id", "name"] as const;
 export type PermissionSortField = (typeof PERMISSION_SORT_FIELDS)[number];
 
+/** The criteria of a permission search; every one is optional. */
+export interface PermissionFilterFields {
+  id?: Nullable<number>;
+  /** Part of the permission name, or its exact id */
+  name?: Nullable<string>;
+  pageNumber?: number;
+  pageSize?: number;
+  sortBy?: PermissionSortField;
+  sortOrder?: SortOrder;
+}
+
 export class PermissionFilter extends PagedModel {
-  public constructor(
-    public id?: Nullable<number>,
-    /** Part of the permission name, or its exact id */
-    public name?: Nullable<string>,
-    pageNumber?: number,
-    pageSize?: number,
-    public sortBy: PermissionSortField = "name",
-    public sortOrder: SortOrder = "asc",
-  ) {
+  public id?: Nullable<number>;
+  /** Part of the permission name, or its exact id */
+  public name?: Nullable<string>;
+  public sortBy: PermissionSortField;
+  public sortOrder: SortOrder;
+
+  public constructor(fields: PermissionFilterFields = {}) {
+    const {
+      id,
+      name,
+      pageNumber,
+      pageSize,
+      sortBy = "name",
+      sortOrder = "asc",
+    } = fields;
     super(pageNumber, pageSize);
+    this.id = id;
+    this.name = name;
+    this.sortBy = sortBy;
+    this.sortOrder = sortOrder;
   }
 
   public static builder(): PermissionFilterBuilder {
@@ -26,14 +47,14 @@ export class PermissionFilter extends PagedModel {
   }
 
   public static build(builder: PermissionFilterBuilder): PermissionFilter {
-    return new PermissionFilter(
-      builder.id,
-      builder.name,
-      builder.pageNumber,
-      builder.pageSize,
-      builder.sortBy,
-      builder.sortOrder,
-    );
+    return new PermissionFilter({
+      id: builder.id,
+      name: builder.name,
+      pageNumber: builder.pageNumber,
+      pageSize: builder.pageSize,
+      sortBy: builder.sortBy,
+      sortOrder: builder.sortOrder,
+    });
   }
 }
 

@@ -44,13 +44,13 @@ describe("UserPasswordUseCase", () => {
     logger = mock<ILogger>();
     mockUserRepository = mock<IUserRepository>();
     mockMailService = mock<IMailService>();
-    useCase = new UserPasswordUseCase(
-      mockUserRepository,
-      mockMailService,
-      mockConfig,
-      activityJournal,
+    useCase = new UserPasswordUseCase({
+      userRepository: mockUserRepository,
+      mailService: mockMailService,
+      config: mockConfig,
+      journal: activityJournal,
       logger,
-    );
+    });
   });
 
   describe("requestReset", () => {
@@ -299,13 +299,13 @@ describe("UserPasswordUseCase", () => {
       ["a configured 30 minutes", 30 * 60 * 1000, 30 * 60 * 1000],
       ["an invalid value", Number.NaN, 60 * 60 * 1000],
     ])("caps %s at one hour", async (_label, configured, expected) => {
-      const capped = new UserPasswordUseCase(
-        mockUserRepository,
-        mockMailService,
-        { ...mockConfig, passwordResetExpiryInMs: configured },
-        activityJournal,
+      const capped = new UserPasswordUseCase({
+        userRepository: mockUserRepository,
+        mailService: mockMailService,
+        config: { ...mockConfig, passwordResetExpiryInMs: configured },
+        journal: activityJournal,
         logger,
-      );
+      });
       mockUserRepository.getUserByEmail.mockResolvedValue(mockUser);
       const createTokenSpy = vi
         .spyOn(PasswordResetTokenService.prototype, "createResetToken")

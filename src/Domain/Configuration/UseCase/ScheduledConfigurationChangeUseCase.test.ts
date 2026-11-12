@@ -151,13 +151,13 @@ describe("ScheduledConfigurationChangeUseCase (EV-115 lot B)", () => {
       .mockReset()
       .mockResolvedValue(new ResponseModel<Configuration>("u"));
     notifier.notifyNotApplied.mockReset().mockResolvedValue(undefined);
-    useCase = new ScheduledConfigurationChangeUseCase(
+    useCase = new ScheduledConfigurationChangeUseCase({
       changes,
       configurations,
-      { record: async (entry) => void journal.push(entry) },
+      journal: { record: async (entry) => void journal.push(entry) },
       notifier,
-      () => NOW,
-    );
+      now: () => NOW,
+    });
   });
 
   const schedule = (

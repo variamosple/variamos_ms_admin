@@ -86,72 +86,72 @@ describe("Configuration Entity Invariants", () => {
 
   it("should throw error for null/undefined value", () => {
     expect(() => {
-      new Configuration(
-        1,
-        validKey,
+      new Configuration({
+        id: 1,
+        key: validKey,
         // @ts-expect-error - Testing null value validation
-        null,
-        "string",
-        "general",
-        false,
-        false,
-        "all",
-        false,
-        ["all"],
-      );
+        value: null,
+        type: "string",
+        category: "general",
+        requiresMfa: false,
+        isSecret: false,
+        environmentScope: "all",
+        isReadOnly: false,
+        targetServices: ["all"],
+      });
     }).toThrow("Configuration value cannot be null or undefined.");
   });
 
   it("should throw error for missing type", () => {
     expect(() => {
-      new Configuration(
-        1,
-        validKey,
-        "val",
+      new Configuration({
+        id: 1,
+        key: validKey,
+        value: "val",
         // @ts-expect-error - Testing null type validation
-        null,
-        "general",
-        false,
-        false,
-        "all",
-        false,
-        ["all"],
-      );
+        type: null,
+        category: "general",
+        requiresMfa: false,
+        isSecret: false,
+        environmentScope: "all",
+        isReadOnly: false,
+        targetServices: ["all"],
+      });
     }).toThrow("Configuration type is required.");
   });
 
   it("should throw error for missing category", () => {
     expect(() => {
-      new Configuration(
-        1,
-        validKey,
-        "val",
-        "string",
+      new Configuration({
+        id: 1,
+        key: validKey,
+        value: "val",
+        type: "string",
         // @ts-expect-error - Testing null category validation
-        null,
-        false,
-        false,
-        "all",
-        false,
-        ["all"],
-      );
+        category: null,
+        requiresMfa: false,
+        isSecret: false,
+        environmentScope: "all",
+        isReadOnly: false,
+        targetServices: ["all"],
+      });
     }).toThrow("Configuration category is required.");
   });
 
   it("should throw error for empty target services", () => {
     expect(() => {
-      new Configuration(
-        1,
-        validKey,
-        "val",
-        "string",
-        "general",
-        false,
-        false,
-        "all",
-        false,
-        [],
-      );
+      new Configuration({
+        id: 1,
+        key: validKey,
+        value: "val",
+        type: "string",
+        category: "general",
+        requiresMfa: false,
+        isSecret: false,
+        environmentScope: "all",
+        isReadOnly: false,
+        targetServices: [],
+      });
     }).toThrow("At least one target service is required.");
   });
 

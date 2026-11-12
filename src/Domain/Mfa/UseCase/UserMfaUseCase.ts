@@ -38,18 +38,40 @@ export interface MfaRecoveryCodes {
   recoveryCodes: string[];
 }
 
+/** What the second factor of an account reads and writes. */
+export interface UserMfaUseCaseDependencies {
+  mfaRepository: IUserMfaRepository;
+  passwordCheck: IAccountPasswordCheck;
+  cipher: ISecretCipher;
+  logger: ILogger;
+  now?: () => number;
+}
+
 /**
  * Two-factor authentication of one's own account (SPC-2026-10-17-001,
  * EV-87 lot 5): TOTP (RFC 6238) and single-use recovery codes.
  */
 export class UserMfaUseCase {
-  public constructor(
-    private readonly mfaRepository: IUserMfaRepository,
-    private readonly passwordCheck: IAccountPasswordCheck,
-    private readonly cipher: ISecretCipher,
-    private readonly logger: ILogger,
-    private readonly now: () => number = Date.now,
-  ) {}
+  private readonly mfaRepository: IUserMfaRepository;
+  private readonly passwordCheck: IAccountPasswordCheck;
+  private readonly cipher: ISecretCipher;
+  private readonly logger: ILogger;
+  private readonly now: () => number;
+
+  public constructor(dependencies: UserMfaUseCaseDependencies) {
+    const {
+      mfaRepository,
+      passwordCheck,
+      cipher,
+      logger,
+      now = Date.now,
+    } = dependencies;
+    this.mfaRepository = mfaRepository;
+    this.passwordCheck = passwordCheck;
+    this.cipher = cipher;
+    this.logger = logger;
+    this.now = now;
+  }
 
   public async status(
     transactionId: string,

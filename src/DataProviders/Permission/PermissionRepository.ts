@@ -43,11 +43,12 @@ export class PermissionRepositoryImpl
       const byName: WhereOptions<PermissionAttributes> = {
         name: { [Op.iLike]: `%${replacements.name}%` },
       };
-      const where: WhereOptions<PermissionAttributes> = !filter.name
-        ? {}
-        : /^\d+$/.test(filter.name)
+      let where: WhereOptions<PermissionAttributes> = {};
+      if (filter.name) {
+        where = /^\d+$/.test(filter.name)
           ? { [Op.or]: [byName, { id: Number(filter.name) }] }
           : byName;
+      }
 
       const pageSize = filter.pageSize ?? 10;
       const pageNumber = filter.pageNumber ?? 1;

@@ -50,19 +50,18 @@ export class UserRepositoryImpl
         { type: QueryTypes.SELECT, replacements },
       ).then((result) => Number(result[0]?.count) || 0);
 
+      const byName: WhereOptions<UserAttributes> = filter.name
+        ? { name: { [Op.iLike]: `%${String(replacements.name)}%` } }
+        : {};
       const where: WhereOptions<UserAttributes> = filter.search
         ? {
             [Op.or]: [
               { name: { [Op.iLike]: `%${String(replacements.search)}%` } },
               { email: { [Op.iLike]: `%${String(replacements.search)}%` } },
             ],
-            ...(filter.name
-              ? { name: { [Op.iLike]: `%${String(replacements.name)}%` } }
-              : {}),
+            ...byName,
           }
-        : filter.name
-          ? { name: { [Op.iLike]: `%${String(replacements.name)}%` } }
-          : {};
+        : byName;
 
       const pageNumber = filter.pageNumber ?? 1;
       const pageSize = filter.pageSize ?? 10;

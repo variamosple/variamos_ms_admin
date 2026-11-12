@@ -5,14 +5,14 @@ describe("MicroService Entity - Unit Tests", () => {
   const validLabels = { app: "gateway" };
 
   it("should build a MicroService successfully using builder and constructor", () => {
-    const service1 = new MicroService(
-      "service-1",
-      ["gateway"],
-      validCreated,
-      validLabels,
-      "running",
-      "up",
-    );
+    const service1 = new MicroService({
+      id: "service-1",
+      names: ["gateway"],
+      created: validCreated,
+      labels: validLabels,
+      state: "running",
+      status: "up",
+    });
 
     expect(service1.getId()).toBe("service-1");
     expect(service1.getNames()).toEqual(["gateway"]);
@@ -50,34 +50,41 @@ describe("MicroService Entity - Unit Tests", () => {
   it("should throw an error for empty ID", () => {
     expect(
       () =>
-        new MicroService(
-          "",
-          ["gateway"],
-          validCreated,
-          validLabels,
-          "running",
-          "up",
-        ),
+        new MicroService({
+          id: "",
+          names: ["gateway"],
+          created: validCreated,
+          labels: validLabels,
+          state: "running",
+          status: "up",
+        }),
     ).toThrow("Microservice ID is required.");
   });
 
   it("should throw an error for empty names list", () => {
     expect(
       () =>
-        new MicroService("s1", [], validCreated, validLabels, "running", "up"),
+        new MicroService({
+          id: "s1",
+          names: [],
+          created: validCreated,
+          labels: validLabels,
+          state: "running",
+          status: "up",
+        }),
     ).toThrow(
       "Microservice names must be a non-empty list of non-empty strings.",
     );
     expect(
       () =>
-        new MicroService(
-          "s1",
-          [""],
-          validCreated,
-          validLabels,
-          "running",
-          "up",
-        ),
+        new MicroService({
+          id: "s1",
+          names: [""],
+          created: validCreated,
+          labels: validLabels,
+          state: "running",
+          status: "up",
+        }),
     ).toThrow(
       "Microservice names must be a non-empty list of non-empty strings.",
     );
@@ -86,28 +93,28 @@ describe("MicroService Entity - Unit Tests", () => {
   it("should throw an error for empty state", () => {
     expect(
       () =>
-        new MicroService(
-          "s1",
-          ["gateway"],
-          validCreated,
-          validLabels,
-          "",
-          "up",
-        ),
+        new MicroService({
+          id: "s1",
+          names: ["gateway"],
+          created: validCreated,
+          labels: validLabels,
+          state: "",
+          status: "up",
+        }),
     ).toThrow("Microservice state is required.");
   });
 
   it("should throw an error for empty status", () => {
     expect(
       () =>
-        new MicroService(
-          "s1",
-          ["gateway"],
-          validCreated,
-          validLabels,
-          "running",
-          "",
-        ),
+        new MicroService({
+          id: "s1",
+          names: ["gateway"],
+          created: validCreated,
+          labels: validLabels,
+          state: "running",
+          status: "",
+        }),
     ).toThrow("Microservice status is required.");
   });
 });

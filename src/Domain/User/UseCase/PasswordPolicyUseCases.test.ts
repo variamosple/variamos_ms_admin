@@ -36,15 +36,15 @@ describe("configured password policy in the use cases", () => {
   afterEach(() => vi.restoreAllMocks());
 
   it("sign-up refuses a password below the configured length", async () => {
-    const useCase = new UserAuthUseCase(
-      users,
-      mock<IGuestRoleRepository>(),
-      mock<ILogger>(),
-      mock<IMailService>(),
-      { adminHomeUri: "https://app.example.com" },
-      mock<AccountPasswordService>(),
-      strict,
-    );
+    const useCase = new UserAuthUseCase({
+      userRepository: users,
+      roleRepository: mock<IGuestRoleRepository>(),
+      logger: mock<ILogger>(),
+      mailService: mock<IMailService>(),
+      config: { adminHomeUri: "https://app.example.com" },
+      accountPasswords: mock<AccountPasswordService>(),
+      passwordPolicy: strict,
+    });
 
     const res = await useCase.signUp(
       new RequestModel<UserRegistration>("signUp", {
@@ -85,14 +85,14 @@ describe("configured password policy in the use cases", () => {
   });
 
   it("password reset refuses it too, before touching the token", async () => {
-    const useCase = new UserPasswordUseCase(
-      users,
-      mock<IMailService>(),
-      { passwordResetExpiryInMs: 3_600_000, adminHomeUri: "http://ui" },
-      activityJournal,
-      mock<ILogger>(),
-      strict,
-    );
+    const useCase = new UserPasswordUseCase({
+      userRepository: users,
+      mailService: mock<IMailService>(),
+      config: { passwordResetExpiryInMs: 3_600_000, adminHomeUri: "http://ui" },
+      journal: activityJournal,
+      logger: mock<ILogger>(),
+      passwordPolicy: strict,
+    });
 
     const res = await useCase.resetPassword(
       new RequestModel("resetPassword", {
@@ -112,14 +112,14 @@ describe("configured password policy in the use cases", () => {
     const createToken = vi
       .spyOn(PasswordResetTokenService.prototype, "createResetToken")
       .mockResolvedValue("token");
-    const useCase = new UserPasswordUseCase(
-      users,
-      mail,
-      { passwordResetExpiryInMs: 3_600_000, adminHomeUri: "http://ui" },
-      activityJournal,
-      mock<ILogger>(),
-      strict,
-    );
+    const useCase = new UserPasswordUseCase({
+      userRepository: users,
+      mailService: mail,
+      config: { passwordResetExpiryInMs: 3_600_000, adminHomeUri: "http://ui" },
+      journal: activityJournal,
+      logger: mock<ILogger>(),
+      passwordPolicy: strict,
+    });
 
     await useCase.requestReset(new RequestModel("forgot", "ana@example.com"));
     await vi.waitFor(() =>
@@ -134,14 +134,14 @@ describe("configured password policy in the use cases", () => {
   });
 
   it("exposes the policy for the UI forms", async () => {
-    const useCase = new UserPasswordUseCase(
-      users,
-      mock<IMailService>(),
-      { passwordResetExpiryInMs: 3_600_000, adminHomeUri: "http://ui" },
-      activityJournal,
-      mock<ILogger>(),
-      strict,
-    );
+    const useCase = new UserPasswordUseCase({
+      userRepository: users,
+      mailService: mock<IMailService>(),
+      config: { passwordResetExpiryInMs: 3_600_000, adminHomeUri: "http://ui" },
+      journal: activityJournal,
+      logger: mock<ILogger>(),
+      passwordPolicy: strict,
+    });
 
     const res = await useCase.getPasswordPolicy();
 

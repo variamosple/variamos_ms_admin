@@ -179,14 +179,14 @@ app.use(
 );
 app.use(
   AUTH_ROUTE,
-  createAuthRouter(
-    auth,
-    passwords,
-    mock<UserManagementUseCase>(),
-    queries,
+  createAuthRouter({
+    userAuthUseCase: auth,
+    userPasswordUseCase: passwords,
+    userManagementUseCase: mock<UserManagementUseCase>(),
+    userQueryUseCase: queries,
     mfaSignIn,
-    mock<IAccessJournal>(),
-  ),
+    accessJournal: mock<IAccessJournal>(),
+  }),
 );
 
 describe("Sign-in and own-account routes keep the shape VariaMosAdmin reads", () => {

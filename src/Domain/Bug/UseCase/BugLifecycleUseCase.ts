@@ -40,20 +40,51 @@ interface StatusChange {
   githubRepo?: string;
 }
 
+/** What the life cycle of a bug reads and updates. */
+export interface BugLifecycleUseCaseDependencies {
+  bugRepository: IBugRepository;
+  issueTrackerService: IIssueTrackerService;
+  storageService: IStorageService;
+  githubConfig: IBugTrackerConfig;
+  tokenResolver: IGitHubTokenProvider;
+  journal: IActivityJournal;
+  logger: ILogger;
+  schedule: Pick<IBugScheduleProvider, "getRejectedRetentionDays">;
+}
+
 export class BugLifecycleUseCase {
-  public constructor(
-    private readonly bugRepository: IBugRepository,
-    private readonly issueTrackerService: IIssueTrackerService,
-    private readonly storageService: IStorageService,
-    private readonly githubConfig: IBugTrackerConfig,
-    private readonly tokenResolver: IGitHubTokenProvider,
-    private readonly journal: IActivityJournal,
-    private readonly logger: ILogger,
-    private readonly schedule: Pick<
-      IBugScheduleProvider,
-      "getRejectedRetentionDays"
-    >,
-  ) {}
+  private readonly bugRepository: IBugRepository;
+  private readonly issueTrackerService: IIssueTrackerService;
+  private readonly storageService: IStorageService;
+  private readonly githubConfig: IBugTrackerConfig;
+  private readonly tokenResolver: IGitHubTokenProvider;
+  private readonly journal: IActivityJournal;
+  private readonly logger: ILogger;
+  private readonly schedule: Pick<
+    IBugScheduleProvider,
+    "getRejectedRetentionDays"
+  >;
+
+  public constructor(dependencies: BugLifecycleUseCaseDependencies) {
+    const {
+      bugRepository,
+      issueTrackerService,
+      storageService,
+      githubConfig,
+      tokenResolver,
+      journal,
+      logger,
+      schedule,
+    } = dependencies;
+    this.bugRepository = bugRepository;
+    this.issueTrackerService = issueTrackerService;
+    this.storageService = storageService;
+    this.githubConfig = githubConfig;
+    this.tokenResolver = tokenResolver;
+    this.journal = journal;
+    this.logger = logger;
+    this.schedule = schedule;
+  }
 
   public async updateStatus(
     request: RequestModel<StatusChange>,
@@ -236,9 +267,7 @@ export class BugLifecycleUseCase {
 
         const issueNum = await this.issueTrackerService.createIssue(
           bug.githubRepo,
-          bug.title,
-          issueBody,
-          labels,
+          { title: bug.title, body: issueBody, labels: labels },
           gitHubToken,
         );
 

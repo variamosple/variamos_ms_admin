@@ -3,6 +3,22 @@ import { DomainError } from "#src/Domain/Core/Error/DomainError.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { Email } from "./Email.js";
 
+/** What an account is made of. */
+export interface UserFields {
+  id: Nullable<string>;
+  user: string;
+  name: string;
+  email: string;
+  countryCode: Nullable<string>;
+  countryName: Nullable<string>;
+  isEnabled: boolean;
+  isDeleted: boolean;
+  createdAt: Date;
+  lastLogin?: Date;
+  roles?: string[];
+  permissions?: string[];
+}
+
 export class User {
   public id: Nullable<string>;
   public user: string;
@@ -17,20 +33,21 @@ export class User {
   public roles?: string[];
   public permissions?: string[];
 
-  public constructor(
-    id: Nullable<string>,
-    user: string,
-    name: string,
-    email: string,
-    countryCode: Nullable<string>,
-    countryName: Nullable<string>,
-    isEnabled: boolean,
-    isDeleted: boolean,
-    createdAt: Date,
-    lastLogin?: Date,
-    roles?: string[],
-    permissions?: string[],
-  ) {
+  public constructor(fields: UserFields) {
+    const {
+      id,
+      user,
+      name,
+      email,
+      countryCode,
+      countryName,
+      isEnabled,
+      isDeleted,
+      createdAt,
+      lastLogin,
+      roles,
+      permissions,
+    } = fields;
     if (name !== undefined && name !== null && name.trim() === "") {
       throw new DomainError(
         DomainErrorCodes.INVALID_INPUT,
@@ -58,20 +75,20 @@ export class User {
   }
 
   public static build(builder: UserBuilder): User {
-    return new User(
-      builder.getId(),
-      builder.getUser(),
-      builder.getName(),
-      builder.getEmail(),
-      builder.getCountryCode(),
-      builder.getCountryName(),
-      builder.getIsEnabled(),
-      builder.getIsDeleted(),
-      builder.getCreatedAt(),
-      builder.getLastLogin(),
-      builder.getRoles(),
-      builder.getPermissions(),
-    );
+    return new User({
+      id: builder.getId(),
+      user: builder.getUser(),
+      name: builder.getName(),
+      email: builder.getEmail(),
+      countryCode: builder.getCountryCode(),
+      countryName: builder.getCountryName(),
+      isEnabled: builder.getIsEnabled(),
+      isDeleted: builder.getIsDeleted(),
+      createdAt: builder.getCreatedAt(),
+      lastLogin: builder.getLastLogin(),
+      roles: builder.getRoles(),
+      permissions: builder.getPermissions(),
+    });
   }
 }
 
@@ -198,19 +215,19 @@ class UserBuilder {
   }
 
   public build(): User {
-    return new User(
-      this.id,
-      this.user,
-      this.name,
-      this.email,
-      this.countryCode,
-      this.countryName,
-      this.isEnabled,
-      this.isDeleted,
-      this.createdAt,
-      this.lastLogin,
-      this.roles,
-      this.permissions,
-    );
+    return new User({
+      id: this.id,
+      user: this.user,
+      name: this.name,
+      email: this.email,
+      countryCode: this.countryCode,
+      countryName: this.countryName,
+      isEnabled: this.isEnabled,
+      isDeleted: this.isDeleted,
+      createdAt: this.createdAt,
+      lastLogin: this.lastLogin,
+      roles: this.roles,
+      permissions: this.permissions,
+    });
   }
 }

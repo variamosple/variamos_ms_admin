@@ -28,7 +28,10 @@ describe("UserQueryUseCase", () => {
 
   describe("queryList", () => {
     it("should query users with filter", async () => {
-      const mockFilter = new UserFilter("1", "testuser");
+      const mockFilter = new UserFilter({
+        id: "1",
+        user: "testuser",
+      });
       const mockResponse = new ResponseModel<User[]>("tx-1").withResponse([
         mockUser,
       ]);

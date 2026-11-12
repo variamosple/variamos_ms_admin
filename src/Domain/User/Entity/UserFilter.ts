@@ -14,19 +14,48 @@ const USER_SORT_FIELDS = [
 ] as const;
 export type UserSortField = (typeof USER_SORT_FIELDS)[number];
 
+/** The criteria of an account search; every one is optional. */
+export interface UserFilterFields {
+  id?: Nullable<string>;
+  user?: Nullable<string>;
+  name?: Nullable<string>;
+  email?: Nullable<string>;
+  search?: Nullable<string>;
+  pageNumber?: number;
+  pageSize?: number;
+  sortBy?: UserSortField;
+  sortOrder?: SortOrder;
+}
+
 export class UserFilter extends PagedModel {
-  public constructor(
-    public id?: Nullable<string>,
-    public user?: Nullable<string>,
-    public name?: Nullable<string>,
-    public email?: Nullable<string>,
-    public search?: Nullable<string>,
-    pageNumber?: number,
-    pageSize?: number,
-    public sortBy: UserSortField = "name",
-    public sortOrder: SortOrder = "asc",
-  ) {
+  public id?: Nullable<string>;
+  public user?: Nullable<string>;
+  public name?: Nullable<string>;
+  public email?: Nullable<string>;
+  public search?: Nullable<string>;
+  public sortBy: UserSortField;
+  public sortOrder: SortOrder;
+
+  public constructor(fields: UserFilterFields = {}) {
+    const {
+      id,
+      user,
+      name,
+      email,
+      search,
+      pageNumber,
+      pageSize,
+      sortBy = "name",
+      sortOrder = "asc",
+    } = fields;
     super(pageNumber, pageSize);
+    this.id = id;
+    this.user = user;
+    this.name = name;
+    this.email = email;
+    this.search = search;
+    this.sortBy = sortBy;
+    this.sortOrder = sortOrder;
   }
 
   public static builder(): UserFilterBuilder {
@@ -34,17 +63,17 @@ export class UserFilter extends PagedModel {
   }
 
   public static build(builder: UserFilterBuilder): UserFilter {
-    return new UserFilter(
-      builder.id,
-      builder.user,
-      builder.name,
-      builder.email,
-      builder.search,
-      builder.pageNumber,
-      builder.pageSize,
-      builder.sortBy,
-      builder.sortOrder,
-    );
+    return new UserFilter({
+      id: builder.id,
+      user: builder.user,
+      name: builder.name,
+      email: builder.email,
+      search: builder.search,
+      pageNumber: builder.pageNumber,
+      pageSize: builder.pageSize,
+      sortBy: builder.sortBy,
+      sortOrder: builder.sortOrder,
+    });
   }
 }
 
