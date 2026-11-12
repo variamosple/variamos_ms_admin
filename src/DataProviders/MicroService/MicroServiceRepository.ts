@@ -305,15 +305,15 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
             checkedAt: latestHealthLog?.checkedAt,
           };
 
-          return new MicroServiceDetailed(
-            def.name,
-            def.displayName,
-            healthInfo,
-            containerInfos.length || (status === "UP" ? 1 : 0),
-            containerInfos,
+          return new MicroServiceDetailed({
+            serviceName: def.name,
+            displayName: def.displayName,
+            health: healthInfo,
+            replicasCount: containerInfos.length || (status === "UP" ? 1 : 0),
+            containers: containerInfos,
             uptimeSummary,
-            def.targetUrl,
-          );
+            targetUrl: def.targetUrl,
+          });
         }),
       );
 
@@ -408,15 +408,15 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
 
       const [uptimeSummary] = await this.uptimeSummaries([def.name]);
 
-      response.data = new MicroServiceDetailed(
-        def.name,
-        def.displayName,
-        healthInfo,
-        containerInfos.length || (status === "UP" ? 1 : 0),
-        containerInfos,
+      response.data = new MicroServiceDetailed({
+        serviceName: def.name,
+        displayName: def.displayName,
+        health: healthInfo,
+        replicasCount: containerInfos.length || (status === "UP" ? 1 : 0),
+        containers: containerInfos,
         uptimeSummary,
-        def.targetUrl,
-      );
+        targetUrl: def.targetUrl,
+      });
     } catch (error) {
       logger.err("Error in queryByName:");
       logger.err(error);
@@ -704,19 +704,19 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
 
       response.data = configs.map(
         (c) =>
-          new MicroServiceConfigItem(
-            c.id,
+          new MicroServiceConfigItem({
+            id: c.id,
             serviceName,
-            c.key,
-            this.displayedValueOf(c),
-            c.type || "string",
-            c.isSecret,
-            c.isReadOnly,
-            c.description,
-            c.updatedBy,
-            c.createdAt,
-            c.updatedAt,
-          ),
+            key: c.key,
+            value: this.displayedValueOf(c),
+            type: c.type || "string",
+            isSecret: c.isSecret,
+            isReadOnly: c.isReadOnly,
+            description: c.description,
+            updatedBy: c.updatedBy,
+            createdAt: c.createdAt,
+            updatedAt: c.updatedAt,
+          }),
       );
       response.totalCount = configs.length;
     } catch (error) {
@@ -821,19 +821,19 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         performedBy: operatorId,
       });
 
-      response.data = new MicroServiceConfigItem(
-        config.id,
+      response.data = new MicroServiceConfigItem({
+        id: config.id,
         serviceName,
-        config.key,
-        this.displayedValueOf(config),
-        config.type || "string",
-        config.isSecret,
-        config.isReadOnly,
-        config.description,
-        config.updatedBy,
-        config.createdAt,
-        config.updatedAt,
-      );
+        key: config.key,
+        value: this.displayedValueOf(config),
+        type: config.type || "string",
+        isSecret: config.isSecret,
+        isReadOnly: config.isReadOnly,
+        description: config.description,
+        updatedBy: config.updatedBy,
+        createdAt: config.createdAt,
+        updatedAt: config.updatedAt,
+      });
     } catch (error) {
       logger.err(error);
       response.withError(
@@ -873,14 +873,14 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
       const secretKeys = new Set(secretConfigs.map((c) => c.key));
 
       response.data = logs.map((l) =>
-        new MicroServiceAuditEntry(
-          l.id,
-          l.serviceName,
-          l.actionType,
-          l.details,
-          l.performedBy,
-          l.createdAt,
-        ).withSecretsMasked(secretKeys),
+        new MicroServiceAuditEntry({
+          id: l.id,
+          serviceName: l.serviceName,
+          actionType: l.actionType,
+          details: l.details,
+          performedBy: l.performedBy,
+          createdAt: l.createdAt,
+        }).withSecretsMasked(secretKeys),
       );
       response.totalCount = logs.length;
     } catch (error) {

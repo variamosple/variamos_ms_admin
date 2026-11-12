@@ -18,11 +18,10 @@ export interface UserPreferencesDto {
 }
 
 const send = (res: Response, response: ResponseModel<UserPreferences>) => {
-  const answer = new ResponseModel<UserPreferencesDto>(
-    response.transactionId,
-    response.errorCode,
-    response.message,
-  );
+  const answer = new ResponseModel<UserPreferencesDto>(response.transactionId, {
+    errorCode: response.errorCode,
+    message: response.message,
+  });
   if (response.data) {
     answer.data = {
       timeZone: response.data.timeZone,

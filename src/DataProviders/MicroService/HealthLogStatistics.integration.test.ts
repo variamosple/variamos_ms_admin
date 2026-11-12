@@ -15,6 +15,12 @@ import { runMigrations } from "#src/Infrastructure/database/Migrations/Migrator.
 import { HealthLogStatistics } from "./HealthLogStatistics.js";
 
 // Needs a disposable PostgreSQL, as the migration tests (Migrator.integration.test.ts)
+// UP when every check passed, DOWN when every one failed, else DEGRADED
+const expectedStatus = (up: number, down: number, total: number) => {
+  if (up === total) return "UP";
+  return down === total ? "DOWN" : "DEGRADED";
+};
+
 const url = process.env.MIGRATIONS_TEST_DATABASE_URL;
 const SCHEMA = "t29_health";
 
@@ -69,12 +75,7 @@ function referenceSummary(
     const slotDown = slotLogs.filter((l) => l.status === "DOWN");
     history.push({
       timestamp: slotStart,
-      status:
-        slotUp.length === slotLogs.length
-          ? "UP"
-          : slotDown.length === slotLogs.length
-            ? "DOWN"
-            : "DEGRADED",
+      status: expectedStatus(slotUp.length, slotDown.length, slotLogs.length),
       responseTimeMs: Math.round(
         slotLogs.reduce((acc, l) => acc + l.responseTimeMs, 0) /
           slotLogs.length,
@@ -149,7 +150,8 @@ function dataset(): Log[] {
   const logs: Log[] = [];
   const status = (): HealthStatus => {
     const draw = next();
-    return draw < 0.9 ? "UP" : draw < 0.95 ? "DEGRADED" : "DOWN";
+    if (draw < 0.9) return "UP";
+    return draw < 0.95 ? "DEGRADED" : "DOWN";
   };
   const add = (serviceName: string, at: number, forced?: HealthStatus) => {
     logs.push({

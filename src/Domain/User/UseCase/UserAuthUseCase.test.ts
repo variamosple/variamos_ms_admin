@@ -32,14 +32,14 @@ describe("UserAuthUseCase", () => {
     mockRoleRepository = mock<IGuestRoleRepository>();
     mailService = mock<IMailService>();
     accountPasswords = mock<AccountPasswordService>();
-    useCase = new UserAuthUseCase(
-      mockUserRepository,
-      mockRoleRepository,
+    useCase = new UserAuthUseCase({
+      userRepository: mockUserRepository,
+      roleRepository: mockRoleRepository,
       logger,
       mailService,
-      { adminHomeUri: "https://app.example.com" },
+      config: { adminHomeUri: "https://app.example.com" },
       accountPasswords,
-    );
+    });
   });
 
   describe("signUp", () => {

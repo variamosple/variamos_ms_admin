@@ -145,54 +145,6 @@
     },
     {
       "includes": [
-        "src/DataProviders/Activity/JournalReaderRepository.ts",
-        "src/Domain/Activity/SecurityAlerts.ts",
-        "src/Domain/Bug/Entity/BugFilter.ts",
-        "src/Domain/Bug/UseCase/BugLifecycleUseCase.ts",
-        "src/Domain/Bug/UseCase/BugSubmissionUseCase.ts",
-        "src/Domain/Bug/UseCase/BugSyncUseCase.ts",
-        "src/Domain/Configuration/Entity/Configuration.ts",
-        "src/Domain/Configuration/UseCase/ScheduledConfigurationChangeUseCase.ts",
-        "src/Domain/Core/Entity/ResponseModel.ts",
-        "src/Domain/Countries/Entity/Country.ts",
-        "src/Domain/Metrics/Entity/Metric.ts",
-        "src/Domain/Mfa/UseCase/MfaResetUseCase.ts",
-        "src/Domain/Mfa/UseCase/MfaSignInUseCase.ts",
-        "src/Domain/Mfa/UseCase/UserMfaUseCase.ts",
-        "src/Domain/MicroService/Entity/MicroService.ts",
-        "src/Domain/MicroService/Entity/MicroServiceAuditEntry.ts",
-        "src/Domain/MicroService/Entity/MicroServiceConfigItem.ts",
-        "src/Domain/MicroService/Entity/MicroServiceDetailed.ts",
-        "src/Domain/MicroService/Service/UptimeSummary.test.ts",
-        "src/Domain/MicroService/UseCase/MicroServiceManagementUseCase.ts",
-        "src/Domain/Permission/Entity/PermissionFilter.ts",
-        "src/Domain/Role/Entity/RoleFilter.ts",
-        "src/Domain/User/Entity/User.ts",
-        "src/Domain/User/Entity/UserFilter.ts",
-        "src/Domain/User/UseCase/UserAuthUseCase.ts",
-        "src/Domain/User/UseCase/UserPasswordUseCase.ts",
-        "src/EntryPoints/AuthRouter.ts",
-        "src/EntryPoints/BugRouter.ts",
-        "src/EntryPoints/RateLimits.test.ts",
-        "src/EntryPoints/UsersV1Router.ts",
-        "src/Infrastructure/GitHub/GitHubIssuesService.ts",
-        "src/Infrastructure/database/Migrations/0018-usage-metrics.ts"
-      ],
-      "linter": {
-        "rules": {
-          "complexity": {
-            "useMaxParams": {
-              "level": "info",
-              "options": {
-                "max": 4
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "includes": [
         "src/CompositionRoot.ts",
         "src/DataProviders/Bug/BugRepository.ts",
         "src/DataProviders/MicroService/MicroServiceRepository.ts",
@@ -211,24 +163,6 @@
                 "skipBlankLines": true
               }
             }
-          }
-        }
-      }
-    },
-    {
-      "includes": [
-        "src/DataProviders/MicroService/HealthLogStatistics.integration.test.ts",
-        "src/DataProviders/Permission/PermissionRepository.ts",
-        "src/DataProviders/User/UserRepository.ts",
-        "src/Domain/Bug/UseCase/BugSubmissionUseCase.ts",
-        "src/Domain/MicroService/Service/UptimeSummary.ts",
-        "src/Domain/User/UseCase/UserAuthUseCase.ts",
-        "src/EntryPoints/AuthRouter.ts"
-      ],
-      "linter": {
-        "rules": {
-          "style": {
-            "noNestedTernary": "info"
           }
         }
       }

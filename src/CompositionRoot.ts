@@ -172,17 +172,20 @@ export const AccessJournalInstance = new AccessJournalRepositoryImpl(
 );
 // Security alerts (T-24, EV-88 lot D): both journals are watched; alerts go
 // to the accounts holding the top permission, in the app and by mail
-const SecurityAlertDetectorInstance = new SecurityAlertDetector(
-  new SecurityAlertPolicyService(ConfigurationRepositoryInstance, JetLogger),
-  new SecurityAlertRecipientRepository(TOP_PERMISSION),
-  new SecurityAlertNotifier(
+const SecurityAlertDetectorInstance = new SecurityAlertDetector({
+  policyProvider: new SecurityAlertPolicyService(
+    ConfigurationRepositoryInstance,
+    JetLogger,
+  ),
+  recipients: new SecurityAlertRecipientRepository(TOP_PERMISSION),
+  notifier: new SecurityAlertNotifier(
     NotificationClientInstance,
     MailServiceInstance,
     JetLogger,
   ),
-  ActivityJournalInstance,
-  JetLogger,
-);
+  journal: ActivityJournalInstance,
+  logger: JetLogger,
+});
 const WatchedActivityJournal = watchedActivityJournal(
   ActivityJournalInstance,
   SecurityAlertDetectorInstance,
@@ -205,12 +208,15 @@ export const productionConfigurationUseCase = new ConfigurationUseCase(
 
 // Changes of the settings users notice, planned ahead (EV-115 lot B)
 export const productionScheduledConfigurationChangeUseCase =
-  new ScheduledConfigurationChangeUseCase(
-    new ScheduledConfigurationChangeRepositoryImpl(VARIAMOS_ORM, DB_SCHEMA),
-    productionConfigurationUseCase,
-    WatchedActivityJournal,
-    new ScheduledChangeNotifier(NotificationClientInstance),
-  );
+  new ScheduledConfigurationChangeUseCase({
+    changes: new ScheduledConfigurationChangeRepositoryImpl(
+      VARIAMOS_ORM,
+      DB_SCHEMA,
+    ),
+    configurations: productionConfigurationUseCase,
+    journal: WatchedActivityJournal,
+    notifier: new ScheduledChangeNotifier(NotificationClientInstance),
+  });
 
 // User Use Case Instantiations
 // security.password.* keys, read at each sign-up, change and reset
@@ -224,27 +230,27 @@ const AccountLockoutInstance = new AccountLockout(
   new AccountLockoutPolicyService(ConfigurationRepositoryInstance, JetLogger),
 );
 
-const productionUserAuthUseCase = new UserAuthUseCase(
-  UserRepositoryInstance,
-  RoleRepositoryInstance,
-  JetLogger,
-  MailServiceInstance,
-  { adminHomeUri: EnvVars.Auth.APP.ADMIN_HOME_URI },
-  AccountPasswordServiceInstance,
-  PasswordPolicyServiceInstance,
-);
+const productionUserAuthUseCase = new UserAuthUseCase({
+  userRepository: UserRepositoryInstance,
+  roleRepository: RoleRepositoryInstance,
+  logger: JetLogger,
+  mailService: MailServiceInstance,
+  config: { adminHomeUri: EnvVars.Auth.APP.ADMIN_HOME_URI },
+  accountPasswords: AccountPasswordServiceInstance,
+  passwordPolicy: PasswordPolicyServiceInstance,
+});
 
-const productionUserPasswordUseCase = new UserPasswordUseCase(
-  UserRepositoryInstance,
-  MailServiceInstance,
-  {
+const productionUserPasswordUseCase = new UserPasswordUseCase({
+  userRepository: UserRepositoryInstance,
+  mailService: MailServiceInstance,
+  config: {
     passwordResetExpiryInMs: EnvVars.Auth.APP.PASSWORD_RESET_EXPIRY_IN_MS,
     adminHomeUri: EnvVars.Auth.APP.ADMIN_HOME_URI,
   },
-  WatchedActivityJournal,
-  JetLogger,
-  PasswordPolicyServiceInstance,
-);
+  journal: WatchedActivityJournal,
+  logger: JetLogger,
+  passwordPolicy: PasswordPolicyServiceInstance,
+});
 
 const productionUserManagementUseCase = new UserManagementUseCase(
   UserRepositoryInstance,
@@ -264,12 +270,12 @@ if (!mfaEncryptionKey && EnvVars.Auth.APP.MFA_ENCRYPTION_KEY.trim()) {
 }
 const userMfaRepository = new UserMfaRepositoryImpl(VARIAMOS_ORM, DB_SCHEMA);
 const mfaSecretCipher = new AesGcmSecretCipher(mfaEncryptionKey);
-const productionUserMfaUseCase = new UserMfaUseCase(
-  userMfaRepository,
-  AccountPasswordServiceInstance,
-  mfaSecretCipher,
-  JetLogger,
-);
+const productionUserMfaUseCase = new UserMfaUseCase({
+  mfaRepository: userMfaRepository,
+  passwordCheck: AccountPasswordServiceInstance,
+  cipher: mfaSecretCipher,
+  logger: JetLogger,
+});
 // Browsers where the user chose not to be asked the code (lot 6)
 const productionTrustedDeviceUseCase = new TrustedDeviceUseCase(
   new TrustedDeviceRepositoryImpl(VARIAMOS_ORM, DB_SCHEMA),
@@ -277,22 +283,22 @@ const productionTrustedDeviceUseCase = new TrustedDeviceUseCase(
   JetLogger,
 );
 // The code asked after the password, for accounts with a second factor
-const productionMfaSignInUseCase = new MfaSignInUseCase(
-  userMfaRepository,
-  productionUserMfaUseCase,
-  mfaSecretCipher,
-  new PendingMfaSignIns(),
-  productionTrustedDeviceUseCase,
-  JetLogger,
-);
+const productionMfaSignInUseCase = new MfaSignInUseCase({
+  mfaRepository: userMfaRepository,
+  mfaUseCase: productionUserMfaUseCase,
+  cipher: mfaSecretCipher,
+  pending: new PendingMfaSignIns(),
+  trustedDevices: productionTrustedDeviceUseCase,
+  logger: JetLogger,
+});
 // An administrator turns off the second factor of an account that lost it
-const productionMfaResetUseCase = new MfaResetUseCase(
-  userMfaRepository,
-  UserRepositoryInstance,
-  MailServiceInstance,
-  WatchedActivityJournal,
-  JetLogger,
-);
+const productionMfaResetUseCase = new MfaResetUseCase({
+  mfaRepository: userMfaRepository,
+  userRepository: UserRepositoryInstance,
+  mailService: MailServiceInstance,
+  journal: WatchedActivityJournal,
+  logger: JetLogger,
+});
 
 const productionUserQueryUseCase = new UserQueryUseCase(UserRepositoryInstance);
 
@@ -314,40 +320,40 @@ const bugTrackerConfig = {
 const productionGitHubTokenResolver = new GitHubTokenResolver(bugTrackerConfig);
 
 // Bug Use Case Instantiations
-const productionBugSubmissionUseCase = new BugSubmissionUseCase(
-  BugRepositoryInstance,
-  UserRepositoryInstance,
-  GitHubIssuesServiceInstance,
-  bugTrackerConfig,
-  productionGitHubTokenResolver,
-  DiskStorageServiceInstance,
-  JetLogger,
-);
+const productionBugSubmissionUseCase = new BugSubmissionUseCase({
+  bugRepository: BugRepositoryInstance,
+  userRepository: UserRepositoryInstance,
+  issueTrackerService: GitHubIssuesServiceInstance,
+  githubConfig: bugTrackerConfig,
+  tokenResolver: productionGitHubTokenResolver,
+  storageService: DiskStorageServiceInstance,
+  logger: JetLogger,
+});
 
 // Bug tracker schedule, read from the configuration screen (EV-18)
 const BugScheduleServiceInstance = new BugScheduleService(
   ConfigurationRepositoryInstance,
 );
 
-export const productionBugLifecycleUseCase = new BugLifecycleUseCase(
-  BugRepositoryInstance,
-  GitHubIssuesServiceInstance,
-  DiskStorageServiceInstance,
-  bugTrackerConfig,
-  productionGitHubTokenResolver,
-  WatchedActivityJournal,
-  JetLogger,
-  BugScheduleServiceInstance,
-);
+export const productionBugLifecycleUseCase = new BugLifecycleUseCase({
+  bugRepository: BugRepositoryInstance,
+  issueTrackerService: GitHubIssuesServiceInstance,
+  storageService: DiskStorageServiceInstance,
+  githubConfig: bugTrackerConfig,
+  tokenResolver: productionGitHubTokenResolver,
+  journal: WatchedActivityJournal,
+  logger: JetLogger,
+  schedule: BugScheduleServiceInstance,
+});
 
-const productionBugSyncUseCase = new BugSyncUseCase(
-  BugRepositoryInstance,
-  GitHubIssuesServiceInstance,
-  bugTrackerConfig,
-  productionGitHubTokenResolver,
-  JetLogger,
-  WatchedActivityJournal,
-);
+const productionBugSyncUseCase = new BugSyncUseCase({
+  bugRepository: BugRepositoryInstance,
+  issueTrackerService: GitHubIssuesServiceInstance,
+  githubConfig: bugTrackerConfig,
+  tokenResolver: productionGitHubTokenResolver,
+  logger: JetLogger,
+  journal: WatchedActivityJournal,
+});
 
 const productionBugQueryUseCase = new BugQueryUseCase(
   BugRepositoryInstance,
@@ -419,13 +425,13 @@ export const productionMicroServiceQueryUseCase = new MicroServiceQueryUseCase(
 );
 
 const productionMicroServiceManagementUseCase =
-  new MicroServiceManagementUseCase(
-    MicroServiceRepositoryInstance,
-    JetLogger,
-    ConfigurationRepositoryInstance,
-    ConfigEventPublisherInstance,
-    WatchedActivityJournal,
-  );
+  new MicroServiceManagementUseCase({
+    microServiceRepository: MicroServiceRepositoryInstance,
+    logger: JetLogger,
+    configurationRepository: ConfigurationRepositoryInstance,
+    configEventPublisher: ConfigEventPublisherInstance,
+    journal: WatchedActivityJournal,
+  });
 
 // Short-lived tokens for the notification service (ADR-0001)
 const productionNotificationAccessTokenIssuer =

@@ -1,17 +1,17 @@
 import { MicroServiceConfigItem } from "./MicroServiceConfigItem.js";
 
 const item = (isSecret: boolean, value = "smtp-password-value") =>
-  new MicroServiceConfigItem(
-    1,
-    "variamos_ms_notifications",
-    "notification.smtp.password",
+  new MicroServiceConfigItem({
+    id: 1,
+    serviceName: "variamos_ms_notifications",
+    key: "notification.smtp.password",
     value,
-    "string",
+    type: "string",
     isSecret,
-    false,
-    "SMTP password",
-    "admin@example.com",
-  );
+    isReadOnly: false,
+    description: "SMTP password",
+    updatedBy: "admin@example.com",
+  });
 
 describe("MicroServiceConfigItem", () => {
   it("never serializes a secret value", () => {

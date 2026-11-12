@@ -55,15 +55,15 @@ describe("MfaSignInUseCase", () => {
       isTrusted: vi.fn(async () => false),
       trust: vi.fn(async () => ({ token: "t", maxAgeMs: 1000 })),
     };
-    useCase = new MfaSignInUseCase(
-      repository,
-      { verifySecondFactor: verify },
+    useCase = new MfaSignInUseCase({
+      mfaRepository: repository,
+      mfaUseCase: { verifySecondFactor: verify },
       cipher,
-      new PendingMfaSignIns(() => now),
+      pending: new PendingMfaSignIns(() => now),
       trustedDevices,
-      mock<ILogger>(),
-      () => now,
-    );
+      logger: mock<ILogger>(),
+      now: () => now,
+    });
   });
 
   it("lets an account without second factor sign in as before", async () => {

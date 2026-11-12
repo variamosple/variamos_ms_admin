@@ -43,14 +43,14 @@ app.use(express.json());
 app.use(cookieParser("secret"));
 app.use(
   AUTH_ROUTE,
-  createAuthRouter(
-    auth,
-    password,
-    management,
-    mock<UserQueryUseCase>(),
-    mfa,
-    mock<IAccessJournal>(),
-  ),
+  createAuthRouter({
+    userAuthUseCase: auth,
+    userPasswordUseCase: password,
+    userManagementUseCase: management,
+    userQueryUseCase: mock<UserQueryUseCase>(),
+    mfaSignIn: mfa,
+    accessJournal: mock<IAccessJournal>(),
+  }),
 );
 
 const send = (method: "post" | "put", path: string, body: unknown) =>

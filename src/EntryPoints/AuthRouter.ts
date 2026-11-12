@@ -18,6 +18,7 @@ import { describeError } from "#src/common/describeError.js";
 import EnvVars from "#src/common/EnvVars.js";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import logger from "#src/common/logger.js";
+import type { KnownAccount } from "#src/Domain/Activity/AccessEntry.js";
 import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
 import type { Nullable } from "#src/Domain/Core/Entity/Nullable.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
@@ -59,6 +60,17 @@ import { sendError } from "./errorResponse.js";
 import { queryText } from "./queryText.js";
 import { readBody } from "./requestBody.js";
 
+/** Why a sign-in failed, as the access journal records it. */
+const signInFailureReason = (
+  errorCode: DomainErrorCodes,
+  account: KnownAccount | null,
+) => {
+  if (errorCode === DomainErrorCodes.SYSTEM_ERROR) return "system_error";
+  return account && !account.active
+    ? "account_inactive"
+    : "invalid_credentials";
+};
+
 /** Body of GET /auth/session-info: an HTTP shape, not a domain entity. */
 interface SessionInfoResponse {
   user: SessionUser | null;
@@ -95,6 +107,16 @@ export const audienceHostOf = (aud: unknown): string | undefined => {
   );
 };
 
+/** What the authentication routes use. */
+export interface AuthRouterDependencies {
+  userAuthUseCase: UserAuthUseCase;
+  userPasswordUseCase: UserPasswordUseCase;
+  userManagementUseCase: UserManagementUseCase;
+  userQueryUseCase: UserQueryUseCase;
+  mfaSignIn: MfaSignInUseCase;
+  accessJournal: IAccessJournal;
+}
+
 /**
  * Whether the g_csrf_token cookie Google sets on our domain matches the one
  * it posts with the credential (redirect mode of Sign In With Google).
@@ -111,14 +133,15 @@ export const hasMatchingGoogleCsrfToken = (
   );
 };
 
-export function createAuthRouter(
-  userAuthUseCase: UserAuthUseCase,
-  userPasswordUseCase: UserPasswordUseCase,
-  userManagementUseCase: UserManagementUseCase,
-  userQueryUseCase: UserQueryUseCase,
-  mfaSignIn: MfaSignInUseCase,
-  accessJournal: IAccessJournal,
-): Router {
+export function createAuthRouter(dependencies: AuthRouterDependencies): Router {
+  const {
+    userAuthUseCase,
+    userPasswordUseCase,
+    userManagementUseCase,
+    userQueryUseCase,
+    mfaSignIn,
+    accessJournal,
+  } = dependencies;
   const authRouter = Router();
 
   const HOME_URL = new URL(
@@ -431,12 +454,7 @@ export function createAuthRouter(
         recordAccess(accessJournal, req, res, {
           event: "sign-in",
           outcome: "failed",
-          reason:
-            singInResponse.errorCode === DomainErrorCodes.SYSTEM_ERROR
-              ? "system_error"
-              : account && !account.active
-                ? "account_inactive"
-                : "invalid_credentials",
+          reason: signInFailureReason(singInResponse.errorCode, account),
           userId: account?.id,
         });
         res
@@ -612,11 +630,9 @@ export function createAuthRouter(
     const body = readBody(signUpBody, req, res, transactionId);
     if (!body) return;
     const { name, email, password, passwordConfirmation } = body;
-    const successfulResponse = new ResponseModel<void>(
-      transactionId,
-      undefined,
-      "You have successfully signed up!",
-    );
+    const successfulResponse = new ResponseModel<void>(transactionId, {
+      message: "You have successfully signed up!",
+    });
 
     try {
       // Checked once, by the use case; a taken address answers as a free one

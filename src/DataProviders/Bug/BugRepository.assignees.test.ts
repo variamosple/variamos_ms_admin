@@ -113,14 +113,10 @@ describe("BugRepositoryImpl assignees", () => {
       const res = await repository.queryBugs(
         new RequestModel(
           "tx",
-          new BugFilter(
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            [],
-            "u-ana",
-          ),
+          new BugFilter({
+            managedRepos: [],
+            assigneeId: "u-ana",
+          }),
         ),
       );
 
@@ -149,15 +145,10 @@ describe("BugRepositoryImpl assignees", () => {
       const res = await repository.queryBugs(
         new RequestModel(
           "tx",
-          new BugFilter(
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            [],
-            undefined,
-            "model",
-          ),
+          new BugFilter({
+            managedRepos: [],
+            component: "model",
+          }),
         ),
       );
 

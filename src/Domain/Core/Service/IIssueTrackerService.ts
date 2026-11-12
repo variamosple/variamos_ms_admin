@@ -16,22 +16,19 @@ export interface GitHubIssue {
   assignee?: { login?: string } | null;
 }
 
+/** What an issue opened from a bug says. */
+export interface IssueContent {
+  title: string;
+  body: string;
+  labels: string[];
+}
+
 export interface IIssueTrackerService {
   createIssue(
     repo: string,
-    title: string,
-    body: string,
-    labels: string[],
+    issue: IssueContent,
     token: string,
   ): Promise<number | null>;
-  updateIssue(
-    repo: string,
-    issueNumber: number,
-    title: string,
-    body: string,
-    labels: string[],
-    token: string,
-  ): Promise<boolean>;
   closeIssue(
     repo: string,
     issueNumber: number,

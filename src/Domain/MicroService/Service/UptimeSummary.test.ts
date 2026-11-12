@@ -8,14 +8,24 @@ import {
 const until = new Date("2026-10-25T12:00:00.000Z");
 const window = uptimeWindow(30, until);
 
+interface SlotChecks {
+  checks: number;
+  upChecks: number;
+  latencySumMs: number;
+  recent?: { checks: number; up: number };
+  // Checks neither UP nor DOWN are DEGRADED
+  downChecks?: number;
+}
+
 const count = (
   slot: number,
-  checks: number,
-  upChecks: number,
-  latencySumMs: number,
-  recent: { checks: number; up: number } = { checks: 0, up: 0 },
-  // Checks neither UP nor DOWN are DEGRADED
-  downChecks = checks - upChecks,
+  {
+    checks,
+    upChecks,
+    latencySumMs,
+    recent = { checks: 0, up: 0 },
+    downChecks = checks - upChecks,
+  }: SlotChecks,
 ): UptimeSlotCount => ({
   slot,
   checks,
@@ -52,7 +62,13 @@ describe("buildUptimeSummary", () => {
   it("shows a slot without a check as NO_DATA, never as UP (EV-106)", () => {
     const summary = buildUptimeSummary(
       "ms_auth",
-      [count(3, 2, 2, 30)],
+      [
+        count(3, {
+          checks: 2,
+          upChecks: 2,
+          latencySumMs: 30,
+        }),
+      ],
       "UP",
       window,
     );
@@ -70,7 +86,23 @@ describe("buildUptimeSummary", () => {
   it("gives each slot its status, uptime and mean latency", () => {
     const summary = buildUptimeSummary(
       "ms_auth",
-      [count(0, 3, 2, 100), count(1, 2, 0, 9), count(2, 1, 1, 7)],
+      [
+        count(0, {
+          checks: 3,
+          upChecks: 2,
+          latencySumMs: 100,
+        }),
+        count(1, {
+          checks: 2,
+          upChecks: 0,
+          latencySumMs: 9,
+        }),
+        count(2, {
+          checks: 1,
+          upChecks: 1,
+          latencySumMs: 7,
+        }),
+      ],
       "UP",
       window,
     );
@@ -101,9 +133,24 @@ describe("buildUptimeSummary", () => {
     const summary = buildUptimeSummary(
       "ms_auth",
       [
-        count(0, 2, 0, 10, undefined, 0),
-        count(1, 3, 0, 15, undefined, 1),
-        count(2, 2, 0, 10, undefined, 2),
+        count(0, {
+          checks: 2,
+          upChecks: 0,
+          latencySumMs: 10,
+          downChecks: 0,
+        }),
+        count(1, {
+          checks: 3,
+          upChecks: 0,
+          latencySumMs: 15,
+          downChecks: 1,
+        }),
+        count(2, {
+          checks: 2,
+          upChecks: 0,
+          latencySumMs: 10,
+          downChecks: 2,
+        }),
       ],
       "DOWN",
       window,
@@ -124,9 +171,24 @@ describe("buildUptimeSummary", () => {
     const summary = buildUptimeSummary(
       "ms_auth",
       [
-        count(28, 2, 1, 10, { checks: 1, up: 1 }),
-        count(29, 1, 0, 5, { checks: 1, up: 0 }),
-        count(UPTIME_SLOTS, 3, 3, 30, { checks: 3, up: 3 }),
+        count(28, {
+          checks: 2,
+          upChecks: 1,
+          latencySumMs: 10,
+          recent: { checks: 1, up: 1 },
+        }),
+        count(29, {
+          checks: 1,
+          upChecks: 0,
+          latencySumMs: 5,
+          recent: { checks: 1, up: 0 },
+        }),
+        count(UPTIME_SLOTS, {
+          checks: 3,
+          upChecks: 3,
+          latencySumMs: 30,
+          recent: { checks: 3, up: 3 },
+        }),
       ],
       "DOWN",
       window,
@@ -144,7 +206,13 @@ describe("buildUptimeSummary", () => {
   it("shows 100 % over 24 hours without a recent check", () => {
     const summary = buildUptimeSummary(
       "ms_auth",
-      [count(0, 1, 0, 1)],
+      [
+        count(0, {
+          checks: 1,
+          upChecks: 0,
+          latencySumMs: 1,
+        }),
+      ],
       "DOWN",
       window,
     );

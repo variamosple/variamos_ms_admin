@@ -21,18 +21,18 @@ describe("MicroServiceQueryUseCase - Unit Tests", () => {
   });
 
   const createMockDetailed = (name: string) => {
-    return new MicroServiceDetailed(
-      name,
-      "Test Service",
-      {
+    return new MicroServiceDetailed({
+      serviceName: name,
+      displayName: "Test Service",
+      health: {
         status: "UP",
         serviceName: name,
         responseTimeMs: 25,
         checkedAt: new Date(),
       },
-      1,
-      [],
-    );
+      replicasCount: 1,
+      containers: [],
+    });
   };
 
   test("should query microservices", async () => {
@@ -127,15 +127,15 @@ describe("MicroServiceQueryUseCase - Unit Tests", () => {
 
     test("should return configuration list on success", async () => {
       const mockConfigs = [
-        new MicroServiceConfigItem(
-          1,
-          "ms-auth",
-          "PORT",
-          "3001",
-          "number",
-          false,
-          false,
-        ),
+        new MicroServiceConfigItem({
+          id: 1,
+          serviceName: "ms-auth",
+          key: "PORT",
+          value: "3001",
+          type: "number",
+          isSecret: false,
+          isReadOnly: false,
+        }),
       ];
       mockMicroServiceRepository.queryConfigurations.mockResolvedValue(
         new ResponseModel<MicroServiceConfigItem[]>("tx-cfg").withResponse(
@@ -165,7 +165,14 @@ describe("MicroServiceQueryUseCase - Unit Tests", () => {
     test("should return audit logs on success", async () => {
       const now = new Date();
       const mockLogs = [
-        new MicroServiceAuditEntry(1, "ms-auth", "RESTART", {}, "admin", now),
+        new MicroServiceAuditEntry({
+          id: 1,
+          serviceName: "ms-auth",
+          actionType: "RESTART",
+          details: {},
+          performedBy: "admin",
+          createdAt: now,
+        }),
       ];
       mockMicroServiceRepository.queryAuditLogs.mockResolvedValue(
         new ResponseModel<MicroServiceAuditEntry[]>("tx-al").withResponse(

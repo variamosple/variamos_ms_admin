@@ -33,17 +33,41 @@ const RESET_REFUSALS: Record<Exclude<PasswordResetOutcome, "reset">, string> = {
   same_password: "New password cannot be the same as the old password.",
 };
 
+/** What the password of an account uses. */
+export interface UserPasswordUseCaseDependencies {
+  userRepository: IUserRepository;
+  mailService: IMailService;
+  config: UserPasswordUseCaseConfig;
+  journal: IActivityJournal;
+  logger: ILogger;
+  passwordPolicy?: IPasswordPolicyProvider;
+}
+
 export class UserPasswordUseCase {
   private readonly tokenService: PasswordResetTokenService;
 
-  public constructor(
-    private readonly userRepository: IUserRepository,
-    private readonly mailService: IMailService,
-    private readonly config: UserPasswordUseCaseConfig,
-    private readonly journal: IActivityJournal,
-    private readonly logger: ILogger,
-    private readonly passwordPolicy: IPasswordPolicyProvider = DEFAULT_PASSWORD_POLICY_PROVIDER,
-  ) {
+  private readonly userRepository: IUserRepository;
+  private readonly mailService: IMailService;
+  private readonly config: UserPasswordUseCaseConfig;
+  private readonly journal: IActivityJournal;
+  private readonly logger: ILogger;
+  private readonly passwordPolicy: IPasswordPolicyProvider;
+
+  public constructor(dependencies: UserPasswordUseCaseDependencies) {
+    const {
+      userRepository,
+      mailService,
+      config,
+      journal,
+      logger,
+      passwordPolicy = DEFAULT_PASSWORD_POLICY_PROVIDER,
+    } = dependencies;
+    this.userRepository = userRepository;
+    this.mailService = mailService;
+    this.config = config;
+    this.journal = journal;
+    this.logger = logger;
+    this.passwordPolicy = passwordPolicy;
     this.tokenService = new PasswordResetTokenService(userRepository, logger);
   }
 

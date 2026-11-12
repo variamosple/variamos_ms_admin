@@ -170,21 +170,21 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     app = express();
     app.use(express.json());
     app.use(cookieParser("secret"));
-    const mockUserAuthUseCase = new UserAuthUseCase(
-      mock<IUserRepository>(),
-      mock<IGuestRoleRepository>(),
-      mock<ILogger>(),
-      mock<IMailService>(),
-      { adminHomeUri: "https://app.example.com" },
-      mock<AccountPasswordService>(),
-    );
-    const mockUserPasswordUseCase = new UserPasswordUseCase(
-      mock<IUserRepository>(),
-      mock<IMailService>(),
-      mock<UserPasswordUseCaseConfig>(),
-      mock<IActivityJournal>(),
-      mock<ILogger>(),
-    );
+    const mockUserAuthUseCase = new UserAuthUseCase({
+      userRepository: mock<IUserRepository>(),
+      roleRepository: mock<IGuestRoleRepository>(),
+      logger: mock<ILogger>(),
+      mailService: mock<IMailService>(),
+      config: { adminHomeUri: "https://app.example.com" },
+      accountPasswords: mock<AccountPasswordService>(),
+    });
+    const mockUserPasswordUseCase = new UserPasswordUseCase({
+      userRepository: mock<IUserRepository>(),
+      mailService: mock<IMailService>(),
+      config: mock<UserPasswordUseCaseConfig>(),
+      journal: mock<IActivityJournal>(),
+      logger: mock<ILogger>(),
+    });
     const mockUserManagementUseCase = new UserManagementUseCase(
       mock<IUserRepository>(),
       mock<IActivityJournal>(),
@@ -193,14 +193,14 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     const mockUserQueryUseCase = new UserQueryUseCase(mock<IUserRepository>());
     app.use(
       AUTH_ROUTE,
-      createAuthRouter(
-        mockUserAuthUseCase,
-        mockUserPasswordUseCase,
-        mockUserManagementUseCase,
-        mockUserQueryUseCase,
-        noMfaSignIn,
+      createAuthRouter({
+        userAuthUseCase: mockUserAuthUseCase,
+        userPasswordUseCase: mockUserPasswordUseCase,
+        userManagementUseCase: mockUserManagementUseCase,
+        userQueryUseCase: mockUserQueryUseCase,
+        mfaSignIn: noMfaSignIn,
         accessJournal,
-      ),
+      }),
     );
   });
 
@@ -1630,11 +1630,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
   describe("POST /auth/forgot-password", () => {
     it("should return 200 and forgotPasswordResponse on success", async () => {
-      const expectedResponse = new ResponseModel(
-        "forgotPassword",
-        undefined,
-        "Password reset email sent",
-      ).withResponse(null);
+      const expectedResponse = new ResponseModel("forgotPassword", {
+        message: "Password reset email sent",
+      }).withResponse(null);
       (UserPasswordUseCase.prototype.requestReset as Mock).mockResolvedValue(
         expectedResponse,
       );
@@ -1678,11 +1676,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
   describe("POST /auth/verify-token, answers", () => {
     it("should return 200 and verifyResponse on success", async () => {
-      const expectedResponse = new ResponseModel(
-        "verifyToken",
-        undefined,
-        "Token verified",
-      ).withResponse(null);
+      const expectedResponse = new ResponseModel("verifyToken", {
+        message: "Token verified",
+      }).withResponse(null);
       (UserPasswordUseCase.prototype.verifyToken as Mock).mockResolvedValue(
         expectedResponse,
       );
@@ -1787,11 +1783,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
   describe("POST /auth/reset-password", () => {
     it("should return 200 and resetResponse on success", async () => {
-      const expectedResponse = new ResponseModel(
-        "resetPassword",
-        undefined,
-        "Password updated successfully",
-      ).withResponse(null);
+      const expectedResponse = new ResponseModel("resetPassword", {
+        message: "Password updated successfully",
+      }).withResponse(null);
       (UserPasswordUseCase.prototype.resetPassword as Mock).mockResolvedValue(
         expectedResponse,
       );
@@ -1971,14 +1965,14 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       testApp.use(cookieParser("secret"));
       testApp.use(
         "/auth-fallback",
-        createAuthRouter(
-          mockUserAuthUseCase,
-          mockUserPasswordUseCase,
-          mockUserManagementUseCase,
-          mockUserQueryUseCase,
-          noMfaSignIn,
+        createAuthRouter({
+          userAuthUseCase: mockUserAuthUseCase,
+          userPasswordUseCase: mockUserPasswordUseCase,
+          userManagementUseCase: mockUserManagementUseCase,
+          userQueryUseCase: mockUserQueryUseCase,
+          mfaSignIn: noMfaSignIn,
           accessJournal,
-        ),
+        }),
       );
 
       const mockUser = User.builder()
@@ -2788,14 +2782,14 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       testApp.use(cookieParser("secret"));
       testApp.use(
         "/auth-regex",
-        createAuthRouter(
-          mockUserAuthUseCase,
-          mockUserPasswordUseCase,
-          mockUserManagementUseCase,
-          mockUserQueryUseCase,
-          noMfaSignIn,
+        createAuthRouter({
+          userAuthUseCase: mockUserAuthUseCase,
+          userPasswordUseCase: mockUserPasswordUseCase,
+          userManagementUseCase: mockUserManagementUseCase,
+          userQueryUseCase: mockUserQueryUseCase,
+          mfaSignIn: noMfaSignIn,
           accessJournal,
-        ),
+        }),
       );
 
       const mockUser = User.builder()
@@ -2875,14 +2869,14 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     it("should verify permissions are passed correctly to hasPermissions middleware (Lines 445, 468, 501)", () => {
       vi.mocked(hasPermissions).mockClear();
 
-      createAuthRouter(
-        mock<UserAuthUseCase>(),
-        mock<UserPasswordUseCase>(),
-        mock<UserManagementUseCase>(),
-        mock<UserQueryUseCase>(),
-        noMfaSignIn,
+      createAuthRouter({
+        userAuthUseCase: mock<UserAuthUseCase>(),
+        userPasswordUseCase: mock<UserPasswordUseCase>(),
+        userManagementUseCase: mock<UserManagementUseCase>(),
+        userQueryUseCase: mock<UserQueryUseCase>(),
+        mfaSignIn: noMfaSignIn,
         accessJournal,
-      );
+      });
 
       const calls = vi.mocked(hasPermissions).mock.calls;
       expect(calls).toHaveLength(3);
@@ -2902,14 +2896,14 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       testApp.use(cookieParser("secret"));
       testApp.use(
         "/auth-anchor",
-        createAuthRouter(
-          mockUserAuthUseCase,
-          mockUserPasswordUseCase,
-          mockUserManagementUseCase,
-          mockUserQueryUseCase,
-          noMfaSignIn,
+        createAuthRouter({
+          userAuthUseCase: mockUserAuthUseCase,
+          userPasswordUseCase: mockUserPasswordUseCase,
+          userManagementUseCase: mockUserManagementUseCase,
+          userQueryUseCase: mockUserQueryUseCase,
+          mfaSignIn: noMfaSignIn,
           accessJournal,
-        ),
+        }),
       );
 
       const mockUser = User.builder()

@@ -1,3 +1,12 @@
+/** A country and the point that places it on the map. */
+export interface CountryFields {
+  code: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  code3: string;
+}
+
 export class Country {
   private readonly code: string;
   private readonly name: string;
@@ -5,13 +14,8 @@ export class Country {
   private readonly longitude: number;
   private readonly code3: string;
 
-  public constructor(
-    code: string,
-    name: string,
-    latitude: number,
-    longitude: number,
-    code3: string,
-  ) {
+  public constructor(fields: CountryFields) {
+    const { code, name, latitude, longitude, code3 } = fields;
     if (!code || !/^[A-Z]{2}$/.test(code)) {
       throw new Error("Country code must be exactly 2 uppercase letters.");
     }
@@ -70,13 +74,13 @@ export class Country {
   }
 
   public static build(builder: CountryBuilder): Country {
-    return new Country(
-      builder.getCode(),
-      builder.getName(),
-      builder.getLatitude(),
-      builder.getLongitude(),
-      builder.getCode3(),
-    );
+    return new Country({
+      code: builder.getCode(),
+      name: builder.getName(),
+      latitude: builder.getLatitude(),
+      longitude: builder.getLongitude(),
+      code3: builder.getCode3(),
+    });
   }
 }
 
@@ -133,12 +137,12 @@ export class CountryBuilder {
   }
 
   public build(): Country {
-    return new Country(
-      this.code,
-      this.name,
-      this.latitude,
-      this.longitude,
-      this.code3,
-    );
+    return new Country({
+      code: this.code,
+      name: this.name,
+      latitude: this.latitude,
+      longitude: this.longitude,
+      code3: this.code3,
+    });
   }
 }

@@ -61,6 +61,18 @@ const journalValues = (change: ScheduledConfigurationChange) => ({
   dueAt: change.dueAt.toISOString(),
 });
 
+/** What the planned setting changes read, apply and announce. */
+export interface ScheduledConfigurationChangeUseCaseDependencies {
+  changes: IScheduledConfigurationChangeRepository;
+  configurations: Pick<
+    ConfigurationUseCase,
+    "queryByKey" | "updateConfiguration"
+  >;
+  journal: IActivityJournal;
+  notifier: IScheduledChangeNotifier;
+  now?: () => Date;
+}
+
 /**
  * Changes of the settings users notice, planned for a later date (EV-115
  * lot B). A change is checked as a save would be when it is planned, then
@@ -68,16 +80,31 @@ const journalValues = (change: ScheduledConfigurationChange) => ({
  * author, when it is due.
  */
 export class ScheduledConfigurationChangeUseCase {
+  private readonly changes: IScheduledConfigurationChangeRepository;
+  private readonly configurations: Pick<
+    ConfigurationUseCase,
+    "queryByKey" | "updateConfiguration"
+  >;
+  private readonly journal: IActivityJournal;
+  private readonly notifier: IScheduledChangeNotifier;
+  private readonly now: () => Date;
+
   public constructor(
-    private readonly changes: IScheduledConfigurationChangeRepository,
-    private readonly configurations: Pick<
-      ConfigurationUseCase,
-      "queryByKey" | "updateConfiguration"
-    >,
-    private readonly journal: IActivityJournal,
-    private readonly notifier: IScheduledChangeNotifier,
-    private readonly now: () => Date = () => new Date(),
-  ) {}
+    dependencies: ScheduledConfigurationChangeUseCaseDependencies,
+  ) {
+    const {
+      changes,
+      configurations,
+      journal,
+      notifier,
+      now = () => new Date(),
+    } = dependencies;
+    this.changes = changes;
+    this.configurations = configurations;
+    this.journal = journal;
+    this.notifier = notifier;
+    this.now = now;
+  }
 
   public async list(
     transactionId: string,

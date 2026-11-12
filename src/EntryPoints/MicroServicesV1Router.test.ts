@@ -53,13 +53,13 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
     const mockQueryUseCase = new MicroServiceQueryUseCase(
       mock<IMicroServiceRepository>(),
     );
-    const mockManagementUseCase = new MicroServiceManagementUseCase(
-      mock<IMicroServiceRepository>(),
-      mock<ILogger>(),
-      mock<IConfigurationRepository>(),
-      mock<IConfigEventPublisher>(),
-      mock<IActivityJournal>(),
-    );
+    const mockManagementUseCase = new MicroServiceManagementUseCase({
+      microServiceRepository: mock<IMicroServiceRepository>(),
+      logger: mock<ILogger>(),
+      configurationRepository: mock<IConfigurationRepository>(),
+      configEventPublisher: mock<IConfigEventPublisher>(),
+      journal: mock<IActivityJournal>(),
+    });
     app.use(
       "/v1/micro-services",
       createMicroServicesRouter(mockQueryUseCase, mockManagementUseCase),
@@ -602,15 +602,15 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
   });
 
   describe("secret configuration values in responses", () => {
-    const secretItem = new MicroServiceConfigItem(
-      3,
-      "ms-auth",
-      "notification.smtp.password",
-      "smtp-password-value",
-      "string",
-      true,
-      false,
-    );
+    const secretItem = new MicroServiceConfigItem({
+      id: 3,
+      serviceName: "ms-auth",
+      key: "notification.smtp.password",
+      value: "smtp-password-value",
+      type: "string",
+      isSecret: true,
+      isReadOnly: false,
+    });
 
     it("GET configurations never returns a secret value", async () => {
       (

@@ -142,13 +142,13 @@ app.use(
 );
 app.use(
   USERS_V1_ROUTE,
-  createUsersRouter(
-    queries,
-    passwords,
-    mock<UserManagementUseCase>(),
-    createUserRolesRouter(roles, allowAll),
-    allowAll,
-  ),
+  createUsersRouter({
+    userQueryUseCase: queries,
+    userPasswordUseCase: passwords,
+    userManagementUseCase: mock<UserManagementUseCase>(),
+    userRolesRouter: createUserRolesRouter(roles, allowAll),
+    accessGuard: allowAll,
+  }),
 );
 
 describe("Account routes keep the shape VariaMosAdmin reads", () => {
@@ -158,10 +158,9 @@ describe("Account routes keep the shape VariaMosAdmin reads", () => {
 
   it("GET /v1/users", async () => {
     queries.queryList.mockResolvedValue(
-      new ResponseModel<User[]>("tx", undefined, undefined, 2).withResponse([
-        fullUser(),
-        newUser(),
-      ]),
+      new ResponseModel<User[]>("tx", {
+        totalCount: 2,
+      }).withResponse([fullUser(), newUser()]),
     );
 
     const res = await request(app).get("/v1/users");

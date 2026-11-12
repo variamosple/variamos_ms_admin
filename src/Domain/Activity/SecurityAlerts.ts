@@ -46,6 +46,16 @@ const describeTarget = (target: string) => {
   return `${kind} ${rest.join(":")}`;
 };
 
+/** What the security alerts read, send and record. */
+export interface SecurityAlertDetectorDependencies {
+  policyProvider: ISecurityAlertPolicyProvider;
+  recipients: ISecurityAlertRecipients;
+  notifier: ISecurityAlertNotifier;
+  journal: IActivityJournal;
+  logger: ILogger;
+  now?: () => number;
+}
+
 /**
  * Watches the access and activity journals and raises the security alerts
  * of the policy (EV-88 lot D, T-24). Counts are kept in memory, like the
@@ -56,14 +66,29 @@ export class SecurityAlertDetector {
   private readonly events = new Map<string, number[]>();
   private readonly lastRaised = new Map<string, number>();
 
-  public constructor(
-    private readonly policyProvider: ISecurityAlertPolicyProvider,
-    private readonly recipients: ISecurityAlertRecipients,
-    private readonly notifier: ISecurityAlertNotifier,
-    private readonly journal: IActivityJournal,
-    private readonly logger: ILogger,
-    private readonly now: () => number = Date.now,
-  ) {}
+  private readonly policyProvider: ISecurityAlertPolicyProvider;
+  private readonly recipients: ISecurityAlertRecipients;
+  private readonly notifier: ISecurityAlertNotifier;
+  private readonly journal: IActivityJournal;
+  private readonly logger: ILogger;
+  private readonly now: () => number;
+
+  public constructor(dependencies: SecurityAlertDetectorDependencies) {
+    const {
+      policyProvider,
+      recipients,
+      notifier,
+      journal,
+      logger,
+      now = Date.now,
+    } = dependencies;
+    this.policyProvider = policyProvider;
+    this.recipients = recipients;
+    this.notifier = notifier;
+    this.journal = journal;
+    this.logger = logger;
+    this.now = now;
+  }
 
   public async observeAccess(entry: AccessEntry): Promise<void> {
     try {

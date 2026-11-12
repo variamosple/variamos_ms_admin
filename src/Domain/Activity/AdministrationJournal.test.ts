@@ -122,19 +122,25 @@ const mfaReset = (j: Journal) => {
   );
   const mail = mock<IMailService>();
   mail.sendMfaResetMail.mockResolvedValue(true);
-  return new MfaResetUseCase(mfa, userRepo, mail, j, mock<ILogger>());
+  return new MfaResetUseCase({
+    mfaRepository: mfa,
+    userRepository: userRepo,
+    mailService: mail,
+    journal: j,
+    logger: mock<ILogger>(),
+  });
 };
 const recoveryLink = (j: Journal) => {
   const userRepo = mock<IUserRepository>();
   // An unknown account: the answer stays silent, the attempt is recorded
   userRepo.queryById.mockResolvedValue(ok());
-  return new UserPasswordUseCase(
-    userRepo,
-    mock<IMailService>(),
-    { passwordResetExpiryInMs: 3_600_000, adminHomeUri: "http://ui" },
-    j,
-    mock<ILogger>(),
-  );
+  return new UserPasswordUseCase({
+    userRepository: userRepo,
+    mailService: mock<IMailService>(),
+    config: { passwordResetExpiryInMs: 3_600_000, adminHomeUri: "http://ui" },
+    journal: j,
+    logger: mock<ILogger>(),
+  });
 };
 
 const OPERATIONS: [

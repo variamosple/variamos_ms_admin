@@ -10,6 +10,7 @@ import { refuseClosedAccount } from "#src/Domain/User/Entity/AccountAccess.js";
 import type { Credentials } from "#src/Domain/User/Entity/Credentials.js";
 import {
   decideGoogleSignIn,
+  type GoogleAccountMatch,
   type GoogleProfile,
 } from "#src/Domain/User/Entity/GoogleIdentity.js";
 import { User } from "#src/Domain/User/Entity/User.js";
@@ -30,24 +31,55 @@ export interface SignUpData {
   passwordConfirmation: string;
 }
 
+/** What the sign-in and sign-up of an account use. */
+export interface UserAuthUseCaseDependencies {
+  userRepository: IUserRepository;
+  roleRepository: IGuestRoleRepository;
+  logger: ILogger;
+  mailService: Pick<IMailService, "sendExistingAccountMail">;
+  config: UserAuthUseCaseConfig;
+  accountPasswords: Pick<
+    AccountPasswordService,
+    "accountOpenedBy" | "rehashIfOutdated"
+  >;
+  passwordPolicy?: IPasswordPolicyProvider;
+}
+
 /** Where the notice to the owner of a taken address points. */
 export interface UserAuthUseCaseConfig {
   adminHomeUri: string;
 }
 
 export class UserAuthUseCase {
-  public constructor(
-    private readonly userRepository: IUserRepository,
-    private readonly roleRepository: IGuestRoleRepository,
-    private readonly logger: ILogger,
-    private readonly mailService: Pick<IMailService, "sendExistingAccountMail">,
-    private readonly config: UserAuthUseCaseConfig,
-    private readonly accountPasswords: Pick<
-      AccountPasswordService,
-      "accountOpenedBy" | "rehashIfOutdated"
-    >,
-    private readonly passwordPolicy: IPasswordPolicyProvider = DEFAULT_PASSWORD_POLICY_PROVIDER,
-  ) {}
+  private readonly userRepository: IUserRepository;
+  private readonly roleRepository: IGuestRoleRepository;
+  private readonly logger: ILogger;
+  private readonly mailService: Pick<IMailService, "sendExistingAccountMail">;
+  private readonly config: UserAuthUseCaseConfig;
+  private readonly accountPasswords: Pick<
+    AccountPasswordService,
+    "accountOpenedBy" | "rehashIfOutdated"
+  >;
+  private readonly passwordPolicy: IPasswordPolicyProvider;
+
+  public constructor(dependencies: UserAuthUseCaseDependencies) {
+    const {
+      userRepository,
+      roleRepository,
+      logger,
+      mailService,
+      config,
+      accountPasswords,
+      passwordPolicy = DEFAULT_PASSWORD_POLICY_PROVIDER,
+    } = dependencies;
+    this.userRepository = userRepository;
+    this.roleRepository = roleRepository;
+    this.logger = logger;
+    this.mailService = mailService;
+    this.config = config;
+    this.accountPasswords = accountPasswords;
+    this.passwordPolicy = passwordPolicy;
+  }
 
   /**
    * Registers an account. A taken address gets the same answer as a free
@@ -191,14 +223,15 @@ export class UserAuthUseCase {
         : await this.userRepository.findPasswordAccount({
             email: profile.email,
           });
-      const decision = decideGoogleSignIn(
-        profile,
-        linked
-          ? { kind: "linked" }
-          : byEmail
-            ? { kind: "by-email", hasPassword: Boolean(byEmail.passwordHash) }
-            : { kind: "none" },
-      );
+      let match: GoogleAccountMatch = { kind: "none" };
+      if (linked) match = { kind: "linked" };
+      else if (byEmail) {
+        match = {
+          kind: "by-email",
+          hasPassword: Boolean(byEmail.passwordHash),
+        };
+      }
+      const decision = decideGoogleSignIn(profile, match);
       if (decision.action === "refuse") {
         return response.withError(
           DomainErrorCodes.UNAUTHORIZED_ACCESS,

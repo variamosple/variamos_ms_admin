@@ -48,14 +48,14 @@ function setup(policy = SecurityAlertPolicy.DEFAULT) {
   const notifier = mock<ISecurityAlertNotifier>();
   const journal = mock<IActivityJournal>();
   const logger = mock<ILogger>();
-  const detector = new SecurityAlertDetector(
-    { getPolicy: async () => policy },
+  const detector = new SecurityAlertDetector({
+    policyProvider: { getPolicy: async () => policy },
     recipients,
     notifier,
     journal,
     logger,
-    () => now,
-  );
+    now: () => now,
+  });
   const advance = (ms: number) => {
     now += ms;
   };

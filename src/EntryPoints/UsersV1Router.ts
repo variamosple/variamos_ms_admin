@@ -12,15 +12,27 @@ import { queryText } from "./queryText.js";
 import { type AccessGuard, requireAccess, toUserId } from "./requireAccess.js";
 import { USER_ROLES_V1_ROUTE } from "./UserRolesV1Router.js";
 
+/** What the account routes use. */
+export interface UsersRouterDependencies {
+  userQueryUseCase: UserQueryUseCase;
+  userPasswordUseCase: UserPasswordUseCase;
+  userManagementUseCase: UserManagementUseCase;
+  userRolesRouter: Router;
+  accessGuard: AccessGuard;
+}
+
 export const USERS_V1_ROUTE = "/v1/users";
 
 export function createUsersRouter(
-  userQueryUseCase: UserQueryUseCase,
-  userPasswordUseCase: UserPasswordUseCase,
-  userManagementUseCase: UserManagementUseCase,
-  userRolesRouter: Router,
-  accessGuard: AccessGuard,
+  dependencies: UsersRouterDependencies,
 ): Router {
+  const {
+    userQueryUseCase,
+    userPasswordUseCase,
+    userManagementUseCase,
+    userRolesRouter,
+    accessGuard,
+  } = dependencies;
   const router = Router();
 
   router.get("/", hasPermissions(["users::query"]), async (req, res) => {

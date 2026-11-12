@@ -28,6 +28,16 @@ const accountOf = (
     ? { id, name: row.account_name, email: row.account_email }
     : null;
 
+/** One page of a journal: its table, account column, columns and criteria. */
+export interface JournalPageQuery {
+  table: string;
+  accountColumn: string;
+  columns: string;
+  where: string[];
+  replacements: Replacements;
+  filter: { pageNumber: number; pageSize: number };
+}
+
 /**
  * Reads `admin_activity_logs` and `admin_access_logs` (T-24 lot 3), with the
  * name and e-mail of the account when it still exists. Parameters only.
@@ -71,16 +81,16 @@ export class JournalReaderRepositoryImpl implements IJournalReader {
         after: unknown;
         transaction_id: string | null;
       }
-    >(
-      "admin_activity_logs",
-      "actor_id",
-      `l."id", l."occurred_at", l."actor_id", l."action", l."entity_type",
+    >({
+      table: "admin_activity_logs",
+      accountColumn: "actor_id",
+      columns: `l."id", l."occurred_at", l."actor_id", l."action", l."entity_type",
        l."entity_id", l."outcome", l."error_code", l."before", l."after",
        l."transaction_id"`,
       where,
       replacements,
       filter,
-    );
+    });
     return {
       total: page.total,
       rows: page.rows.map((row) => ({
@@ -132,15 +142,15 @@ export class JournalReaderRepositoryImpl implements IJournalReader {
         path: string | null;
         status_code: number | null;
       }
-    >(
-      "admin_access_logs",
-      "user_id",
-      `l."id", l."occurred_at", l."user_id", l."event", l."outcome",
+    >({
+      table: "admin_access_logs",
+      accountColumn: "user_id",
+      columns: `l."id", l."occurred_at", l."user_id", l."event", l."outcome",
        l."reason", l."ip", l."method", l."path", l."status_code"`,
       where,
       replacements,
       filter,
-    );
+    });
     return {
       total: page.total,
       rows: page.rows.map((row) => ({
@@ -183,13 +193,10 @@ export class JournalReaderRepositoryImpl implements IJournalReader {
   }
 
   private async page<Row extends object>(
-    table: string,
-    accountColumn: string,
-    columns: string,
-    where: string[],
-    replacements: Replacements,
-    filter: { pageNumber: number; pageSize: number },
+    query: JournalPageQuery,
   ): Promise<{ rows: Row[]; total: number }> {
+    const { table, accountColumn, columns, where, replacements, filter } =
+      query;
     const from = `FROM "${this.schema}"."${table}" l
       LEFT JOIN "${this.schema}"."user" u ON u."id"::text = l."${accountColumn}"
       WHERE ${where.join(" AND ")}`;

@@ -45,16 +45,61 @@ interface StoredFile {
   fileType: string;
 }
 
+/** A bug to submit, with its reporter and stored attachment. */
+export interface BugSubmission {
+  transactionId: string | undefined;
+  data: BugSubmissionData;
+  reporterEmail: string;
+  resolvedCreatedById: string | undefined;
+  resolvedFile: StoredFile | undefined;
+}
+
+/** What the submission of a bug reads and writes. */
+export interface BugSubmissionUseCaseDependencies {
+  bugRepository: IBugRepository;
+  userRepository: Pick<IUserRepository, "findSessionUser">;
+  issueTrackerService: IIssueTrackerService;
+  githubConfig: IBugTrackerConfig;
+  tokenResolver: IGitHubTokenProvider;
+  storageService: IStorageService;
+  logger: ILogger;
+}
+
+/** The log comment of a submission: by an admin, a user or a guest. */
+const submissionComment = (createdById: string | undefined, status: string) => {
+  if (!createdById) return "Bug submitted locally by guest.";
+  return status === "open"
+    ? "Bug submitted directly to GitHub by admin."
+    : "Bug submitted locally by user.";
+};
+
 export class BugSubmissionUseCase {
-  public constructor(
-    private readonly bugRepository: IBugRepository,
-    private readonly userRepository: Pick<IUserRepository, "findSessionUser">,
-    private readonly issueTrackerService: IIssueTrackerService,
-    private readonly githubConfig: IBugTrackerConfig,
-    private readonly tokenResolver: IGitHubTokenProvider,
-    private readonly storageService: IStorageService,
-    private readonly logger: ILogger,
-  ) {}
+  private readonly bugRepository: IBugRepository;
+  private readonly userRepository: Pick<IUserRepository, "findSessionUser">;
+  private readonly issueTrackerService: IIssueTrackerService;
+  private readonly githubConfig: IBugTrackerConfig;
+  private readonly tokenResolver: IGitHubTokenProvider;
+  private readonly storageService: IStorageService;
+  private readonly logger: ILogger;
+
+  public constructor(dependencies: BugSubmissionUseCaseDependencies) {
+    const {
+      bugRepository,
+      userRepository,
+      issueTrackerService,
+      githubConfig,
+      tokenResolver,
+      storageService,
+      logger,
+    } = dependencies;
+    this.bugRepository = bugRepository;
+    this.userRepository = userRepository;
+    this.issueTrackerService = issueTrackerService;
+    this.githubConfig = githubConfig;
+    this.tokenResolver = tokenResolver;
+    this.storageService = storageService;
+    this.logger = logger;
+  }
 
   public async createBug(
     request: RequestModel<BugSubmissionData>,
@@ -167,13 +212,13 @@ export class BugSubmissionUseCase {
     }
 
     try {
-      const response = await this.submitBug(
-        request.transactionId,
+      const response = await this.submitBug({
+        transactionId: request.transactionId,
         data,
         reporterEmail,
         resolvedCreatedById,
         resolvedFile,
-      );
+      });
       if (response.errorCode && resolvedFile) {
         await this.storageService.deleteFile(resolvedFile.filePath);
       }
@@ -196,12 +241,15 @@ export class BugSubmissionUseCase {
   }
 
   private async submitBug(
-    transactionId: string | undefined,
-    data: BugSubmissionData,
-    reporterEmail: string,
-    resolvedCreatedById: string | undefined,
-    resolvedFile: StoredFile | undefined,
+    submission: BugSubmission,
   ): Promise<ResponseModel<Bug>> {
+    const {
+      transactionId,
+      data,
+      reporterEmail,
+      resolvedCreatedById,
+      resolvedFile,
+    } = submission;
     // Checked by build() in createBug
     const component =
       data.component && isBugComponent(data.component)
@@ -239,9 +287,7 @@ export class BugSubmissionUseCase {
 
         const issueNum = await this.issueTrackerService.createIssue(
           data.githubRepo,
-          data.title,
-          issueBody,
-          labels,
+          { title: data.title, body: issueBody, labels: labels },
           gitHubToken,
         );
         if (issueNum) {
@@ -282,11 +328,7 @@ export class BugSubmissionUseCase {
         resolvedFile,
         reporterEmail,
         status,
-        logComment: resolvedCreatedById
-          ? status === "open"
-            ? "Bug submitted directly to GitHub by admin."
-            : "Bug submitted locally by user."
-          : "Bug submitted locally by guest.",
+        logComment: submissionComment(resolvedCreatedById, status),
         gitIssueNumber,
         githubHtmlUrl,
       }),

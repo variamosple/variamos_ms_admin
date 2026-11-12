@@ -1,3 +1,14 @@
+/** What a metric of the dashboard is made of. */
+export interface MetricFields {
+  id: string;
+  title: string;
+  chartType: string;
+  defaultFilter: string;
+  filters?: string[];
+  labelKey?: string;
+  data?: unknown;
+}
+
 export class Metric {
   private id: string;
   private title: string;
@@ -7,15 +18,9 @@ export class Metric {
   private labelKey?: string;
   private data: unknown;
 
-  public constructor(
-    id: string,
-    title: string,
-    chartType: string,
-    defaultFilter: string,
-    filters?: string[],
-    labelKey?: string,
-    data?: unknown,
-  ) {
+  public constructor(fields: MetricFields) {
+    const { id, title, chartType, defaultFilter, filters, labelKey, data } =
+      fields;
     this.id = id;
     this.title = title;
     this.chartType = chartType;
@@ -58,15 +63,15 @@ export class Metric {
   }
 
   public static build(builder: MetricBuilder): Metric {
-    return new Metric(
-      builder.getId(),
-      builder.getTitle(),
-      builder.getChartType(),
-      builder.getDefaultFilter(),
-      builder.getFilters(),
-      builder.getLabelKey(),
-      builder.getData(),
-    );
+    return new Metric({
+      id: builder.getId(),
+      title: builder.getTitle(),
+      chartType: builder.getChartType(),
+      defaultFilter: builder.getDefaultFilter(),
+      filters: builder.getFilters(),
+      labelKey: builder.getLabelKey(),
+      data: builder.getData(),
+    });
   }
 }
 
@@ -143,14 +148,14 @@ class MetricBuilder {
   }
 
   public build(): Metric {
-    return new Metric(
-      this.id,
-      this.title,
-      this.chartType,
-      this.defaultFilter,
-      this.filters,
-      this.labelKey,
-      this.data,
-    );
+    return new Metric({
+      id: this.id,
+      title: this.title,
+      chartType: this.chartType,
+      defaultFilter: this.defaultFilter,
+      filters: this.filters,
+      labelKey: this.labelKey,
+      data: this.data,
+    });
   }
 }

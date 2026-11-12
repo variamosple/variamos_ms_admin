@@ -17,6 +17,17 @@ export const MFA_SIGN_IN_FAILURES_PER_ACCOUNT = {
   limit: 5,
 } as const;
 
+/** What the second step of a sign-in reads and records. */
+export interface MfaSignInUseCaseDependencies {
+  mfaRepository: IUserMfaRepository;
+  mfaUseCase: Pick<UserMfaUseCase, "verifySecondFactor">;
+  cipher: ISecretCipher;
+  pending: PendingMfaSignIns;
+  trustedDevices: Pick<TrustedDeviceUseCase, "days" | "isTrusted" | "trust">;
+  logger: ILogger;
+  now?: () => number;
+}
+
 /**
  * The code asked after the password at sign-in (SPC-2026-10-17-001,
  * lot 2). An account without second factor signs in as before.
@@ -24,18 +35,35 @@ export const MFA_SIGN_IN_FAILURES_PER_ACCOUNT = {
 export class MfaSignInUseCase {
   private readonly failures = new Map<string, number[]>();
 
-  public constructor(
-    private readonly mfaRepository: IUserMfaRepository,
-    private readonly mfaUseCase: Pick<UserMfaUseCase, "verifySecondFactor">,
-    private readonly cipher: ISecretCipher,
-    private readonly pending: PendingMfaSignIns,
-    private readonly trustedDevices: Pick<
-      TrustedDeviceUseCase,
-      "days" | "isTrusted" | "trust"
-    >,
-    private readonly logger: ILogger,
-    private readonly now: () => number = Date.now,
-  ) {}
+  private readonly mfaRepository: IUserMfaRepository;
+  private readonly mfaUseCase: Pick<UserMfaUseCase, "verifySecondFactor">;
+  private readonly cipher: ISecretCipher;
+  private readonly pending: PendingMfaSignIns;
+  private readonly trustedDevices: Pick<
+    TrustedDeviceUseCase,
+    "days" | "isTrusted" | "trust"
+  >;
+  private readonly logger: ILogger;
+  private readonly now: () => number;
+
+  public constructor(dependencies: MfaSignInUseCaseDependencies) {
+    const {
+      mfaRepository,
+      mfaUseCase,
+      cipher,
+      pending,
+      trustedDevices,
+      logger,
+      now = Date.now,
+    } = dependencies;
+    this.mfaRepository = mfaRepository;
+    this.mfaUseCase = mfaUseCase;
+    this.cipher = cipher;
+    this.pending = pending;
+    this.trustedDevices = trustedDevices;
+    this.logger = logger;
+    this.now = now;
+  }
 
   /**
    * Called once the password is right: a token to send with the code, or

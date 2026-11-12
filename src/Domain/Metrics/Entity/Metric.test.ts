@@ -4,15 +4,15 @@ describe("Metric Entity - Unit Tests", () => {
   it("should successfully build a Metric using constructor", () => {
     const filters = ["month", "year"];
     const testData = { value: 100 };
-    const metric = new Metric(
-      "met-1",
-      "Test Metric",
-      "bar",
-      "month",
+    const metric = new Metric({
+      id: "met-1",
+      title: "Test Metric",
+      chartType: "bar",
+      defaultFilter: "month",
       filters,
-      "date",
-      testData,
-    );
+      labelKey: "date",
+      data: testData,
+    });
 
     expect(metric.getId()).toBe("met-1");
     expect(metric.getTitle()).toBe("Test Metric");

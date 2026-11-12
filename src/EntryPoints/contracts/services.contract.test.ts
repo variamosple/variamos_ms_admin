@@ -205,10 +205,10 @@ const NOW = new Date("2026-11-02T10:00:00Z");
 // A service with its health, containers and uptime, as the repository
 // assembles it, and one without any check yet
 const checkedService = () =>
-  new MicroServiceDetailed(
-    "variamos_ms_admin",
-    "Administration",
-    {
+  new MicroServiceDetailed({
+    serviceName: "variamos_ms_admin",
+    displayName: "Administration",
+    health: {
       status: "UP",
       serviceName: "variamos_ms_admin",
       version: "2.3.0",
@@ -217,8 +217,8 @@ const checkedService = () =>
       checkedAt: NOW,
       checks: { database: { status: "UP", latencyMs: 3, details: { a: 1 } } },
     },
-    1,
-    [
+    replicasCount: 1,
+    containers: [
       {
         id: "c1",
         name: "variamos_ms_admin_1",
@@ -228,7 +228,7 @@ const checkedService = () =>
         labels: { "com.docker.compose.service": "variamos_ms_admin" },
       },
     ],
-    {
+    uptimeSummary: {
       serviceName: "variamos_ms_admin",
       currentStatus: "UP",
       uptime24hPercentage: 99.5,
@@ -243,17 +243,17 @@ const checkedService = () =>
         },
       ],
     },
-    "http://variamos_ms_admin:4000",
-    "2.3.0",
-  );
+    targetUrl: "http://variamos_ms_admin:4000",
+    version: "2.3.0",
+  });
 const uncheckedService = () =>
-  new MicroServiceDetailed(
-    "semantic_translator",
-    "Semantic translator",
-    { status: "NO_DATA", serviceName: "semantic_translator" },
-    0,
-    [],
-  );
+  new MicroServiceDetailed({
+    serviceName: "semantic_translator",
+    displayName: "Semantic translator",
+    health: { status: "NO_DATA", serviceName: "semantic_translator" },
+    replicasCount: 0,
+    containers: [],
+  });
 
 const configuration = (
   key: string,
@@ -303,12 +303,9 @@ describe("Service and configuration routes keep the shape VariaMosAdmin reads", 
 
   it("GET /v1/micro-services", async () => {
     serviceQueries.queryMicroServices.mockResolvedValue(
-      new ResponseModel<MicroServiceDetailed[]>(
-        "tx",
-        undefined,
-        undefined,
-        2,
-      ).withResponse([checkedService(), uncheckedService()]),
+      new ResponseModel<MicroServiceDetailed[]>("tx", {
+        totalCount: 2,
+      }).withResponse([checkedService(), uncheckedService()]),
     );
 
     const res = await request(app).get("/v1/micro-services");
@@ -320,28 +317,27 @@ describe("Service and configuration routes keep the shape VariaMosAdmin reads", 
   it("GET /v1/micro-services/:name/configurations", async () => {
     serviceQueries.queryConfigurations.mockResolvedValue(
       new ResponseModel<MicroServiceConfigItem[]>("tx").withResponse([
-        new MicroServiceConfigItem(
-          1,
-          "variamos_ms_admin",
-          "LOG_LEVEL",
-          "info",
-          "string",
-          false,
-          false,
-          "Log level",
-          "admin-1",
-          NOW,
-          NOW,
-        ),
-        new MicroServiceConfigItem(
-          undefined,
-          "variamos_ms_admin",
-          "API_TOKEN",
-          "********",
-          "string",
-          true,
-          true,
-        ),
+        new MicroServiceConfigItem({
+          id: 1,
+          serviceName: "variamos_ms_admin",
+          key: "LOG_LEVEL",
+          value: "info",
+          type: "string",
+          isSecret: false,
+          isReadOnly: false,
+          description: "Log level",
+          updatedBy: "admin-1",
+          createdAt: NOW,
+          updatedAt: NOW,
+        }),
+        new MicroServiceConfigItem({
+          serviceName: "variamos_ms_admin",
+          key: "API_TOKEN",
+          value: "********",
+          type: "string",
+          isSecret: true,
+          isReadOnly: true,
+        }),
       ]),
     );
 
@@ -356,15 +352,15 @@ describe("Service and configuration routes keep the shape VariaMosAdmin reads", 
   it("PUT /v1/micro-services/:name/configurations/:key", async () => {
     serviceManagement.updateConfiguration.mockResolvedValue(
       new ResponseModel<MicroServiceConfigItem>("tx").withResponse(
-        new MicroServiceConfigItem(
-          1,
-          "variamos_ms_admin",
-          "LOG_LEVEL",
-          "debug",
-          "string",
-          false,
-          false,
-        ),
+        new MicroServiceConfigItem({
+          id: 1,
+          serviceName: "variamos_ms_admin",
+          key: "LOG_LEVEL",
+          value: "debug",
+          type: "string",
+          isSecret: false,
+          isReadOnly: false,
+        }),
       ),
     );
 
@@ -379,14 +375,14 @@ describe("Service and configuration routes keep the shape VariaMosAdmin reads", 
   it("GET /v1/micro-services/:name/audit-logs", async () => {
     serviceQueries.queryAuditLogs.mockResolvedValue(
       new ResponseModel<MicroServiceAuditEntry[]>("tx").withResponse([
-        new MicroServiceAuditEntry(
-          1,
-          "variamos_ms_admin",
-          "CONFIG_UPDATE",
-          { key: "LOG_LEVEL", newValue: "debug" },
-          "admin-1",
-          NOW,
-        ),
+        new MicroServiceAuditEntry({
+          id: 1,
+          serviceName: "variamos_ms_admin",
+          actionType: "CONFIG_UPDATE",
+          details: { key: "LOG_LEVEL", newValue: "debug" },
+          performedBy: "admin-1",
+          createdAt: NOW,
+        }),
       ]),
     );
 

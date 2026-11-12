@@ -94,13 +94,13 @@ describe("UserMfaUseCase", () => {
   beforeEach(() => {
     now = 1_800_000_000_000;
     repository = new InMemoryUserMfaRepository();
-    useCase = new UserMfaUseCase(
-      repository,
-      userRepository,
-      fakeCipher(),
-      mock<ILogger>(),
-      () => now,
-    );
+    useCase = new UserMfaUseCase({
+      mfaRepository: repository,
+      passwordCheck: userRepository,
+      cipher: fakeCipher(),
+      logger: mock<ILogger>(),
+      now: () => now,
+    });
   });
 
   const nextStep = () => {
@@ -361,12 +361,12 @@ describe("UserMfaUseCase", () => {
   });
 
   it("is unavailable without an encryption key", async () => {
-    const withoutKey = new UserMfaUseCase(
-      repository,
-      userRepository,
-      fakeCipher(false),
-      mock<ILogger>(),
-    );
+    const withoutKey = new UserMfaUseCase({
+      mfaRepository: repository,
+      passwordCheck: userRepository,
+      cipher: fakeCipher(false),
+      logger: mock<ILogger>(),
+    });
 
     expect((await withoutKey.status("t", USER)).data?.available).toBe(false);
     expect(

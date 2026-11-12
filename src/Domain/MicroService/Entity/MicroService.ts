@@ -2,6 +2,16 @@ export interface Labels {
   [label: string]: string;
 }
 
+/** A container of a service, as Docker lists it. */
+export interface MicroServiceFields {
+  id: string;
+  names: string[];
+  created: Date;
+  labels: Labels;
+  state: string;
+  status: string;
+}
+
 export class MicroService {
   private readonly id: string;
   private readonly names: string[];
@@ -10,14 +20,8 @@ export class MicroService {
   private readonly state: string;
   private readonly status: string;
 
-  public constructor(
-    id: string,
-    names: string[],
-    created: Date,
-    labels: Labels,
-    state: string,
-    status: string,
-  ) {
+  public constructor(fields: MicroServiceFields) {
+    const { id, names, created, labels, state, status } = fields;
     if (!id || id.trim() === "") {
       throw new Error("Microservice ID is required.");
     }
@@ -74,14 +78,14 @@ export class MicroService {
   }
 
   public static build(builder: MicroServiceBuilder): MicroService {
-    return new MicroService(
-      builder.getId(),
-      builder.getNames(),
-      builder.getCreated(),
-      builder.getLabels(),
-      builder.getState(),
-      builder.getStatus(),
-    );
+    return new MicroService({
+      id: builder.getId(),
+      names: builder.getNames(),
+      created: builder.getCreated(),
+      labels: builder.getLabels(),
+      state: builder.getState(),
+      status: builder.getStatus(),
+    });
   }
 }
 
@@ -148,13 +152,13 @@ export class MicroServiceBuilder {
   }
 
   public build(): MicroService {
-    return new MicroService(
-      this.id,
-      this.names,
-      this.created,
-      this.labels,
-      this.state,
-      this.status,
-    );
+    return new MicroService({
+      id: this.id,
+      names: this.names,
+      created: this.created,
+      labels: this.labels,
+      state: this.state,
+      status: this.status,
+    });
   }
 }

@@ -86,16 +86,28 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE;`;
 
+/** A chart function: its schema, name, chart id, title and counted column. */
+interface ChartFunction {
+  s: string;
+  name: string;
+  id: string;
+  title: string;
+  counted: string;
+}
+
 // A chart of one line, counted by month
-const monthlyCount = (
-  s: string,
-  name: string,
-  id: string,
-  title: string,
-  series: string,
-  activity: string,
-  counted: string,
-) => `CREATE OR REPLACE FUNCTION ${s}.${name}(startDate DATE, endDate DATE)
+const monthlyCount = ({
+  s,
+  name,
+  id,
+  title,
+  series,
+  activity,
+  counted,
+}: ChartFunction & {
+  series: string;
+  activity: string;
+}) => `CREATE OR REPLACE FUNCTION ${s}.${name}(startDate DATE, endDate DATE)
 RETURNS TABLE(char_data JSON) AS $$
 DECLARE
     chart_rows JSON;
@@ -112,13 +124,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE;`;
 
-const visitsByDay = (
-  s: string,
-  name: string,
-  id: string,
-  title: string,
-  counted: string,
-) => `CREATE OR REPLACE FUNCTION ${s}.${name}(startDate DATE, endDate DATE)
+const visitsByDay = ({
+  s,
+  name,
+  id,
+  title,
+  counted,
+}: ChartFunction) => `CREATE OR REPLACE FUNCTION ${s}.${name}(startDate DATE, endDate DATE)
 RETURNS TABLE(char_data JSON) AS $$
 DECLARE
     chart_rows JSON;
@@ -299,41 +311,41 @@ export const usageMetricsStatements = (s: string): string[] => [
   chart(s),
   userActivity(s),
   projectActivity(s),
-  visitsByDay(
+  visitsByDay({
     s,
-    "get_daily_visits_metrics",
-    "daily_visits",
-    "Daily Visits",
-    "count(*)",
-  ),
-  visitsByDay(
+    name: "get_daily_visits_metrics",
+    id: "daily_visits",
+    title: "Daily Visits",
+    counted: "count(*)",
+  }),
+  visitsByDay({
     s,
-    "get_daily_unique_visits_metrics",
-    "daily_unique_visits",
-    "Daily Unique Visits",
-    "count(DISTINCT user_id)",
-  ),
+    name: "get_daily_unique_visits_metrics",
+    id: "daily_unique_visits",
+    title: "Daily Unique Visits",
+    counted: "count(DISTINCT user_id)",
+  }),
   monthlyVisits(s),
   ...topPages(s),
   yearlyVisits(s),
-  monthlyCount(
+  monthlyCount({
     s,
-    "get_monthly_active_users_metrics",
-    "monthly_active_users",
-    "Monthly active users",
-    "Active users",
-    "metrics_user_activity",
-    "activity_user",
-  ),
-  monthlyCount(
+    name: "get_monthly_active_users_metrics",
+    id: "monthly_active_users",
+    title: "Monthly active users",
+    series: "Active users",
+    activity: "metrics_user_activity",
+    counted: "activity_user",
+  }),
+  monthlyCount({
     s,
-    "get_monthly_active_projects_metrics",
-    "monthly_active_projects",
-    "Monthly active projects",
-    "Active projects",
-    "metrics_project_activity",
-    "activity_project",
-  ),
+    name: "get_monthly_active_projects_metrics",
+    id: "monthly_active_projects",
+    title: "Monthly active projects",
+    series: "Active projects",
+    activity: "metrics_project_activity",
+    counted: "activity_project",
+  }),
   topLanguages(s),
   metrics(s),
 ];

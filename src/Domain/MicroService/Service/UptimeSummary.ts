@@ -49,6 +49,12 @@ export interface UptimeSlotCount {
 const percentage = (part: number, whole: number, digits: number) =>
   Number(((part / whole) * 100).toFixed(digits));
 
+/** UP when every check passed, DOWN when every one failed, else DEGRADED. */
+const slotStatus = (count: UptimeSlotCount): HealthStatus => {
+  if (count.upChecks === count.checks) return "UP";
+  return count.downChecks === count.checks ? "DOWN" : "DEGRADED";
+};
+
 export function buildUptimeSummary(
   serviceName: string,
   counts: UptimeSlotCount[],
@@ -87,12 +93,7 @@ export function buildUptimeSummary(
       // degraded, not stopped
       return {
         timestamp,
-        status:
-          count.upChecks === count.checks
-            ? "UP"
-            : count.downChecks === count.checks
-              ? "DOWN"
-              : "DEGRADED",
+        status: slotStatus(count),
         responseTimeMs: Math.round(count.latencySumMs / count.checks),
         uptimePercentage: percentage(count.upChecks, count.checks, 1),
       };

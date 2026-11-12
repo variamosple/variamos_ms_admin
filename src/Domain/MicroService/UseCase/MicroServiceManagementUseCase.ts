@@ -18,17 +18,39 @@ import type { IMicroServiceRepository } from "../Repository/IMicroServiceReposit
 export const SCALING_NOT_AVAILABLE =
   "Scaling is not available: the number of replicas is set in the server's compose file.";
 
+/** What the management of the services reads and records. */
+export interface MicroServiceManagementUseCaseDependencies {
+  microServiceRepository: IMicroServiceRepository;
+  logger: ILogger;
+  configurationRepository: Pick<IConfigurationRepository, "queryByKey">;
+  configEventPublisher: IConfigEventPublisher;
+  journal: IActivityJournal;
+}
+
 export class MicroServiceManagementUseCase {
-  public constructor(
-    private readonly microServiceRepository: IMicroServiceRepository,
-    private readonly logger: ILogger,
-    private readonly configurationRepository: Pick<
-      IConfigurationRepository,
-      "queryByKey"
-    >,
-    private readonly configEventPublisher: IConfigEventPublisher,
-    private readonly journal: IActivityJournal,
-  ) {}
+  private readonly microServiceRepository: IMicroServiceRepository;
+  private readonly logger: ILogger;
+  private readonly configurationRepository: Pick<
+    IConfigurationRepository,
+    "queryByKey"
+  >;
+  private readonly configEventPublisher: IConfigEventPublisher;
+  private readonly journal: IActivityJournal;
+
+  public constructor(dependencies: MicroServiceManagementUseCaseDependencies) {
+    const {
+      microServiceRepository,
+      logger,
+      configurationRepository,
+      configEventPublisher,
+      journal,
+    } = dependencies;
+    this.microServiceRepository = microServiceRepository;
+    this.logger = logger;
+    this.configurationRepository = configurationRepository;
+    this.configEventPublisher = configEventPublisher;
+    this.journal = journal;
+  }
 
   public async startMicroService(
     request: RequestModel<string>,

@@ -73,8 +73,10 @@ const send = (
 ) => {
   const answer = new ResponseModel<ScheduledChangeResponseDto>(
     response.transactionId,
-    response.errorCode,
-    response.message,
+    {
+      errorCode: response.errorCode,
+      message: response.message,
+    },
   );
   if (response.data) answer.data = toDto(response.data);
   res.status(mapDomainErrorToHttpStatus(answer.errorCode)).json(answer);

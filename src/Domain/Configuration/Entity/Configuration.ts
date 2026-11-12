@@ -46,6 +46,24 @@ export class ConfigurationKey {
   }
 }
 
+/** What a setting is made of. */
+export interface ConfigurationFields {
+  id?: number;
+  key: ConfigurationKey;
+  value: ConfigurationValue;
+  type: "boolean" | "string" | "number" | "array" | "object";
+  category: "general" | "security" | "notification" | "env";
+  requiresMfa: boolean;
+  isSecret: boolean;
+  environmentScope: EnvironmentScope;
+  isReadOnly: boolean;
+  targetServices: string[];
+  description?: string;
+  updatedBy?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
 export class Configuration {
   public readonly id?: number;
   public readonly key: ConfigurationKey;
@@ -62,22 +80,23 @@ export class Configuration {
   public createdAt?: Date;
   public updatedAt?: Date;
 
-  public constructor(
-    id: number | undefined,
-    key: ConfigurationKey,
-    value: ConfigurationValue,
-    type: "boolean" | "string" | "number" | "array" | "object",
-    category: "general" | "security" | "notification" | "env",
-    requiresMfa: boolean,
-    isSecret: boolean,
-    environmentScope: EnvironmentScope,
-    isReadOnly: boolean,
-    targetServices: string[],
-    description?: string,
-    updatedBy?: string,
-    createdAt?: Date,
-    updatedAt?: Date,
-  ) {
+  public constructor(fields: ConfigurationFields) {
+    const {
+      id,
+      key,
+      value,
+      type,
+      category,
+      requiresMfa,
+      isSecret,
+      environmentScope,
+      isReadOnly,
+      targetServices,
+      description,
+      updatedBy,
+      createdAt,
+      updatedAt,
+    } = fields;
     if (value === undefined || value === null) {
       throw new Error("Configuration value cannot be null or undefined.");
     }
@@ -331,21 +350,21 @@ export class ConfigurationBuilder {
     if (!this.key) {
       throw new Error("Configuration key is required.");
     }
-    return new Configuration(
-      this.id,
-      this.key,
-      this.value ?? "",
-      this.type ?? "string",
-      this.category ?? "general",
-      this.requiresMfa,
-      this.isSecret,
-      this.environmentScope,
-      this.isReadOnly,
-      this.targetServices,
-      this.description,
-      this.updatedBy,
-      this.createdAt,
-      this.updatedAt,
-    );
+    return new Configuration({
+      id: this.id,
+      key: this.key,
+      value: this.value ?? "",
+      type: this.type ?? "string",
+      category: this.category ?? "general",
+      requiresMfa: this.requiresMfa,
+      isSecret: this.isSecret,
+      environmentScope: this.environmentScope,
+      isReadOnly: this.isReadOnly,
+      targetServices: this.targetServices,
+      description: this.description,
+      updatedBy: this.updatedBy,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+    });
   }
 }

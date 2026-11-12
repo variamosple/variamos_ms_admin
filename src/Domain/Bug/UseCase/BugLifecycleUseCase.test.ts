@@ -35,16 +35,16 @@ describe("BugLifecycleUseCase", () => {
     ]);
     mockTokenResolver = mock<IGitHubTokenProvider>();
     mockJournal = mock<IActivityJournal>();
-    useCase = new BugLifecycleUseCase(
-      mockBugRepository,
-      mockIssueTracker,
-      mockStorageService,
-      mockGithubConfig,
-      mockTokenResolver,
-      mockJournal,
+    useCase = new BugLifecycleUseCase({
+      bugRepository: mockBugRepository,
+      issueTrackerService: mockIssueTracker,
+      storageService: mockStorageService,
+      githubConfig: mockGithubConfig,
+      tokenResolver: mockTokenResolver,
+      journal: mockJournal,
       logger,
-      { getRejectedRetentionDays: async () => retentionDays },
-    );
+      schedule: { getRejectedRetentionDays: async () => retentionDays },
+    });
   });
 
   const createMockBug = (id: string, title = "New Bug", status = "pending") => {
@@ -547,11 +547,10 @@ describe("BugLifecycleUseCase", () => {
         '* Component: "None" -> "microservice"',
       );
       expect(noteCall.data?.body).toContain('* Priority: "high" -> "critical"');
-      const [, , body, labels] =
-        mockIssueTracker.createIssue.mock.calls[0] ?? [];
-      expect(body).toContain("\n*Priority: critical*");
-      expect(body).toContain("\n*Component: Microservice*");
-      expect(labels).toContain("critical");
+      const issue = mockIssueTracker.createIssue.mock.calls[0]?.[1];
+      expect(issue?.body).toContain("\n*Priority: critical*");
+      expect(issue?.body).toContain("\n*Component: Microservice*");
+      expect(issue?.labels).toContain("critical");
       expect(mockBugRepository.updateStatus).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
@@ -650,13 +649,15 @@ describe("BugLifecycleUseCase", () => {
 
       expect(mockIssueTracker.createIssue).toHaveBeenCalledWith(
         "VariaMos/VariaMosAdmin",
-        "Title",
-        expect.stringContaining("http://localhost:4000/file1.jpg"),
-        expect.arrayContaining(["bug", "model", "high"]),
+        {
+          title: "Title",
+          body: expect.stringContaining("http://localhost:4000/file1.jpg"),
+          labels: expect.arrayContaining(["bug", "model", "high"]),
+        },
         "token",
       );
 
-      const calledBody = mockIssueTracker.createIssue.mock.calls[0]?.[2];
+      const calledBody = mockIssueTracker.createIssue.mock.calls[0]?.[1].body;
       expect(calledBody).toContain(
         "- [Attachment](http://localhost:4000/file1.jpg) (Type: image/jpeg)",
       );
@@ -698,7 +699,7 @@ describe("BugLifecycleUseCase", () => {
 
       await useCase.updateStatus(req);
 
-      const calledBody = mockIssueTracker.createIssue.mock.calls[0]?.[2];
+      const calledBody = mockIssueTracker.createIssue.mock.calls[0]?.[1].body;
       expect(calledBody).toContain(
         "- [Attachment](https://myapi.com/file1.jpg) (Type: image/jpeg)",
       );
@@ -725,7 +726,7 @@ describe("BugLifecycleUseCase", () => {
 
       await useCase.updateStatus(req);
 
-      const calledBody = mockIssueTracker.createIssue.mock.calls[0]?.[2];
+      const calledBody = mockIssueTracker.createIssue.mock.calls[0]?.[1].body;
       expect(calledBody).not.toContain("### Attachments");
     });
 
@@ -1059,13 +1060,15 @@ describe("BugLifecycleUseCase", () => {
 
       expect(mockIssueTracker.createIssue).toHaveBeenCalledWith(
         "VariaMos/VariaMosAdmin",
-        "My Bug Title",
-        expect.stringContaining("No description provided."),
-        expect.any(Array),
+        {
+          title: "My Bug Title",
+          body: expect.stringContaining("No description provided."),
+          labels: expect.any(Array),
+        },
         "token",
       );
 
-      const calledBody = mockIssueTracker.createIssue.mock.calls[0]?.[2];
+      const calledBody = mockIssueTracker.createIssue.mock.calls[0]?.[1].body;
       expect(calledBody).toContain("*Reported by a guest*");
       expect(calledBody).toContain(
         '*Approved by an administrator (Comment: "This is a comment")*',
@@ -1137,7 +1140,7 @@ describe("BugLifecycleUseCase", () => {
         }),
       );
 
-      const body = mockIssueTracker.createIssue.mock.calls[0]?.[2];
+      const body = mockIssueTracker.createIssue.mock.calls[0]?.[1].body;
       expect(body).toContain("*Reported from VariaMos*");
       expect(body).toContain("*Approved by an administrator*");
       expect(body).not.toContain("@");
@@ -1165,7 +1168,7 @@ describe("BugLifecycleUseCase", () => {
 
       await useCase.updateStatus(req);
 
-      const calledBody = mockIssueTracker.createIssue.mock.calls[0]?.[2];
+      const calledBody = mockIssueTracker.createIssue.mock.calls[0]?.[1].body;
       expect(calledBody).not.toContain("Priority:");
       expect(calledBody).not.toContain("Category:");
     });

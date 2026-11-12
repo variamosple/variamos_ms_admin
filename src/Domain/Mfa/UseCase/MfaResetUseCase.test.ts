@@ -39,13 +39,13 @@ function setUp(record: UserMfaRecord | null) {
   const mailService = mock<IMailService>();
   mailService.sendMfaResetMail.mockResolvedValue(true);
   const logger = mock<ILogger>();
-  const useCase = new MfaResetUseCase(
+  const useCase = new MfaResetUseCase({
     mfaRepository,
     userRepository,
     mailService,
-    activityJournal,
+    journal: activityJournal,
     logger,
-  );
+  });
   return { useCase, mfaRepository, userRepository, mailService, logger };
 }
 
