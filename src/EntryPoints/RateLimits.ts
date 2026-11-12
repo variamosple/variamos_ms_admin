@@ -12,7 +12,7 @@ import {
   DEFAULT_ACCOUNT_LOCKOUT_POLICY_PROVIDER,
 } from "#src/Domain/User/Service/AccountLockoutService.js";
 import { AUTH_ROUTE } from "./AuthRouter.js";
-import { recordAccess } from "./accessJournal.js";
+import { pathOf, recordAccess } from "./accessJournal.js";
 import { BUG_V1_ROUTE } from "./BugRouter.js";
 
 const MINUTE_MS = 60 * 1000;
@@ -147,7 +147,7 @@ async function recordLock(
     userId: account?.id ?? null,
     ip: req.ip ?? null,
     method: req.method,
-    path: req.originalUrl.split("?")[0],
+    path: pathOf(req),
     statusCode: null,
   });
 }

@@ -7,8 +7,12 @@ type AccessEvent = Pick<AccessEntry, "event" | "outcome" | "reason"> & {
   userId?: string | null;
 };
 
-// The path without its query string, which may carry a token
-const pathOf = (req: Request): string => req.originalUrl.split("?")[0];
+/** The path without its query string, which may carry a token. */
+export const pathOf = (req: Request): string => {
+  const url = req.originalUrl;
+  const query = url.indexOf("?");
+  return query === -1 ? url : url.slice(0, query);
+};
 
 /**
  * Records an access event once the answer is sent, with its status, so that

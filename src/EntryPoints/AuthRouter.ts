@@ -261,24 +261,24 @@ export function createAuthRouter(
       const user = validationResponse.data;
 
       if (validationResponse.errorCode) {
-        return res
-          .status(validationResponse.errorCode)
-          .json(validationResponse);
+        res.status(validationResponse.errorCode).json(validationResponse);
+        return;
       }
       if (!isSessionExpired(user?.exp)) {
         const redirect = getRedirectUrl("getSessionInfo", req, res);
         setRedirectAuthToken(redirect, authToken);
 
-        return res.status(200).json(
+        res.status(200).json(
           response.withResponse({
             user: sessionInfoToSessionUser(user),
             redirect: redirect?.toString(),
           }),
         );
+        return;
       }
 
       if (!user?.iat) {
-        return res
+        res
           .status(HttpStatusCodes.UNAUTHORIZED)
           .json(
             response.withError(
@@ -286,6 +286,7 @@ export function createAuthRouter(
               "Your session has expired, please log in again.",
             ),
           );
+        return;
       }
 
       const currentDateInMs = Date.now();
@@ -295,7 +296,7 @@ export function createAuthRouter(
         user.iat * 1000 + EnvVars.CookieProps.Options.maxAge;
 
       if (currentDateInMs > refreshTimeInMs) {
-        return res
+        res
           .status(HttpStatusCodes.UNAUTHORIZED)
           .json(
             response.withError(
@@ -303,6 +304,7 @@ export function createAuthRouter(
               "Your session has expired, please log in again.",
             ),
           );
+        return;
       }
 
       const isGuest =
@@ -327,7 +329,7 @@ export function createAuthRouter(
       }
 
       if (refreshedUser.errorCode || !refreshedUser.data) {
-        return res
+        res
           .status(HttpStatusCodes.UNAUTHORIZED)
           .json(
             response.withError(
@@ -335,6 +337,7 @@ export function createAuthRouter(
               "Your session has expired, please log in again.",
             ),
           );
+        return;
       }
 
       const {
@@ -406,7 +409,7 @@ export function createAuthRouter(
 
     try {
       if (!email || !password) {
-        return res
+        res
           .status(HttpStatusCodes.BAD_REQUEST)
           .json(
             response.withError(
@@ -414,6 +417,7 @@ export function createAuthRouter(
               "Email and password are required.",
             ),
           );
+        return;
       }
 
       const credentials = new Credentials(email, password);
@@ -435,15 +439,15 @@ export function createAuthRouter(
                 : "invalid_credentials",
           userId: account?.id,
         });
-        return res
+        res
           .status(mapDomainErrorToHttpStatus(singInResponse.errorCode))
           .json(singInResponse);
+        return;
       }
 
       if (!singInResponse.data) {
-        return res
-          .status(HttpStatusCodes.INTERNAL_SERVER_ERROR)
-          .json(singInResponse);
+        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(singInResponse);
+        return;
       }
 
       const {
@@ -480,7 +484,8 @@ export function createAuthRouter(
           mfaRequired: true,
           trustedDeviceDays: await mfaSignIn.trustedDeviceDays(),
         };
-        return res.status(200).json(response);
+        res.status(200).json(response);
+        return;
       }
 
       response.data = {
@@ -504,7 +509,7 @@ export function createAuthRouter(
       res.clearCookie(MFA_PENDING_COOKIE, getCookieOptions({ maxAge: false }));
 
     if (typeof code !== "string" || !code.trim() || code.length > 32) {
-      return res
+      res
         .status(HttpStatusCodes.BAD_REQUEST)
         .json(
           response.withError(
@@ -512,6 +517,7 @@ export function createAuthRouter(
             "The code is required.",
           ),
         );
+      return;
     }
 
     try {
@@ -534,9 +540,8 @@ export function createAuthRouter(
         if (checked.errorCode !== DomainErrorCodes.INVALID_INPUT) {
           clearPending();
         }
-        return res
-          .status(mapDomainErrorToHttpStatus(checked.errorCode))
-          .json(checked);
+        res.status(mapDomainErrorToHttpStatus(checked.errorCode)).json(checked);
+        return;
       }
 
       // Read again: the account may have been disabled since the password
@@ -551,7 +556,7 @@ export function createAuthRouter(
           reason: "account_inactive",
           userId: checked.data,
         });
-        return res
+        res
           .status(HttpStatusCodes.UNAUTHORIZED)
           .json(
             response.withError(
@@ -559,6 +564,7 @@ export function createAuthRouter(
               "Your sign-in has expired, please sign in again.",
             ),
           );
+        return;
       }
 
       const {
@@ -624,9 +630,10 @@ export function createAuthRouter(
       );
 
       if (response.errorCode) {
-        return res
+        res
           .status(mapDomainErrorToHttpStatus(response.errorCode))
           .json(response);
+        return;
       }
 
       res.status(HttpStatusCodes.OK).json(successfulResponse);
@@ -710,10 +717,11 @@ export function createAuthRouter(
           userId: account?.id,
         });
         const reason = inactive ? "account-inactive" : "sign-in-failed";
-        return res.redirect(
+        res.redirect(
           302,
           `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?reason=${reason}`,
         );
+        return;
       }
 
       if (!response.data) {
@@ -722,10 +730,11 @@ export function createAuthRouter(
           outcome: "failed",
           reason: "sign_in_failed",
         });
-        return res.redirect(
+        res.redirect(
           302,
           `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?reason=sign-in-failed`,
         );
+        return;
       }
 
       const {
@@ -759,10 +768,11 @@ export function createAuthRouter(
       if (pendingToken) {
         res.cookie(MFA_PENDING_COOKIE, pendingToken, mfaPendingCookieOptions());
         const days = await mfaSignIn.trustedDeviceDays();
-        return res.redirect(
+        res.redirect(
           302,
           `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?mfa=required&trustedDeviceDays=${days}`,
         );
+        return;
       }
 
       const redirect = getRedirectUrl(transactionId, req, res, false);
@@ -885,15 +895,15 @@ export function createAuthRouter(
       const guestResponse = await userAuthUseCase.getGuestData(request);
 
       if (guestResponse.errorCode) {
-        return res
+        res
           .status(mapDomainErrorToHttpStatus(guestResponse.errorCode))
           .json(guestResponse);
+        return;
       }
 
       if (!guestResponse.data) {
-        return res
-          .status(HttpStatusCodes.INTERNAL_SERVER_ERROR)
-          .json(guestResponse);
+        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json(guestResponse);
+        return;
       }
 
       const { id, name, user, email, roles, permissions } = guestResponse.data;
@@ -979,9 +989,10 @@ export function createAuthRouter(
       );
 
       if (forgotPasswordResponse.errorCode) {
-        return res
+        res
           .status(mapDomainErrorToHttpStatus(forgotPasswordResponse.errorCode))
           .json(forgotPasswordResponse);
+        return;
       }
 
       res.status(200).json(forgotPasswordResponse);
@@ -1002,9 +1013,10 @@ export function createAuthRouter(
       );
 
       if (verifyResponse.errorCode) {
-        return res
+        res
           .status(mapDomainErrorToHttpStatus(verifyResponse.errorCode))
           .json(verifyResponse);
+        return;
       }
 
       res.status(200).json(verifyResponse);
@@ -1028,9 +1040,10 @@ export function createAuthRouter(
       );
 
       if (resetResponse.errorCode) {
-        return res
+        res
           .status(mapDomainErrorToHttpStatus(resetResponse.errorCode))
           .json(resetResponse);
+        return;
       }
 
       res.status(200).json(resetResponse);

@@ -32,6 +32,13 @@ class InMemoryChanges implements IScheduledConfigurationChangeRepository {
   public rows: ScheduledConfigurationChange[] = [];
   public listedSince?: Date;
 
+  /** The first planned change, which the test has created. */
+  public first(): ScheduledConfigurationChange {
+    const [row] = this.rows;
+    if (!row) throw new Error("No change was planned.");
+    return row;
+  }
+
   public async list(since: Date) {
     this.listedSince = since;
     return this.rows;
@@ -70,9 +77,11 @@ class InMemoryChanges implements IScheduledConfigurationChangeRepository {
     const index = this.rows.findIndex(
       (r) => r.id === id && r.status === "scheduled",
     );
-    if (index < 0) return null;
-    this.rows[index] = { ...this.rows[index], ...change };
-    return this.rows[index];
+    const current = this.rows[index];
+    if (!current) return null;
+    const next = { ...current, ...change };
+    this.rows[index] = next;
+    return next;
   }
 
   public async cancel(id: number, cancelledBy: string) {
@@ -345,7 +354,7 @@ describe("ScheduledConfigurationChangeUseCase (EV-115 lot B)", () => {
   describe("at the due date", () => {
     const due = async () => {
       await schedule();
-      changes.rows[0].dueAt = new Date("2026-11-11T11:59:00Z");
+      changes.first().dueAt = new Date("2026-11-11T11:59:00Z");
       journal = [];
       return useCase.applyDue();
     };
@@ -374,13 +383,13 @@ describe("ScheduledConfigurationChangeUseCase (EV-115 lot B)", () => {
     it("leaves a change not yet due", async () => {
       await schedule();
       expect(await useCase.applyDue()).toBe(0);
-      expect(changes.rows[0].status).toBe("scheduled");
+      expect(changes.first().status).toBe("scheduled");
     });
 
     it("leaves a setting changed by hand, and tells the author", async () => {
       await schedule();
       current = setting(10);
-      changes.rows[0].dueAt = NOW;
+      changes.first().dueAt = NOW;
       await useCase.applyDue();
 
       expect(configurations.updateConfiguration).not.toHaveBeenCalled();
@@ -402,7 +411,7 @@ describe("ScheduledConfigurationChangeUseCase (EV-115 lot B)", () => {
     it("counts a setting that already has the value as applied", async () => {
       await schedule();
       current = setting(12);
-      changes.rows[0].dueAt = NOW;
+      changes.first().dueAt = NOW;
       await useCase.applyDue();
 
       expect(changes.rows[0]).toEqual(
@@ -435,7 +444,7 @@ describe("ScheduledConfigurationChangeUseCase (EV-115 lot B)", () => {
     it("refuses a change of a setting that no longer exists", async () => {
       await schedule();
       current = null;
-      changes.rows[0].dueAt = NOW;
+      changes.first().dueAt = NOW;
       await useCase.applyDue();
 
       expect(changes.rows[0]).toEqual(
@@ -458,17 +467,17 @@ describe("ScheduledConfigurationChangeUseCase (EV-115 lot B)", () => {
       await expect(useCase.applyDue()).rejects.toThrow(
         "The setting could not be read.",
       );
-      expect(changes.rows[0].status).toBe("scheduled");
+      expect(changes.first().status).toBe("scheduled");
     });
 
     it("records the outcome even when the author cannot be told", async () => {
       notifier.notifyNotApplied.mockRejectedValue(new Error("service down"));
       await schedule();
       current = setting(10);
-      changes.rows[0].dueAt = NOW;
+      changes.first().dueAt = NOW;
 
       await expect(useCase.applyDue()).resolves.toBe(1);
-      expect(changes.rows[0].status).toBe("conflict");
+      expect(changes.first().status).toBe("conflict");
     });
   });
 });

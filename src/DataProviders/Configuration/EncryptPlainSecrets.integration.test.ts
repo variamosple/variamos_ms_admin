@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { QueryTypes, Sequelize } from "sequelize";
+import { assert } from "vitest";
 import type { ConfigurationValue } from "#src/Domain/Configuration/Entity/Configuration.js";
 import { runMigrations } from "#src/Infrastructure/database/Migrations/Migrator.js";
 import { AesGcmSecretCipher } from "#src/Infrastructure/Security/AesGcmSecretCipher.js";
@@ -71,24 +72,20 @@ describe.skipIf(!url)("encryptPlainSecrets on PostgreSQL", () => {
     expect(await encryptPlainSecrets(sequelize, SCHEMA, secrets)).toBe(2);
 
     const values = await stored();
+    const password = values["notification.smtp.password"];
+    const port = values["notification.smtp.port"];
+    assert.isDefined(password);
+    assert.isDefined(port);
     expect(
       SecretConfigurationValue.isEncrypted(
         values["notification.smtp.password"],
       ),
     ).toBe(true);
     expect(JSON.stringify(values)).not.toContain("smtp-password");
-    expect(
-      secrets.decrypt(
-        "notification.smtp.password",
-        values["notification.smtp.password"],
-      ),
-    ).toBe("smtp-password");
-    expect(
-      secrets.decrypt(
-        "notification.smtp.port",
-        values["notification.smtp.port"],
-      ),
-    ).toBe(587);
+    expect(secrets.decrypt("notification.smtp.password", password)).toBe(
+      "smtp-password",
+    );
+    expect(secrets.decrypt("notification.smtp.port", port)).toBe(587);
     expect(values["notification.smtp.host"]).toBe("smtp.example.com");
   });
 

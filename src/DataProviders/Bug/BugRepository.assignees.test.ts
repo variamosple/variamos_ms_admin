@@ -87,7 +87,7 @@ describe("BugRepositoryImpl assignees", () => {
     );
 
     expect(res.data).toEqual([{ id: "u-ana", name: "Ana" }]);
-    const [[sql, options]] = query.mock.calls as [string, object][];
+    const [sql, options] = (query.mock.calls as [string, object][])[0] ?? [];
     expect(sql).toContain("u.is_enabled AND NOT u.is_deleted");
     expect(options).toMatchObject({
       replacements: { permission: "bugs::update" },

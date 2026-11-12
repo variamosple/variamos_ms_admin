@@ -40,8 +40,8 @@ describe("MetricsRepositoryImpl.getMetrics", () => {
     const first = await repository.getMetrics(new RequestModel("t"));
     const second = await repository.getMetrics(new RequestModel("t"));
 
-    expect(first.data?.[0].getData()).toEqual({ visits: 3 });
-    expect(second.data?.[0].getData()).toEqual({ visits: 5 });
+    expect(first.data?.[0]?.getData()).toEqual({ visits: 3 });
+    expect(second.data?.[0]?.getData()).toEqual({ visits: 5 });
   });
 
   it("answers a system error when the database cannot be read", async () => {

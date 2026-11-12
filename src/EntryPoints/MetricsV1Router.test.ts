@@ -77,7 +77,7 @@ describe("MetricsV1Router Integration Tests", () => {
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       const body = response.body as MetricsApiResponse;
-      expect(body.data[0].id).toBe("metric-1");
+      expect(body.data[0]?.id).toBe("metric-1");
       expect(MetricsQueryUseCase.prototype.getMetrics).toHaveBeenCalledTimes(1);
       expect(MetricsQueryUseCase.prototype.getMetrics).toHaveBeenLastCalledWith(
         expect.objectContaining({ transactionId: "getMetrics" }),

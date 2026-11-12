@@ -37,15 +37,12 @@ export async function mapWithConcurrency<T, R>(
   task: (item: T) => Promise<R>,
 ): Promise<PromiseSettledResult<R>[]> {
   const outcomes: PromiseSettledResult<R>[] = new Array(items.length);
-  let nextIndex = 0;
+  // One iterator shared by the workers: each takes the next item
+  const queue = items.entries();
   const worker = async () => {
-    while (nextIndex < items.length) {
-      const index = nextIndex++;
+    for (const [index, item] of queue) {
       try {
-        outcomes[index] = {
-          status: "fulfilled",
-          value: await task(items[index]),
-        };
+        outcomes[index] = { status: "fulfilled", value: await task(item) };
       } catch (reason) {
         outcomes[index] = { status: "rejected", reason };
       }

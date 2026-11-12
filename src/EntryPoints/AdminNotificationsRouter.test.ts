@@ -255,7 +255,7 @@ describe("AdminNotificationsRouter Integration Tests", () => {
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(
         vi.mocked(NotificationClientInstance.dispatchNotification).mock
-          .calls[0][0].eventId,
+          .calls[0]?.[0].eventId,
       ).toBe("admin-dispatch:5f0c2d4e-8a1b-4c3d-9e2f-1a2b3c4d5e6f");
     });
 
@@ -275,7 +275,7 @@ describe("AdminNotificationsRouter Integration Tests", () => {
 
       expect(
         vi.mocked(NotificationClientInstance.dispatchNotification).mock
-          .calls[0][0],
+          .calls[0]?.[0],
       ).not.toHaveProperty("eventId");
     });
 

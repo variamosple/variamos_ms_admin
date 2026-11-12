@@ -30,7 +30,7 @@ export function createVisitsRouter(visitUseCase: VisitUseCase): Router {
 
       try {
         if (!pageId || !user?.id) {
-          return res
+          res
             .status(HttpStatusCodes.BAD_REQUEST)
             .json(
               new ResponseModel<void>(transactionId).withError(
@@ -38,6 +38,7 @@ export function createVisitsRouter(visitUseCase: VisitUseCase): Router {
                 "pageId and userId are required.",
               ),
             );
+          return;
         }
 
         const permission: Visit = new Visit(pageId, user.id);

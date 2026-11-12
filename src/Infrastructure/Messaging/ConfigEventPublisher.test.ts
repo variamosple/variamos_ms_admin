@@ -60,6 +60,6 @@ describe("ConfigEventPublisherImpl", () => {
     await publisher.publishConfigUpdated(secret);
 
     expect(listener).toHaveBeenCalledWith(secret);
-    expect(listener.mock.calls[0][0].value).toBe("ghp_x");
+    expect(listener.mock.calls[0]?.[0].value).toBe("ghp_x");
   });
 });

@@ -790,7 +790,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         expect(response.status).toBe(HttpStatusCodes.OK);
         const body = response.body as { data: { authToken: string } };
         expect(body.data.authToken).toBe("new-refreshed-jwt-token");
-        expect(vi.mocked(createJwt).mock.calls[0][1]).toBe(
+        expect(vi.mocked(createJwt).mock.calls[0]?.[1]).toBe(
           "allowed-origin.com",
         );
       });
@@ -798,7 +798,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       it("keeps the host of a token issued before", async () => {
         await refreshAs("allowed-origin.com");
 
-        expect(vi.mocked(createJwt).mock.calls[0][1]).toBe(
+        expect(vi.mocked(createJwt).mock.calls[0]?.[1]).toBe(
           "allowed-origin.com",
         );
       });
@@ -2595,7 +2595,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       expect(loggerSpy).toHaveBeenCalledWith(
         "POST: /auth/redirects Invalid redirect URL:",
       );
-      expect(loggerSpy.mock.calls[1][0]).toHaveProperty("message");
+      expect(loggerSpy.mock.calls[1]?.[0]).toHaveProperty("message");
       expect(errorLogOf(loggerSpy)).toEqual(SAFE_ERROR_LOG);
       loggerSpy.mockRestore();
     });
@@ -2886,9 +2886,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       const calls = vi.mocked(hasPermissions).mock.calls;
       expect(calls).toHaveLength(3);
-      expect(calls[0][0]).toEqual(["my-account::query"]);
-      expect(calls[1][0]).toEqual(["my-account::update"]);
-      expect(calls[2][0]).toEqual(["my-account::update"]);
+      expect(calls[0]?.[0]).toEqual(["my-account::query"]);
+      expect(calls[1]?.[0]).toEqual(["my-account::update"]);
+      expect(calls[2]?.[0]).toEqual(["my-account::update"]);
     });
 
     it("should handle local redirect origin containing fallback hostname but is actually external (Line 43)", async () => {

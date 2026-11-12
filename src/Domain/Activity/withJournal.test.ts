@@ -107,6 +107,6 @@ describe("withJournal", () => {
     );
 
     expect(entries.map((e) => e.entityId)).toEqual(["9", null]);
-    expect(entries[0].actorId).toBeNull();
+    expect(entries[0]?.actorId).toBeNull();
   });
 });

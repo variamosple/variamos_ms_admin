@@ -213,7 +213,8 @@ function buildRouter(accessGuard: AccessGuard) {
         }
       } else if (layer.handle.stack) {
         const index = children.findIndex((c) => c.child === layer.handle);
-        const mount = index >= 0 ? children.splice(index, 1)[0].path : "";
+        const mount =
+          index >= 0 ? (children.splice(index, 1)[0]?.path ?? "") : "";
         walk(layer.handle as { stack: Layer[] }, prefix + mount);
       }
     }
@@ -240,7 +241,7 @@ const send = (
   route: string,
   token?: string,
 ): Promise<supertest.Response> => {
-  const [method, path] = route.split(" ");
+  const [method = "", path = ""] = route.split(" ");
   const request = supertest(app)
     [method.toLowerCase() as "get" | "post" | "put" | "delete"](
       path.replace(/:[A-Za-z]+/g, "7"),
@@ -369,7 +370,7 @@ describe("authorization of every route (T-17 lot 2)", () => {
     });
 
     it("whose permissions were changed after signing", async () => {
-      const [header, payload, signature] = tokens.none.split(".");
+      const [header, payload = "", signature] = tokens.none.split(".");
       const claims = JSON.parse(Buffer.from(payload, "base64url").toString());
       const forged = Buffer.from(
         JSON.stringify({ ...claims, permissions: PERMISSIONS }),

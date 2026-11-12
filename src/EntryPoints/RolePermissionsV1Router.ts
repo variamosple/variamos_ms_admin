@@ -31,7 +31,7 @@ export function createRolePermissionsRouter(
       const roleId = req.params.roleId;
       try {
         if (!roleId || Number.isNaN(Number(roleId))) {
-          return res
+          res
             .status(HttpStatusCodes.BAD_REQUEST)
             .json(
               new ResponseModel<void>(transactionId).withError(
@@ -39,6 +39,7 @@ export function createRolePermissionsRouter(
                 "roleId is required.",
               ),
             );
+          return;
         }
 
         const filter: RolePermissionFilter = RolePermissionFilter.builder()
@@ -87,7 +88,7 @@ export function createRolePermissionsRouter(
           !permissionId ||
           Number.isNaN(Number(permissionId))
         ) {
-          return res
+          res
             .status(HttpStatusCodes.BAD_REQUEST)
             .json(
               new ResponseModel<void>(transactionId).withError(
@@ -95,6 +96,7 @@ export function createRolePermissionsRouter(
                 "roleId and permissionId are required.",
               ),
             );
+          return;
         }
 
         const rolePermission: RolePermission = new RolePermission(
@@ -140,7 +142,7 @@ export function createRolePermissionsRouter(
           !permissionId ||
           Number.isNaN(Number(permissionId))
         ) {
-          return res
+          res
             .status(HttpStatusCodes.BAD_REQUEST)
             .json(
               new ResponseModel<void>(transactionId).withError(
@@ -148,6 +150,7 @@ export function createRolePermissionsRouter(
                 "roleId and permissionId are required.",
               ),
             );
+          return;
         }
 
         const rolePermission: RolePermission = new RolePermission(

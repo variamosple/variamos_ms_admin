@@ -1,3 +1,4 @@
+import { assert } from "vitest";
 import { type MockProxy, mock } from "vitest-mock-extended";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
@@ -327,7 +328,7 @@ describe("BugLifecycleUseCase", () => {
 
       const calls = mockBugRepository.findExpiredRejectedBugs.mock.calls;
       expect(calls.length).toBeGreaterThan(0);
-      const dateArg = calls[0][0].data;
+      const dateArg = calls[0]?.[0].data;
       expect(dateArg).toBeDefined();
       if (dateArg === undefined || dateArg === null) {
         throw new Error("dateArg is undefined");
@@ -503,7 +504,8 @@ describe("BugLifecycleUseCase", () => {
           }),
         }),
       );
-      const noteCall = mockBugRepository.createNote.mock.calls[0][0];
+      const noteCall = mockBugRepository.createNote.mock.calls[0]?.[0];
+      assert.isDefined(noteCall);
       expect(noteCall.data?.body).toContain(
         '* Description: "Old Desc" -> "New Desc"',
       );
@@ -539,12 +541,14 @@ describe("BugLifecycleUseCase", () => {
         }),
       );
 
-      const noteCall = mockBugRepository.createNote.mock.calls[0][0];
+      const noteCall = mockBugRepository.createNote.mock.calls[0]?.[0];
+      assert.isDefined(noteCall);
       expect(noteCall.data?.body).toContain(
         '* Component: "None" -> "microservice"',
       );
       expect(noteCall.data?.body).toContain('* Priority: "high" -> "critical"');
-      const [, , body, labels] = mockIssueTracker.createIssue.mock.calls[0];
+      const [, , body, labels] =
+        mockIssueTracker.createIssue.mock.calls[0] ?? [];
       expect(body).toContain("\n*Priority: critical*");
       expect(body).toContain("\n*Component: Microservice*");
       expect(labels).toContain("critical");
@@ -603,7 +607,8 @@ describe("BugLifecycleUseCase", () => {
 
       await useCase.updateStatus(req);
 
-      const noteCall = mockBugRepository.createNote.mock.calls[0][0];
+      const noteCall = mockBugRepository.createNote.mock.calls[0]?.[0];
+      assert.isDefined(noteCall);
       expect(noteCall.data?.body).toContain(
         '* Category: "None" -> "NewCategory"',
       );
@@ -651,7 +656,7 @@ describe("BugLifecycleUseCase", () => {
         "token",
       );
 
-      const calledBody = mockIssueTracker.createIssue.mock.calls[0][2];
+      const calledBody = mockIssueTracker.createIssue.mock.calls[0]?.[2];
       expect(calledBody).toContain(
         "- [Attachment](http://localhost:4000/file1.jpg) (Type: image/jpeg)",
       );
@@ -693,7 +698,7 @@ describe("BugLifecycleUseCase", () => {
 
       await useCase.updateStatus(req);
 
-      const calledBody = mockIssueTracker.createIssue.mock.calls[0][2];
+      const calledBody = mockIssueTracker.createIssue.mock.calls[0]?.[2];
       expect(calledBody).toContain(
         "- [Attachment](https://myapi.com/file1.jpg) (Type: image/jpeg)",
       );
@@ -720,7 +725,7 @@ describe("BugLifecycleUseCase", () => {
 
       await useCase.updateStatus(req);
 
-      const calledBody = mockIssueTracker.createIssue.mock.calls[0][2];
+      const calledBody = mockIssueTracker.createIssue.mock.calls[0]?.[2];
       expect(calledBody).not.toContain("### Attachments");
     });
 
@@ -911,7 +916,8 @@ describe("BugLifecycleUseCase", () => {
           }),
         }),
       );
-      const noteCall = mockBugRepository.createNote.mock.calls[0][0];
+      const noteCall = mockBugRepository.createNote.mock.calls[0]?.[0];
+      assert.isDefined(noteCall);
       expect(noteCall.data?.body).not.toContain("Description:");
       expect(noteCall.data?.body).not.toContain("Category:");
       expect(noteCall.data?.body).not.toContain("Priority:");
@@ -1059,7 +1065,7 @@ describe("BugLifecycleUseCase", () => {
         "token",
       );
 
-      const calledBody = mockIssueTracker.createIssue.mock.calls[0][2];
+      const calledBody = mockIssueTracker.createIssue.mock.calls[0]?.[2];
       expect(calledBody).toContain("*Reported by a guest*");
       expect(calledBody).toContain(
         '*Approved by an administrator (Comment: "This is a comment")*',
@@ -1159,7 +1165,7 @@ describe("BugLifecycleUseCase", () => {
 
       await useCase.updateStatus(req);
 
-      const calledBody = mockIssueTracker.createIssue.mock.calls[0][2];
+      const calledBody = mockIssueTracker.createIssue.mock.calls[0]?.[2];
       expect(calledBody).not.toContain("Priority:");
       expect(calledBody).not.toContain("Category:");
     });
@@ -1317,7 +1323,9 @@ describe("BugLifecycleUseCase", () => {
       expect(
         mockIssueTracker.closeIssue.mock.invocationCallOrder[0],
       ).toBeLessThan(
-        mockBugRepository.updateStatus.mock.invocationCallOrder[0],
+        // NaN fails the comparison when the status was never updated
+        mockBugRepository.updateStatus.mock.invocationCallOrder[0] ??
+          Number.NaN,
       );
     });
 
