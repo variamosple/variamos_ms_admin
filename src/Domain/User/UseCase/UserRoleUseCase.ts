@@ -16,19 +16,19 @@ export class UserRoleUseCase {
   public async queryUserRoles(
     request: RequestModel<UserRoleFilter>,
   ): Promise<ResponseModel<Role[]>> {
-    return this.userRoleRepository.queryUserRoles(request);
+    return await this.userRoleRepository.queryUserRoles(request);
   }
 
   public async queryUserRolesDetails(
     request: RequestModel<UserRoleFilter>,
   ): Promise<ResponseModel<Role[]>> {
-    return this.userRoleRepository.queryUserRolesDetails(request);
+    return await this.userRoleRepository.queryUserRolesDetails(request);
   }
 
   public async createUserRole(
     request: RequestModel<UserRole>,
   ): Promise<ResponseModel<UserRole>> {
-    return withJournal(
+    return await withJournal(
       this.journal,
       {
         actorId: request.actorId,
@@ -45,7 +45,7 @@ export class UserRoleUseCase {
   public async deleteUserRole(
     request: RequestModel<UserRole>,
   ): Promise<ResponseModel<void>> {
-    return withJournal(
+    return await withJournal(
       this.journal,
       {
         actorId: request.actorId,

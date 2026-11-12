@@ -16,7 +16,7 @@ export class SecurityAlertRecipientRepository
 
   public async list(): Promise<SecurityAlertRecipient[]> {
     // user_role.user_id is text while user.id is a uuid: compare as text
-    return VARIAMOS_ORM.query<SecurityAlertRecipient>(
+    return await VARIAMOS_ORM.query<SecurityAlertRecipient>(
       `
       SELECT DISTINCT u."id"::text AS "userId", u."email" AS "email"
       FROM "${DB_SCHEMA}"."user_role" ur

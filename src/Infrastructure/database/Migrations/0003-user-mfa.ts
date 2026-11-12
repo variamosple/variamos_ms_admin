@@ -1,4 +1,8 @@
-import type { MigrationContext, SchemaMigration } from "./MigrationContext.js";
+import {
+  type MigrationContext,
+  refuseRollback,
+  type SchemaMigration,
+} from "./MigrationContext.js";
 
 export const USER_MFA_TABLES = ["user_mfa", "user_mfa_recovery_code"];
 
@@ -40,8 +44,6 @@ export const userMfa: SchemaMigration = {
       }
     });
   },
-  down: async () => {
-    // Reverting would drop every enrolled second factor
-    throw new Error("The user MFA migration cannot be reverted.");
-  },
+  // Reverting would drop every enrolled second factor
+  down: refuseRollback("user MFA"),
 };

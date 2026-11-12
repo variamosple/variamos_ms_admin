@@ -1,6 +1,10 @@
 import { QueryTypes } from "sequelize";
 import logger from "#src/common/logger.js";
-import type { MigrationContext, SchemaMigration } from "./MigrationContext.js";
+import {
+  type MigrationContext,
+  refuseRollback,
+  type SchemaMigration,
+} from "./MigrationContext.js";
 
 // Values as of 2026-10-26 (EV-88 lot D): a migration never changes once
 // applied, so they are written here rather than read from the code
@@ -87,8 +91,6 @@ export const securityAlertKeys: SchemaMigration = {
       `[MIGRATION] 0010-security-alert-keys: ${added.length} key(s) added (${added.join(", ") || "none"}), ${SECURITY_ALERT_ROWS.length - added.length} already present and left untouched`,
     );
   },
-  down: async () => {
-    // Reverting would drop the values an administrator may have set
-    throw new Error("The security alert keys migration cannot be reverted.");
-  },
+  // Reverting would drop the values an administrator may have set
+  down: refuseRollback("security alert keys"),
 };

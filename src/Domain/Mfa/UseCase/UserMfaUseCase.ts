@@ -57,7 +57,7 @@ export class UserMfaUseCase {
     const response = new ResponseModel<MfaStatus>(transactionId);
     try {
       const record = await this.mfaRepository.findByUser(userId);
-      const enabled = !!record?.enabledAt;
+      const enabled = Boolean(record?.enabledAt);
       return response.withResponse({
         available: this.cipher.isAvailable(),
         enabled,

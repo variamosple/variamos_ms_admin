@@ -1,5 +1,9 @@
 import logger from "#src/common/logger.js";
-import type { MigrationContext, SchemaMigration } from "./MigrationContext.js";
+import {
+  type MigrationContext,
+  refuseRollback,
+  type SchemaMigration,
+} from "./MigrationContext.js";
 
 export const ACCESS_LOG_TABLE = "admin_access_logs";
 
@@ -67,8 +71,6 @@ export const adminAccessLogs: SchemaMigration = {
       `[MIGRATION] 0006-admin-access-logs: table ${ACCESS_LOG_TABLE} ready, append-only`,
     );
   },
-  down: async () => {
-    // Reverting would erase the journal
-    throw new Error("The access journal migration cannot be reverted.");
-  },
+  // Reverting would erase the journal
+  down: refuseRollback("access journal"),
 };

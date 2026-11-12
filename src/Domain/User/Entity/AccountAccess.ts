@@ -40,7 +40,9 @@ export const accountRefusalOf = (
 export const canUsePassword = <A extends PasswordState>(
   account: A | null,
 ): account is A & { passwordHash: string } =>
-  !!account?.passwordHash && accountRefusalOf(account.user) === null;
+  account !== null &&
+  Boolean(account.passwordHash) &&
+  accountRefusalOf(account.user) === null;
 
 interface PasswordState {
   user: AccountState;

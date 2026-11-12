@@ -23,7 +23,7 @@ export async function encryptPlainSecrets(
   if (!secrets.canEncrypt()) return 0;
   const table = `"${schema}"."configurations"`;
 
-  return sequelize.transaction(async (transaction) => {
+  return await sequelize.transaction(async (transaction) => {
     const rows = await sequelize.query<SecretRow>(
       `SELECT "key", "value" FROM ${table}
         WHERE "is_secret" = true ORDER BY "key" FOR UPDATE`,

@@ -72,7 +72,7 @@
         "noExcessiveNestedTestSuites": "error",
         "noExtraBooleanCast": "error",
         "noFlatMapIdentity": "error",
-        "noImplicitCoercions": "info",
+        "noImplicitCoercions": "error",
         "noPlaywrightUselessAwait": "error",
         "noRedundantDefaultExport": "error",
         "noThisInStatic": "error",
@@ -173,7 +173,7 @@
         "usePlaywrightValidDescribeCallback": "error",
         "useReactAsyncServerFunction": "error",
         "useSingleJsDocAsterisk": "error",
-        "useUniqueElementIds": "info",
+        "useUniqueElementIds": "error",
         "useValidForDirection": "error",
         "useValidTypeof": "error",
         "useYield": "error"
@@ -270,7 +270,7 @@
         "noGlobalEval": "error",
         "noScriptUrl": "error",
         "noSecrets": "off" /* doublon de trufflehog en CI, faux positifs nombreux */,
-        "useIframeSandbox": "info"
+        "useIframeSandbox": "error"
       },
       "style": {
         "noDoneCallback": "error",
@@ -386,7 +386,7 @@
         "noIrregularWhitespace": "error",
         "noJsxLeakedDollar": "error",
         "noLabelVar": "error",
-        "noLeakedRender": "info",
+        "noLeakedRender": "error",
         "noLoopFunc": "error",
         "noMisleadingCharacterClass": "error",
         "noMisleadingInstantiator": "error",
@@ -429,7 +429,7 @@
         "noWith": "error",
         "useAdjacentOverloadSignatures": "error",
         "useArraySortCompare": "error",
-        "useAwait": "info",
+        "useAwait": "error",
         "useDefaultSwitchClauseLast": "error",
         "useDeprecatedDate": "error",
         "useErrorMessage": "error",
@@ -496,7 +496,8 @@
             "noUnsafeTypeAssertion": "off"
           },
           "correctness": {
-            "noGlobalDirnameFilename": "off"
+            "noGlobalDirnameFilename": "off",
+            "useUniqueElementIds": "off" /* un test ne rend qu'un composant : un identifiant fixe n'y fait pas de doublon */
           }
         }
       }

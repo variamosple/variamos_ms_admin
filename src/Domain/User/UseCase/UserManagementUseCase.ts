@@ -24,7 +24,7 @@ export class UserManagementUseCase {
   public async enable(
     request: RequestModel<string>,
   ): Promise<ResponseModel<void>> {
-    return withJournal(
+    return await withJournal(
       this.journal,
       this.userActivity(request, "user.enable", { isEnabled: true }),
       () => this.userRepository.enableUser(request),
@@ -34,7 +34,7 @@ export class UserManagementUseCase {
   public async disable(
     request: RequestModel<string>,
   ): Promise<ResponseModel<void>> {
-    return withJournal(
+    return await withJournal(
       this.journal,
       this.userActivity(request, "user.disable", { isEnabled: false }),
       () => this.userRepository.disableUser(request),
@@ -44,7 +44,7 @@ export class UserManagementUseCase {
   public async delete(
     request: RequestModel<string>,
   ): Promise<ResponseModel<void>> {
-    return withJournal(
+    return await withJournal(
       this.journal,
       this.userActivity(request, "user.delete", { isDeleted: true }),
       () => this.userRepository.deleteUser(request),
@@ -69,7 +69,7 @@ export class UserManagementUseCase {
   public async updateProfile(
     request: RequestModel<PersonalInformationUpdate>,
   ): Promise<ResponseModel<void>> {
-    return this.userRepository.updatePersonalInformation(request);
+    return await this.userRepository.updatePersonalInformation(request);
   }
 
   public async updatePassword(

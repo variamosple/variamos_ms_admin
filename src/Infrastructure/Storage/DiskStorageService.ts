@@ -36,7 +36,7 @@ export class DiskStorageService implements IStorageService {
   public async deleteFile(filePath: string): Promise<void> {
     // Resolve relative database storage paths against the public assets directory
     const absolutePath = path.join(this.publicDir, filePath);
-    return new Promise((resolve) => {
+    return await new Promise((resolve) => {
       fs.unlink(absolutePath, (err) => {
         if (err) {
           logger.err(

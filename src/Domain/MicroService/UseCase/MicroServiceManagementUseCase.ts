@@ -34,7 +34,7 @@ export class MicroServiceManagementUseCase {
     request: RequestModel<string>,
     actorId: string,
   ): Promise<ResponseModel<void>> {
-    return withJournal(
+    return await withJournal(
       this.journal,
       this.actionOn("micro-service.start", request, actorId),
       () => this.applyStartMicroService(request, actorId),
@@ -79,7 +79,7 @@ export class MicroServiceManagementUseCase {
     request: RequestModel<string>,
     actorId: string,
   ): Promise<ResponseModel<void>> {
-    return withJournal(
+    return await withJournal(
       this.journal,
       this.actionOn("micro-service.stop", request, actorId),
       () => this.applyStopMicroService(request, actorId),
@@ -122,7 +122,7 @@ export class MicroServiceManagementUseCase {
     request: RequestModel<string>,
     actorId: string,
   ): Promise<ResponseModel<void>> {
-    return withJournal(
+    return await withJournal(
       this.journal,
       this.actionOn("micro-service.restart", request, actorId),
       () => this.applyRestartMicroService(request, actorId),
@@ -179,12 +179,14 @@ export class MicroServiceManagementUseCase {
 
   // The replicas are set in the server's compose file: answering success
   // without acting would mislead the operator (T-25, decision D3)
-  public async scaleMicroService(
+  public scaleMicroService(
     request: RequestModel<{ serviceName: string; replicas: number }>,
   ): Promise<ResponseModel<void>> {
-    return new ResponseModel<void>(request.transactionId).withError(
-      DomainErrorCodes.NOT_IMPLEMENTED,
-      SCALING_NOT_AVAILABLE,
+    return Promise.resolve(
+      new ResponseModel<void>(request.transactionId).withError(
+        DomainErrorCodes.NOT_IMPLEMENTED,
+        SCALING_NOT_AVAILABLE,
+      ),
     );
   }
 
@@ -198,7 +200,7 @@ export class MicroServiceManagementUseCase {
   ): Promise<ResponseModel<MicroServiceConfigItem>> {
     // Recorded as from the configuration page, display values only (EV-70)
     let change: { before: ActivityValues | null; after: ActivityValues };
-    return withJournal(
+    return await withJournal(
       this.journal,
       {
         actorId: request.data?.operatorId,

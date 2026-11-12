@@ -78,7 +78,7 @@ export class UserMfaRepositoryImpl implements IUserMfaRepository {
     step: number,
     codeHashes: string[],
   ): Promise<boolean> {
-    return this.sequelize.transaction(async (transaction) => {
+    return await this.sequelize.transaction(async (transaction) => {
       const enabled = await this.rows(
         `UPDATE ${this.table("user_mfa")}
             SET "enabled_at" = CURRENT_TIMESTAMP, "last_used_step" = :step,

@@ -1,5 +1,9 @@
 import logger from "#src/common/logger.js";
-import type { MigrationContext, SchemaMigration } from "./MigrationContext.js";
+import {
+  type MigrationContext,
+  refuseRollback,
+  type SchemaMigration,
+} from "./MigrationContext.js";
 
 // Frozen copy of BUG_COMPONENTS at the time of this migration: a later
 // change of the list needs its own migration
@@ -37,10 +41,6 @@ export const bugSeverityComponent: SchemaMigration = {
       "[MIGRATION] 0008-bug-severity-component: priority critical and bugs.component ready",
     );
   },
-  down: async () => {
-    // PostgreSQL cannot remove a value from an enumeration
-    throw new Error(
-      "The bug severity and component migration cannot be reverted.",
-    );
-  },
+  // PostgreSQL cannot remove a value from an enumeration
+  down: refuseRollback("bug severity and component"),
 };

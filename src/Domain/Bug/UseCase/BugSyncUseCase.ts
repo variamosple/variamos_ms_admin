@@ -35,11 +35,9 @@ export class BugSyncUseCase {
    * journal; the scheduled one, with no actor, is not.
    */
   public syncBugs(request: RequestModel<void>): Promise<ResponseModel<void>> {
-    if (!this.running) {
-      this.running = this.synchronize(request).finally(() => {
-        this.running = null;
-      });
-    }
+    this.running ??= this.synchronize(request).finally(() => {
+      this.running = null;
+    });
     const running = this.running;
     if (!request.actorId) return running;
     return withJournal(
@@ -63,8 +61,8 @@ export class BugSyncUseCase {
       const privateKey = this.githubConfig.getGitHubPrivateKey?.()?.trim();
       const patToken = this.githubConfig.getGitHubToken()?.trim();
 
-      const hasAppConfig = !!(appId && privateKey);
-      const hasPatConfig = !!patToken;
+      const hasAppConfig = Boolean(appId && privateKey);
+      const hasPatConfig = Boolean(patToken);
 
       if (!hasAppConfig && !hasPatConfig) {
         this.logger.warn(

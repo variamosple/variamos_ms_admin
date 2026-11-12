@@ -158,7 +158,7 @@ export class MailServiceImpl implements IMailService {
             </p>
 
 `);
-    return this.sendMail(to, subject, html);
+    return await this.sendMail(to, subject, html);
   }
 
   /**
@@ -179,7 +179,7 @@ export class MailServiceImpl implements IMailService {
             </p>
 
 `);
-    return this.sendMail(to, subject, html);
+    return await this.sendMail(to, subject, html);
   }
 
   /**
@@ -205,7 +205,7 @@ export class MailServiceImpl implements IMailService {
             </p>
 
 `);
-    return this.sendMail(to, subject, html);
+    return await this.sendMail(to, subject, html);
   }
 
   /**
@@ -227,7 +227,7 @@ export class MailServiceImpl implements IMailService {
             </p>
 
 `);
-    return this.sendMail(to, subject, html);
+    return await this.sendMail(to, subject, html);
   }
 }
 

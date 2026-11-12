@@ -365,7 +365,7 @@ export class BugLifecycleUseCase {
   public async rejectBug(
     request: RequestModel<{ id: string; adminId: string }>,
   ): Promise<ResponseModel<Bug>> {
-    return withJournal(
+    return await withJournal(
       this.journal,
       {
         actorId: request.actorId ?? request.data?.adminId,
@@ -430,7 +430,7 @@ export class BugLifecycleUseCase {
   public async restoreBug(
     request: RequestModel<{ id: string; adminId: string }>,
   ): Promise<ResponseModel<Bug>> {
-    return withJournal(
+    return await withJournal(
       this.journal,
       {
         actorId: request.actorId ?? request.data?.adminId,

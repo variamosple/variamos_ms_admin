@@ -30,7 +30,7 @@ export class MicroServiceQueryUseCase {
         "Microservice name is required.",
       );
     }
-    return this.microServiceRepository.queryByName(request);
+    return await this.microServiceRepository.queryByName(request);
   }
 
   public async getHealthHistory(
@@ -41,7 +41,7 @@ export class MicroServiceQueryUseCase {
         request.transactionId,
       ).withError(DomainErrorCodes.INVALID_INPUT, "Service name is required.");
     }
-    return this.microServiceRepository.getHealthHistory(request);
+    return await this.microServiceRepository.getHealthHistory(request);
   }
 
   public async queryConfigurations(
@@ -52,7 +52,7 @@ export class MicroServiceQueryUseCase {
         request.transactionId,
       ).withError(DomainErrorCodes.INVALID_INPUT, "Service name is required.");
     }
-    return this.microServiceRepository.queryConfigurations(request);
+    return await this.microServiceRepository.queryConfigurations(request);
   }
 
   public async queryAuditLogs(
@@ -63,7 +63,7 @@ export class MicroServiceQueryUseCase {
         request.transactionId,
       ).withError(DomainErrorCodes.INVALID_INPUT, "Service name is required.");
     }
-    return this.microServiceRepository.queryAuditLogs(request);
+    return await this.microServiceRepository.queryAuditLogs(request);
   }
 
   public async watchMicroServiceLogs(
@@ -80,6 +80,6 @@ export class MicroServiceQueryUseCase {
       );
     }
 
-    return this.microServiceRepository.watchMicroServiceLogs(request);
+    return await this.microServiceRepository.watchMicroServiceLogs(request);
   }
 }

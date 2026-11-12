@@ -35,7 +35,7 @@ export class PermissionRepositoryImpl
         { type: QueryTypes.SELECT, replacements },
       ).then((result) => {
         const rows = result as Array<{ count: string | number }>;
-        return +rows[0]?.count || 0;
+        return Number(rows[0]?.count) || 0;
       });
 
       // A part of the name, or the exact id
