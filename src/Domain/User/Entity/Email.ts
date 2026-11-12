@@ -12,7 +12,7 @@ export class Email {
   private static isWellFormed(address: string): boolean {
     const parts = address.split("@");
     if (parts.length !== 2 || /\s/.test(address)) return false;
-    const [local, domain] = parts;
+    const [local = "", domain = ""] = parts;
     return local.length > 0 && domain.slice(1, -1).includes(".");
   }
 

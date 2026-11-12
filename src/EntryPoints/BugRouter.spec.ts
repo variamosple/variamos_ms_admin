@@ -176,11 +176,11 @@ describe("BugRouter HTTP Integration Tests", () => {
 
         await request(app).get(path).query({ component: "model" });
 
-        const [[req]] =
-          path === "/bugs"
+        const [req] =
+          (path === "/bugs"
             ? mockBugQueryUseCase.queryBugs.mock.calls
-            : mockBugQueryUseCase.queryLocalBugs.mock.calls;
-        expect(req.data?.component).toBe("model");
+            : mockBugQueryUseCase.queryLocalBugs.mock.calls)[0] ?? [];
+        expect(req?.data?.component).toBe("model");
       },
     );
 

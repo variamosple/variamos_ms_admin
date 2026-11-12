@@ -34,9 +34,9 @@ const HOURS_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)-([01]\d|2[0-3]):([0-5]\d)$/;
 const parseOffHours = (value: unknown, timeZone: string): OffHours | null => {
   const match = typeof value === "string" ? HOURS_PATTERN.exec(value) : null;
   if (!match) return null;
-  const [, sh, sm, eh, em] = match.map(Number);
-  const startMinute = sh * 60 + sm;
-  const endMinute = eh * 60 + em;
+  // The pattern has the four groups, so none of them is undefined
+  const startMinute = Number(match[1]) * 60 + Number(match[2]);
+  const endMinute = Number(match[3]) * 60 + Number(match[4]);
   return startMinute === endMinute
     ? null
     : { startMinute, endMinute, timeZone };

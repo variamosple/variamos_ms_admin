@@ -144,7 +144,10 @@ export function createScheduledConfigurationChangeRouter(
     hasPermissions(["configurations::update"]),
     async (req: Request<{ id: string }>, res) => {
       const transactionId = "rescheduleConfigurationChange";
-      if (!ID.test(req.params.id)) return badId(res, transactionId);
+      if (!ID.test(req.params.id)) {
+        badId(res, transactionId);
+        return;
+      }
       const body = readBody(scheduledChangeBody, req, res, transactionId);
       if (!body) return;
       try {
@@ -168,7 +171,10 @@ export function createScheduledConfigurationChangeRouter(
     hasPermissions(["configurations::update"]),
     async (req: Request<{ id: string }>, res) => {
       const transactionId = "cancelConfigurationChange";
-      if (!ID.test(req.params.id)) return badId(res, transactionId);
+      if (!ID.test(req.params.id)) {
+        badId(res, transactionId);
+        return;
+      }
       try {
         const response = await useCase.cancel(
           new RequestModel(transactionId, {

@@ -1,3 +1,4 @@
+import { assert } from "vitest";
 import { type MockProxy, mock } from "vitest-mock-extended";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { User } from "../Entity/User.js";
@@ -47,6 +48,7 @@ describe("PasswordResetTokenService", () => {
     );
 
     const call = mockUserRepository.savePasswordResetToken.mock.calls[0];
+    assert.isDefined(call);
     const savedDate = call[2];
     const minExpectedDate = new Date(Date.now() + 3500000);
     expect(savedDate.getTime()).toBeGreaterThan(minExpectedDate.getTime());

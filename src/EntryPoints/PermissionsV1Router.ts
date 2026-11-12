@@ -1,5 +1,5 @@
 import { hasPermissions } from "@variamosple/variamos-security";
-import { type Request, Router } from "express";
+import { type Request, type Response, Router } from "express";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -16,6 +16,32 @@ import { queryText } from "./queryText.js";
 import { checkedBody, validBody } from "./requestBody.js";
 
 export const PERMISSIONS_V1_ROUTE = "/v1/permissions";
+
+/** Answers 400 with the reason, for a request the routes refuse. */
+const refuse = (res: Response, transactionId: string, reason: string) => {
+  res
+    .status(HttpStatusCodes.BAD_REQUEST)
+    .json(
+      new ResponseModel<void>(transactionId).withError(
+        DomainErrorCodes.INVALID_INPUT,
+        reason,
+      ),
+    );
+};
+
+/** The permission id of the path, or null once the refusal is sent. */
+const permissionIdOf = (
+  req: Request<{ permissionId: string }>,
+  res: Response,
+  transactionId: string,
+): number | null => {
+  const { permissionId } = req.params;
+  if (!permissionId || Number.isNaN(Number(permissionId))) {
+    refuse(res, transactionId, "permissionId is required.");
+    return null;
+  }
+  return Number.parseInt(permissionId, 10);
+};
 
 export function createPermissionsRouter(
   permissionUseCase: PermissionUseCase,
@@ -65,28 +91,16 @@ export function createPermissionsRouter(
       const { name } = checkedBody(nameBody, req);
       try {
         if (!name) {
-          return res
-            .status(HttpStatusCodes.BAD_REQUEST)
-            .json(
-              new ResponseModel<void>(transactionId).withError(
-                DomainErrorCodes.INVALID_INPUT,
-                "name is required.",
-              ),
-            );
+          refuse(res, transactionId, "name is required.");
+          return;
         }
 
         let permission: Permission;
         try {
           permission = new Permission(null, name);
         } catch (error) {
-          return res
-            .status(HttpStatusCodes.BAD_REQUEST)
-            .json(
-              new ResponseModel<void>(transactionId).withError(
-                DomainErrorCodes.INVALID_INPUT,
-                errorMessage(error),
-              ),
-            );
+          refuse(res, transactionId, errorMessage(error));
+          return;
         }
 
         const request = new RequestModel<Permission>(
@@ -109,22 +123,12 @@ export function createPermissionsRouter(
     hasPermissions(["permissions::delete"]),
     async (req: Request<{ permissionId: string }>, res) => {
       const transactionId = "deletePermission";
-      const permissionId = req.params.permissionId;
+      const permissionId = permissionIdOf(req, res, transactionId);
+      if (permissionId === null) return;
       try {
-        if (!permissionId || Number.isNaN(Number(permissionId))) {
-          return res
-            .status(HttpStatusCodes.BAD_REQUEST)
-            .json(
-              new ResponseModel<void>(transactionId).withError(
-                DomainErrorCodes.INVALID_INPUT,
-                "permissionId is required.",
-              ),
-            );
-        }
-
         const request = new RequestModel<number>(
           transactionId,
-          Number.parseInt(permissionId, 10),
+          permissionId,
           actorOf(req),
         );
         const response = await permissionUseCase.deletePermission(request);
@@ -142,24 +146,10 @@ export function createPermissionsRouter(
     hasPermissions(["permissions::query"]),
     async (req: Request<{ permissionId: string }>, res) => {
       const transactionId = "queryPermissionById";
-      const permissionId = req.params.permissionId;
-
+      const permissionId = permissionIdOf(req, res, transactionId);
+      if (permissionId === null) return;
       try {
-        if (!permissionId || Number.isNaN(Number(permissionId))) {
-          return res
-            .status(HttpStatusCodes.BAD_REQUEST)
-            .json(
-              new ResponseModel<void>(transactionId).withError(
-                DomainErrorCodes.INVALID_INPUT,
-                "permissionId is required.",
-              ),
-            );
-        }
-
-        const request = new RequestModel<number>(
-          transactionId,
-          Number.parseInt(permissionId, 10),
-        );
+        const request = new RequestModel<number>(transactionId, permissionId);
         const response = await permissionUseCase.queryById(request);
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);
@@ -176,43 +166,21 @@ export function createPermissionsRouter(
     validBody(nameBody, "updatePermission"),
     async (req: Request<{ permissionId: string }>, res) => {
       const transactionId = "updatePermission";
-      const permissionId = req.params.permissionId;
+      const permissionId = permissionIdOf(req, res, transactionId);
+      if (permissionId === null) return;
       const { name } = checkedBody(nameBody, req);
       try {
-        if (!permissionId || Number.isNaN(Number(permissionId))) {
-          return res
-            .status(HttpStatusCodes.BAD_REQUEST)
-            .json(
-              new ResponseModel<void>(transactionId).withError(
-                DomainErrorCodes.INVALID_INPUT,
-                "permissionId is required.",
-              ),
-            );
-        }
-
         if (!name) {
-          return res
-            .status(HttpStatusCodes.BAD_REQUEST)
-            .json(
-              new ResponseModel<void>(transactionId).withError(
-                DomainErrorCodes.INVALID_INPUT,
-                "name is required.",
-              ),
-            );
+          refuse(res, transactionId, "name is required.");
+          return;
         }
 
         let permission: Permission;
         try {
-          permission = new Permission(Number.parseInt(permissionId, 10), name);
+          permission = new Permission(permissionId, name);
         } catch (error) {
-          return res
-            .status(HttpStatusCodes.BAD_REQUEST)
-            .json(
-              new ResponseModel<void>(transactionId).withError(
-                DomainErrorCodes.INVALID_INPUT,
-                errorMessage(error),
-              ),
-            );
+          refuse(res, transactionId, errorMessage(error));
+          return;
         }
 
         const request = new RequestModel<Permission>(

@@ -92,7 +92,7 @@ export function createUserRolesRouter(
       const { roleId } = checkedBody(userRoleBody, req);
       try {
         if (!userId || !roleId || Number.isNaN(Number(roleId))) {
-          return res
+          res
             .status(HttpStatusCodes.BAD_REQUEST)
             .json(
               new ResponseModel<void>(transactionId).withError(
@@ -100,6 +100,7 @@ export function createUserRolesRouter(
                 "userId and roleId are required.",
               ),
             );
+          return;
         }
 
         const userRole: UserRole = new UserRole(
@@ -139,7 +140,7 @@ export function createUserRolesRouter(
       const { roleId } = req.params;
       try {
         if (!userId || !roleId || Number.isNaN(Number(roleId))) {
-          return res
+          res
             .status(HttpStatusCodes.BAD_REQUEST)
             .json(
               new ResponseModel<void>(transactionId).withError(
@@ -147,6 +148,7 @@ export function createUserRolesRouter(
                 "userId and roleId are required.",
               ),
             );
+          return;
         }
 
         const userRole: UserRole = new UserRole(

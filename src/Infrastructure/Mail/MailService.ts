@@ -16,17 +16,14 @@ export function describeDuration(ms: number): string {
   return minutes === 1 ? "1 minute" : `${minutes} minutes`;
 }
 
-const HTML_ESCAPES: Record<string, string> = {
-  "&": "&amp;",
-  "<": "&lt;",
-  ">": "&gt;",
-  '"': "&quot;",
-  "'": "&#39;",
-};
-
-/** Text placed in the HTML of a mail, never read as markup. */
+/** Text placed in the HTML of a mail, never read as markup; & goes first. */
 const escapeHtml = (text: string) =>
-  text.replace(/[&<>"']/g, (char) => HTML_ESCAPES[char]);
+  text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 
 /** The VariaMos frame of every e-mail: logo, signature and footer. */
 function renderMail(content: string): string {

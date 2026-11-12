@@ -75,8 +75,8 @@ describe("SecurityAlertDetector, failed sign-ins", () => {
       ["failed-sign-ins", "account:user-1"],
       ["failed-sign-ins", "address:203.0.113.7"],
     ]);
-    expect(notifier.notify.mock.calls[0][0]).toEqual(RECIPIENTS);
-    expect(rules()[1].body).toBe(
+    expect(notifier.notify.mock.calls[0]?.[0]).toEqual(RECIPIENTS);
+    expect(rules()[1]?.body).toBe(
       "10 failed sign-ins in 15 minutes for address 203.0.113.7.",
     );
   });

@@ -148,7 +148,7 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
         expect.objectContaining({ transactionId: "queryUsers" }),
       );
       expect(body.data).toHaveLength(2);
-      expect(body.data[0].id).toBe("1");
+      expect(body.data[0]?.id).toBe("1");
     });
 
     it("passes the sort of a list column to the query (EV-95)", async () => {

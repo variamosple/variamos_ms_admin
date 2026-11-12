@@ -40,6 +40,7 @@ export class UserPreferencesRepositoryImpl
        RETURNING ${COLUMNS}`,
       { replacements: { userId, timeZone }, type: QueryTypes.SELECT },
     );
+    if (!row) throw new Error("The saved preferences could not be read back.");
     return row;
   }
 }

@@ -58,7 +58,7 @@ export function createRolesRouter(
       const { name } = checkedBody(nameBody, req);
       try {
         if (!name) {
-          return res
+          res
             .status(HttpStatusCodes.BAD_REQUEST)
             .json(
               new ResponseModel<void>(transactionId).withError(
@@ -66,13 +66,14 @@ export function createRolesRouter(
                 "name is required.",
               ),
             );
+          return;
         }
 
         let role: Role;
         try {
           role = new Role(null, name);
         } catch (error) {
-          return res
+          res
             .status(HttpStatusCodes.BAD_REQUEST)
             .json(
               new ResponseModel<void>(transactionId).withError(
@@ -80,6 +81,7 @@ export function createRolesRouter(
                 errorMessage(error),
               ),
             );
+          return;
         }
 
         const request = new RequestModel<Role>(
@@ -111,7 +113,7 @@ export function createRolesRouter(
       const roleId = req.params.roleId;
       try {
         if (!roleId || Number.isNaN(Number(roleId))) {
-          return res
+          res
             .status(HttpStatusCodes.BAD_REQUEST)
             .json(
               new ResponseModel<void>(transactionId).withError(
@@ -119,6 +121,7 @@ export function createRolesRouter(
                 "roleId is required.",
               ),
             );
+          return;
         }
 
         const request = new RequestModel<string>(
@@ -144,7 +147,7 @@ export function createRolesRouter(
       const roleId = req.params.roleId;
       try {
         if (!roleId || Number.isNaN(Number(roleId))) {
-          return res
+          res
             .status(HttpStatusCodes.BAD_REQUEST)
             .json(
               new ResponseModel<void>(transactionId).withError(
@@ -152,6 +155,7 @@ export function createRolesRouter(
                 "roleId is required.",
               ),
             );
+          return;
         }
 
         const request = new RequestModel<string>(transactionId, roleId);
@@ -179,7 +183,7 @@ export function createRolesRouter(
       const { name } = checkedBody(nameBody, req);
       try {
         if (!roleId || Number.isNaN(Number(roleId))) {
-          return res
+          res
             .status(HttpStatusCodes.BAD_REQUEST)
             .json(
               new ResponseModel<void>(transactionId).withError(
@@ -187,10 +191,11 @@ export function createRolesRouter(
                 "roleId is required.",
               ),
             );
+          return;
         }
 
         if (!name) {
-          return res
+          res
             .status(HttpStatusCodes.BAD_REQUEST)
             .json(
               new ResponseModel<void>(transactionId).withError(
@@ -198,13 +203,14 @@ export function createRolesRouter(
                 "name is required.",
               ),
             );
+          return;
         }
 
         let permission: Role;
         try {
           permission = new Role(Number.parseInt(roleId, 10), name);
         } catch (error) {
-          return res
+          res
             .status(HttpStatusCodes.BAD_REQUEST)
             .json(
               new ResponseModel<void>(transactionId).withError(
@@ -212,6 +218,7 @@ export function createRolesRouter(
                 errorMessage(error),
               ),
             );
+          return;
         }
 
         const request = new RequestModel<Role>(
