@@ -1,7 +1,5 @@
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import type { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
-import type { MicroServiceAuditEntry } from "../Entity/MicroServiceAuditEntry.js";
-import type { MicroServiceConfigItem } from "../Entity/MicroServiceConfigItem.js";
 import type { MicroServiceDetailed } from "../Entity/MicroServiceDetailed.js";
 import type { MicroServiceFilter } from "../Entity/MicroServiceFilter.js";
 import type {
@@ -10,6 +8,7 @@ import type {
 } from "../Entity/MicroServiceHealth.js";
 import type { ServiceDefinition } from "../Entity/ServiceDefinition.js";
 
+/** The monitored services and their health checks. */
 export interface IMicroServiceRepository {
   queryMicroServices(
     request: RequestModel<MicroServiceFilter>,
@@ -19,26 +18,6 @@ export interface IMicroServiceRepository {
     request: RequestModel<string>,
   ): Promise<ResponseModel<MicroServiceDetailed>>;
 
-  /** `actorId` identifies who asked for the action, for the audit log. */
-  startMicroService(
-    request: RequestModel<string>,
-    actorId: string,
-  ): Promise<ResponseModel<void>>;
-
-  stopMicroService(
-    request: RequestModel<string>,
-    actorId: string,
-  ): Promise<ResponseModel<void>>;
-
-  restartMicroService(
-    request: RequestModel<string>,
-    actorId: string,
-  ): Promise<ResponseModel<void>>;
-
-  watchMicroServiceLogs(
-    request: RequestModel<string>,
-  ): Promise<ResponseModel<NodeJS.ReadableStream>>;
-
   getHealthHistory(
     request: RequestModel<{ serviceName: string; days?: number }>,
   ): Promise<ResponseModel<MicroServiceUptimeSummary>>;
@@ -47,23 +26,4 @@ export interface IMicroServiceRepository {
 
   /** The monitored services, discovered from the running containers. */
   discoverServiceDefinitions(): Promise<ServiceDefinition[]>;
-
-  queryConfigurations(
-    request: RequestModel<string>, // serviceName
-  ): Promise<ResponseModel<MicroServiceConfigItem[]>>;
-
-  updateConfiguration(
-    request: RequestModel<{
-      serviceName: string;
-      key: string;
-      value: string;
-      operatorId: string;
-    }>,
-  ): Promise<ResponseModel<MicroServiceConfigItem>>;
-
-  queryAuditLogs(
-    request: RequestModel<{ serviceName: string; limit?: number }>,
-  ): Promise<ResponseModel<MicroServiceAuditEntry[]>>;
-
-  triggerHealthChecks?(serviceName?: string): Promise<unknown>;
 }

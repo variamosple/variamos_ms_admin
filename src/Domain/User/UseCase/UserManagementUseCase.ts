@@ -6,16 +6,19 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { PasswordUpdate } from "#src/Domain/User/Entity/PasswordUpdate.js";
 import type { PersonalInformationUpdate } from "#src/Domain/User/Entity/PersonalInformationUpdate.js";
-import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 import {
   checkNewPassword,
   DEFAULT_PASSWORD_POLICY_PROVIDER,
   type IPasswordPolicyProvider,
 } from "#src/Domain/User/Service/PasswordPolicyService.js";
+import type { UserRepositories } from "#src/Domain/User/UserRepositories.js";
 
 export class UserManagementUseCase {
   public constructor(
-    private readonly userRepository: IUserRepository,
+    private readonly repositories: Pick<
+      UserRepositories,
+      "accounts" | "passwords"
+    >,
     private readonly journal: IActivityJournal,
     private readonly logger: ILogger,
     private readonly passwordPolicy: IPasswordPolicyProvider = DEFAULT_PASSWORD_POLICY_PROVIDER,
@@ -27,7 +30,7 @@ export class UserManagementUseCase {
     return await withJournal(
       this.journal,
       this.userActivity(request, "user.enable", { isEnabled: true }),
-      () => this.userRepository.enableUser(request),
+      () => this.repositories.accounts.enableUser(request),
     );
   }
 
@@ -37,7 +40,7 @@ export class UserManagementUseCase {
     return await withJournal(
       this.journal,
       this.userActivity(request, "user.disable", { isEnabled: false }),
-      () => this.userRepository.disableUser(request),
+      () => this.repositories.accounts.disableUser(request),
     );
   }
 
@@ -47,7 +50,7 @@ export class UserManagementUseCase {
     return await withJournal(
       this.journal,
       this.userActivity(request, "user.delete", { isDeleted: true }),
-      () => this.userRepository.deleteUser(request),
+      () => this.repositories.accounts.deleteUser(request),
     );
   }
 
@@ -69,7 +72,7 @@ export class UserManagementUseCase {
   public async updateProfile(
     request: RequestModel<PersonalInformationUpdate>,
   ): Promise<ResponseModel<void>> {
-    return await this.userRepository.updatePersonalInformation(request);
+    return await this.repositories.accounts.updatePersonalInformation(request);
   }
 
   public async updatePassword(
@@ -112,6 +115,6 @@ export class UserManagementUseCase {
       return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, refusal);
     }
 
-    return this.userRepository.updateUserPassword(request);
+    return this.repositories.passwords.updateUserPassword(request);
   }
 }

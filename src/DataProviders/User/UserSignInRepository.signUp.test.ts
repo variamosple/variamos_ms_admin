@@ -4,7 +4,7 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { UserRegistration } from "#src/Domain/User/Entity/UserRegistration.js";
 import type { IPasswordHasher } from "#src/Domain/User/Service/IPasswordHasher.js";
 import { UserModel } from "./User.js";
-import { UserRepositoryImpl } from "./UserRepository.js";
+import { UserSignInRepositoryImpl } from "./UserSignInRepository.js";
 
 vi.mock("#src/common/logger.js");
 
@@ -13,7 +13,7 @@ vi.mock("#src/common/logger.js");
  * the password is hashed in both cases, so the response time does not tell
  * them apart either.
  */
-describe("UserRepositoryImpl.signUp with a taken address", () => {
+describe("UserSignInRepositoryImpl.signUp with a taken address", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -24,7 +24,7 @@ describe("UserRepositoryImpl.signUp with a taken address", () => {
     vi.spyOn(UserModel, "findOne").mockResolvedValue({ id: "1" } as never);
     const create = vi.spyOn(UserModel, "create");
 
-    const response = await new UserRepositoryImpl(hasher).signUp(
+    const response = await new UserSignInRepositoryImpl(hasher).signUp(
       new RequestModel("signUp", {
         name: "Ana",
         email: "ana@example.com",

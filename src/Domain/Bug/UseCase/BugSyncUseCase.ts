@@ -5,7 +5,7 @@ import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import { BugFilter } from "#src/Domain/Bug/Entity/BugFilter.js";
 import type { BugPriorityValue } from "#src/Domain/Bug/Entity/BugPriority.js";
 import { statusFromGitHub } from "#src/Domain/Bug/Entity/BugStatus.js";
-import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
+import type { BugRepositories } from "#src/Domain/Bug/Repository/BugRepositories.js";
 import type { IGitHubTokenProvider } from "#src/Domain/Bug/Service/IGitHubTokenProvider.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -70,7 +70,7 @@ const bugOfIssue = (
 
 /** What the GitHub sync of the bugs reads and writes. */
 export interface BugSyncUseCaseDependencies {
-  bugRepository: IBugRepository;
+  repositories: Pick<BugRepositories, "bugs" | "queries">;
   issueTrackerService: IIssueTrackerService;
   githubConfig: IBugTrackerConfig;
   tokenResolver: IGitHubTokenProvider;
@@ -81,7 +81,7 @@ export interface BugSyncUseCaseDependencies {
 export class BugSyncUseCase {
   private running: Promise<ResponseModel<void>> | null = null;
 
-  private readonly bugRepository: IBugRepository;
+  private readonly repositories: Pick<BugRepositories, "bugs" | "queries">;
   private readonly issueTrackerService: IIssueTrackerService;
   private readonly githubConfig: IBugTrackerConfig;
   private readonly tokenResolver: IGitHubTokenProvider;
@@ -90,14 +90,14 @@ export class BugSyncUseCase {
 
   public constructor(dependencies: BugSyncUseCaseDependencies) {
     const {
-      bugRepository,
+      repositories,
       issueTrackerService,
       githubConfig,
       tokenResolver,
       logger,
       journal,
     } = dependencies;
-    this.bugRepository = bugRepository;
+    this.repositories = repositories;
     this.issueTrackerService = issueTrackerService;
     this.githubConfig = githubConfig;
     this.tokenResolver = tokenResolver;
@@ -203,7 +203,7 @@ export class BugSyncUseCase {
     for (const issue of issues) {
       if (issue.pull_request) continue;
       const bug = bugOfIssue(issue, repo, localStatuses.get(issue.number));
-      const saveResponse = await this.bugRepository.saveOrUpdateBug(
+      const saveResponse = await this.repositories.bugs.saveOrUpdateBug(
         new RequestModel(transactionId, bug),
       );
       if (saveResponse.data?.created) counts.created++;
@@ -216,7 +216,7 @@ export class BugSyncUseCase {
     repo: string,
     transactionId: string | undefined,
   ): Promise<Map<number, string> | null> {
-    const response = await this.bugRepository.queryBugs(
+    const response = await this.repositories.queries.queryBugs(
       new RequestModel(
         transactionId,
         new BugFilter({

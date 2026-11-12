@@ -4,11 +4,13 @@ import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import VARIAMOS_ORM from "#src/Infrastructure/VariamosORM.js";
 import { BugModel } from "./Bug.js";
-import { BugRepositoryImpl } from "./BugRepository.js";
+import { BugAssigneeRepositoryImpl } from "./BugAssigneeRepository.js";
+import { BugQueryRepositoryImpl } from "./BugQueryRepository.js";
 
 /** Assignees and component filter of the bug queries; the SQL itself is run on PostgreSQL by hand. */
-describe("BugRepositoryImpl assignees", () => {
-  const repository = new BugRepositoryImpl();
+describe("bug assignees repositories", () => {
+  const assignees = new BugAssigneeRepositoryImpl();
+  const queries = new BugQueryRepositoryImpl();
   const transaction = {} as Transaction;
   let query: ReturnType<typeof vi.spyOn>;
 
@@ -30,7 +32,7 @@ describe("BugRepositoryImpl assignees", () => {
 
   describe("setAssignees", () => {
     const save = (userIds: string[]) =>
-      repository.setAssignees(
+      assignees.setAssignees(
         new RequestModel("tx", { bugId: "b1", userIds, assignedBy: "actor-1" }),
       );
 
@@ -82,7 +84,7 @@ describe("BugRepositoryImpl assignees", () => {
   it("lists the enabled accounts holding a permission", async () => {
     query.mockResolvedValue([{ id: "u-ana", name: "Ana" }] as never);
 
-    const res = await repository.queryUsersWithPermission(
+    const res = await assignees.queryUsersWithPermission(
       new RequestModel("tx", "bugs::update"),
     );
 
@@ -110,7 +112,7 @@ describe("BugRepositoryImpl assignees", () => {
               { bugId: "b1", id: "u-ben", name: "Ben" },
             ]) as never);
 
-      const res = await repository.queryBugs(
+      const res = await queries.queryBugs(
         new RequestModel(
           "tx",
           new BugFilter({
@@ -142,7 +144,7 @@ describe("BugRepositoryImpl assignees", () => {
         ] as never);
       query.mockResolvedValue([] as never);
 
-      const res = await repository.queryBugs(
+      const res = await queries.queryBugs(
         new RequestModel(
           "tx",
           new BugFilter({
@@ -162,7 +164,7 @@ describe("BugRepositoryImpl assignees", () => {
     it("does not filter by assignee without one", async () => {
       const findAll = vi.spyOn(BugModel, "findAll").mockResolvedValue([]);
 
-      await repository.queryBugs(new RequestModel("tx", new BugFilter()));
+      await queries.queryBugs(new RequestModel("tx", new BugFilter()));
 
       expect(findAll.mock.calls[0]?.[0]?.where).not.toHaveProperty("id");
       expect(query).not.toHaveBeenCalled();

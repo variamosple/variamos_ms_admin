@@ -10,14 +10,14 @@ import { UserAuthUseCase } from "#src/Domain/User/UseCase/UserAuthUseCase.js";
 import { BcryptPasswordHasher } from "#src/Infrastructure/Security/BcryptPasswordHasher.js";
 import VARIAMOS_ORM from "#src/Infrastructure/VariamosORM.js";
 import { UserModel } from "./User.js";
-import { UserRepositoryImpl } from "./UserRepository.js";
+import { UserSignInRepositoryImpl } from "./UserSignInRepository.js";
 
 vi.mock("#src/common/logger.js");
 
 // The sign-in as it runs: the use case decides, the repository reads and
 // writes, bcrypt compares (EV-98)
 const signInWith = (hasher: IPasswordHasher, logger = mock<ILogger>()) => {
-  const repository = new UserRepositoryImpl(hasher);
+  const repository = new UserSignInRepositoryImpl(hasher);
   const useCase = new UserAuthUseCase({
     userRepository: repository,
     roleRepository: { queryGuestRole: vi.fn() },

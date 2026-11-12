@@ -2,16 +2,21 @@ import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { BcryptPasswordHasher } from "#src/Infrastructure/Security/BcryptPasswordHasher.js";
 import VARIAMOS_ORM from "#src/Infrastructure/VariamosORM.js";
 import { UserModel } from "./User.js";
+import { UserPasswordRepositoryImpl } from "./UserPasswordRepository.js";
 import { UserRepositoryImpl } from "./UserRepository.js";
+import { UserSignInRepositoryImpl } from "./UserSignInRepository.js";
 
 vi.mock("#src/common/logger.js");
 
 // The repository reads the state of an account; the domain says whether it
 // is open (EV-98)
 describe("UserRepositoryImpl account state", () => {
-  const repository = new UserRepositoryImpl(
-    new BcryptPasswordHasher({ getCost: async () => 4 }),
-  );
+  const hasher = new BcryptPasswordHasher({ getCost: async () => 4 });
+  const repositories = {
+    accounts: new UserRepositoryImpl(),
+    signIn: new UserSignInRepositoryImpl(hasher),
+    passwords: new UserPasswordRepositoryImpl(hasher),
+  };
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -39,7 +44,9 @@ describe("UserRepositoryImpl account state", () => {
         tokenRow(state),
       ] as never);
 
-      expect(await repository.getPasswordResetToken("hash")).toEqual({
+      expect(
+        await repositories.passwords.getPasswordResetToken("hash"),
+      ).toEqual({
         userId: "u1",
         expiresAt: new Date("2026-11-03T00:00:00Z"),
         usedAt: null,
@@ -50,7 +57,9 @@ describe("UserRepositoryImpl account state", () => {
     it("gives null for an unknown token", async () => {
       vi.spyOn(VARIAMOS_ORM, "query").mockResolvedValue([] as never);
 
-      expect(await repository.getPasswordResetToken("hash")).toBeNull();
+      expect(
+        await repositories.passwords.getPasswordResetToken("hash"),
+      ).toBeNull();
     });
   });
 
@@ -81,7 +90,10 @@ describe("UserRepositoryImpl account state", () => {
       const update = vi.spyOn(UserModel, "update");
 
       expect(
-        await repository.resetPasswordWithToken("hash", "New-pass-1!"),
+        await repositories.passwords.resetPasswordWithToken(
+          "hash",
+          "New-pass-1!",
+        ),
       ).toBe("inactive_account");
       expect(transaction.rollback).toHaveBeenCalled();
       expect(transaction.commit).not.toHaveBeenCalled();
@@ -102,7 +114,7 @@ describe("UserRepositoryImpl account state", () => {
       // Roles and permissions
       vi.spyOn(VARIAMOS_ORM, "query").mockResolvedValue([] as never);
 
-      const response = await repository.findSessionUser(
+      const response = await repositories.accounts.findSessionUser(
         new RequestModel<string>("tx-1", "u1"),
       );
 
@@ -129,7 +141,7 @@ describe("UserRepositoryImpl account state", () => {
         isDeleted: false,
       } as unknown as UserModel);
 
-      const account = await repository.findPasswordAccount(by);
+      const account = await repositories.signIn.findPasswordAccount(by);
 
       expect(findOne).toHaveBeenCalledWith({ where: by });
       expect(account?.passwordHash).toBe("$2b$04$hash");
@@ -148,7 +160,9 @@ describe("UserRepositoryImpl account state", () => {
         isDeleted: false,
       } as unknown as UserModel);
 
-      const account = await repository.findPasswordAccount({ id: "u1" });
+      const account = await repositories.signIn.findPasswordAccount({
+        id: "u1",
+      });
 
       expect(account?.passwordHash).toBeNull();
     });
@@ -156,7 +170,9 @@ describe("UserRepositoryImpl account state", () => {
     it("gives null for an unknown account", async () => {
       vi.spyOn(UserModel, "findOne").mockResolvedValue(null);
 
-      expect(await repository.findPasswordAccount({ id: "u1" })).toBeNull();
+      expect(
+        await repositories.signIn.findPasswordAccount({ id: "u1" }),
+      ).toBeNull();
     });
   });
 });

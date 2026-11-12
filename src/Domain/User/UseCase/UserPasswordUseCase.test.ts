@@ -5,7 +5,9 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
 import type { User } from "#src/Domain/User/Entity/User.js";
+import type { IUserPasswordRepository } from "#src/Domain/User/IUserPasswordRepository.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
+import type { IUserSignInRepository } from "#src/Domain/User/IUserSignInRepository.js";
 import { PasswordResetTokenService } from "#src/Domain/User/Service/PasswordResetTokenService.js";
 import {
   UserPasswordUseCase,
@@ -18,7 +20,9 @@ const activityJournal = { record: vi.fn().mockResolvedValue(undefined) };
 describe("UserPasswordUseCase", () => {
   let useCase: UserPasswordUseCase;
   let logger: MockProxy<ILogger>;
-  let mockUserRepository: MockProxy<IUserRepository>;
+  let mockUserRepository: MockProxy<
+    IUserRepository & IUserSignInRepository & IUserPasswordRepository
+  >;
   let mockMailService: MockProxy<IMailService>;
 
   const mockConfig: UserPasswordUseCaseConfig = {
@@ -42,10 +46,15 @@ describe("UserPasswordUseCase", () => {
 
   beforeEach(() => {
     logger = mock<ILogger>();
-    mockUserRepository = mock<IUserRepository>();
+    mockUserRepository = mock<
+      IUserRepository & IUserSignInRepository & IUserPasswordRepository
+    >();
     mockMailService = mock<IMailService>();
     useCase = new UserPasswordUseCase({
-      userRepository: mockUserRepository,
+      repositories: {
+        accounts: mockUserRepository,
+        passwords: mockUserRepository,
+      },
       mailService: mockMailService,
       config: mockConfig,
       journal: activityJournal,
@@ -300,7 +309,10 @@ describe("UserPasswordUseCase", () => {
       ["an invalid value", Number.NaN, 60 * 60 * 1000],
     ])("caps %s at one hour", async (_label, configured, expected) => {
       const capped = new UserPasswordUseCase({
-        userRepository: mockUserRepository,
+        repositories: {
+          accounts: mockUserRepository,
+          passwords: mockUserRepository,
+        },
         mailService: mockMailService,
         config: { ...mockConfig, passwordResetExpiryInMs: configured },
         journal: activityJournal,

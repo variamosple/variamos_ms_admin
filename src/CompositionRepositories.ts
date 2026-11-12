@@ -3,18 +3,26 @@ import logger from "#src/common/logger.js";
 import { SecurityAlertRecipientRepository } from "./DataProviders/AccessControl/SecurityAlertRecipientRepository.js";
 import { AccessJournalRepositoryImpl } from "./DataProviders/Activity/AccessJournalRepository.js";
 import { ActivityJournalRepositoryImpl } from "./DataProviders/Activity/ActivityJournalRepository.js";
+import { BugAssigneeRepositoryImpl } from "./DataProviders/Bug/BugAssigneeRepository.js";
+import { BugAttachmentRepositoryImpl } from "./DataProviders/Bug/BugAttachmentRepository.js";
+import { BugNoteRepositoryImpl } from "./DataProviders/Bug/BugNoteRepository.js";
+import { BugQueryRepositoryImpl } from "./DataProviders/Bug/BugQueryRepository.js";
 import { BugRepositoryImpl } from "./DataProviders/Bug/BugRepository.js";
 import { ConfigurationRepositoryImpl } from "./DataProviders/Configuration/ConfigurationRepository.js";
 import { SecretConfigurationValue } from "./DataProviders/Configuration/SecretConfigurationValue.js";
 import { CountriesRepositoryImpl } from "./DataProviders/Countries/CountriesRepository.js";
 import { MetricsRepositoryImpl } from "./DataProviders/Metrics/MetricsRepository.js";
 import { HealthLogStatistics } from "./DataProviders/MicroService/HealthLogStatistics.js";
+import { MicroServiceConfigRepositoryImpl } from "./DataProviders/MicroService/MicroServiceConfigRepository.js";
+import { MicroServiceControlRepositoryImpl } from "./DataProviders/MicroService/MicroServiceControlRepository.js";
 import { MicroServiceRepositoryImpl } from "./DataProviders/MicroService/MicroServiceRepository.js";
 import { PermissionRepositoryImpl } from "./DataProviders/Permission/PermissionRepository.js";
 import { RolePermissionRepositoryImpl } from "./DataProviders/Role/RolePermissionRepository.js";
 import { RoleRepositoryImpl } from "./DataProviders/Role/RoleRepository.js";
+import { UserPasswordRepositoryImpl } from "./DataProviders/User/UserPasswordRepository.js";
 import { UserRepositoryImpl } from "./DataProviders/User/UserRepository.js";
 import { UserRoleRepositoryImpl } from "./DataProviders/User/UserRoleRepository.js";
+import { UserSignInRepositoryImpl } from "./DataProviders/User/UserSignInRepository.js";
 import { VisitRepositoryImpl } from "./DataProviders/Visit/VisitRepository.js";
 import { TOP_PERMISSION } from "./Domain/AccessControl/AccessHierarchyUseCase.js";
 import { SecurityAlertPolicyService } from "./Domain/Activity/SecurityAlertPolicyService.js";
@@ -23,8 +31,11 @@ import {
   watchedAccessJournal,
   watchedActivityJournal,
 } from "./Domain/Activity/SecurityAlerts.js";
+import type { BugRepositories } from "./Domain/Bug/Repository/BugRepositories.js";
+import type { MicroServiceRepositories } from "./Domain/MicroService/Repository/MicroServiceRepositories.js";
 import { AccountPasswordService } from "./Domain/User/Service/AccountPasswordService.js";
 import { PasswordHashingCostService } from "./Domain/User/Service/PasswordHashingCostService.js";
+import type { UserRepositories } from "./Domain/User/UserRepositories.js";
 import { JetLogger } from "./Infrastructure/Logging/JetLogger.js";
 import { MailServiceInstance } from "./Infrastructure/Mail/MailService.js";
 import { ConfigEventPublisherImpl } from "./Infrastructure/Messaging/ConfigEventPublisher.js";
@@ -35,7 +46,6 @@ import {
   parseEncryptionKey,
 } from "./Infrastructure/Security/AesGcmSecretCipher.js";
 import { BcryptPasswordHasher } from "./Infrastructure/Security/BcryptPasswordHasher.js";
-
 import VARIAMOS_ORM, { DB_SCHEMA } from "./Infrastructure/VariamosORM.js";
 
 // Secret configurations are encrypted at rest (T-13, EV-78 lot 2); without
@@ -59,11 +69,19 @@ export const HealthLogStatisticsInstance = new HealthLogStatistics(
   DB_SCHEMA,
 );
 
-export const MicroServiceRepositoryInstance = new MicroServiceRepositoryImpl({
-  socketPath: EnvVars.DOCKER.SOCKET_PATH,
-  secrets: SecretConfigurationValueInstance,
-  statistics: HealthLogStatisticsInstance,
-});
+// One repository per subject of the monitoring
+export const MicroServiceRepositoriesInstance = {
+  services: new MicroServiceRepositoryImpl({
+    socketPath: EnvVars.DOCKER.SOCKET_PATH,
+    statistics: HealthLogStatisticsInstance,
+  }),
+  control: new MicroServiceControlRepositoryImpl({
+    socketPath: EnvVars.DOCKER.SOCKET_PATH,
+  }),
+  configuration: new MicroServiceConfigRepositoryImpl({
+    secrets: SecretConfigurationValueInstance,
+  }),
+} satisfies MicroServiceRepositories;
 
 export const RoleRepositoryInstance = new RoleRepositoryImpl();
 export const RolePermissionRepositoryInstance =
@@ -73,7 +91,14 @@ export const PermissionRepositoryInstance = new PermissionRepositoryImpl();
 export const VisitRepositoryInstance = new VisitRepositoryImpl();
 export const CountriesRepositoryInstance = new CountriesRepositoryImpl();
 export const MetricsRepositoryInstance = new MetricsRepositoryImpl();
-export const BugRepositoryInstance = new BugRepositoryImpl();
+// One repository per subject of the bug tracker
+export const BugRepositoriesInstance: BugRepositories = {
+  bugs: new BugRepositoryImpl(),
+  queries: new BugQueryRepositoryImpl(),
+  attachments: new BugAttachmentRepositoryImpl(),
+  notes: new BugNoteRepositoryImpl(),
+  assignees: new BugAssigneeRepositoryImpl(),
+};
 export const ConfigurationRepositoryInstance = new ConfigurationRepositoryImpl(
   SecretConfigurationValueInstance,
 );
@@ -84,12 +109,15 @@ const PasswordHasherInstance = new BcryptPasswordHasher(
     EnvVars.Auth.APP.BCRYPT_SALT_ROUNDS,
   ),
 );
-export const UserRepositoryInstance = new UserRepositoryImpl(
-  PasswordHasherInstance,
-);
+// One repository per subject of the accounts
+export const UserRepositoriesInstance = {
+  accounts: new UserRepositoryImpl(),
+  signIn: new UserSignInRepositoryImpl(PasswordHasherInstance),
+  passwords: new UserPasswordRepositoryImpl(PasswordHasherInstance),
+} satisfies UserRepositories;
 // Whether a password opens an account: decided in the domain (EV-98)
 export const AccountPasswordServiceInstance = new AccountPasswordService(
-  UserRepositoryInstance,
+  UserRepositoriesInstance.signIn,
   PasswordHasherInstance,
   JetLogger,
 );

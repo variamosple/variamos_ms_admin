@@ -15,7 +15,7 @@ import {
 } from "#src/Domain/User/Entity/GoogleIdentity.js";
 import { User } from "#src/Domain/User/Entity/User.js";
 import { UserRegistration } from "#src/Domain/User/Entity/UserRegistration.js";
-import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
+import type { IUserSignInRepository } from "#src/Domain/User/IUserSignInRepository.js";
 import type { AccountPasswordService } from "#src/Domain/User/Service/AccountPasswordService.js";
 import {
   checkNewPassword,
@@ -33,7 +33,7 @@ export interface SignUpData {
 
 /** What the sign-in and sign-up of an account use. */
 export interface UserAuthUseCaseDependencies {
-  userRepository: IUserRepository;
+  userRepository: IUserSignInRepository;
   roleRepository: IGuestRoleRepository;
   logger: ILogger;
   mailService: Pick<IMailService, "sendExistingAccountMail">;
@@ -51,7 +51,7 @@ export interface UserAuthUseCaseConfig {
 }
 
 export class UserAuthUseCase {
-  private readonly userRepository: IUserRepository;
+  private readonly userRepository: IUserSignInRepository;
   private readonly roleRepository: IGuestRoleRepository;
   private readonly logger: ILogger;
   private readonly mailService: Pick<IMailService, "sendExistingAccountMail">;

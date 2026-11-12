@@ -3,6 +3,9 @@ import { type MockProxy, mock } from "vitest-mock-extended";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
+import type { IBugAttachmentRepository } from "#src/Domain/Bug/Repository/IBugAttachmentRepository.js";
+import type { IBugNoteRepository } from "#src/Domain/Bug/Repository/IBugNoteRepository.js";
+import type { IBugQueryRepository } from "#src/Domain/Bug/Repository/IBugQueryRepository.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
 import type { IGitHubTokenProvider } from "#src/Domain/Bug/Service/IGitHubTokenProvider.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
@@ -16,7 +19,12 @@ import { BugLifecycleUseCase } from "./BugLifecycleUseCase.js";
 describe("BugLifecycleUseCase", () => {
   let useCase: BugLifecycleUseCase;
   let logger: MockProxy<ILogger>;
-  let mockBugRepository: MockProxy<IBugRepository>;
+  let mockBugRepository: MockProxy<
+    IBugRepository &
+      IBugQueryRepository &
+      IBugAttachmentRepository &
+      IBugNoteRepository
+  >;
   let mockIssueTracker: MockProxy<IIssueTrackerService>;
   let mockStorageService: MockProxy<IStorageService>;
   let mockGithubConfig: MockProxy<IBugTrackerConfig>;
@@ -26,7 +34,12 @@ describe("BugLifecycleUseCase", () => {
 
   beforeEach(() => {
     logger = mock<ILogger>();
-    mockBugRepository = mock<IBugRepository>();
+    mockBugRepository = mock<
+      IBugRepository &
+        IBugQueryRepository &
+        IBugAttachmentRepository &
+        IBugNoteRepository
+    >();
     mockIssueTracker = mock<IIssueTrackerService>();
     mockStorageService = mock<IStorageService>();
     mockGithubConfig = mock<IBugTrackerConfig>();
@@ -36,7 +49,12 @@ describe("BugLifecycleUseCase", () => {
     mockTokenResolver = mock<IGitHubTokenProvider>();
     mockJournal = mock<IActivityJournal>();
     useCase = new BugLifecycleUseCase({
-      bugRepository: mockBugRepository,
+      repositories: {
+        bugs: mockBugRepository,
+        queries: mockBugRepository,
+        attachments: mockBugRepository,
+        notes: mockBugRepository,
+      },
       issueTrackerService: mockIssueTracker,
       storageService: mockStorageService,
       githubConfig: mockGithubConfig,

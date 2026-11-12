@@ -2,6 +2,7 @@ import { type MockProxy, mock } from "vitest-mock-extended";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
+import type { IBugQueryRepository } from "#src/Domain/Bug/Repository/IBugQueryRepository.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
 import type { IGitHubTokenProvider } from "#src/Domain/Bug/Service/IGitHubTokenProvider.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
@@ -18,7 +19,7 @@ import { BugSyncUseCase } from "./BugSyncUseCase.js";
 describe("BugSyncUseCase", () => {
   let useCase: BugSyncUseCase;
   let logger: MockProxy<ILogger>;
-  let mockBugRepository: MockProxy<IBugRepository>;
+  let mockBugRepository: MockProxy<IBugRepository & IBugQueryRepository>;
   let mockIssueTracker: MockProxy<IIssueTrackerService>;
   let mockGithubConfig: MockProxy<IBugTrackerConfig>;
   let mockTokenResolver: MockProxy<IGitHubTokenProvider>;
@@ -26,13 +27,13 @@ describe("BugSyncUseCase", () => {
 
   beforeEach(() => {
     logger = mock<ILogger>();
-    mockBugRepository = mock<IBugRepository>();
+    mockBugRepository = mock<IBugRepository & IBugQueryRepository>();
     mockIssueTracker = mock<IIssueTrackerService>();
     mockGithubConfig = mock<IBugTrackerConfig>();
     mockTokenResolver = mock<IGitHubTokenProvider>();
     mockJournal = mock<IActivityJournal>();
     useCase = new BugSyncUseCase({
-      bugRepository: mockBugRepository,
+      repositories: { bugs: mockBugRepository, queries: mockBugRepository },
       issueTrackerService: mockIssueTracker,
       githubConfig: mockGithubConfig,
       tokenResolver: mockTokenResolver,

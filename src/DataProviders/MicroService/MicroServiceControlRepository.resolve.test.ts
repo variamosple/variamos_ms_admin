@@ -1,6 +1,4 @@
-import { AesGcmSecretCipher } from "#src/Infrastructure/Security/AesGcmSecretCipher.js";
-import { SecretConfigurationValue } from "../Configuration/SecretConfigurationValue.js";
-import { MicroServiceRepositoryImpl } from "./MicroServiceRepository.js";
+import { MicroServiceControlRepositoryImpl } from "./MicroServiceControlRepository.js";
 
 const FULL_ID =
   "4f1c2a9b8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a";
@@ -20,11 +18,10 @@ const unmonitored = {
   Labels: { "com.docker.compose.service": "postgres" },
 };
 
-describe("MicroServiceRepositoryImpl container resolution", () => {
+describe("MicroServiceControlRepositoryImpl container resolution", () => {
   const resolve = (target: string) => {
-    const repository = new MicroServiceRepositoryImpl({
+    const repository = new MicroServiceControlRepositoryImpl({
       socketPath: "/nonexistent/docker.sock",
-      secrets: new SecretConfigurationValue(new AesGcmSecretCipher(null)),
     });
     (repository as unknown as { dockerConnection: unknown }).dockerConnection =
       {

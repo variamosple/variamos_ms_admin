@@ -1,13 +1,9 @@
 import Docker from "dockerode";
-import { Op } from "sequelize";
 import logger from "#src/common/logger.js";
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
-import { SECRET_MASK } from "#src/Domain/Core/Secret/SecretMask.js";
-import { MicroServiceAuditEntry } from "#src/Domain/MicroService/Entity/MicroServiceAuditEntry.js";
-import { MicroServiceConfigItem } from "#src/Domain/MicroService/Entity/MicroServiceConfigItem.js";
 import {
   type ContainerInstanceInfo,
   MicroServiceDetailed,
@@ -22,37 +18,18 @@ import {
 import type { ServiceDefinition } from "#src/Domain/MicroService/Entity/ServiceDefinition.js";
 import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 import {
-  type ConfigurationUpdateRefusal,
-  type ConfigurationValueType,
-  readConfigurationValue,
-  refuseConfigurationUpdate,
-} from "#src/Domain/MicroService/Service/ConfigurationUpdateRule.js";
-import {
   buildUptimeSummary,
   uptimeWindow,
 } from "#src/Domain/MicroService/Service/UptimeSummary.js";
 import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 import {
-  ConfigurationModel,
-  type ConfigurationValue,
-} from "../Configuration/Configuration.js";
-import type { SecretConfigurationValue } from "../Configuration/SecretConfigurationValue.js";
+  belongsTo,
+  containerInfoOf,
+  serviceDefinitionOf,
+} from "./dockerContainers.js";
 import { HealthLogStatistics } from "./HealthLogStatistics.js";
-import { MicroServiceAuditLogModel } from "./MicroServiceAuditLogModel.js";
 import { MicroServiceHealthLogModel } from "./MicroServiceHealthLogModel.js";
 import { RecentResults } from "./RecentResults.js";
-
-/**
- * IP addresses of a container on every Docker network it is attached to.
- * Probing these avoids DNS lookups, which stall for seconds on unknown names.
- */
-export function containerIpsOf(container: {
-  NetworkSettings?: { Networks?: Record<string, { IPAddress?: string }> };
-}): string[] {
-  return Object.values(container.NetworkSettings?.Networks ?? {})
-    .map((network) => network.IPAddress)
-    .filter((ip): ip is string => Boolean(ip));
-}
 
 /**
  * Age at which an uptime summary is computed again. A service is checked
@@ -63,198 +40,25 @@ export function containerIpsOf(container: {
  */
 const UPTIME_MAX_AGE_MS = 30_000;
 
-/**
- * A container is a monitored microservice only when it carries the explicit
- * `variamos.service.monitored=true` label.
- */
-export function isMonitoredContainer(labels: Record<string, string>): boolean {
-  return labels["variamos.service.monitored"] === "true";
-}
-
-/**
- * The service a container runs, read from its labels, else from its compose
- * service or container name. Null for a container that is not monitored.
- */
-function serviceDefinitionOf(
-  c: Docker.ContainerInfo,
-): ServiceDefinition | null {
-  const labels = c.Labels || {};
-  // Only containers that explicitly opt in are monitored. Matching on
-  // compose service names also picked up front-end containers and duplicate deployments.
-  if (!isMonitoredContainer(labels)) return null;
-  const composeService = labels["com.docker.compose.service"];
-
-  const rawServiceName =
-    labels["variamos.service.name"] ||
-    composeService?.replace(/-/g, "_") ||
-    c.Names[0]
-      ?.replace(/^\//, "")
-      .replace(/-test$/, "")
-      .replace(/-/g, "_");
-  if (!rawServiceName) return null;
-
-  const rawDisplayName =
-    labels["variamos.service.display-name"] ||
-    rawServiceName
-      .split("_")
-      .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-      .join(" ");
-
-  const internalPort = labels["variamos.service.internal-port"]
-    ? Number.parseInt(labels["variamos.service.internal-port"], 10)
-    : c.Ports?.[0]?.PrivatePort || 4000;
-
-  // Determine targetUrl: if host port is published use localhost, else use internal container alias
-  const hostPort = c.Ports?.find((p) => p.PublicPort)?.PublicPort;
-  const targetUrl = hostPort
-    ? `http://localhost:${hostPort}`
-    : `http://${composeService || rawServiceName}:${internalPort}`;
-
-  return {
-    name: rawServiceName,
-    displayName: rawDisplayName,
-    targetUrl,
-    containerNamePattern: composeService || rawServiceName.replace(/_/g, "-"),
-    containerIps: containerIpsOf(c),
-    defaultPort: internalPort,
-    healthPath: labels["variamos.service.health-path"] || "/health",
-  };
-}
-
-// A container belongs to a service by its label, compose name or name pattern
-function belongsTo(c: Docker.ContainerInfo, def: ServiceDefinition): boolean {
-  const labels = c.Labels || {};
-  if (labels["variamos.service.name"] === def.name) return true;
-  if (labels["com.docker.compose.service"] === def.containerNamePattern) {
-    return true;
-  }
-  const name = def.name.toLowerCase();
-  const pattern = def.containerNamePattern?.toLowerCase();
-  return c.Names.some((n) => {
-    const cleanN = n.replace(/^\//, "").toLowerCase();
-    return (
-      cleanN === name ||
-      cleanN.includes(name.replace(/_/g, "-")) ||
-      Boolean(pattern && cleanN.includes(pattern))
-    );
-  });
-}
-
-const containerInfoOf = (c: Docker.ContainerInfo): ContainerInstanceInfo => ({
-  id: c.Id,
-  name: c.Names[0]?.replace(/^\//, "") ?? c.Id,
-  state: c.State,
-  status: c.Status,
-  created: new Date(c.Created * 1000),
-  labels: c.Labels,
-});
-
-/** A new value for a key of a service, and who sets it. */
-interface ServiceConfigurationChange {
-  serviceName: string;
-  key: string;
-  value: string;
-  operatorId: string;
-}
-
-/**
- * The value of a new key and its type, read as JSON; a text that is not a
- * number, a boolean, an array or an object stays a string.
- */
-function parseNewValue(value: string): {
-  parsedValue: ConfigurationValue;
-  detectedType: ConfigurationValueType;
-} {
-  let parsedValue: ConfigurationValue;
-  try {
-    parsedValue = JSON.parse(value);
-  } catch {
-    return { parsedValue: value, detectedType: "string" };
-  }
-  if (typeof parsedValue === "number") {
-    return { parsedValue, detectedType: "number" };
-  }
-  if (typeof parsedValue === "boolean") {
-    return { parsedValue, detectedType: "boolean" };
-  }
-  if (Array.isArray(parsedValue)) return { parsedValue, detectedType: "array" };
-  if (typeof parsedValue === "object" && parsedValue !== null) {
-    return { parsedValue, detectedType: "object" };
-  }
-  return { parsedValue: value, detectedType: "string" };
-}
-
-// A key no service had: open to all environments, neither secret nor locked
-function createServiceConfiguration(
-  change: ServiceConfigurationChange,
-): Promise<ConfigurationModel> {
-  const { parsedValue, detectedType } = parseNewValue(change.value);
-  return ConfigurationModel.create({
-    key: change.key,
-    value: parsedValue,
-    type: detectedType,
-    category: "env",
-    requiresMfa: false,
-    isSecret: false,
-    environmentScope: "all",
-    isReadOnly: false,
-    targetServices: [change.serviceName],
-    updatedBy: change.operatorId,
-  });
-}
-
+/** The monitored services, read from Docker, and their health checks. */
 export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
   private dockerConnection: Docker;
-  private healthCollector?: {
-    triggerHealthChecks: (
-      serviceName?: string,
-    ) => Promise<MicroServiceHealthInfo[]>;
-  };
-
-  private readonly secrets: SecretConfigurationValue;
   private readonly statistics: HealthLogStatistics;
   private readonly recentUptimes: RecentResults<MicroServiceUptimeSummary[]>;
 
   public constructor(config: {
     socketPath: string;
-    secrets: SecretConfigurationValue;
     statistics?: HealthLogStatistics;
     uptimeMaxAgeMs?: number;
   }) {
     this.dockerConnection = new Docker({
       socketPath: config.socketPath,
     });
-    this.secrets = config.secrets;
     this.statistics =
       config.statistics ?? new HealthLogStatistics(VARIAMOS_ORM, DB_SCHEMA);
     this.recentUptimes = new RecentResults(
       config.uptimeMaxAgeMs ?? UPTIME_MAX_AGE_MS,
     );
-  }
-
-  /** The value as text, in clear; the mask when a secret cannot be decrypted. */
-  private displayedValueOf(config: ConfigurationModel): string {
-    const value = config.isSecret
-      ? (this.secrets.decrypt(config.key, config.value) ?? SECRET_MASK)
-      : config.value;
-    return typeof value === "string" ? value : JSON.stringify(value);
-  }
-
-  public setHealthCollector(collector: {
-    triggerHealthChecks: (
-      serviceName?: string,
-    ) => Promise<MicroServiceHealthInfo[]>;
-  }): void {
-    this.healthCollector = collector;
-  }
-
-  public triggerHealthChecks(
-    serviceName?: string,
-  ): Promise<MicroServiceHealthInfo[]> {
-    if (this.healthCollector) {
-      return this.healthCollector.triggerHealthChecks(serviceName);
-    }
-    return Promise.resolve([]);
   }
 
   /**
@@ -486,206 +290,6 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
     return response;
   }
 
-  /**
-   * Container targeted by an action or a log request: an exact container id,
-   * service name or container name, among the containers that opt in to
-   * monitoring only (EV-71). Prefixes and partial names are refused: a short
-   * value could otherwise reach an unrelated container.
-   */
-  private async resolveContainer(
-    idOrServiceName: string,
-  ): Promise<Docker.Container | null> {
-    try {
-      const containers = (
-        await this.dockerConnection.listContainers({ all: true })
-      ).filter((c) => isMonitoredContainer(c.Labels || {}));
-      const target = idOrServiceName.replace(/^\//, "").toLowerCase();
-      const match = containers.find((c) => {
-        const labels = c.Labels || {};
-        const composeService =
-          labels["com.docker.compose.service"]?.toLowerCase();
-        return (
-          c.Id === idOrServiceName ||
-          labels["variamos.service.name"]?.toLowerCase() === target ||
-          composeService === target ||
-          composeService?.replace(/-/g, "_") === target ||
-          c.Names.some((n) => n.replace(/^\//, "").toLowerCase() === target)
-        );
-      });
-      if (match) {
-        return this.dockerConnection.getContainer(match.Id);
-      }
-    } catch (err) {
-      logger.warn(
-        `Could not resolve Docker container for ${idOrServiceName}: ${errorMessage(err)}`,
-      );
-    }
-    return null;
-  }
-
-  public async startMicroService(
-    request: RequestModel<string>,
-    actorId: string,
-  ): Promise<ResponseModel<void>> {
-    const response = new ResponseModel<void>(request.transactionId);
-    if (!request.data) {
-      return response.withError(
-        DomainErrorCodes.INVALID_INPUT,
-        "Microservice ID is required",
-      );
-    }
-    try {
-      const container = await this.resolveContainer(request.data);
-      if (!container) {
-        return response.withError(
-          DomainErrorCodes.ENTITY_NOT_FOUND,
-          `Container not found for service ${request.data}`,
-        );
-      }
-      await container.start();
-
-      await MicroServiceAuditLogModel.create({
-        serviceName: request.data,
-        actionType: "START",
-        details: { target: request.data },
-        performedBy: actorId,
-      });
-
-      // No health line here: whether the service came back is for the next
-      // real check to say, never an UP written without a measurement (EV-86)
-    } catch (error) {
-      logger.err(error);
-      response.withError(
-        DomainErrorCodes.SYSTEM_ERROR,
-        "Failed to start microservice container",
-      );
-    }
-    return response;
-  }
-
-  public async stopMicroService(
-    request: RequestModel<string>,
-    actorId: string,
-  ): Promise<ResponseModel<void>> {
-    const response = new ResponseModel<void>(request.transactionId);
-    if (!request.data) {
-      return response.withError(
-        DomainErrorCodes.INVALID_INPUT,
-        "Microservice ID is required",
-      );
-    }
-    try {
-      const container = await this.resolveContainer(request.data);
-      if (!container) {
-        return response.withError(
-          DomainErrorCodes.ENTITY_NOT_FOUND,
-          `Container not found for service ${request.data}`,
-        );
-      }
-      await container.stop();
-
-      await MicroServiceAuditLogModel.create({
-        serviceName: request.data,
-        actionType: "STOP",
-        details: { target: request.data },
-        performedBy: actorId,
-      });
-
-      await MicroServiceHealthLogModel.create({
-        serviceName: request.data,
-        status: "DOWN",
-        responseTimeMs: 0,
-        checkedAt: new Date(),
-      }).catch((err) => {
-        logger.warn(`Could not log health DOWN: ${errorMessage(err)}`);
-      });
-    } catch (error) {
-      logger.err(error);
-      response.withError(
-        DomainErrorCodes.SYSTEM_ERROR,
-        "Failed to stop microservice container",
-      );
-    }
-    return response;
-  }
-
-  public async restartMicroService(
-    request: RequestModel<string>,
-    actorId: string,
-  ): Promise<ResponseModel<void>> {
-    const response = new ResponseModel<void>(request.transactionId);
-    if (!request.data) {
-      return response.withError(
-        DomainErrorCodes.INVALID_INPUT,
-        "Microservice ID is required",
-      );
-    }
-    try {
-      const container = await this.resolveContainer(request.data);
-      if (!container) {
-        return response.withError(
-          DomainErrorCodes.ENTITY_NOT_FOUND,
-          `Container not found for service ${request.data}`,
-        );
-      }
-      await container.restart();
-
-      await MicroServiceAuditLogModel.create({
-        serviceName: request.data,
-        actionType: "RESTART",
-        details: { target: request.data },
-        performedBy: actorId,
-      });
-
-      // No health line here: whether the service came back is for the next
-      // real check to say, never an UP written without a measurement (EV-86)
-    } catch (error) {
-      logger.err(error);
-      response.withError(
-        DomainErrorCodes.SYSTEM_ERROR,
-        "Failed to restart microservice container",
-      );
-    }
-    return response;
-  }
-
-  public async watchMicroServiceLogs(
-    request: RequestModel<string>,
-  ): Promise<ResponseModel<NodeJS.ReadableStream>> {
-    const response = new ResponseModel<NodeJS.ReadableStream>(
-      request.transactionId,
-    );
-    if (!request.data) {
-      return response.withError(
-        DomainErrorCodes.INVALID_INPUT,
-        "Microservice ID is required",
-      );
-    }
-    try {
-      const container = await this.resolveContainer(request.data);
-      if (!container) {
-        return response.withError(
-          DomainErrorCodes.ENTITY_NOT_FOUND,
-          `Container not found for service ${request.data}`,
-        );
-      }
-      response.data = await container.logs({
-        stdout: true,
-        stderr: true,
-        follow: true,
-        tail: 100,
-        timestamps: true,
-      });
-    } catch (error) {
-      logger.err(error);
-      response.withError(
-        DomainErrorCodes.SYSTEM_ERROR,
-        "Internal server error",
-      );
-    }
-    return response;
-  }
-
   public async getHealthHistory(
     request: RequestModel<{ serviceName: string; days?: number }>,
   ): Promise<ResponseModel<MicroServiceUptimeSummary>> {
@@ -731,207 +335,6 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         `Failed to record health check for ${healthInfo.serviceName}: ${errorMessage(error)}`,
       );
     }
-  }
-
-  public async queryConfigurations(
-    request: RequestModel<string>,
-  ): Promise<ResponseModel<MicroServiceConfigItem[]>> {
-    const response = new ResponseModel<MicroServiceConfigItem[]>(
-      request.transactionId,
-    );
-    const serviceName = request.data;
-    if (!serviceName) {
-      return response.withError(
-        DomainErrorCodes.INVALID_INPUT,
-        "Service name is required",
-      );
-    }
-
-    try {
-      // Find configurations targeted to this specific service OR targeted to "all"
-      const configs = await ConfigurationModel.findAll({
-        where: {
-          [Op.or]: [
-            { targetServices: { [Op.contains]: [serviceName] } },
-            { targetServices: { [Op.contains]: ["all"] } },
-          ],
-        },
-        order: [["key", "ASC"]],
-      });
-
-      response.data = configs.map((c) => this.configItemOf(c, serviceName));
-      response.totalCount = configs.length;
-    } catch (error) {
-      logger.err(error);
-      response.withError(
-        DomainErrorCodes.SYSTEM_ERROR,
-        "Failed to query configurations",
-      );
-    }
-
-    return response;
-  }
-
-  public async updateConfiguration(
-    request: RequestModel<{
-      serviceName: string;
-      key: string;
-      value: string;
-      operatorId: string;
-    }>,
-  ): Promise<ResponseModel<MicroServiceConfigItem>> {
-    const response = new ResponseModel<MicroServiceConfigItem>(
-      request.transactionId,
-    );
-    if (!request.data?.serviceName || !request.data?.key) {
-      return response.withError(
-        DomainErrorCodes.INVALID_INPUT,
-        "Service name and key are required",
-      );
-    }
-    const { serviceName, key, value, operatorId } = request.data;
-
-    try {
-      const existing = await ConfigurationModel.findOne({ where: { key } });
-      const refusal = refuseConfigurationUpdate(key, value, existing);
-      if (refusal) {
-        return response.withError(refusal.errorCode, refusal.message);
-      }
-
-      const change = { serviceName, key, value, operatorId };
-      let config: ConfigurationModel;
-      if (existing) {
-        const failure = await this.writeExisting(existing, change);
-        if (failure)
-          return response.withError(failure.errorCode, failure.message);
-        config = existing;
-      } else {
-        config = await createServiceConfiguration(change);
-      }
-
-      await MicroServiceAuditLogModel.create({
-        serviceName,
-        actionType: "CONFIG_UPDATE",
-        // A secret value is never written to the audit log
-        details: { key, newValue: existing?.isSecret ? SECRET_MASK : value },
-        performedBy: operatorId,
-      });
-
-      response.data = this.configItemOf(config, serviceName);
-    } catch (error) {
-      logger.err(error);
-      response.withError(
-        DomainErrorCodes.SYSTEM_ERROR,
-        "Failed to update configuration",
-      );
-    }
-
-    return response;
-  }
-
-  /** Writes the new value of a known key; the refusal when it cannot. */
-  private async writeExisting(
-    existing: ConfigurationModel,
-    change: ServiceConfigurationChange,
-  ): Promise<ConfigurationUpdateRefusal | null> {
-    const { serviceName, key, value, operatorId } = change;
-    // The refusal checked before has made sure that the value matches the
-    // key's type
-    const parsedValue = readConfigurationValue(value, existing.type);
-    if (parsedValue === undefined) {
-      return {
-        errorCode: DomainErrorCodes.INVALID_INPUT,
-        message: `The value does not match the type of '${key}'.`,
-      };
-    }
-    // A secret is never written in clear (T-13)
-    if (existing.isSecret && !this.secrets.canEncrypt()) {
-      return {
-        errorCode: DomainErrorCodes.UNAVAILABLE,
-        message:
-          "Secret configurations cannot be changed: no encryption key is configured.",
-      };
-    }
-    const targetServices = Array.from(
-      new Set([...existing.targetServices, serviceName]),
-    );
-    await existing.update({
-      value: existing.isSecret
-        ? this.secrets.encrypt(key, parsedValue)
-        : parsedValue,
-      targetServices,
-      updatedBy: operatorId,
-    });
-    return null;
-  }
-
-  // A configuration as the service's configuration list shows it
-  private configItemOf(
-    config: ConfigurationModel,
-    serviceName: string,
-  ): MicroServiceConfigItem {
-    return new MicroServiceConfigItem({
-      id: config.id,
-      serviceName,
-      key: config.key,
-      value: this.displayedValueOf(config),
-      type: config.type || "string",
-      isSecret: config.isSecret,
-      isReadOnly: config.isReadOnly,
-      description: config.description,
-      updatedBy: config.updatedBy,
-      createdAt: config.createdAt,
-      updatedAt: config.updatedAt,
-    });
-  }
-
-  public async queryAuditLogs(
-    request: RequestModel<{ serviceName: string; limit?: number }>,
-  ): Promise<ResponseModel<MicroServiceAuditEntry[]>> {
-    const response = new ResponseModel<MicroServiceAuditEntry[]>(
-      request.transactionId,
-    );
-    if (!request.data?.serviceName) {
-      return response.withError(
-        DomainErrorCodes.INVALID_INPUT,
-        "Service name is required",
-      );
-    }
-    const { serviceName, limit = 50 } = request.data;
-
-    try {
-      const logs = await MicroServiceAuditLogModel.findAll({
-        where: { serviceName },
-        order: [["createdAt", "DESC"]],
-        limit,
-      });
-      // Older entries stored secret values in clear: mask them on the way out
-      const secretConfigs = await ConfigurationModel.findAll({
-        where: { isSecret: true },
-        attributes: ["key"],
-      });
-      const secretKeys = new Set(secretConfigs.map((c) => c.key));
-
-      response.data = logs.map((l) =>
-        new MicroServiceAuditEntry({
-          id: l.id,
-          serviceName: l.serviceName,
-          actionType: l.actionType,
-          details: l.details,
-          performedBy: l.performedBy,
-          createdAt: l.createdAt,
-        }).withSecretsMasked(secretKeys),
-      );
-      response.totalCount = logs.length;
-    } catch (error) {
-      logger.err(error);
-      response.withError(
-        DomainErrorCodes.SYSTEM_ERROR,
-        "Failed to query audit logs",
-      );
-    }
-
-    return response;
   }
 
   /**

@@ -12,6 +12,8 @@ import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { MicroServiceDetailed } from "#src/Domain/MicroService/Entity/MicroServiceDetailed.js";
+import type { IMicroServiceConfigRepository } from "#src/Domain/MicroService/Repository/IMicroServiceConfigRepository.js";
+import type { IMicroServiceControlRepository } from "#src/Domain/MicroService/Repository/IMicroServiceControlRepository.js";
 import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 import { MicroServiceConfigItem } from "../Entity/MicroServiceConfigItem.js";
 import type { ServiceStatus } from "../Entity/MicroServiceHealth.js";
@@ -25,19 +27,31 @@ const ACTOR = "operator@example.com";
 describe("MicroServiceManagementUseCase - Unit Tests", () => {
   let useCase: MicroServiceManagementUseCase;
   let logger: MockProxy<ILogger>;
-  let mockMicroServiceRepository: MockProxy<IMicroServiceRepository>;
+  let mockMicroServiceRepository: MockProxy<
+    IMicroServiceRepository &
+      IMicroServiceControlRepository &
+      IMicroServiceConfigRepository
+  >;
   let configurations: MockProxy<IConfigurationRepository>;
   let configEvents: MockProxy<IConfigEventPublisher>;
   let journal: MockProxy<IActivityJournal>;
 
   beforeEach(() => {
     logger = mock<ILogger>();
-    mockMicroServiceRepository = mock<IMicroServiceRepository>();
+    mockMicroServiceRepository = mock<
+      IMicroServiceRepository &
+        IMicroServiceControlRepository &
+        IMicroServiceConfigRepository
+    >();
     configurations = mock<IConfigurationRepository>();
     configEvents = mock<IConfigEventPublisher>();
     journal = mock<IActivityJournal>();
     useCase = new MicroServiceManagementUseCase({
-      microServiceRepository: mockMicroServiceRepository,
+      repositories: {
+        services: mockMicroServiceRepository,
+        control: mockMicroServiceRepository,
+        configuration: mockMicroServiceRepository,
+      },
       logger,
       configurationRepository: configurations,
       configEventPublisher: configEvents,

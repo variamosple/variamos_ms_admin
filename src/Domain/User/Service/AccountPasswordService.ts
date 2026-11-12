@@ -1,9 +1,9 @@
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { canUsePassword } from "#src/Domain/User/Entity/AccountAccess.js";
 import type {
-  IUserRepository,
+  IUserSignInRepository,
   PasswordAccount,
-} from "#src/Domain/User/IUserRepository.js";
+} from "#src/Domain/User/IUserSignInRepository.js";
 import type { IPasswordHasher } from "./IPasswordHasher.js";
 
 export type OpenedAccount = PasswordAccount & { passwordHash: string };
@@ -21,7 +21,7 @@ export interface IAccountPasswordCheck {
 export class AccountPasswordService implements IAccountPasswordCheck {
   public constructor(
     private readonly userRepository: Pick<
-      IUserRepository,
+      IUserSignInRepository,
       "findPasswordAccount"
     >,
     private readonly passwordHasher: IPasswordHasher,

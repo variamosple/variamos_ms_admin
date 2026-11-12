@@ -1,7 +1,5 @@
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { MicroServiceFilter } from "#src/Domain/MicroService/Entity/MicroServiceFilter.js";
-import { AesGcmSecretCipher } from "#src/Infrastructure/Security/AesGcmSecretCipher.js";
-import { SecretConfigurationValue } from "../Configuration/SecretConfigurationValue.js";
 import type { HealthLogStatistics } from "./HealthLogStatistics.js";
 import { MicroServiceHealthLogModel } from "./MicroServiceHealthLogModel.js";
 import { MicroServiceRepositoryImpl } from "./MicroServiceRepository.js";
@@ -22,7 +20,6 @@ describe("MicroServiceRepositoryImpl.queryByName status", () => {
   beforeEach(() => {
     repository = new MicroServiceRepositoryImpl({
       socketPath: "/nonexistent/docker.sock",
-      secrets: new SecretConfigurationValue(new AesGcmSecretCipher(null)),
       // No check in the uptime period
       statistics: {
         uptimeCounts: vi.fn().mockResolvedValue(new Map()),
@@ -108,7 +105,6 @@ describe("MicroServiceRepositoryImpl.queryMicroServices", () => {
     const uptimeCounts = vi.fn().mockResolvedValue(new Map());
     const repository = new MicroServiceRepositoryImpl({
       socketPath: "/nonexistent/docker.sock",
-      secrets: new SecretConfigurationValue(new AesGcmSecretCipher(null)),
       statistics: {
         uptimeCounts,
         lastStatuses: vi.fn().mockResolvedValue(new Map()),
@@ -151,7 +147,6 @@ describe("MicroServiceRepositoryImpl uptime kept between screens", () => {
     const uptimeCounts = vi.fn().mockResolvedValue(new Map());
     const repository = new MicroServiceRepositoryImpl({
       socketPath: "/nonexistent/docker.sock",
-      secrets: new SecretConfigurationValue(new AesGcmSecretCipher(null)),
       statistics: {
         uptimeCounts,
         lastStatuses: vi.fn().mockResolvedValue(new Map()),

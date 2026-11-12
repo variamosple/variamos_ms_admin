@@ -5,7 +5,8 @@ import { AesGcmSecretCipher } from "#src/Infrastructure/Security/AesGcmSecretCip
 import { ConfigurationModel } from "../Configuration/Configuration.js";
 import { SecretConfigurationValue } from "../Configuration/SecretConfigurationValue.js";
 import { MicroServiceAuditLogModel } from "./MicroServiceAuditLogModel.js";
-import { MicroServiceRepositoryImpl } from "./MicroServiceRepository.js";
+import { MicroServiceConfigRepositoryImpl } from "./MicroServiceConfigRepository.js";
+import { MicroServiceControlRepositoryImpl } from "./MicroServiceControlRepository.js";
 
 const SECRET_VALUE = "smtp-password-value";
 
@@ -33,15 +34,14 @@ const updateRequest = (value: string) =>
     operatorId: "operator@example.com",
   });
 
-describe("MicroServiceRepositoryImpl configurations and secrets", () => {
+describe("microservice configurations and secrets", () => {
   const secrets = new SecretConfigurationValue(
     new AesGcmSecretCipher(randomBytes(32)),
   );
-  let repository: MicroServiceRepositoryImpl;
+  let repository: MicroServiceConfigRepositoryImpl;
 
   beforeEach(() => {
-    repository = new MicroServiceRepositoryImpl({
-      socketPath: "/nonexistent/docker.sock",
+    repository = new MicroServiceConfigRepositoryImpl({
       secrets,
     });
     vi.spyOn(MicroServiceAuditLogModel, "create").mockResolvedValue(
@@ -121,8 +121,7 @@ describe("MicroServiceRepositoryImpl configurations and secrets", () => {
   });
 
   it("refuses to write a secret without an encryption key", async () => {
-    repository = new MicroServiceRepositoryImpl({
-      socketPath: "/nonexistent/docker.sock",
+    repository = new MicroServiceConfigRepositoryImpl({
       secrets: new SecretConfigurationValue(new AesGcmSecretCipher(null)),
     });
     const row = configRow();
@@ -138,8 +137,7 @@ describe("MicroServiceRepositoryImpl configurations and secrets", () => {
   });
 
   it("still writes a plain configuration without an encryption key", async () => {
-    repository = new MicroServiceRepositoryImpl({
-      socketPath: "/nonexistent/docker.sock",
+    repository = new MicroServiceConfigRepositoryImpl({
       secrets: new SecretConfigurationValue(new AesGcmSecretCipher(null)),
     });
     const row = configRow({
@@ -229,7 +227,9 @@ describe("MicroServiceRepositoryImpl configurations and secrets", () => {
       { key: "notification.smtp.password" },
     ] as never);
 
-    const response = await repository.queryAuditLogs(
+    const response = await new MicroServiceControlRepositoryImpl({
+      socketPath: "/nonexistent/docker.sock",
+    }).queryAuditLogs(
       new RequestModel("tx", { serviceName: "variamos_ms_notifications" }),
     );
 

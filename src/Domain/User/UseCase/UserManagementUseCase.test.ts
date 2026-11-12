@@ -5,7 +5,9 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { PasswordUpdate } from "#src/Domain/User/Entity/PasswordUpdate.js";
 import { PersonalInformationUpdate } from "#src/Domain/User/Entity/PersonalInformationUpdate.js";
+import type { IUserPasswordRepository } from "#src/Domain/User/IUserPasswordRepository.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
+import type { IUserSignInRepository } from "#src/Domain/User/IUserSignInRepository.js";
 import { UserManagementUseCase } from "./UserManagementUseCase.js";
 
 // The activity journal is checked by its own tests (T-24)
@@ -14,13 +16,17 @@ const activityJournal = { record: vi.fn().mockResolvedValue(undefined) };
 describe("UserManagementUseCase", () => {
   let useCase: UserManagementUseCase;
   let logger: MockProxy<ILogger>;
-  let mockUserRepository: MockProxy<IUserRepository>;
+  let mockUserRepository: MockProxy<
+    IUserRepository & IUserSignInRepository & IUserPasswordRepository
+  >;
 
   beforeEach(() => {
     logger = mock<ILogger>();
-    mockUserRepository = mock<IUserRepository>();
+    mockUserRepository = mock<
+      IUserRepository & IUserSignInRepository & IUserPasswordRepository
+    >();
     useCase = new UserManagementUseCase(
-      mockUserRepository,
+      { accounts: mockUserRepository, passwords: mockUserRepository },
       activityJournal,
       logger,
     );

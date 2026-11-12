@@ -61,7 +61,9 @@ import type { IMailService } from "#src/Domain/Mail/IMailService.js";
 import type { MfaSignInUseCase } from "#src/Domain/Mfa/UseCase/MfaSignInUseCase.js";
 import type { IGuestRoleRepository } from "#src/Domain/Role/Repository/IGuestRoleRepository.js";
 import { User } from "#src/Domain/User/Entity/User.js";
+import type { IUserPasswordRepository } from "#src/Domain/User/IUserPasswordRepository.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
+import type { IUserSignInRepository } from "#src/Domain/User/IUserSignInRepository.js";
 import type { AccountPasswordService } from "#src/Domain/User/Service/AccountPasswordService.js";
 import { UserAuthUseCase } from "#src/Domain/User/UseCase/UserAuthUseCase.js";
 import { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
@@ -172,7 +174,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     app.use(express.json());
     app.use(cookieParser("secret"));
     const mockUserAuthUseCase = new UserAuthUseCase({
-      userRepository: mock<IUserRepository>(),
+      userRepository: mock<
+        IUserRepository & IUserSignInRepository & IUserPasswordRepository
+      >(),
       roleRepository: mock<IGuestRoleRepository>(),
       logger: mock<ILogger>(),
       mailService: mock<IMailService>(),
@@ -180,18 +184,34 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       accountPasswords: mock<AccountPasswordService>(),
     });
     const mockUserPasswordUseCase = new UserPasswordUseCase({
-      userRepository: mock<IUserRepository>(),
+      repositories: {
+        accounts: mock<
+          IUserRepository & IUserSignInRepository & IUserPasswordRepository
+        >(),
+        passwords: mock<
+          IUserRepository & IUserSignInRepository & IUserPasswordRepository
+        >(),
+      },
       mailService: mock<IMailService>(),
       config: mock<UserPasswordUseCaseConfig>(),
       journal: mock<IActivityJournal>(),
       logger: mock<ILogger>(),
     });
     const mockUserManagementUseCase = new UserManagementUseCase(
-      mock<IUserRepository>(),
+      {
+        accounts: mock<
+          IUserRepository & IUserSignInRepository & IUserPasswordRepository
+        >(),
+        passwords: mock<
+          IUserRepository & IUserSignInRepository & IUserPasswordRepository
+        >(),
+      },
       mock<IActivityJournal>(),
       mock<ILogger>(),
     );
-    const mockUserQueryUseCase = new UserQueryUseCase(mock<IUserRepository>());
+    const mockUserQueryUseCase = new UserQueryUseCase(
+      mock<IUserRepository & IUserSignInRepository & IUserPasswordRepository>(),
+    );
     app.use(
       AUTH_ROUTE,
       createAuthRouter({

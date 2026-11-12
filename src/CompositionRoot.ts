@@ -4,17 +4,17 @@ import logger from "#src/common/logger.js";
 import { MAX_ATTACHMENT_SIZE_BYTES } from "#src/Domain/Core/File/AllowedFileType.js";
 import {
   AccountPasswordServiceInstance,
-  BugRepositoryInstance,
+  BugRepositoriesInstance,
   ConfigEventPublisherInstance,
   ConfigurationRepositoryInstance,
   CountriesRepositoryInstance,
   HealthLogStatisticsInstance,
   MetricsRepositoryInstance,
-  MicroServiceRepositoryInstance,
+  MicroServiceRepositoriesInstance,
   PermissionRepositoryInstance,
   RolePermissionRepositoryInstance,
   RoleRepositoryInstance,
-  UserRepositoryInstance,
+  UserRepositoriesInstance,
   UserRoleRepositoryInstance,
   VisitRepositoryInstance,
   WatchedAccessJournal,
@@ -89,7 +89,6 @@ import {
   parseEncryptionKey,
 } from "./Infrastructure/Security/AesGcmSecretCipher.js";
 import { DiskStorageServiceInstance } from "./Infrastructure/Storage/DiskStorageService.js";
-
 import VARIAMOS_ORM, { DB_SCHEMA } from "./Infrastructure/VariamosORM.js";
 
 // Read-only pages of both journals (T-24 lot 3)
@@ -129,7 +128,7 @@ const AccountLockoutInstance = new AccountLockout(
 );
 
 const productionUserAuthUseCase = new UserAuthUseCase({
-  userRepository: UserRepositoryInstance,
+  userRepository: UserRepositoriesInstance.signIn,
   roleRepository: RoleRepositoryInstance,
   logger: JetLogger,
   mailService: MailServiceInstance,
@@ -139,7 +138,7 @@ const productionUserAuthUseCase = new UserAuthUseCase({
 });
 
 const productionUserPasswordUseCase = new UserPasswordUseCase({
-  userRepository: UserRepositoryInstance,
+  repositories: UserRepositoriesInstance,
   mailService: MailServiceInstance,
   config: {
     passwordResetExpiryInMs: EnvVars.Auth.APP.PASSWORD_RESET_EXPIRY_IN_MS,
@@ -151,7 +150,7 @@ const productionUserPasswordUseCase = new UserPasswordUseCase({
 });
 
 const productionUserManagementUseCase = new UserManagementUseCase(
-  UserRepositoryInstance,
+  UserRepositoriesInstance,
   WatchedActivityJournal,
   JetLogger,
   PasswordPolicyServiceInstance,
@@ -192,13 +191,15 @@ const productionMfaSignInUseCase = new MfaSignInUseCase({
 // An administrator turns off the second factor of an account that lost it
 const productionMfaResetUseCase = new MfaResetUseCase({
   mfaRepository: userMfaRepository,
-  userRepository: UserRepositoryInstance,
+  userRepository: UserRepositoriesInstance.accounts,
   mailService: MailServiceInstance,
   journal: WatchedActivityJournal,
   logger: JetLogger,
 });
 
-const productionUserQueryUseCase = new UserQueryUseCase(UserRepositoryInstance);
+const productionUserQueryUseCase = new UserQueryUseCase(
+  UserRepositoriesInstance.accounts,
+);
 
 const productionUserRoleUseCase = new UserRoleUseCase(
   UserRoleRepositoryInstance,
@@ -219,8 +220,8 @@ const productionGitHubTokenResolver = new GitHubTokenResolver(bugTrackerConfig);
 
 // Bug Use Case Instantiations
 const productionBugSubmissionUseCase = new BugSubmissionUseCase({
-  bugRepository: BugRepositoryInstance,
-  userRepository: UserRepositoryInstance,
+  bugRepository: BugRepositoriesInstance.bugs,
+  userRepository: UserRepositoriesInstance.accounts,
   issueTrackerService: GitHubIssuesServiceInstance,
   githubConfig: bugTrackerConfig,
   tokenResolver: productionGitHubTokenResolver,
@@ -234,7 +235,7 @@ const BugScheduleServiceInstance = new BugScheduleService(
 );
 
 export const productionBugLifecycleUseCase = new BugLifecycleUseCase({
-  bugRepository: BugRepositoryInstance,
+  repositories: BugRepositoriesInstance,
   issueTrackerService: GitHubIssuesServiceInstance,
   storageService: DiskStorageServiceInstance,
   githubConfig: bugTrackerConfig,
@@ -245,7 +246,7 @@ export const productionBugLifecycleUseCase = new BugLifecycleUseCase({
 });
 
 const productionBugSyncUseCase = new BugSyncUseCase({
-  bugRepository: BugRepositoryInstance,
+  repositories: BugRepositoriesInstance,
   issueTrackerService: GitHubIssuesServiceInstance,
   githubConfig: bugTrackerConfig,
   tokenResolver: productionGitHubTokenResolver,
@@ -254,20 +255,20 @@ const productionBugSyncUseCase = new BugSyncUseCase({
 });
 
 const productionBugQueryUseCase = new BugQueryUseCase(
-  BugRepositoryInstance,
+  BugRepositoriesInstance,
   bugTrackerConfig,
   JetLogger,
 );
 
 const productionBugAssignmentUseCase = new BugAssignmentUseCase(
-  BugRepositoryInstance,
+  BugRepositoriesInstance,
   new BugAssignmentNotifier(NotificationClientInstance),
   WatchedActivityJournal,
   JetLogger,
 );
 
 const productionBugAttachmentUseCase = new BugAttachmentUseCase(
-  BugRepositoryInstance,
+  BugRepositoriesInstance,
   DiskStorageServiceInstance,
   JetLogger,
   WatchedActivityJournal,
@@ -319,12 +320,12 @@ const productionCountriesQueryUseCase = new CountriesQueryUseCase(
 );
 
 export const productionMicroServiceQueryUseCase = new MicroServiceQueryUseCase(
-  MicroServiceRepositoryInstance,
+  MicroServiceRepositoriesInstance,
 );
 
 const productionMicroServiceManagementUseCase =
   new MicroServiceManagementUseCase({
-    microServiceRepository: MicroServiceRepositoryInstance,
+    repositories: MicroServiceRepositoriesInstance,
     logger: JetLogger,
     configurationRepository: ConfigurationRepositoryInstance,
     configEventPublisher: ConfigEventPublisherInstance,
@@ -346,11 +347,13 @@ const productionUpload = multer({
 // Health checks of the services, started by the background jobs; the interval
 // follows the configuration screen
 export const HealthCheckCollectorInstance = new HealthCheckCollector(
-  MicroServiceRepositoryInstance,
+  MicroServiceRepositoriesInstance.services,
   HealthLogStatisticsInstance,
   EnvVars.MONITORING.HEALTH_CHECK_INTERVAL_MS,
 );
-MicroServiceRepositoryInstance.setHealthCollector(HealthCheckCollectorInstance);
+MicroServiceRepositoriesInstance.control.setHealthCollector(
+  HealthCheckCollectorInstance,
+);
 ConfigEventPublisherInstance.addListener(
   followHealthCheckInterval(HealthCheckCollectorInstance),
 );

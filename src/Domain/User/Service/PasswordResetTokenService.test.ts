@@ -2,16 +2,22 @@ import { assert } from "vitest";
 import { type MockProxy, mock } from "vitest-mock-extended";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { User } from "../Entity/User.js";
+import type { IUserPasswordRepository } from "../IUserPasswordRepository.js";
 import type { IUserRepository } from "../IUserRepository.js";
+import type { IUserSignInRepository } from "../IUserSignInRepository.js";
 import { PasswordResetTokenService } from "./PasswordResetTokenService.js";
 
 describe("PasswordResetTokenService", () => {
   let service: PasswordResetTokenService;
-  let mockUserRepository: MockProxy<IUserRepository>;
+  let mockUserRepository: MockProxy<
+    IUserRepository & IUserSignInRepository & IUserPasswordRepository
+  >;
   let logger: MockProxy<ILogger>;
 
   beforeEach(() => {
-    mockUserRepository = mock<IUserRepository>();
+    mockUserRepository = mock<
+      IUserRepository & IUserSignInRepository & IUserPasswordRepository
+    >();
     logger = mock<ILogger>();
     service = new PasswordResetTokenService(mockUserRepository, logger);
   });
