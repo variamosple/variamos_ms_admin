@@ -709,7 +709,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
             serviceName,
             c.key,
             this.displayedValueOf(c),
-            (c.type as "string" | "number" | "boolean" | "json") || "string",
+            c.type || "string",
             c.isSecret,
             c.isReadOnly,
             c.description,
@@ -760,10 +760,13 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
 
       if (existing) {
         // The refusal above has checked that the value matches the key's type
-        const parsedValue = readConfigurationValue(
-          value,
-          existing.type,
-        ) as ConfigurationValue;
+        const parsedValue = readConfigurationValue(value, existing.type);
+        if (parsedValue === undefined) {
+          return response.withError(
+            DomainErrorCodes.INVALID_INPUT,
+            `The value does not match the type of '${key}'.`,
+          );
+        }
         // A secret is never written in clear (T-13)
         if (existing.isSecret && !this.secrets.canEncrypt()) {
           return response.withError(
@@ -823,7 +826,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         serviceName,
         config.key,
         this.displayedValueOf(config),
-        (config.type as "string" | "number" | "boolean" | "json") || "string",
+        config.type || "string",
         config.isSecret,
         config.isReadOnly,
         config.description,

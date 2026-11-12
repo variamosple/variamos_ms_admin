@@ -15,7 +15,7 @@ import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
 import { queryText } from "./queryText.js";
 import { ROLE_PERMISSIONS_V1_ROUTE } from "./RolePermissionsV1Router.js";
-import { validBody } from "./requestBody.js";
+import { checkedBody, validBody } from "./requestBody.js";
 import { type AccessGuard, requireAccess, toId } from "./requireAccess.js";
 
 export const ROLES_V1_ROUTE = "/v1/roles";
@@ -55,7 +55,7 @@ export function createRolesRouter(
     validBody(nameBody, "createRole"),
     async (req, res) => {
       const transactionId = "createRole";
-      const { name } = req.body as { name?: string };
+      const { name } = checkedBody(nameBody, req);
       try {
         if (!name) {
           return res
@@ -176,7 +176,7 @@ export function createRolesRouter(
     async (req: Request<{ roleId: string }>, res) => {
       const transactionId = "updateRole";
       const roleId = req.params.roleId;
-      const { name } = req.body as { name?: string };
+      const { name } = checkedBody(nameBody, req);
       try {
         if (!roleId || Number.isNaN(Number(roleId))) {
           return res

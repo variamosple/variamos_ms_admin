@@ -19,7 +19,8 @@ import type {
 
 export interface UpdateConfigurationRequest {
   key: string;
-  value: ConfigurationValue;
+  // Missing when the body has none: updateValue refuses it
+  value: ConfigurationValue | undefined;
   operatorId: string;
 }
 
@@ -157,9 +158,10 @@ export class ConfigurationUseCase {
     }
 
     // 5. Persist updated configuration
+    // The value updateValue accepted, missing no more
     const updateRequest = new RequestModel(transactionId, {
       key,
-      value,
+      value: configuration.value,
       operatorId,
     });
     const updateResponse =

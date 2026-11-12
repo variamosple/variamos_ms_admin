@@ -13,7 +13,7 @@ import { nameBody } from "./adminRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
 import { queryText } from "./queryText.js";
-import { validBody } from "./requestBody.js";
+import { checkedBody, validBody } from "./requestBody.js";
 
 export const PERMISSIONS_V1_ROUTE = "/v1/permissions";
 
@@ -62,7 +62,7 @@ export function createPermissionsRouter(
     validBody(nameBody, "createPermission"),
     async (req, res) => {
       const transactionId = "createPermission";
-      const { name } = req.body as { name?: string };
+      const { name } = checkedBody(nameBody, req);
       try {
         if (!name) {
           return res
@@ -177,7 +177,7 @@ export function createPermissionsRouter(
     async (req: Request<{ permissionId: string }>, res) => {
       const transactionId = "updatePermission";
       const permissionId = req.params.permissionId;
-      const { name } = req.body as { name?: string };
+      const { name } = checkedBody(nameBody, req);
       try {
         if (!permissionId || Number.isNaN(Number(permissionId))) {
           return res

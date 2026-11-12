@@ -127,7 +127,7 @@ export function createScheduledConfigurationChangeRouter(
         const response = await useCase.schedule(
           new RequestModel(transactionId, {
             key: body.key ?? "",
-            value: body.value as ConfigurationValue,
+            value: body.value,
             dueAt: body.dueAt ?? "",
             operatorId: operatorOf(req),
           }),
@@ -151,7 +151,7 @@ export function createScheduledConfigurationChangeRouter(
         const response = await useCase.reschedule(
           new RequestModel(transactionId, {
             id: Number(req.params.id),
-            value: body.value as ConfigurationValue,
+            value: body.value,
             dueAt: body.dueAt ?? "",
             operatorId: operatorOf(req),
           }),

@@ -11,7 +11,7 @@ import { actorOf } from "./actor.js";
 import { rolePermissionBody } from "./adminRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
-import { validBody } from "./requestBody.js";
+import { checkedBody, validBody } from "./requestBody.js";
 import { type AccessGuard, requireAccess, toId } from "./requireAccess.js";
 
 export const ROLE_PERMISSIONS_V1_ROUTE = "/:roleId/permissions";
@@ -70,7 +70,7 @@ export function createRolePermissionsRouter(
     requireAccess(accessGuard, (req) => {
       const roleId = toId(req.params.roleId);
       const permissionId = toId(
-        (req.body as { permissionId?: unknown })?.permissionId,
+        checkedBody(rolePermissionBody, req).permissionId,
       );
       return roleId && permissionId
         ? { kind: "add-permission", roleId, permissionId }
@@ -79,7 +79,7 @@ export function createRolePermissionsRouter(
     async (req: Request<{ roleId: string }>, res) => {
       const transactionId = "createRolePermission";
       const roleId = req.params.roleId;
-      const { permissionId } = req.body as { permissionId?: string };
+      const { permissionId } = checkedBody(rolePermissionBody, req);
       try {
         if (
           !roleId ||
@@ -99,7 +99,7 @@ export function createRolePermissionsRouter(
 
         const rolePermission: RolePermission = new RolePermission(
           Number.parseInt(roleId, 10),
-          Number.parseInt(permissionId, 10),
+          Number.parseInt(String(permissionId), 10),
         );
 
         const request = new RequestModel<RolePermission>(

@@ -56,8 +56,9 @@ export function readConfigurationValue(
       return undefined;
     case "array": {
       const value = parseJson(raw);
-      return Array.isArray(value) && value.every((v) => typeof v === "string")
-        ? (value as string[])
+      return Array.isArray(value) &&
+        value.every((v): v is string => typeof v === "string")
+        ? value
         : undefined;
     }
     case "object": {

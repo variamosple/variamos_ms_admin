@@ -6,6 +6,7 @@ import { maskEmail } from "#src/common/maskEmail.js";
 import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { fieldOf } from "#src/Domain/Core/Value/fieldOf.js";
 import {
   AccountLockout,
   DEFAULT_ACCOUNT_LOCKOUT_POLICY_PROVIDER,
@@ -42,7 +43,7 @@ const addressKey = (req: Request) => ipKeyGenerator(req.ip ?? "");
 
 /** The e-mail of the body, trimmed and lowercased, or null when absent. */
 const bodyEmail = (req: Request): string | null => {
-  const email = (req.body as { email?: unknown } | undefined)?.email;
+  const email: unknown = fieldOf(req.body, "email");
   return typeof email === "string" && email.trim() !== ""
     ? email.trim().toLowerCase()
     : null;

@@ -37,7 +37,9 @@ export class RolePermissionRepositoryImpl
         offset: (pageNumber - 1) * pageSize,
       });
 
-      response.totalCount = await VARIAMOS_ORM.query(
+      response.totalCount = await VARIAMOS_ORM.query<{
+        count?: string | number;
+      }>(
         `
             SELECT COUNT(1)
             FROM ${DB_SCHEMA}.permission p
@@ -46,8 +48,8 @@ export class RolePermissionRepositoryImpl
               AND ${SEARCH_CONDITION};
         `,
         { type: QueryTypes.SELECT, replacements },
-      ).then((result: object[]) => {
-        const countObj = result?.[0] as { count?: string | number } | undefined;
+      ).then((result) => {
+        const countObj = result[0];
         return countObj ? Number(countObj.count) : 0;
       });
 

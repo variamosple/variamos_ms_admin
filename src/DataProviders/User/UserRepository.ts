@@ -22,10 +22,6 @@ import type { PermissionModel } from "../Permission/Permission.js";
 import type { RoleModel } from "../Role/Role.js";
 import { type UserAttributes, UserModel } from "./User.js";
 
-interface UserModelWithCountry extends UserModel {
-  country?: CountryModel | null;
-}
-
 export class UserRepositoryImpl
   extends BaseRepository
   implements IUserRepository
@@ -251,13 +247,16 @@ export class UserRepositoryImpl
     user: User,
     rehashedPassword?: string,
   ): Promise<User> {
-    await UserModel.update(
-      {
-        lastLogin: new Date(),
-        ...(rehashedPassword && { password: rehashedPassword }),
-      },
-      { where: { id: user.id as string } },
-    );
+    // A user who signs in was read from the table, with an id
+    if (user.id) {
+      await UserModel.update(
+        {
+          lastLogin: new Date(),
+          ...(rehashedPassword && { password: rehashedPassword }),
+        },
+        { where: { id: user.id } },
+      );
+    }
     await this.enrichUserRolesAndPermissions(user);
     return user;
   }
@@ -356,18 +355,17 @@ export class UserRepositoryImpl
         ],
       }).then((res) => {
         if (!res) return undefined;
-        const typedRes = res as UserModelWithCountry;
         return User.builder()
-          .setId(typedRes.id)
-          .setUser(typedRes.user)
-          .setName(typedRes.name)
-          .setEmail(typedRes.email)
-          .setCountryCode(typedRes.countryCode)
-          .setCountryName(typedRes.country?.name)
-          .setIsEnabled(typedRes.isEnabled ?? true)
-          .setIsDeleted(typedRes.isDeleted ?? false)
-          .setCreatedAt(typedRes.createdAt ?? new Date())
-          .setLastLogin(typedRes.lastLogin)
+          .setId(res.id)
+          .setUser(res.user)
+          .setName(res.name)
+          .setEmail(res.email)
+          .setCountryCode(res.countryCode)
+          .setCountryName(res.country?.name)
+          .setIsEnabled(res.isEnabled ?? true)
+          .setIsDeleted(res.isDeleted ?? false)
+          .setCreatedAt(res.createdAt ?? new Date())
+          .setLastLogin(res.lastLogin)
           .build();
       });
     } catch (error) {

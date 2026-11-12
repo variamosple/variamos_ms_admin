@@ -19,7 +19,7 @@ import { configurationUpdateBody } from "./adminRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
 import { queryText } from "./queryText.js";
-import { validBody } from "./requestBody.js";
+import { checkedBody, validBody } from "./requestBody.js";
 
 export const CONFIGURATION_V1_ROUTE = "/v1/configurations";
 
@@ -254,7 +254,7 @@ export function createConfigurationRouter(
   configurationV1Router.get("/menu", (req: Request, res) => {
     const response = new ResponseModel<Menu>("getMenu");
 
-    const menuCopy = JSON.parse(JSON.stringify(MENU)) as Menu;
+    const menuCopy = structuredClone(MENU);
     const referer = req.headers.referer || "";
     const hasAdminSubpath = referer.includes("/variamos_admin/");
 
@@ -346,7 +346,7 @@ export function createConfigurationRouter(
       const key = req.params.key;
       // A client-sent MFA flag is ignored: the proof must come from the
       // server (T-10); until it exists, MFA-protected keys stay locked.
-      const { value } = req.body as { value: ConfigurationValueDto };
+      const { value } = checkedBody(configurationUpdateBody, req);
 
       try {
         const operatorId = req.user?.id || "system";

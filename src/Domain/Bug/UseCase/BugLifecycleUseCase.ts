@@ -8,7 +8,7 @@ import {
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import {
   BUG_COMPONENT_LABELS,
-  type BugComponentValue,
+  isBugComponent,
 } from "#src/Domain/Bug/Entity/BugComponent.js";
 import type { BugPriorityValue } from "#src/Domain/Bug/Entity/BugPriority.js";
 import {
@@ -134,6 +134,11 @@ export class BugLifecycleUseCase {
       );
     }
 
+    // Checked by build() above
+    const component =
+      data.component && isBugComponent(data.component)
+        ? data.component
+        : undefined;
     const modifiedFields: string[] = [];
     if (data.title && data.title !== bug.title) {
       modifiedFields.push(`* Title: "${bug.title}" -> "${data.title}"`);
@@ -166,7 +171,7 @@ export class BugLifecycleUseCase {
     if (data.description) bug.description = data.description;
     if (data.priority) bug.priority = data.priority;
     if (data.category) bug.category = data.category;
-    if (data.component) bug.component = data.component as BugComponentValue;
+    if (component) bug.component = component;
     if (data.githubRepo) bug.githubRepo = data.githubRepo;
 
     let gitIssueNumber: number | undefined;
@@ -210,9 +215,7 @@ export class BugLifecycleUseCase {
           issueBody += `\n*Component: ${BUG_COMPONENT_LABELS[bug.component]}*`;
         }
 
-        const attachments = bug.attachments as
-          | { filePath?: string; fileType?: string }[]
-          | undefined;
+        const attachments = bug.attachments;
         if (attachments && attachments.length > 0) {
           issueBody += "\n\n### Attachments\n";
           for (const attachment of attachments) {
@@ -309,9 +312,7 @@ export class BugLifecycleUseCase {
         description: data.description,
         priority: data.priority,
         category: data.category,
-        component: (data.component || undefined) as
-          | BugComponentValue
-          | undefined,
+        component,
         githubRepo: data.githubRepo,
       }),
     );
@@ -514,20 +515,21 @@ export class BugLifecycleUseCase {
 
       for (const bug of expiredBugs) {
         let hasAttachments = false;
-        const attachments = bug.attachments as
-          | { id: number; filePath?: string; fileType?: string }[]
-          | undefined;
+        const attachments = bug.attachments;
         if (attachments && Array.isArray(attachments)) {
           for (const attachment of attachments) {
             if (attachment.filePath && attachment.filePath !== "/purged") {
               hasAttachments = true;
               await this.storageService.deleteFile(attachment.filePath);
-              await this.bugRepository.updateAttachmentPath(
-                new RequestModel(transactionId, {
-                  id: attachment.id,
-                  filePath: "/purged",
-                }),
-              );
+              // A stored attachment always has its id; the type allows a new one
+              if (attachment.id !== undefined) {
+                await this.bugRepository.updateAttachmentPath(
+                  new RequestModel(transactionId, {
+                    id: attachment.id,
+                    filePath: "/purged",
+                  }),
+                );
+              }
             }
           }
         }

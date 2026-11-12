@@ -25,7 +25,9 @@ export class PermissionRepositoryImpl
 
       const replacements = super.initializeReplacements(filter);
 
-      response.totalCount = await VARIAMOS_ORM.query(
+      response.totalCount = await VARIAMOS_ORM.query<{
+        count: string | number;
+      }>(
         `
             SELECT COUNT(1)
             FROM ${DB_SCHEMA}.permission
@@ -33,8 +35,7 @@ export class PermissionRepositoryImpl
                    OR CAST(id AS TEXT) = :name);
         `,
         { type: QueryTypes.SELECT, replacements },
-      ).then((result) => {
-        const rows = result as Array<{ count: string | number }>;
+      ).then((rows) => {
         return Number(rows[0]?.count) || 0;
       });
 

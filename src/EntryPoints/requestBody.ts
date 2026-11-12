@@ -53,6 +53,16 @@ export function readBody<S extends z.ZodType>(
 }
 
 /**
+ * The body that validBody already checked, typed by the same schema. The
+ * second parse cannot fail on a body that passed the first; it gives the
+ * type that the middleware cannot hand over.
+ */
+export const checkedBody = <S extends z.ZodType>(
+  schema: S,
+  req: Request,
+): z.infer<S> => schema.parse(req.body);
+
+/**
  * readBody as a middleware, for a route whose access check reads the body
  * before the handler: the request goes on with the checked body only.
  */

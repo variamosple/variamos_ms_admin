@@ -10,7 +10,7 @@ export class NotificationRecipientDirectory
       attributes: ["id"],
       where: { isDeleted: false, isEnabled: true },
     });
-    return users.map((u) => u.id as string).filter(Boolean);
+    return users.flatMap((u) => (u.id ? [u.id] : []));
   }
 
   public async activeUserIdsWithRoles(roles: string[]): Promise<string[]> {
@@ -27,11 +27,8 @@ export class NotificationRecipientDirectory
       ],
     });
     const ids = rolesData.flatMap(
-      (r) =>
-        (r as RoleModel & { users?: UserModel[] }).users?.map(
-          (u) => u.id as string,
-        ) ?? [],
+      (r) => r.users?.flatMap((u) => (u.id ? [u.id] : [])) ?? [],
     );
-    return Array.from(new Set(ids)).filter(Boolean);
+    return Array.from(new Set(ids));
   }
 }

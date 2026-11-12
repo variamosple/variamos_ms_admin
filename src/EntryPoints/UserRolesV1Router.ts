@@ -11,7 +11,7 @@ import { actorOf } from "./actor.js";
 import { userRoleBody } from "./adminRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
-import { validBody } from "./requestBody.js";
+import { checkedBody, validBody } from "./requestBody.js";
 import {
   type AccessGuard,
   requireAccess,
@@ -82,14 +82,14 @@ export function createUserRolesRouter(
     hasPermissions(["roles::assign"]),
     validBody(userRoleBody, "createUserRole"),
     requireAccess(accessGuard, (req) => {
-      const roleId = toId((req.body as { roleId?: unknown })?.roleId);
+      const roleId = toId(checkedBody(userRoleBody, req).roleId);
       const userId = toUserId(req.params.userId);
       return userId && roleId ? { kind: "assign-role", userId, roleId } : null;
     }),
     async (req: Request<{ userId: string }>, res) => {
       const transactionId = "createUserRole";
       const { userId } = req.params;
-      const { roleId } = req.body as { roleId?: string };
+      const { roleId } = checkedBody(userRoleBody, req);
       try {
         if (!userId || !roleId || Number.isNaN(Number(roleId))) {
           return res
@@ -104,7 +104,7 @@ export function createUserRolesRouter(
 
         const userRole: UserRole = new UserRole(
           userId,
-          Number.parseInt(roleId, 10),
+          Number.parseInt(String(roleId), 10),
         );
 
         const request = new RequestModel<UserRole>(

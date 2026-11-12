@@ -4,6 +4,7 @@ import type { ActivityEntry } from "#src/Domain/Activity/ActivityEntry.js";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import type { IJournalPurge } from "#src/Domain/Activity/IJournalPurge.js";
 import { errorName } from "#src/Domain/Core/Error/errorMessage.js";
+import { rowCountOf } from "../queryResults.js";
 
 // Same value as the trigger of migration 0005
 const RETENTION = "1 year";
@@ -52,6 +53,6 @@ export class ActivityJournalRepositoryImpl
       `DELETE FROM "${this.schema}"."admin_activity_logs"
         WHERE "occurred_at" < now() - interval '${RETENTION}'`,
     );
-    return (result as { rowCount?: number } | undefined)?.rowCount ?? 0;
+    return rowCountOf(result);
   }
 }

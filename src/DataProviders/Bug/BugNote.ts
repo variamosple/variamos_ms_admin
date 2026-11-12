@@ -1,4 +1,4 @@
-import { DATE, INTEGER, Model, TEXT, UUID } from "sequelize";
+import { DATE, INTEGER, Model, type NonAttribute, TEXT, UUID } from "sequelize";
 import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 import { UserModel } from "../User/User.js";
 
@@ -19,6 +19,8 @@ export class BugNoteModel
   public bugId!: string;
   public authorId?: string;
   public createdAt?: Date;
+  // Association (BugAssociations.ts), set when a query includes it
+  declare public author?: NonAttribute<UserModel | null>;
 }
 
 BugNoteModel.init(

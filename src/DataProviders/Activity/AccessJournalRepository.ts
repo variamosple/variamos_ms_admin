@@ -8,6 +8,7 @@ import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
 import type { IJournalPurge } from "#src/Domain/Activity/IJournalPurge.js";
 import { errorName } from "#src/Domain/Core/Error/errorMessage.js";
 import { accountRefusalOf } from "#src/Domain/User/Entity/AccountAccess.js";
+import { rowCountOf } from "../queryResults.js";
 
 // Same value as the trigger of migration 0006
 const RETENTION = "6 months";
@@ -80,6 +81,6 @@ export class AccessJournalRepositoryImpl
       `DELETE FROM "${this.schema}"."admin_access_logs"
         WHERE "occurred_at" < now() - interval '${RETENTION}'`,
     );
-    return (result as { rowCount?: number } | undefined)?.rowCount ?? 0;
+    return rowCountOf(result);
   }
 }

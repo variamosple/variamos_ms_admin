@@ -2,6 +2,7 @@ import logger from "#src/common/logger.js";
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { fieldOf } from "#src/Domain/Core/Value/fieldOf.js";
 import { Country } from "#src/Domain/Countries/Entity/Country.js";
 import type { ICountriesRepository } from "#src/Domain/Countries/Repository/ICountriesRepository.js";
 import { BaseRepository } from "../BaseRepository.js";
@@ -65,13 +66,14 @@ export class CountriesRepositoryImpl
     logger.info("IP country code request");
 
     await fetch(`https://api.ipquery.io/${request.data}`)
-      .then((result) => {
-        return result.json() as Promise<{
-          location?: { country_code?: string };
-        }>;
-      })
+      .then((result): Promise<unknown> => result.json())
       .then((data) => {
-        response.data = data?.location?.country_code;
+        // An answer of another service: only a text is kept
+        const code: unknown = fieldOf(
+          fieldOf(data, "location"),
+          "country_code",
+        );
+        response.data = typeof code === "string" ? code : undefined;
       })
       .catch((error) => {
         logger.err("Error in getIpCountryCode:");

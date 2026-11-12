@@ -1,10 +1,8 @@
 import { SECRET_MASK } from "#src/Domain/Core/Secret/SecretMask.js";
+import type { ConfigurationValueType } from "../Service/ConfigurationUpdateRule.js";
 
-export type MicroServiceConfigValueType =
-  | "string"
-  | "number"
-  | "boolean"
-  | "json";
+// The type of the setting, as in the configurations table
+export type MicroServiceConfigValueType = ConfigurationValueType;
 
 export class MicroServiceConfigItem {
   public constructor(

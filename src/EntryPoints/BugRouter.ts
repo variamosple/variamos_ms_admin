@@ -1,6 +1,5 @@
 import {
   hasPermissions,
-  type SessionInfo,
   validateSession,
 } from "@variamosple/variamos-security";
 import {
@@ -11,7 +10,7 @@ import {
 } from "express";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import logger from "#src/common/logger.js";
-import type { Bug } from "#src/Domain/Bug/Entity/Bug.js";
+import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import { BugFilter } from "#src/Domain/Bug/Entity/BugFilter.js";
 import {
   type BugPriorityValue,
@@ -28,6 +27,7 @@ import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { MAX_ATTACHMENT_SIZE_BYTES } from "#src/Domain/Core/File/AllowedFileType.js";
 import type { UploadedFile } from "#src/Domain/Core/File/UploadedFile.js";
+import { fieldOf } from "#src/Domain/Core/Value/fieldOf.js";
 import { actorOf, signedInUser } from "./actor.js";
 import {
   bugCreateBody,
@@ -37,7 +37,7 @@ import {
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
 import { queryText } from "./queryText.js";
-import { validBody } from "./requestBody.js";
+import { checkedBody, validBody } from "./requestBody.js";
 
 /**
  * Factory function to create Bug Router with decoupled dependency injection
@@ -58,14 +58,10 @@ function isMulterError(error: unknown): error is { code?: string } {
   );
 }
 
-/**
- * Id of the user of a validated token: createJwt puts it in `sub`; an `id`
- * field, when a token carries one, comes first, as before.
- */
-function sessionUserId(data: SessionInfo): string | undefined {
-  const id = "id" in data ? data.id : undefined;
-  return typeof id === "string" && id !== "" ? id : data.sub || undefined;
-}
+/** A list of account ids, each a non-empty string. */
+const isAccountIdList = (value: unknown): value is string[] =>
+  Array.isArray(value) &&
+  value.every((id) => typeof id === "string" && id.length > 0);
 
 /**
  * Runs the upload middleware and answers its limit errors itself: 413 for a
@@ -120,12 +116,16 @@ function maskReporterEmails(
 ): Bug[] | null | undefined {
   const permissions = req.user?.permissions ?? [];
   if (!bugs || permissions.includes("bugs::update")) return bugs;
-  return bugs.map((bug) =>
-    Object.assign(Object.create(Object.getPrototypeOf(bug)) as Bug, bug, {
-      reporterEmail: undefined,
-      createdBy: bug.createdBy && { ...bug.createdBy, email: undefined },
-      updatedBy: bug.updatedBy && { ...bug.updatedBy, email: undefined },
-    }),
+  return bugs.map(
+    (bug) =>
+      // Rebuilt as the repository builds it, so that the copy stays a Bug
+      new Bug(
+        Object.assign(Bug.builder(), bug, {
+          reporterEmail: undefined,
+          createdBy: bug.createdBy && { ...bug.createdBy, email: undefined },
+          updatedBy: bug.updatedBy && { ...bug.updatedBy, email: undefined },
+        }),
+      ),
   );
 }
 
@@ -276,11 +276,8 @@ export function createBugRouter(
     hasPermissions(["bugs::update"]),
     async (req: Request<{ id: string }>, res: Response) => {
       const transactionId = "setBugAssignees";
-      const { userIds } = (req.body ?? {}) as { userIds?: unknown };
-      if (
-        !Array.isArray(userIds) ||
-        !userIds.every((id) => typeof id === "string" && id.length > 0)
-      ) {
+      const userIds: unknown = fieldOf(req.body, "userIds");
+      if (!isAccountIdList(userIds)) {
         const response = new ResponseModel(transactionId).withError(
           DomainErrorCodes.INVALID_INPUT,
           "userIds must be a list of account ids.",
@@ -294,7 +291,7 @@ export function createBugRouter(
         const response = await bugAssignmentUseCase.setAssignees(
           new RequestModel(
             transactionId,
-            { bugId: req.params.id, userIds: userIds as string[] },
+            { bugId: req.params.id, userIds },
             actorOf(req),
           ),
         );
@@ -354,15 +351,7 @@ export function createBugRouter(
         component,
         githubRepo,
         reporterEmail,
-      } = req.body as {
-        title?: string;
-        description?: string;
-        priority?: string;
-        category?: string;
-        component?: string;
-        githubRepo?: string;
-        reporterEmail?: string;
-      };
+      } = checkedBody(bugCreateBody, req);
       let adminId: string | undefined;
       if (req.user) {
         adminId = req.user.id;
@@ -374,7 +363,8 @@ export function createBugRouter(
           try {
             const session = await validateSession(token);
             if (session?.data) {
-              const resolvedId = sessionUserId(session.data);
+              // createJwt writes the account id in sub, and only there
+              const resolvedId = session.data.sub;
               if (resolvedId) {
                 adminId = resolvedId;
               }
@@ -401,9 +391,8 @@ export function createBugRouter(
       }
 
       try {
-        const resolvedPriority = isBugPriority(priority || "")
-          ? (priority as BugPriorityValue)
-          : "medium";
+        const resolvedPriority: BugPriorityValue =
+          priority && isBugPriority(priority) ? priority : "medium";
 
         const payload = {
           title: title || "",
@@ -472,22 +461,12 @@ export function createBugRouter(
         category,
         component,
         githubRepo,
-      } = req.body as {
-        status?: string;
-        comment?: string;
-        title?: string;
-        description?: string;
-        priority?: string;
-        category?: string;
-        component?: string;
-        githubRepo?: string;
-      };
+      } = checkedBody(bugStatusBody, req);
       const adminId = signedInUser(req).id;
 
       try {
-        const resolvedPriority = isBugPriority(priority || "")
-          ? (priority as BugPriorityValue)
-          : undefined;
+        const resolvedPriority: BugPriorityValue | undefined =
+          priority && isBugPriority(priority) ? priority : undefined;
 
         const payload = {
           id,
@@ -676,7 +655,7 @@ export function createBugRouter(
     async (req: Request<{ id: string }>, res: Response) => {
       const transactionId = "createBugNote";
       const { id } = req.params;
-      const { body } = req.body as { body?: string };
+      const { body } = checkedBody(bugNoteBody, req);
       const authorId = signedInUser(req).id;
 
       try {

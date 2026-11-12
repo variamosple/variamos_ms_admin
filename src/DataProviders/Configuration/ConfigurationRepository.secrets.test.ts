@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import type { ConfigurationValue } from "#src/Domain/Configuration/Entity/Configuration.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { AesGcmSecretCipher } from "#src/Infrastructure/Security/AesGcmSecretCipher.js";
@@ -48,10 +49,11 @@ describe("ConfigurationRepositoryImpl and secret values", () => {
     ).updateConfiguration(update("new-password"));
 
     expect(response.errorCode).toBeUndefined();
-    const stored = (write.mock.calls[0]?.[0] as { value: unknown } | undefined)
-      ?.value;
+    const stored = (
+      write.mock.calls[0]?.[0] as { value: ConfigurationValue } | undefined
+    )?.value;
     expect(SecretConfigurationValue.isEncrypted(stored)).toBe(true);
-    expect(secrets.decrypt(KEY, stored)).toBe("new-password");
+    expect(stored && secrets.decrypt(KEY, stored)).toBe("new-password");
   });
 
   it("writes a plain configuration as it is", async () => {

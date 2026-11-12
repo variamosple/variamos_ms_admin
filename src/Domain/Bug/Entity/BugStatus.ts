@@ -1,3 +1,5 @@
+import { isOneOf } from "#src/Domain/Core/Value/isOneOf.js";
+
 /**
  * Statuses of a bug report (T-23, EV-84 lot 2). The specification asks for
  * Open, In Progress, Resolved, Closed and Invalid:
@@ -39,7 +41,7 @@ const TRANSITIONS: Readonly<Record<string, readonly BugStatus[]>> = {
 };
 
 export const canChangeStatus = (from: string, to: string): boolean =>
-  TRANSITIONS[from]?.includes(to as BugStatus) ?? false;
+  isOneOf(TRANSITIONS[from] ?? [], to);
 
 /** Whether the GitHub issue of a bug in this status is open. */
 export const isIssueOpen = (status: string): boolean =>

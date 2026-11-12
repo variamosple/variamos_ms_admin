@@ -14,7 +14,7 @@ import {
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
 import { queryText } from "./queryText.js";
-import { validBody } from "./requestBody.js";
+import { checkedBody, validBody } from "./requestBody.js";
 
 export const MICRO_SERVICES_V1_ROUTE = "/v1/micro-services";
 
@@ -70,7 +70,7 @@ export function createMicroServicesRouter(
     validBody(microServiceCheckBody, "triggerMicroServicesHealthCheck"),
     async (req, res) => {
       const transactionId = "triggerMicroServicesHealthCheck";
-      const { serviceName } = (req.body || {}) as { serviceName?: string };
+      const { serviceName } = checkedBody(microServiceCheckBody, req);
 
       try {
         const request = new RequestModel<{ serviceName?: string }>(
@@ -166,14 +166,14 @@ export function createMicroServicesRouter(
     async (req: Request<{ name: string; key: string }>, res) => {
       const transactionId = "updateMicroServiceConfiguration";
       const { name, key } = req.params;
-      const { value } = req.body as { value: string };
+      const { value } = checkedBody(microServiceConfigurationBody, req);
       const operatorId = actorOf(req);
 
       try {
         const request = new RequestModel<{
           serviceName: string;
           key: string;
-          value: string;
+          value: string | undefined;
           operatorId: string;
         }>(transactionId, {
           serviceName: name,
@@ -224,13 +224,13 @@ export function createMicroServicesRouter(
     async (req: Request<{ name: string }>, res) => {
       const transactionId = "scaleMicroService";
       const { name } = req.params;
-      const { replicas } = req.body as { replicas: number };
 
+      // Scaling is refused: the body, a number of replicas, is not read
       try {
-        const request = new RequestModel<{
-          serviceName: string;
-          replicas: number;
-        }>(transactionId, { serviceName: name, replicas });
+        const request = new RequestModel<{ serviceName: string }>(
+          transactionId,
+          { serviceName: name },
+        );
         const response =
           await microServiceManagementUseCase.scaleMicroService(request);
 

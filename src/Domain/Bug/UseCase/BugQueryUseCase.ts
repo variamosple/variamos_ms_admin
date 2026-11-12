@@ -30,11 +30,10 @@ export class BugQueryUseCase {
   public async queryBugs(
     request: RequestModel<BugFilter>,
   ): Promise<ResponseModel<Bug[]>> {
-    const filter = request.data || new BugFilter();
-    if (!filter.repo) {
-      (filter as { managedRepos?: string[] }).managedRepos =
-        this.githubConfig.getGitHubManagedRepos();
-    }
+    const given = request.data || new BugFilter();
+    const filter = given.repo
+      ? given
+      : given.withManagedRepos(this.githubConfig.getGitHubManagedRepos());
     return await this.bugRepository.queryBugs(
       new RequestModel(request.transactionId, filter),
     );

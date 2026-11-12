@@ -1,3 +1,5 @@
+import { isOneOf } from "#src/Domain/Core/Value/isOneOf.js";
+
 // Part of VariaMos a bug concerns (T-23, EV-84 lot 5, decision D5)
 export const BUG_COMPONENTS = [
   "language",
@@ -18,4 +20,4 @@ export const BUG_COMPONENT_LABELS: Record<BugComponentValue, string> = {
 };
 
 export const isBugComponent = (value: string): value is BugComponentValue =>
-  (BUG_COMPONENTS as readonly string[]).includes(value);
+  isOneOf(BUG_COMPONENTS, value);

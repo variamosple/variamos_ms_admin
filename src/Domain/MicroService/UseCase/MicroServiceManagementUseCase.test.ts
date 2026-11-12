@@ -331,20 +331,17 @@ describe("MicroServiceManagementUseCase - Unit Tests", () => {
   });
 
   describe("scaleMicroService", () => {
-    test.each([3, 50])(
-      "refuses %i replicas as not implemented, without any write",
-      async (replicas) => {
-        const res = await useCase.scaleMicroService(
-          new RequestModel("tx-scale", { serviceName: "ms_lang", replicas }),
-        );
+    test("refuses scaling as not implemented, without any write", async () => {
+      const res = await useCase.scaleMicroService(
+        new RequestModel("tx-scale", { serviceName: "ms_lang" }),
+      );
 
-        expect(res.errorCode).toBe(DomainErrorCodes.NOT_IMPLEMENTED);
-        expect(res.message).toBe(SCALING_NOT_AVAILABLE);
-        expect(SCALING_NOT_AVAILABLE).toBe(
-          "Scaling is not available: the number of replicas is set in the server's compose file.",
-        );
-      },
-    );
+      expect(res.errorCode).toBe(DomainErrorCodes.NOT_IMPLEMENTED);
+      expect(res.message).toBe(SCALING_NOT_AVAILABLE);
+      expect(SCALING_NOT_AVAILABLE).toBe(
+        "Scaling is not available: the number of replicas is set in the server's compose file.",
+      );
+    });
   });
 
   describe("updateConfiguration", () => {

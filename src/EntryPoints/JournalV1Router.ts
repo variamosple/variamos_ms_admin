@@ -28,10 +28,7 @@ function journalRouter(
     async (req: Request, res) => {
       try {
         const response = await query(
-          new RequestModel<JournalQueryInput>(
-            transactionId,
-            req.query as JournalQueryInput,
-          ),
+          new RequestModel<JournalQueryInput>(transactionId, req.query),
         );
         res
           .status(mapDomainErrorToHttpStatus(response.errorCode))

@@ -13,14 +13,12 @@ import {
   notificationDispatchBody,
 } from "./adminRequestBodies.js";
 import { sendError } from "./errorResponse.js";
-import { validBody } from "./requestBody.js";
+import { checkedBody, validBody } from "./requestBody.js";
 
 const TRANSACTION_ID = "dispatchNotification";
 const COUNT_TRANSACTION_ID = "countNotificationRecipients";
 
 export const ADMIN_NOTIFICATIONS_V1_ROUTE = "/v1/admin/notifications";
-
-type DispatchBody = Omit<NotificationDispatchRequest, "actorId">;
 
 export function createAdminNotificationsRouter(
   notifications: NotificationDispatchUseCase,
@@ -38,7 +36,7 @@ export function createAdminNotificationsRouter(
         const response = await notifications.countRecipients(
           new RequestModel<NotificationAudience>(
             COUNT_TRANSACTION_ID,
-            req.body as NotificationAudience,
+            checkedBody(notificationAudienceBody, req),
           ),
         );
         return res
@@ -62,7 +60,7 @@ export function createAdminNotificationsRouter(
       try {
         const response = await notifications.dispatch(
           new RequestModel<NotificationDispatchRequest>(TRANSACTION_ID, {
-            ...(req.body as DispatchBody),
+            ...checkedBody(notificationDispatchBody, req),
             actorId: actorOf(req) ?? null,
           }),
         );

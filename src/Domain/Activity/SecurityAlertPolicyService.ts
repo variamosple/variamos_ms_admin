@@ -46,14 +46,10 @@ export class SecurityAlertPolicyService
     if (this.cached && this.now() < this.cached.until) {
       return this.cached.policy;
     }
-    const names = Object.keys(SECURITY_ALERT_KEYS) as Array<
-      keyof typeof SECURITY_ALERT_KEYS
-    >;
-    const values = await Promise.all(
-      names.map((name) => this.read(SECURITY_ALERT_KEYS[name])),
-    );
+    const entries = Object.entries(SECURITY_ALERT_KEYS);
+    const values = await Promise.all(entries.map(([, key]) => this.read(key)));
     const policy = SecurityAlertPolicy.fromConfiguration(
-      Object.fromEntries(names.map((name, i) => [name, values[i]])),
+      Object.fromEntries(entries.map(([name], i) => [name, values[i]])),
     );
     this.cached = { policy, until: this.now() + CACHE_MS };
     return policy;
