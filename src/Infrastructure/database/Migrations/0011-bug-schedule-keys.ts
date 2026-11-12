@@ -52,8 +52,10 @@ export const bugScheduleKeys: SchemaMigration = {
       `[MIGRATION] 0011-bug-schedule-keys: ${added.length} key(s) added (${added.join(", ") || "none"}), ${BUG_SCHEDULE_ROWS.length - added.length} already present and left untouched`,
     );
   },
-  down: async () => {
+  down: () => {
     // Reverting would drop the values an administrator may have set
-    throw new Error("The bug schedule keys migration cannot be reverted.");
+    return Promise.reject(
+      new Error("The bug schedule keys migration cannot be reverted."),
+    );
   },
 };

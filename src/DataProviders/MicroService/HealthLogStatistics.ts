@@ -117,7 +117,7 @@ export class HealthLogStatistics implements IHealthLogArchive {
   }
 
   public async purgeChecksBefore(cutoff: Date): Promise<number> {
-    return MicroServiceHealthLogModel.destroy({
+    return await MicroServiceHealthLogModel.destroy({
       where: { checkedAt: { [Op.lt]: cutoff } },
     });
   }

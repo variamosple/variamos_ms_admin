@@ -126,7 +126,7 @@ export function createAuthRouter(
   const HOME_URL_HOST_REGEX = new RegExp(`^${HOME_URL.hostname}$`);
 
   const isExternalDomain = (host?: string): boolean =>
-    !!host && !HOME_URL_HOST_REGEX.test(host);
+    host !== undefined && host !== "" && !HOME_URL_HOST_REGEX.test(host);
 
   const isAllowedOrigin = (origin: string): boolean =>
     EnvVars.CORS.AllowedOriginsPatterns.some((pattern) => pattern.test(origin));

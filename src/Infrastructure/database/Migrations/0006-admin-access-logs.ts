@@ -67,8 +67,10 @@ export const adminAccessLogs: SchemaMigration = {
       `[MIGRATION] 0006-admin-access-logs: table ${ACCESS_LOG_TABLE} ready, append-only`,
     );
   },
-  down: async () => {
+  down: () => {
     // Reverting would erase the journal
-    throw new Error("The access journal migration cannot be reverted.");
+    return Promise.reject(
+      new Error("The access journal migration cannot be reverted."),
+    );
   },
 };

@@ -219,8 +219,10 @@ export const baseline: SchemaMigration = {
       `[MIGRATION] 0001-baseline: ${created.length} table(s) created (${created.join(", ") || "none"}), ${BASELINE_TABLES.length - created.length} already present and left untouched`,
     );
   },
-  down: async () => {
+  down: () => {
     // Reverting would drop the tables and the data they hold
-    throw new Error("The baseline migration cannot be reverted.");
+    return Promise.reject(
+      new Error("The baseline migration cannot be reverted."),
+    );
   },
 };

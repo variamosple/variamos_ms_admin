@@ -62,10 +62,12 @@ export const laboratoryAccessPermission: SchemaMigration = {
         : `[MIGRATION] 0012-laboratory-access-permission: no permission tables in this schema, ${LABORATORY_ACCESS_PERMISSION} to create in the Permissions page`,
     );
   },
-  down: async () => {
+  down: () => {
     // Reverting would take the permission from roles an administrator gave it to
-    throw new Error(
-      "The Laboratory access permission migration cannot be reverted.",
+    return Promise.reject(
+      new Error(
+        "The Laboratory access permission migration cannot be reverted.",
+      ),
     );
   },
 };

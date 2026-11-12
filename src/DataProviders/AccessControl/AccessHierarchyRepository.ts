@@ -56,7 +56,7 @@ export class AccessHierarchyRepositoryImpl
   public async listActiveHolders(
     permission: string,
   ): Promise<{ userId: string; roleId: number }[]> {
-    return VARIAMOS_ORM.query<{ userId: string; roleId: number }>(
+    return await VARIAMOS_ORM.query<{ userId: string; roleId: number }>(
       `
       SELECT ur."user_id" AS "userId", ur."role_id" AS "roleId"
       FROM "${DB_SCHEMA}"."user_role" ur

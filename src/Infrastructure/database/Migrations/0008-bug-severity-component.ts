@@ -37,10 +37,10 @@ export const bugSeverityComponent: SchemaMigration = {
       "[MIGRATION] 0008-bug-severity-component: priority critical and bugs.component ready",
     );
   },
-  down: async () => {
+  down: () => {
     // PostgreSQL cannot remove a value from an enumeration
-    throw new Error(
-      "The bug severity and component migration cannot be reverted.",
+    return Promise.reject(
+      new Error("The bug severity and component migration cannot be reverted."),
     );
   },
 };

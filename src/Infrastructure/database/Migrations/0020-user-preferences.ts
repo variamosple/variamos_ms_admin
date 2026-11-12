@@ -9,8 +9,9 @@ import type { SchemaMigration } from "./MigrationContext.js";
 // the table of the admin under another name.
 export const retiredUserPreferences: SchemaMigration = {
   name: "0020-user-preferences",
-  up: async () => {
+  up: () => {
     logger.info("[MIGRATION] 0020-user-preferences: retired, nothing to do");
+    return Promise.resolve();
   },
   down: async () => {
     // Nothing was created: nothing to drop

@@ -114,13 +114,13 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
     this.healthCollector = collector;
   }
 
-  public async triggerHealthChecks(
+  public triggerHealthChecks(
     serviceName?: string,
   ): Promise<MicroServiceHealthInfo[]> {
     if (this.healthCollector) {
       return this.healthCollector.triggerHealthChecks(serviceName);
     }
-    return [];
+    return Promise.resolve([]);
   }
 
   /**

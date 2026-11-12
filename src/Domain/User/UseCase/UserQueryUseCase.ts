@@ -12,13 +12,13 @@ export class UserQueryUseCase {
   public async queryList(
     request: RequestModel<UserFilter>,
   ): Promise<ResponseModel<User[]>> {
-    return this.userRepository.queryUsers(request);
+    return await this.userRepository.queryUsers(request);
   }
 
   public async queryById(
     request: RequestModel<string>,
   ): Promise<ResponseModel<User>> {
-    return this.userRepository.queryById(request);
+    return await this.userRepository.queryById(request);
   }
 
   /** The user of a session, refused once its account is closed. */
@@ -34,7 +34,7 @@ export class UserQueryUseCase {
   public async myAccount(
     request: RequestModel<string>,
   ): Promise<ResponseModel<User>> {
-    return this.userRepository.queryById(request).then((response) => {
+    return await this.userRepository.queryById(request).then((response) => {
       if (response.data) {
         response.data = User.builder()
           .setId(response.data.id)

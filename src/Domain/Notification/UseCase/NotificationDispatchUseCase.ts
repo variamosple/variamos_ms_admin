@@ -62,7 +62,7 @@ export class NotificationDispatchUseCase {
     const data = request.data ?? ({} as NotificationDispatchRequest);
     let recipientCount = 0;
 
-    return withJournal(
+    return await withJournal(
       this.journal,
       {
         actorId: data.actorId,

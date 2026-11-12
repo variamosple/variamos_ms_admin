@@ -68,8 +68,10 @@ export const adminActivityLogs: SchemaMigration = {
       `[MIGRATION] 0005-admin-activity-logs: table ${ACTIVITY_LOG_TABLE} ready, append-only`,
     );
   },
-  down: async () => {
+  down: () => {
     // Reverting would erase the journal
-    throw new Error("The activity journal migration cannot be reverted.");
+    return Promise.reject(
+      new Error("The activity journal migration cannot be reverted."),
+    );
   },
 };

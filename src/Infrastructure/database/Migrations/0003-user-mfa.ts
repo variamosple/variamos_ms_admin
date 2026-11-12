@@ -40,8 +40,10 @@ export const userMfa: SchemaMigration = {
       }
     });
   },
-  down: async () => {
+  down: () => {
     // Reverting would drop every enrolled second factor
-    throw new Error("The user MFA migration cannot be reverted.");
+    return Promise.reject(
+      new Error("The user MFA migration cannot be reverted."),
+    );
   },
 };

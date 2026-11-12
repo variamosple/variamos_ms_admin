@@ -45,8 +45,10 @@ export const healthLogIndexes: SchemaMigration = {
       "[MIGRATION] 0009-health-log-indexes: health log index and one daily row per service ready",
     );
   },
-  down: async () => {
+  down: () => {
     // The duplicate rows removed cannot be restored
-    throw new Error("The health log index migration cannot be reverted.");
+    return Promise.reject(
+      new Error("The health log index migration cannot be reverted."),
+    );
   },
 };

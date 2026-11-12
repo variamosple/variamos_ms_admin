@@ -29,7 +29,7 @@ export class BugAttachmentUseCase {
       file: UploadedFile | null;
     }>,
   ): Promise<ResponseModel<BugAttachment>> {
-    return withJournal(
+    return await withJournal(
       this.journal,
       {
         actorId: request.actorId,
@@ -109,7 +109,7 @@ export class BugAttachmentUseCase {
     request: RequestModel<string>,
   ): Promise<ResponseModel<void>> {
     let deleted: BugAttachment | undefined;
-    return withJournal(
+    return await withJournal(
       this.journal,
       {
         actorId: request.actorId,
@@ -169,7 +169,7 @@ export class BugAttachmentUseCase {
   public async createNote(
     request: RequestModel<{ bugId: string; body: string; authorId?: string }>,
   ): Promise<ResponseModel<BugNote>> {
-    return withJournal(
+    return await withJournal(
       this.journal,
       {
         actorId: request.actorId ?? request.data?.authorId,

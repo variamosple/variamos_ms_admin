@@ -35,7 +35,7 @@ export class BugQueryUseCase {
       (filter as { managedRepos?: string[] }).managedRepos =
         this.githubConfig.getGitHubManagedRepos();
     }
-    return this.bugRepository.queryBugs(
+    return await this.bugRepository.queryBugs(
       new RequestModel(request.transactionId, filter),
     );
   }
@@ -43,16 +43,16 @@ export class BugQueryUseCase {
   public async queryLocalBugs(
     request: RequestModel<BugFilter>,
   ): Promise<ResponseModel<Bug[]>> {
-    return this.bugRepository.queryLocalBugs(request);
+    return await this.bugRepository.queryLocalBugs(request);
   }
 
   public async queryHistory(
     request: RequestModel<string>,
   ): Promise<ResponseModel<BugStatusLog[]>> {
-    return this.bugRepository.queryHistory(request);
+    return await this.bugRepository.queryHistory(request);
   }
 
-  public async queryBugRepos(
+  public queryBugRepos(
     request: RequestModel<void>,
   ): Promise<ResponseModel<string[]>> {
     const response = new ResponseModel<string[]>(request.transactionId);
@@ -66,7 +66,7 @@ export class BugQueryUseCase {
     return Promise.resolve(response);
   }
 
-  public async queryCategories(
+  public queryCategories(
     request: RequestModel<void>,
   ): Promise<ResponseModel<string[]>> {
     const response = new ResponseModel<string[]>(request.transactionId);
@@ -77,6 +77,6 @@ export class BugQueryUseCase {
   public async queryNotes(
     request: RequestModel<string>,
   ): Promise<ResponseModel<BugNote[]>> {
-    return this.bugRepository.queryNotes(request);
+    return await this.bugRepository.queryNotes(request);
   }
 }

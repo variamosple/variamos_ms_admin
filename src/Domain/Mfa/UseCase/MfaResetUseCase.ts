@@ -41,7 +41,7 @@ export class MfaResetUseCase {
     const response = new ResponseModel<AccountMfaStatus>(transactionId);
     try {
       const record = await this.mfaRepository.findByUser(userId);
-      return response.withResponse({ enabled: !!record?.enabledAt });
+      return response.withResponse({ enabled: Boolean(record?.enabledAt) });
     } catch (error) {
       return this.systemError(response, "status", error);
     }
@@ -52,7 +52,7 @@ export class MfaResetUseCase {
     userId: string,
     adminId: string,
   ): Promise<ResponseModel<MfaResetResult>> {
-    return withJournal(
+    return await withJournal(
       this.journal,
       {
         actorId: adminId,

@@ -60,8 +60,10 @@ export const mfaTrustedDevices: SchemaMigration = {
       `[MIGRATION] 0004-mfa-trusted-devices: table ready, key ${TRUSTED_DEVICE_DAYS_ROW.key} ${added.length > 0 ? "added" : "already present and left untouched"}`,
     );
   },
-  down: async () => {
+  down: () => {
     // Reverting would drop the value an administrator may have set
-    throw new Error("The trusted devices migration cannot be reverted.");
+    return Promise.reject(
+      new Error("The trusted devices migration cannot be reverted."),
+    );
   },
 };

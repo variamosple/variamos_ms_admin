@@ -65,13 +65,13 @@ export class ConfigurationUseCase {
   public async queryConfigurations(
     request: RequestModel<ConfigurationFilter>,
   ): Promise<ResponseModel<Configuration[]>> {
-    return this.configurationRepository.queryConfigurations(request);
+    return await this.configurationRepository.queryConfigurations(request);
   }
 
   public async queryByKey(
     request: RequestModel<string>,
   ): Promise<ResponseModel<Configuration>> {
-    return this.configurationRepository.queryByKey(request);
+    return await this.configurationRepository.queryByKey(request);
   }
 
   public async updateConfiguration(
@@ -79,7 +79,7 @@ export class ConfigurationUseCase {
   ): Promise<ResponseModel<Configuration>> {
     // Display values: a secret is kept as its mask, never in clear (T-13)
     let change: { before: ActivityValues; after: ActivityValues } | undefined;
-    return withJournal(
+    return await withJournal(
       this.journal,
       {
         actorId: request.data?.operatorId,

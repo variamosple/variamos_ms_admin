@@ -76,7 +76,7 @@ export class UserPasswordUseCase {
     const response = new ResponseModel<void>(request.transactionId);
     const email = request.data || "";
     if (!email) {
-      return response.withErrorPromise(
+      return await response.withErrorPromise(
         DomainErrorCodes.INVALID_INPUT,
         "Email is required.",
       );
@@ -257,7 +257,7 @@ export class UserPasswordUseCase {
     request: RequestModel<{ userId: string; adminId: string }>,
   ): Promise<ResponseModel<{ recoveryUrl: string }>> {
     // The link itself is a secret: only the fact that one was made is kept
-    return withJournal(
+    return await withJournal(
       this.journal,
       {
         actorId: request.data?.adminId,

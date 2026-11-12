@@ -39,8 +39,10 @@ export const bugAssignees: SchemaMigration = {
       `[MIGRATION] 0007-bug-assignees: table ${BUG_ASSIGNEES_TABLE} ready`,
     );
   },
-  down: async () => {
+  down: () => {
     // Reverting would drop every assignment
-    throw new Error("The bug assignees migration cannot be reverted.");
+    return Promise.reject(
+      new Error("The bug assignees migration cannot be reverted."),
+    );
   },
 };
