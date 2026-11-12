@@ -1,9 +1,10 @@
-import type { Bug } from "#src/Domain/Bug/Entity/Bug.js";
+import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import {
   BUG_COMPONENT_LABELS,
   type BugComponentValue,
 } from "#src/Domain/Bug/Entity/BugComponent.js";
 import type { BugPriorityValue } from "#src/Domain/Bug/Entity/BugPriority.js";
+import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import type { IssueContent } from "#src/Domain/Core/Service/IIssueTrackerService.js";
 
 /** The fields an administrator may correct when approving a bug. */
@@ -110,3 +111,34 @@ export const approvalNoteOf = (
     ? `[Audit] The administrator modified the following fields:\n${modifiedFields.join("\n")}${commentLine}`
     : `[Audit] The bug was approved and sent to GitHub. The fields were not modified by the administrator.${commentLine}`;
 };
+
+// Why the corrected bug is not valid; null when build() accepts it
+export const invalidEdit = (data: StatusChange, bug: Bug): string | null => {
+  try {
+    Bug.builder()
+      .setTitle(data.title ?? bug.title)
+      .setDescription(data.description ?? bug.description)
+      .setPriority(data.priority !== undefined ? data.priority : bug.priority)
+      .setComponent(data.component || bug.component)
+      .build();
+    return null;
+  } catch (error) {
+    return errorMessage(error);
+  }
+};
+
+/** A status change, with the corrections an approval may bring. */
+export interface StatusChange {
+  id: string;
+  status: string;
+  comment?: string;
+  adminId: string;
+  title?: string;
+  description?: string;
+  priority?: BugPriorityValue;
+  category?: string;
+  component?: string;
+  githubRepo?: string;
+}
+
+/** What the life cycle of a bug reads and updates. */

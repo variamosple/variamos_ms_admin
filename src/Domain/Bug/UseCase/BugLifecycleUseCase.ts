@@ -1,18 +1,9 @@
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
-import {
-  isManagedRepository,
-  UNMANAGED_REPOSITORY_MESSAGE,
-} from "#src/Domain/Bug/Config/ManagedRepository.js";
-import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
+import type { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import { isBugComponent } from "#src/Domain/Bug/Entity/BugComponent.js";
-import type { BugPriorityValue } from "#src/Domain/Bug/Entity/BugPriority.js";
-import {
-  canChangeStatus,
-  IN_PROGRESS_LABEL,
-  isIssueOpen,
-} from "#src/Domain/Bug/Entity/BugStatus.js";
+import { canChangeStatus } from "#src/Domain/Bug/Entity/BugStatus.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
 import type { IBugScheduleProvider } from "#src/Domain/Bug/Service/BugScheduleService.js";
 import type { IGitHubTokenProvider } from "#src/Domain/Bug/Service/IGitHubTokenProvider.js";
@@ -23,48 +14,15 @@ import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import type { IIssueTrackerService } from "#src/Domain/Core/Service/IIssueTrackerService.js";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IStorageService } from "#src/Domain/Core/Service/IStorageService.js";
+import { BugIssueSync, type PublishedIssue } from "./BugIssueSync.js";
 import {
   applyEdits,
   approvalNoteOf,
-  approvedIssueOf,
+  invalidEdit,
   modifiedFieldsOf,
+  type StatusChange,
 } from "./bugApproval.js";
 
-// Why the corrected bug is not valid; null when build() accepts it
-const invalidEdit = (data: StatusChange, bug: Bug): string | null => {
-  try {
-    Bug.builder()
-      .setTitle(data.title ?? bug.title)
-      .setDescription(data.description ?? bug.description)
-      .setPriority(data.priority !== undefined ? data.priority : bug.priority)
-      .setComponent(data.component || bug.component)
-      .build();
-    return null;
-  } catch (error) {
-    return errorMessage(error);
-  }
-};
-
-/** The issue an approved bug opened on GitHub. */
-interface PublishedIssue {
-  gitIssueNumber: number;
-  githubHtmlUrl: string;
-}
-
-interface StatusChange {
-  id: string;
-  status: string;
-  comment?: string;
-  adminId: string;
-  title?: string;
-  description?: string;
-  priority?: BugPriorityValue;
-  category?: string;
-  component?: string;
-  githubRepo?: string;
-}
-
-/** What the life cycle of a bug reads and updates. */
 export interface BugLifecycleUseCaseDependencies {
   bugRepository: IBugRepository;
   issueTrackerService: IIssueTrackerService;
@@ -78,10 +36,8 @@ export interface BugLifecycleUseCaseDependencies {
 
 export class BugLifecycleUseCase {
   private readonly bugRepository: IBugRepository;
-  private readonly issueTrackerService: IIssueTrackerService;
   private readonly storageService: IStorageService;
-  private readonly githubConfig: IBugTrackerConfig;
-  private readonly tokenResolver: IGitHubTokenProvider;
+  private readonly issues: BugIssueSync;
   private readonly journal: IActivityJournal;
   private readonly logger: ILogger;
   private readonly schedule: Pick<
@@ -101,10 +57,12 @@ export class BugLifecycleUseCase {
       schedule,
     } = dependencies;
     this.bugRepository = bugRepository;
-    this.issueTrackerService = issueTrackerService;
     this.storageService = storageService;
-    this.githubConfig = githubConfig;
-    this.tokenResolver = tokenResolver;
+    this.issues = new BugIssueSync({
+      githubConfig,
+      tokenResolver,
+      issueTrackerService,
+    });
     this.journal = journal;
     this.logger = logger;
     this.schedule = schedule;
@@ -192,7 +150,7 @@ export class BugLifecycleUseCase {
 
     let issue: PublishedIssue | undefined;
     if (data.status === "open" && !bug.gitIssueNumber && bug.githubRepo) {
-      const published = await this.publishApproved(
+      const published = await this.issues.publishApproved(
         bug,
         bug.githubRepo,
         data.comment,
@@ -204,7 +162,7 @@ export class BugLifecycleUseCase {
     // The issue follows the status before the database does: when GitHub
     // refuses, nothing changes, and a synchronization cannot undo the status
     if (bug.gitIssueNumber && bug.githubRepo) {
-      const synced = await this.applyStatusOnGitHub(
+      const synced = await this.issues.applyStatusOnGitHub(
         bug.githubRepo,
         bug.gitIssueNumber,
         previousStatus,
@@ -242,77 +200,6 @@ export class BugLifecycleUseCase {
         githubRepo: data.githubRepo,
       }),
     );
-  }
-
-  /** Opens the issue of an approved bug; a string tells why it failed. */
-  private async publishApproved(
-    bug: Bug,
-    repo: string,
-    comment: string | undefined,
-  ): Promise<PublishedIssue | string> {
-    if (!isManagedRepository(this.githubConfig, repo)) {
-      return UNMANAGED_REPOSITORY_MESSAGE;
-    }
-    const gitHubToken = await this.tokenResolver.resolveGitHubToken(repo);
-    if (!gitHubToken) return "GitHub integration token is not configured.";
-    const apiBaseUrl =
-      this.githubConfig.getApiBaseUrl?.() || "http://localhost:4000";
-    const issueNum = await this.issueTrackerService.createIssue(
-      repo,
-      approvedIssueOf(bug, comment, apiBaseUrl),
-      gitHubToken,
-    );
-    if (!issueNum) {
-      return "Failed to push bug to GitHub repository. Please verify repository existence and permissions.";
-    }
-    return {
-      gitIssueNumber: issueNum,
-      githubHtmlUrl: `https://github.com/${repo}/issues/${issueNum}`,
-    };
-  }
-
-  private async applyStatusOnGitHub(
-    repo: string,
-    issueNumber: number,
-    from: string,
-    to: string,
-  ): Promise<boolean> {
-    const token = await this.tokenResolver.resolveGitHubToken(repo);
-    if (!token) return false;
-
-    const wasOpen = isIssueOpen(from);
-    const willBeOpen = isIssueOpen(to);
-    if (wasOpen && !willBeOpen) {
-      if (
-        !(await this.issueTrackerService.closeIssue(repo, issueNumber, token))
-      )
-        return false;
-    } else if (
-      !wasOpen &&
-      willBeOpen &&
-      !(await this.issueTrackerService.reopenIssue(repo, issueNumber, token))
-    ) {
-      return false;
-    }
-
-    // The label only refines an open issue: a failure is logged by the
-    // service and does not block the status
-    if (to === "in_progress") {
-      await this.issueTrackerService.addLabels(
-        repo,
-        issueNumber,
-        [IN_PROGRESS_LABEL],
-        token,
-      );
-    } else if (from === "in_progress") {
-      await this.issueTrackerService.removeLabel(
-        repo,
-        issueNumber,
-        IN_PROGRESS_LABEL,
-        token,
-      );
-    }
-    return true;
   }
 
   public async rejectBug(

@@ -22,12 +22,8 @@ import type { UserAuthUseCase } from "#src/Domain/User/UseCase/UserAuthUseCase.j
 import type { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
 import type { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
 import type { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
-import {
-  AUTH_ROUTE,
-  createAuthRouter,
-  MFA_PENDING_COOKIE,
-  MFA_TRUSTED_COOKIE,
-} from "./AuthRouter.js";
+import { AUTH_ROUTE, createAuthRouter } from "./AuthRouter.js";
+import { MFA_PENDING_COOKIE, MFA_TRUSTED_COOKIE } from "./authWeb.js";
 
 // The access journal is checked by its own tests (T-24)
 const accessJournal = mock<IAccessJournal>();

@@ -11,6 +11,9 @@ import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import {
   AccessJournalInstance,
   ActivityJournalInstance,
+  SecretConfigurationValueInstance,
+} from "./CompositionRepositories.js";
+import {
   BugSyncTask,
   HealthCheckCollectorInstance,
   productionBugLifecycleUseCase,
@@ -19,7 +22,6 @@ import {
   productionMicroServiceQueryUseCase,
   productionRouterDependencies,
   productionScheduledConfigurationChangeUseCase,
-  SecretConfigurationValueInstance,
 } from "./CompositionRoot.js";
 import { registerBugAssociations } from "./DataProviders/Bug/BugAssociations.js";
 import { encryptPlainSecrets } from "./DataProviders/Configuration/EncryptPlainSecrets.js";
