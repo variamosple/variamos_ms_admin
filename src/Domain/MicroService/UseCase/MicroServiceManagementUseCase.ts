@@ -13,14 +13,14 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { MicroServiceConfigItem } from "../Entity/MicroServiceConfigItem.js";
 import { isRunning } from "../Entity/MicroServiceHealth.js";
-import type { IMicroServiceRepository } from "../Repository/IMicroServiceRepository.js";
+import type { MicroServiceRepositories } from "../Repository/MicroServiceRepositories.js";
 
 export const SCALING_NOT_AVAILABLE =
   "Scaling is not available: the number of replicas is set in the server's compose file.";
 
 /** What the management of the services reads and records. */
 export interface MicroServiceManagementUseCaseDependencies {
-  microServiceRepository: IMicroServiceRepository;
+  repositories: MicroServiceRepositories;
   logger: ILogger;
   configurationRepository: Pick<IConfigurationRepository, "queryByKey">;
   configEventPublisher: IConfigEventPublisher;
@@ -28,7 +28,7 @@ export interface MicroServiceManagementUseCaseDependencies {
 }
 
 export class MicroServiceManagementUseCase {
-  private readonly microServiceRepository: IMicroServiceRepository;
+  private readonly repositories: MicroServiceRepositories;
   private readonly logger: ILogger;
   private readonly configurationRepository: Pick<
     IConfigurationRepository,
@@ -39,13 +39,13 @@ export class MicroServiceManagementUseCase {
 
   public constructor(dependencies: MicroServiceManagementUseCaseDependencies) {
     const {
-      microServiceRepository,
+      repositories,
       logger,
       configurationRepository,
       configEventPublisher,
       journal,
     } = dependencies;
-    this.microServiceRepository = microServiceRepository;
+    this.repositories = repositories;
     this.logger = logger;
     this.configurationRepository = configurationRepository;
     this.configEventPublisher = configEventPublisher;
@@ -75,9 +75,9 @@ export class MicroServiceManagementUseCase {
       );
     }
 
-    if (this.microServiceRepository.queryByName) {
+    if (this.repositories.services.queryByName) {
       const queryResponse =
-        await this.microServiceRepository.queryByName(request);
+        await this.repositories.services.queryByName(request);
       if (queryResponse?.errorCode) {
         return defaultResponse.withError(
           queryResponse.errorCode,
@@ -94,7 +94,7 @@ export class MicroServiceManagementUseCase {
       }
     }
 
-    return this.microServiceRepository.startMicroService(request, actorId);
+    return this.repositories.control.startMicroService(request, actorId);
   }
 
   public async stopMicroService(
@@ -120,9 +120,9 @@ export class MicroServiceManagementUseCase {
       );
     }
 
-    if (this.microServiceRepository.queryByName) {
+    if (this.repositories.services.queryByName) {
       const queryResponse =
-        await this.microServiceRepository.queryByName(request);
+        await this.repositories.services.queryByName(request);
       if (queryResponse?.errorCode) {
         return defaultResponse.withError(
           queryResponse.errorCode,
@@ -137,7 +137,7 @@ export class MicroServiceManagementUseCase {
       }
     }
 
-    return this.microServiceRepository.stopMicroService(request, actorId);
+    return this.repositories.control.stopMicroService(request, actorId);
   }
 
   public async restartMicroService(
@@ -163,9 +163,9 @@ export class MicroServiceManagementUseCase {
       );
     }
 
-    if (this.microServiceRepository.queryByName) {
+    if (this.repositories.services.queryByName) {
       const queryResponse =
-        await this.microServiceRepository.queryByName(request);
+        await this.repositories.services.queryByName(request);
       if (queryResponse?.errorCode) {
         return defaultResponse.withError(
           queryResponse.errorCode,
@@ -180,7 +180,7 @@ export class MicroServiceManagementUseCase {
       }
     }
 
-    return this.microServiceRepository.restartMicroService(request, actorId);
+    return this.repositories.control.restartMicroService(request, actorId);
   }
 
   // Start, stop and restart appear in the activity journal with their real
@@ -260,7 +260,7 @@ export class MicroServiceManagementUseCase {
     }
     const { key } = data;
     const before = await this.readConfiguration(request.transactionId, key);
-    const response = await this.microServiceRepository.updateConfiguration(
+    const response = await this.repositories.configuration.updateConfiguration(
       new RequestModel(
         request.transactionId,
         { ...data, value: data.value },
@@ -301,8 +301,8 @@ export class MicroServiceManagementUseCase {
   ): Promise<ResponseModel<void>> {
     const defaultResponse = new ResponseModel<void>(request.transactionId);
     try {
-      if (this.microServiceRepository.triggerHealthChecks) {
-        await this.microServiceRepository.triggerHealthChecks(
+      if (this.repositories.control.triggerHealthChecks) {
+        await this.repositories.control.triggerHealthChecks(
           request.data?.serviceName,
         );
       }

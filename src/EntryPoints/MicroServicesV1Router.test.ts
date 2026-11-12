@@ -30,7 +30,7 @@ vi.mock("@variamosple/variamos-security", () => ({
     },
 }));
 
-import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repository/IMicroServiceRepository.js";
+import type { MicroServiceRepositories } from "#src/Domain/MicroService/Repository/MicroServiceRepositories.js";
 
 describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
   let app: express.Application;
@@ -51,10 +51,10 @@ describe("MicroServicesV1Router Integration Tests - Extended Coverage", () => {
       next();
     });
     const mockQueryUseCase = new MicroServiceQueryUseCase(
-      mock<IMicroServiceRepository>(),
+      mock<MicroServiceRepositories>(),
     );
     const mockManagementUseCase = new MicroServiceManagementUseCase({
-      microServiceRepository: mock<IMicroServiceRepository>(),
+      repositories: mock<MicroServiceRepositories>(),
       logger: mock<ILogger>(),
       configurationRepository: mock<IConfigurationRepository>(),
       configEventPublisher: mock<IConfigEventPublisher>(),

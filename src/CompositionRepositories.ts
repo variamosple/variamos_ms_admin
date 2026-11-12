@@ -13,6 +13,8 @@ import { SecretConfigurationValue } from "./DataProviders/Configuration/SecretCo
 import { CountriesRepositoryImpl } from "./DataProviders/Countries/CountriesRepository.js";
 import { MetricsRepositoryImpl } from "./DataProviders/Metrics/MetricsRepository.js";
 import { HealthLogStatistics } from "./DataProviders/MicroService/HealthLogStatistics.js";
+import { MicroServiceConfigRepositoryImpl } from "./DataProviders/MicroService/MicroServiceConfigRepository.js";
+import { MicroServiceControlRepositoryImpl } from "./DataProviders/MicroService/MicroServiceControlRepository.js";
 import { MicroServiceRepositoryImpl } from "./DataProviders/MicroService/MicroServiceRepository.js";
 import { PermissionRepositoryImpl } from "./DataProviders/Permission/PermissionRepository.js";
 import { RolePermissionRepositoryImpl } from "./DataProviders/Role/RolePermissionRepository.js";
@@ -28,6 +30,7 @@ import {
   watchedActivityJournal,
 } from "./Domain/Activity/SecurityAlerts.js";
 import type { BugRepositories } from "./Domain/Bug/Repository/BugRepositories.js";
+import type { MicroServiceRepositories } from "./Domain/MicroService/Repository/MicroServiceRepositories.js";
 import { AccountPasswordService } from "./Domain/User/Service/AccountPasswordService.js";
 import { PasswordHashingCostService } from "./Domain/User/Service/PasswordHashingCostService.js";
 import { JetLogger } from "./Infrastructure/Logging/JetLogger.js";
@@ -63,11 +66,19 @@ export const HealthLogStatisticsInstance = new HealthLogStatistics(
   DB_SCHEMA,
 );
 
-export const MicroServiceRepositoryInstance = new MicroServiceRepositoryImpl({
-  socketPath: EnvVars.DOCKER.SOCKET_PATH,
-  secrets: SecretConfigurationValueInstance,
-  statistics: HealthLogStatisticsInstance,
-});
+// One repository per subject of the monitoring
+export const MicroServiceRepositoriesInstance = {
+  services: new MicroServiceRepositoryImpl({
+    socketPath: EnvVars.DOCKER.SOCKET_PATH,
+    statistics: HealthLogStatisticsInstance,
+  }),
+  control: new MicroServiceControlRepositoryImpl({
+    socketPath: EnvVars.DOCKER.SOCKET_PATH,
+  }),
+  configuration: new MicroServiceConfigRepositoryImpl({
+    secrets: SecretConfigurationValueInstance,
+  }),
+} satisfies MicroServiceRepositories;
 
 export const RoleRepositoryInstance = new RoleRepositoryImpl();
 export const RolePermissionRepositoryInstance =

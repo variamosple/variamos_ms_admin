@@ -10,7 +10,7 @@ import {
   CountriesRepositoryInstance,
   HealthLogStatisticsInstance,
   MetricsRepositoryInstance,
-  MicroServiceRepositoryInstance,
+  MicroServiceRepositoriesInstance,
   PermissionRepositoryInstance,
   RolePermissionRepositoryInstance,
   RoleRepositoryInstance,
@@ -318,12 +318,12 @@ const productionCountriesQueryUseCase = new CountriesQueryUseCase(
 );
 
 export const productionMicroServiceQueryUseCase = new MicroServiceQueryUseCase(
-  MicroServiceRepositoryInstance,
+  MicroServiceRepositoriesInstance,
 );
 
 const productionMicroServiceManagementUseCase =
   new MicroServiceManagementUseCase({
-    microServiceRepository: MicroServiceRepositoryInstance,
+    repositories: MicroServiceRepositoriesInstance,
     logger: JetLogger,
     configurationRepository: ConfigurationRepositoryInstance,
     configEventPublisher: ConfigEventPublisherInstance,
@@ -345,11 +345,13 @@ const productionUpload = multer({
 // Health checks of the services, started by the background jobs; the interval
 // follows the configuration screen
 export const HealthCheckCollectorInstance = new HealthCheckCollector(
-  MicroServiceRepositoryInstance,
+  MicroServiceRepositoriesInstance.services,
   HealthLogStatisticsInstance,
   EnvVars.MONITORING.HEALTH_CHECK_INTERVAL_MS,
 );
-MicroServiceRepositoryInstance.setHealthCollector(HealthCheckCollectorInstance);
+MicroServiceRepositoriesInstance.control.setHealthCollector(
+  HealthCheckCollectorInstance,
+);
 ConfigEventPublisherInstance.addListener(
   followHealthCheckInterval(HealthCheckCollectorInstance),
 );

@@ -1,7 +1,4 @@
-import {
-  containerIpsOf,
-  isMonitoredContainer,
-} from "./MicroServiceRepository.js";
+import { containerIpsOf, isMonitoredContainer } from "./dockerContainers.js";
 
 describe("isMonitoredContainer", () => {
   test("accepts a container that explicitly opts in", () => {

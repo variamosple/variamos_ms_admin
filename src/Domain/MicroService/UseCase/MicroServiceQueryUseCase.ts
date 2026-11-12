@@ -6,17 +6,15 @@ import type { MicroServiceConfigItem } from "../Entity/MicroServiceConfigItem.js
 import type { MicroServiceDetailed } from "../Entity/MicroServiceDetailed.js";
 import type { MicroServiceFilter } from "../Entity/MicroServiceFilter.js";
 import type { MicroServiceUptimeSummary } from "../Entity/MicroServiceHealth.js";
-import type { IMicroServiceRepository } from "../Repository/IMicroServiceRepository.js";
+import type { MicroServiceRepositories } from "../Repository/MicroServiceRepositories.js";
 
 export class MicroServiceQueryUseCase {
-  public constructor(
-    private readonly microServiceRepository: IMicroServiceRepository,
-  ) {}
+  public constructor(private readonly repositories: MicroServiceRepositories) {}
 
   public queryMicroServices(
     request: RequestModel<MicroServiceFilter>,
   ): Promise<ResponseModel<MicroServiceDetailed[]>> {
-    return this.microServiceRepository.queryMicroServices(request);
+    return this.repositories.services.queryMicroServices(request);
   }
 
   public async queryByName(
@@ -30,7 +28,7 @@ export class MicroServiceQueryUseCase {
         "Microservice name is required.",
       );
     }
-    return await this.microServiceRepository.queryByName(request);
+    return await this.repositories.services.queryByName(request);
   }
 
   public async getHealthHistory(
@@ -41,7 +39,7 @@ export class MicroServiceQueryUseCase {
         request.transactionId,
       ).withError(DomainErrorCodes.INVALID_INPUT, "Service name is required.");
     }
-    return await this.microServiceRepository.getHealthHistory(request);
+    return await this.repositories.services.getHealthHistory(request);
   }
 
   public async queryConfigurations(
@@ -52,7 +50,7 @@ export class MicroServiceQueryUseCase {
         request.transactionId,
       ).withError(DomainErrorCodes.INVALID_INPUT, "Service name is required.");
     }
-    return await this.microServiceRepository.queryConfigurations(request);
+    return await this.repositories.configuration.queryConfigurations(request);
   }
 
   public async queryAuditLogs(
@@ -63,7 +61,7 @@ export class MicroServiceQueryUseCase {
         request.transactionId,
       ).withError(DomainErrorCodes.INVALID_INPUT, "Service name is required.");
     }
-    return await this.microServiceRepository.queryAuditLogs(request);
+    return await this.repositories.control.queryAuditLogs(request);
   }
 
   public async watchMicroServiceLogs(
@@ -80,6 +78,6 @@ export class MicroServiceQueryUseCase {
       );
     }
 
-    return await this.microServiceRepository.watchMicroServiceLogs(request);
+    return await this.repositories.control.watchMicroServiceLogs(request);
   }
 }

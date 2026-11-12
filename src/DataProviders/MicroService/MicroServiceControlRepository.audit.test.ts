@@ -1,22 +1,19 @@
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
-import { AesGcmSecretCipher } from "#src/Infrastructure/Security/AesGcmSecretCipher.js";
-import { SecretConfigurationValue } from "../Configuration/SecretConfigurationValue.js";
 import { MicroServiceAuditLogModel } from "./MicroServiceAuditLogModel.js";
+import { MicroServiceControlRepositoryImpl } from "./MicroServiceControlRepository.js";
 import { MicroServiceHealthLogModel } from "./MicroServiceHealthLogModel.js";
-import { MicroServiceRepositoryImpl } from "./MicroServiceRepository.js";
 
-describe("MicroServiceRepositoryImpl audit actor", () => {
+describe("MicroServiceControlRepositoryImpl audit actor", () => {
   const container = {
     start: vi.fn().mockResolvedValue(undefined),
     stop: vi.fn().mockResolvedValue(undefined),
     restart: vi.fn().mockResolvedValue(undefined),
   };
-  let repository: MicroServiceRepositoryImpl;
+  let repository: MicroServiceControlRepositoryImpl;
 
   beforeEach(() => {
-    repository = new MicroServiceRepositoryImpl({
+    repository = new MicroServiceControlRepositoryImpl({
       socketPath: "/nonexistent/docker.sock",
-      secrets: new SecretConfigurationValue(new AesGcmSecretCipher(null)),
     });
     // The container lookup talks to Docker: replace it with a fake container
     vi.spyOn(

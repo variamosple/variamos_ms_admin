@@ -8,16 +8,30 @@ import { MicroServiceConfigItem } from "#src/Domain/MicroService/Entity/MicroSer
 import { MicroServiceDetailed } from "#src/Domain/MicroService/Entity/MicroServiceDetailed.js";
 import { MicroServiceFilter } from "#src/Domain/MicroService/Entity/MicroServiceFilter.js";
 import type { MicroServiceUptimeSummary } from "#src/Domain/MicroService/Entity/MicroServiceHealth.js";
+import type { IMicroServiceConfigRepository } from "#src/Domain/MicroService/Repository/IMicroServiceConfigRepository.js";
+import type { IMicroServiceControlRepository } from "#src/Domain/MicroService/Repository/IMicroServiceControlRepository.js";
 import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 import { MicroServiceQueryUseCase } from "./MicroServiceQueryUseCase.js";
 
 describe("MicroServiceQueryUseCase - Unit Tests", () => {
   let useCase: MicroServiceQueryUseCase;
-  let mockMicroServiceRepository: MockProxy<IMicroServiceRepository>;
+  let mockMicroServiceRepository: MockProxy<
+    IMicroServiceRepository &
+      IMicroServiceControlRepository &
+      IMicroServiceConfigRepository
+  >;
 
   beforeEach(() => {
-    mockMicroServiceRepository = mock<IMicroServiceRepository>();
-    useCase = new MicroServiceQueryUseCase(mockMicroServiceRepository);
+    mockMicroServiceRepository = mock<
+      IMicroServiceRepository &
+        IMicroServiceControlRepository &
+        IMicroServiceConfigRepository
+    >();
+    useCase = new MicroServiceQueryUseCase({
+      services: mockMicroServiceRepository,
+      control: mockMicroServiceRepository,
+      configuration: mockMicroServiceRepository,
+    });
   });
 
   const createMockDetailed = (name: string) => {
