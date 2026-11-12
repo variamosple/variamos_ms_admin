@@ -114,8 +114,24 @@ describe("BugLifecycleUseCase", () => {
       const res = await useCase.updateStatus(req);
 
       expect(res.errorCode).toBeUndefined();
-      expect(mockIssueTracker.createIssue).toHaveBeenCalled();
-      expect(mockBugRepository.updateStatus).toHaveBeenCalled();
+      expect(mockIssueTracker.createIssue).toHaveBeenCalledWith(
+        "VariaMos/VariaMosAdmin",
+        expect.objectContaining({ title: "Approval test" }),
+        "token",
+      );
+      expect(mockBugRepository.updateStatus).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionId: "tx-1",
+          data: expect.objectContaining({
+            id: "bug-123",
+            status: "open",
+            adminId: "admin-123",
+            gitIssueNumber: 100,
+            githubHtmlUrl:
+              "https://github.com/VariaMos/VariaMosAdmin/issues/100",
+          }),
+        }),
+      );
     });
   });
 
@@ -417,7 +433,12 @@ describe("BugLifecycleUseCase", () => {
 
       expect(mockStorageService.deleteFile).not.toHaveBeenCalled();
       expect(mockBugRepository.updateAttachmentPath).not.toHaveBeenCalled();
-      expect(mockBugRepository.updateStatus).toHaveBeenCalled();
+      expect(mockBugRepository.updateStatus).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionId: "purgeExpiredBugs",
+          data: { id: "999", status: "purged", adminId: "" },
+        }),
+      );
       expect(mockBugRepository.createLog).toHaveBeenCalledWith(
         expect.objectContaining({
           data: {
@@ -440,7 +461,12 @@ describe("BugLifecycleUseCase", () => {
       await useCase.purgeExpiredRejectedBugs();
 
       expect(mockStorageService.deleteFile).not.toHaveBeenCalled();
-      expect(mockBugRepository.updateStatus).toHaveBeenCalled();
+      expect(mockBugRepository.updateStatus).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionId: "purgeExpiredBugs",
+          data: { id: "999", status: "purged", adminId: "" },
+        }),
+      );
       expect(mockBugRepository.createLog).toHaveBeenCalledWith(
         expect.objectContaining({
           data: {
@@ -467,7 +493,12 @@ describe("BugLifecycleUseCase", () => {
       await useCase.purgeExpiredRejectedBugs();
 
       expect(mockStorageService.deleteFile).not.toHaveBeenCalled();
-      expect(mockBugRepository.updateStatus).toHaveBeenCalled();
+      expect(mockBugRepository.updateStatus).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionId: "purgeExpiredBugs",
+          data: { id: "999", status: "purged", adminId: "" },
+        }),
+      );
     });
 
     it("should return early and do nothing when no expired bugs are found", async () => {
@@ -1378,7 +1409,16 @@ describe("BugLifecycleUseCase", () => {
       );
       expect(mockIssueTracker.closeIssue).not.toHaveBeenCalled();
       expect(mockIssueTracker.reopenIssue).not.toHaveBeenCalled();
-      expect(mockBugRepository.updateStatus).toHaveBeenCalled();
+      expect(mockBugRepository.updateStatus).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionId: "tx-1",
+          data: expect.objectContaining({
+            id: "bug-123",
+            status: "in_progress",
+            adminId: "admin-123",
+          }),
+        }),
+      );
     });
 
     it("reopens the issue of a resolved bug put back in progress", async () => {
@@ -1407,7 +1447,12 @@ describe("BugLifecycleUseCase", () => {
         500,
         "token",
       );
-      expect(mockIssueTracker.addLabels).toHaveBeenCalled();
+      expect(mockIssueTracker.addLabels).toHaveBeenCalledWith(
+        "VariaMos/VariaMosAdmin",
+        500,
+        ["in progress"],
+        "token",
+      );
     });
 
     it("refuses a change outside the allowed transitions", async () => {

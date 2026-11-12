@@ -1,7 +1,7 @@
 import { isAnnouncedConfiguration } from "./AnnouncedConfigurationKeys.js";
 import type { ConfigurationValue } from "./Configuration.js";
 
-export const SCHEDULED_CHANGE_STATUSES = [
+const SCHEDULED_CHANGE_STATUSES = [
   "scheduled",
   "applied",
   "cancelled",

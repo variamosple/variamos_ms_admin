@@ -13,9 +13,7 @@ export interface AccountState {
 
 export type AccountRefusal = "disabled" | "deleted";
 
-export const ACCOUNT_REFUSAL_MESSAGES: Readonly<
-  Record<AccountRefusal, string>
-> = {
+const ACCOUNT_REFUSAL_MESSAGES: Readonly<Record<AccountRefusal, string>> = {
   disabled: "Your account is disabled.",
   deleted: "Your account is deleted.",
 };

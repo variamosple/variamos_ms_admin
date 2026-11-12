@@ -29,7 +29,7 @@ import { readBody } from "./requestBody.js";
  * Whether the g_csrf_token cookie Google sets on our domain matches the one
  * it posts with the credential (redirect mode of Sign In With Google).
  */
-export const hasMatchingGoogleCsrfToken = (
+const hasMatchingGoogleCsrfToken = (
   req: Request,
   bodyToken: string | undefined,
 ): boolean => {

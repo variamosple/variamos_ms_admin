@@ -22,7 +22,7 @@ import { readBody } from "./requestBody.js";
 export const SCHEDULED_CHANGES_V1_ROUTE =
   "/v1/configurations/scheduled-changes";
 
-export interface ScheduledChangeResponseDto {
+interface ScheduledChangeResponseDto {
   id: number;
   key: string;
   previousValue: ConfigurationValue;

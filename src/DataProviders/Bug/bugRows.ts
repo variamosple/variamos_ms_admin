@@ -44,12 +44,12 @@ export const bugFromRow = (dbBug: BugModel) =>
     .setAttachments(dbBug.attachments ?? undefined);
 
 /** Newest first; the id keeps bugs created at the same time on one page. */
-export const NEWEST_FIRST: [string, string][] = [
+const NEWEST_FIRST: [string, string][] = [
   ["createdAt", "DESC"],
   ["id", "DESC"],
 ];
 
-export function pageOf(filter: BugFilter): { limit?: number; offset?: number } {
+function pageOf(filter: BugFilter): { limit?: number; offset?: number } {
   if (!filter.pageNumber || !filter.pageSize) return {};
   return {
     limit: filter.pageSize,

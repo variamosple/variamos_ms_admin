@@ -268,7 +268,7 @@ END;
 $$ LANGUAGE plpgsql;`,
 ];
 
-export const SIGN_UP_TRIGGER = "after_insert_user";
+const SIGN_UP_TRIGGER = "after_insert_user";
 export const SIGN_UP_DEFAULT_ROLE_IDS = [2, 3] as const;
 
 const signUpFunction = (

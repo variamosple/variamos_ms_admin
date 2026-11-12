@@ -221,7 +221,9 @@ describe("ConfigurationRouter Integration Tests", () => {
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
       expect(response.body.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
-      expect(loggerSpy).toHaveBeenCalled();
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Error: Unexpected error"),
+      );
     });
   });
 
@@ -417,7 +419,9 @@ describe("ConfigurationRouter Integration Tests", () => {
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
       expect(response.body.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
-      expect(loggerSpy).toHaveBeenCalled();
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Error: Unexpected error"),
+      );
     });
   });
 
@@ -432,7 +436,9 @@ describe("ConfigurationRouter Integration Tests", () => {
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
       expect(response.body.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
-      expect(loggerSpy).toHaveBeenCalled();
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Error: Unexpected error"),
+      );
     });
   });
 });

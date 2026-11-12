@@ -136,7 +136,9 @@ describe("MfaResetUseCase", () => {
 
       expect(response.data).toEqual({ emailSent: false });
       expect(mfaRepository.remove).toHaveBeenCalledWith("user-2");
-      expect(logger.warn).toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith(
+        "[MFA] User user-2 could not be told of the reset",
+      );
     });
 
     it("hides a storage error", async () => {

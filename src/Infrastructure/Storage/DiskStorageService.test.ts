@@ -57,6 +57,10 @@ describe("DiskStorageService", () => {
     await expect(
       service.deleteFile("/uploads/missing.txt"),
     ).resolves.toBeUndefined();
-    expect(logger.err).toHaveBeenCalled();
+    expect(logger.err).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /^Failed to delete physical file: .+missing\.txt\. ENOENT/,
+      ),
+    );
   });
 });

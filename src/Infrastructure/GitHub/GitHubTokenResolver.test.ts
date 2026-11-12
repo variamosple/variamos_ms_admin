@@ -165,7 +165,10 @@ describe("GitHubTokenResolver - Unit Tests", () => {
 
       const token = await resolver.resolveGitHubToken("VariaMos/VariaMosAdmin");
       expect(token).toBe("refreshed-token");
-      expect(axios.get).toHaveBeenCalled();
+      expect(axios.get).toHaveBeenCalledWith(
+        "https://api.github.com/repos/VariaMos/VariaMosAdmin/installation",
+        expect.anything(),
+      );
     });
 
     it("should fall back to personal github token if app credentials are missing", async () => {

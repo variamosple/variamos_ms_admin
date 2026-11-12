@@ -26,7 +26,7 @@ const BUG_STATUSES = [
   "purged",
 ] as const;
 
-export type BugStatus = (typeof BUG_STATUSES)[number];
+type BugStatus = (typeof BUG_STATUSES)[number];
 
 export const IN_PROGRESS_LABEL = "in progress";
 

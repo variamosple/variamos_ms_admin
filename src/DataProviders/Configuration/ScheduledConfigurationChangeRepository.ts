@@ -11,7 +11,7 @@ import type {
 } from "#src/Domain/Configuration/Repository/IScheduledConfigurationChangeRepository.js";
 
 /** Due changes resolved in one pass at most; the rest wait a minute. */
-export const MAX_CHANGES_PER_PASS = 50;
+const MAX_CHANGES_PER_PASS = 50;
 
 interface ChangeRow {
   // A bigint column: the driver gives it as a string

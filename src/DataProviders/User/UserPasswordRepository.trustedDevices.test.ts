@@ -81,7 +81,7 @@ describe("UserPasswordRepositoryImpl forgets the trusted browsers", () => {
       replacements: { userId: "u1" },
       transaction,
     });
-    expect(transaction.commit).toHaveBeenCalled();
+    expect(transaction.commit).toHaveBeenCalledOnce();
   });
 
   it("not when the current password is wrong", async () => {

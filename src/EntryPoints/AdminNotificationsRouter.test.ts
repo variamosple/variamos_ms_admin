@@ -147,7 +147,10 @@ describe("AdminNotificationsRouter Integration Tests", () => {
       expect(response.body.message).toBe(
         "Notification dispatched successfully.",
       );
-      expect(UserModel.findAll).toHaveBeenCalled();
+      expect(UserModel.findAll).toHaveBeenCalledWith({
+        attributes: ["id"],
+        where: { isDeleted: false, isEnabled: true },
+      });
       expect(
         NotificationClientInstance.dispatchNotification,
       ).toHaveBeenCalledWith({
@@ -190,7 +193,9 @@ describe("AdminNotificationsRouter Integration Tests", () => {
         });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(RoleModel.findAll).toHaveBeenCalled();
+      expect(RoleModel.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { name: ["reviewer"] } }),
+      );
       expect(
         NotificationClientInstance.dispatchNotification,
       ).toHaveBeenCalledWith({

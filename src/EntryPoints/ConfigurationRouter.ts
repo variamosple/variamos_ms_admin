@@ -79,7 +79,7 @@ const toConfigurationResponse = (
 });
 
 /** What every page may know before signing in (EV-87 lot 2). */
-export interface PublicSettingsDto {
+interface PublicSettingsDto {
   siteName: string;
 }
 
@@ -262,7 +262,7 @@ const toLocalServer = (menu: Menu) => {
  * The menu for the page that asks for it: inside the admin, the Admin entry
  * and "My account" stay in the same page; elsewhere, they open the admin.
  */
-export const menuFor = (referer: string, isDevelopment: boolean): Menu => {
+const menuFor = (referer: string, isDevelopment: boolean): Menu => {
   const menu = structuredClone(MENU);
   const inAdmin = referer.includes("/variamos_admin/");
   if (isDevelopment) {
