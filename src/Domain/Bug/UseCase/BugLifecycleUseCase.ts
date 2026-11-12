@@ -120,10 +120,8 @@ export class BugLifecycleUseCase {
 
     try {
       Bug.builder()
-        .setTitle(data.title !== undefined ? data.title : bug.title)
-        .setDescription(
-          data.description !== undefined ? data.description : bug.description,
-        )
+        .setTitle(data.title ?? bug.title)
+        .setDescription(data.description ?? bug.description)
         .setPriority(data.priority !== undefined ? data.priority : bug.priority)
         .setComponent(data.component || bug.component)
         .build();
@@ -336,11 +334,12 @@ export class BugLifecycleUseCase {
         !(await this.issueTrackerService.closeIssue(repo, issueNumber, token))
       )
         return false;
-    } else if (!wasOpen && willBeOpen) {
-      if (
-        !(await this.issueTrackerService.reopenIssue(repo, issueNumber, token))
-      )
-        return false;
+    } else if (
+      !wasOpen &&
+      willBeOpen &&
+      !(await this.issueTrackerService.reopenIssue(repo, issueNumber, token))
+    ) {
+      return false;
     }
 
     // The label only refines an open issue: a failure is logged by the

@@ -219,12 +219,16 @@ describe("MfaRouter", () => {
     useCase.confirmEnrollment.mockResolvedValue(ok({ recoveryCodes: [] }));
     const { app } = appWith(ANA);
 
-    for (let i = 0; i < RATE_LIMITS.mfaFailuresPerAccount.limit + 2; i++) {
-      await request(app)
+    const attempts = RATE_LIMITS.mfaFailuresPerAccount.limit + 2;
+    const statuses: number[] = [];
+    for (let i = 0; i < attempts; i++) {
+      const response = await request(app)
         .post(`${MFA_ROUTE}/enrollment/confirm`)
-        .send({ code: "123456" })
-        .expect(200);
+        .send({ code: "123456" });
+      statuses.push(response.status);
     }
+
+    expect(statuses).toEqual(new Array(attempts).fill(200));
   });
 
   it("answers an unexpected error without details", async () => {

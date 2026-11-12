@@ -26,6 +26,7 @@ export class NotificationClient implements INotificationDispatcher {
       logger.err(err.response?.data || err.message || err);
       throw new Error(
         "Failed to dispatch notification to the notification service.",
+        { cause: error },
       );
     }
   }

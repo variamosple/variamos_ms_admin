@@ -14,7 +14,7 @@ describe("BugRepositoryImpl assignees", () => {
 
   const callsOn = (fragment: string) =>
     (query.mock.calls as [string, { replacements?: object }][]).filter(
-      ([sql]) => String(sql).includes(fragment),
+      ([sql]) => sql.includes(fragment),
     );
 
   beforeEach(() => {
@@ -36,7 +36,7 @@ describe("BugRepositoryImpl assignees", () => {
 
     it("removes the others, adds the missing ones and answers the new list", async () => {
       query.mockImplementation((async (sql: string) =>
-        String(sql).includes("SELECT")
+        sql.includes("SELECT")
           ? [
               { bugId: "b1", id: "u-ana", name: "Ana" },
               { bugId: "b1", id: "u-ben", name: "Ben" },
@@ -60,7 +60,7 @@ describe("BugRepositoryImpl assignees", () => {
 
     it("removes every assignee for an empty list", async () => {
       query.mockImplementation((async (sql: string) =>
-        String(sql).includes("SELECT") ? [] : [[], 0]) as never);
+        sql.includes("SELECT") ? [] : [[], 0]) as never);
 
       const res = await save([]);
 
@@ -103,7 +103,7 @@ describe("BugRepositoryImpl assignees", () => {
         .spyOn(BugModel, "findAll")
         .mockResolvedValue([githubBug("b1"), githubBug("b2")]);
       query.mockImplementation((async (sql: string) =>
-        String(sql).includes("WHERE user_id = :userId")
+        sql.includes("WHERE user_id = :userId")
           ? [{ bugId: "b1" }, { bugId: "b2" }]
           : [
               { bugId: "b1", id: "u-ana", name: "Ana" },

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "npx tsx build.ts",
-    "lint": "biome check --error-on-warnings .",
+    "lint": "biome check --error-on-warnings . && node scripts/check-suppressions.mjs",
     "lint:errors": "biome check --diagnostic-level=error .",
     "lint:diff": "biome check --changed .",
     "lint:diff:fix": "biome check --write --changed .",

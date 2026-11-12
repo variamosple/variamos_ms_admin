@@ -74,7 +74,9 @@ export function createMigrator(
       info: (event) => logger.info(`[MIGRATION] ${JSON.stringify(event)}`),
       warn: (event) => logger.warn(`[MIGRATION] ${JSON.stringify(event)}`),
       error: (event) => logger.err(`[MIGRATION] ${JSON.stringify(event)}`),
-      debug: () => {},
+      debug: () => {
+        // Debug events are not logged
+      },
     },
   });
 }
@@ -96,7 +98,9 @@ export async function waitForDatabase(
       logger.warn(
         `[MIGRATION] Database unreachable (${attempt}/${attempts}): ${(e as Error).message}`,
       );
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      await new Promise((resolve) => {
+        setTimeout(resolve, delayMs);
+      });
     }
   }
 }

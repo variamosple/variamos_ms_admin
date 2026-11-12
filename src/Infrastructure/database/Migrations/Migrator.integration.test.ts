@@ -115,7 +115,10 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
           WHERE schemaname = :schema AND tablename NOT IN (:ignored) ORDER BY indexname`,
       ),
     };
-    return JSON.parse(JSON.stringify(structure).replaceAll(`${schema}.`, ""));
+    const withoutSchema: unknown = JSON.parse(
+      JSON.stringify(structure).replaceAll(`${schema}.`, ""),
+    );
+    return withoutSchema;
   };
 
   // The shared "user" table belongs to another service; only its key matters here
@@ -154,7 +157,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         GOOGLE_IDENTITY_TABLE,
         SCHEDULED_CHANGES_TABLE,
         USER_DISPLAY_PREFERENCES_TABLE,
-      ].sort(),
+      ].sort((a, b) => a.localeCompare(b)),
     );
   });
 
@@ -267,7 +270,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
       ]),
     ).toEqual(before);
     expect(await columnsOf("t07_prod", "bugs")).toEqual(
-      [...bugColumns, "component"].sort(),
+      [...bugColumns, "component"].sort((a, b) => a.localeCompare(b)),
     );
     expect(
       await sequelize.query(
@@ -611,7 +614,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         "get_top_visited_pages_metrics",
         "insert_user_role",
       ]
-        .sort()
+        .sort((a, b) => a.localeCompare(b))
         .map((proname) => ({ proname })),
     );
   });

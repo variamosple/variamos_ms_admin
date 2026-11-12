@@ -66,7 +66,7 @@ export function totpCode(
   const counter = Buffer.alloc(8);
   counter.writeBigUInt64BE(BigInt(step));
   const hmac = createHmac("sha1", secret).update(counter).digest();
-  const offset = (hmac[hmac.length - 1] as number) & 0x0f;
+  const offset = hmac.readUInt8(hmac.length - 1) & 0x0f;
   const binary = hmac.readUInt32BE(offset) & 0x7fffffff;
   return String(binary % 10 ** digits).padStart(digits, "0");
 }

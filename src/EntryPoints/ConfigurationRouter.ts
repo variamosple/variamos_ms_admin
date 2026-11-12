@@ -262,20 +262,16 @@ export function createConfigurationRouter(
       const entries = [...(menuCopy.items ?? []), ...(menuCopy.options ?? [])];
       for (const item of entries) {
         if (item.location?.startsWith("https://app.variamos.com")) {
-          const urlPath = item.location.substring(
+          const urlPath = item.location.slice(
             "https://app.variamos.com".length,
           );
           item.location = `http://localhost:3000${urlPath}`;
         }
       }
-    } else {
-      if (hasAdminSubpath) {
-        const adminItem = menuCopy.items?.find(
-          (item) => item.title === "Admin",
-        );
-        if (adminItem) {
-          adminItem.location = "/variamos_admin/#/";
-        }
+    } else if (hasAdminSubpath) {
+      const adminItem = menuCopy.items?.find((item) => item.title === "Admin");
+      if (adminItem) {
+        adminItem.location = "/variamos_admin/#/";
       }
     }
 

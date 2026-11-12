@@ -165,7 +165,7 @@ export class ConfigurationRepositoryImpl
   }
 
   /** The value in clear; the mask when a secret cannot be decrypted. */
-  private valueOf(model: ConfigurationModel): ConfigurationValue {
+  private clearValueOf(model: ConfigurationModel): ConfigurationValue {
     if (!model.isSecret) return model.value;
     const value = this.secrets.decrypt(model.key, model.value);
     if (value === null) {
@@ -181,7 +181,7 @@ export class ConfigurationRepositoryImpl
     return Configuration.builder()
       .setId(model.id)
       .setKey(new ConfigurationKey(model.key))
-      .setValue(this.valueOf(model))
+      .setValue(this.clearValueOf(model))
       .setType(model.type)
       .setCategory(model.category)
       .setRequiresMfa(model.requiresMfa)

@@ -167,7 +167,8 @@ export class SecurityAlertDetector {
       policy.massOperations.windowMs,
     );
     for (const [key, times] of this.events) {
-      if (at - times[times.length - 1] >= horizon) this.events.delete(key);
+      const last = times.at(-1);
+      if (last !== undefined && at - last >= horizon) this.events.delete(key);
     }
     for (const [key, time] of this.lastRaised) {
       if (at - time >= policy.cooldownMs) this.lastRaised.delete(key);

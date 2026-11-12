@@ -1,0 +1,13 @@
+language js
+
+// An assertion that cannot fail tests nothing
+or {
+  `expect($value).$matcher($value)`,
+  `expect($literal)` where { $literal <: or { `true`, `false`, `null`, `undefined` } }
+} as $assertion where {
+  register_diagnostic(
+    span = $assertion,
+    message = "This assertion cannot fail: assert the result of the code under test.",
+    severity = "error"
+  )
+}

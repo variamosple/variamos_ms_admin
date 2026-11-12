@@ -65,7 +65,7 @@ describe("refusalOfConfigurationValue", () => {
     expect(refusalOfConfigurationValue(key, max)).toBeNull();
     for (const refused of [min - 1, max + 1, min + 0.5, String(min)]) {
       expect(refusalOfConfigurationValue(key, refused)).toContain(
-        `expects a whole number of`,
+        "expects a whole number of",
       );
     }
     expect(refusalOfConfigurationValue(key, min - 1)).toContain(

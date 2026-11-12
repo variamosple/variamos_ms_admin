@@ -782,7 +782,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         });
         config = existing;
       } else {
-        let parsedValue: ConfigurationValue = value;
+        let parsedValue: ConfigurationValue;
         let detectedType: ConfigurationValueType = "string";
         try {
           parsedValue = JSON.parse(value);

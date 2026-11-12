@@ -68,7 +68,7 @@ export class HealthCheckCollector {
       "discoverServiceDefinitions" | "recordHealthCheck"
     >,
     private readonly healthLogs: IHealthLogArchive,
-    initialPollIntervalMs: number = 30000,
+    initialPollIntervalMs = 30000,
     private readonly concurrency: number = HEALTH_CHECK_CONCURRENCY,
   ) {
     this.pollIntervalMs = initialPollIntervalMs;
@@ -83,9 +83,8 @@ export class HealthCheckCollector {
       logger.warn(
         `HealthCheckCollector interval ${newIntervalMs}ms too small, fallback to 5000ms`,
       );
-      newIntervalMs = 5000;
     }
-    this.pollIntervalMs = newIntervalMs;
+    this.pollIntervalMs = Math.max(newIntervalMs, 5000);
     logger.info(
       `HealthCheckCollector interval updated to ${this.pollIntervalMs}ms`,
     );
@@ -261,7 +260,8 @@ export class HealthCheckCollector {
       candidateUrls.push(`http://localhost:${service.defaultPort}${path}`);
     } else {
       // 2. Container IPs from the Docker API: no DNS lookup involved
-      for (const ip of service.containerIps ?? []) {
+      const containerIps = service.containerIps ?? [];
+      for (const ip of containerIps) {
         candidateUrls.push(`http://${ip}:${service.defaultPort}${path}`);
       }
       // 3. Compose service alias on the Docker network
@@ -316,7 +316,7 @@ export class HealthCheckCollector {
           ? "DEGRADED"
           : "UP";
       responseTimeMs = successfulResult.latency;
-    } catch (_aggregateError) {
+    } catch {
       // All candidate URLs failed
       status = "DOWN";
       responseTimeMs = Date.now() - startTime;

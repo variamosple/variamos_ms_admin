@@ -60,8 +60,8 @@ export class PermissionRepositoryImpl
           [filter.sortBy, filter.sortOrder.toUpperCase()],
           ["id", "ASC"],
         ],
-      }).then((response) =>
-        response.map(({ id, name }) => new Permission(id, name)),
+      }).then((permissions) =>
+        permissions.map(({ id, name }) => new Permission(id, name)),
       );
     } catch (error) {
       logger.err("Error in queryPermissions:");
@@ -140,8 +140,8 @@ export class PermissionRepositoryImpl
 
       response.data = await PermissionModel.findOne({
         where: { id: data },
-      }).then((response) =>
-        !response ? undefined : new Permission(response.id, response.name),
+      }).then((permission) =>
+        permission ? new Permission(permission.id, permission.name) : undefined,
       );
     } catch (error) {
       logger.err("Error in queryById:");

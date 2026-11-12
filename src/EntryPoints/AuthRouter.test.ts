@@ -86,15 +86,18 @@ const accessJournal = mock<IAccessJournal>();
 
 // Errors must be logged as text built by describeError, never as full
 // objects (`logger.err(error, true)` dumps the SQL and values of the error).
-function expectSafeErrorLog(spy: { mock: { calls: unknown[][] } }) {
+// What the error log shows: an error line, and whether a stack was asked for
+function errorLogOf(spy: { mock: { calls: unknown[][] } }) {
   const calls = spy.mock.calls;
-  expect(
-    calls.some(
+  return {
+    errorLine: calls.some(
       ([content]) => typeof content === "string" && /^\w*Error: /.test(content),
     ),
-  ).toBe(true);
-  expect(calls.some((call) => call[1] === true)).toBe(false);
+    withStack: calls.some((call) => call[1] === true),
+  };
 }
+
+const SAFE_ERROR_LOG = { errorLine: true, withStack: false };
 
 // Mock other dependencies
 vi.mock("#src/Domain/User/UseCase/UserAuthUseCase");
@@ -2061,7 +2064,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
           "getSessionInfo Invalid URL: http://[invalid-url]",
         ),
       );
-      expectSafeErrorLog(loggerSpy);
+      expect(errorLogOf(loggerSpy)).toEqual(SAFE_ERROR_LOG);
       loggerSpy.mockRestore();
     });
 
@@ -2265,7 +2268,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .send({ email: "john@example.com", password: "Password123!" });
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
-      expectSafeErrorLog(loggerSpy);
+      expect(errorLogOf(loggerSpy)).toEqual(SAFE_ERROR_LOG);
       expect(JSON.stringify(loggerSpy.mock.calls)).not.toContain(
         "Password123!",
       );
@@ -2344,7 +2347,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       });
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
-      expectSafeErrorLog(loggerSpy);
+      expect(errorLogOf(loggerSpy)).toEqual(SAFE_ERROR_LOG);
       loggerSpy.mockRestore();
     });
 
@@ -2420,7 +2423,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .send({ credential: "invalid-token" });
 
       expect(response.status).toBe(302);
-      expectSafeErrorLog(loggerSpy);
+      expect(errorLogOf(loggerSpy)).toEqual(SAFE_ERROR_LOG);
       loggerSpy.mockRestore();
     });
 
@@ -2445,7 +2448,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       );
 
       await supertest(app).get("/auth/my-account");
-      expectSafeErrorLog(loggerSpy);
+      expect(errorLogOf(loggerSpy)).toEqual(SAFE_ERROR_LOG);
       loggerSpy.mockRestore();
     });
 
@@ -2480,7 +2483,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .put("/auth/my-account/information")
         .send({ countryCode: "US" });
 
-      expectSafeErrorLog(loggerSpy);
+      expect(errorLogOf(loggerSpy)).toEqual(SAFE_ERROR_LOG);
       loggerSpy.mockRestore();
     });
 
@@ -2517,7 +2520,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         passwordConfirmation: "b",
       });
 
-      expectSafeErrorLog(loggerSpy);
+      expect(errorLogOf(loggerSpy)).toEqual(SAFE_ERROR_LOG);
       loggerSpy.mockRestore();
     });
 
@@ -2567,7 +2570,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       await supertest(app).post("/auth/guest/sign-in").send({ guestId: "abc" });
 
-      expectSafeErrorLog(loggerSpy);
+      expect(errorLogOf(loggerSpy)).toEqual(SAFE_ERROR_LOG);
       loggerSpy.mockRestore();
     });
 
@@ -2593,7 +2596,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         "POST: /auth/redirects Invalid redirect URL:",
       );
       expect(loggerSpy.mock.calls[1][0]).toHaveProperty("message");
-      expectSafeErrorLog(loggerSpy);
+      expect(errorLogOf(loggerSpy)).toEqual(SAFE_ERROR_LOG);
       loggerSpy.mockRestore();
     });
 
@@ -2665,7 +2668,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .post("/auth/forgot-password")
         .send({ email: "test@example.com" });
 
-      expectSafeErrorLog(loggerSpy);
+      expect(errorLogOf(loggerSpy)).toEqual(SAFE_ERROR_LOG);
       loggerSpy.mockRestore();
     });
 
@@ -2711,7 +2714,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       await supertest(app).post("/auth/verify-token").send({ token: "token" });
 
-      expectSafeErrorLog(loggerSpy);
+      expect(errorLogOf(loggerSpy)).toEqual(SAFE_ERROR_LOG);
       loggerSpy.mockRestore();
     });
 
@@ -2758,7 +2761,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .post("/auth/reset-password")
         .send({ token: "t", password: "p" });
 
-      expectSafeErrorLog(loggerSpy);
+      expect(errorLogOf(loggerSpy)).toEqual(SAFE_ERROR_LOG);
       loggerSpy.mockRestore();
     });
 
