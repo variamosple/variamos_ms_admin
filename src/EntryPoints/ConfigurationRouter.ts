@@ -246,6 +246,38 @@ const MENU: Menu = {
   ],
 };
 
+const PRODUCTION_ORIGIN = "https://app.variamos.com";
+
+// In development, the production addresses point to the local dev server
+const toLocalServer = (menu: Menu) => {
+  for (const item of [...(menu.items ?? []), ...(menu.options ?? [])]) {
+    if (item.location?.startsWith(PRODUCTION_ORIGIN)) {
+      const urlPath = item.location.slice(PRODUCTION_ORIGIN.length);
+      item.location = `http://localhost:3000${urlPath}`;
+    }
+  }
+};
+
+/**
+ * The menu for the page that asks for it: inside the admin, the Admin entry
+ * and "My account" stay in the same page; elsewhere, they open the admin.
+ */
+export const menuFor = (referer: string, isDevelopment: boolean): Menu => {
+  const menu = structuredClone(MENU);
+  const inAdmin = referer.includes("/variamos_admin/");
+  if (isDevelopment) {
+    toLocalServer(menu);
+  } else if (inAdmin) {
+    const adminItem = menu.items?.find((item) => item.title === "Admin");
+    if (adminItem) adminItem.location = "/variamos_admin/#/";
+  }
+  const myAccount = menu.options?.find((opt) => opt.title === "My account");
+  if (myAccount && inAdmin) {
+    myAccount.location = "/variamos_admin/#/my-account";
+  }
+  return menu;
+};
+
 export function createConfigurationRouter(
   configurationUseCase: ConfigurationUseCase,
 ): Router {
@@ -253,38 +285,8 @@ export function createConfigurationRouter(
 
   configurationV1Router.get("/menu", (req: Request, res) => {
     const response = new ResponseModel<Menu>("getMenu");
-
-    const menuCopy = structuredClone(MENU);
-    const referer = req.headers.referer || "";
-    const hasAdminSubpath = referer.includes("/variamos_admin/");
-
-    // Rewrite prod URLs to local dev server in development environment
-    if (EnvVars.IsDevelopment) {
-      const entries = [...(menuCopy.items ?? []), ...(menuCopy.options ?? [])];
-      for (const item of entries) {
-        if (item.location?.startsWith("https://app.variamos.com")) {
-          const urlPath = item.location.slice(
-            "https://app.variamos.com".length,
-          );
-          item.location = `http://localhost:3000${urlPath}`;
-        }
-      }
-    } else if (hasAdminSubpath) {
-      const adminItem = menuCopy.items?.find((item) => item.title === "Admin");
-      if (adminItem) {
-        adminItem.location = "/variamos_admin/#/";
-      }
-    }
-
-    const myAccountOption = menuCopy.options?.find(
-      (opt) => opt.title === "My account",
-    );
-    // Inside the admin, stay in the same page; elsewhere, open the admin
-    if (myAccountOption && hasAdminSubpath) {
-      myAccountOption.location = "/variamos_admin/#/my-account";
-    }
-
-    res.status(200).json(response.withResponse(menuCopy));
+    const menu = menuFor(req.headers.referer || "", EnvVars.IsDevelopment);
+    res.status(200).json(response.withResponse(menu));
   });
 
   // Open to all, like the menu: the name the browser tabs show. Only the

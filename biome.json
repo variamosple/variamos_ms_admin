@@ -79,56 +79,7 @@
       }
     },
     {
-      "includes": [
-        "src/DataProviders/Bug/BugRepository.ts",
-        "src/DataProviders/MicroService/MicroServiceRepository.ts",
-        "src/Domain/AccessControl/AccessHierarchyUseCase.ts",
-        "src/Domain/Bug/UseCase/BugAssignmentUseCase.ts",
-        "src/Domain/Bug/UseCase/BugLifecycleUseCase.ts",
-        "src/Domain/Bug/UseCase/BugSubmissionUseCase.ts",
-        "src/Domain/Bug/UseCase/BugSyncUseCase.ts",
-        "src/Domain/User/UseCase/UserAuthUseCase.ts",
-        "src/EntryPoints/AuthRouter.ts",
-        "src/EntryPoints/BugRouter.ts",
-        "src/EntryPoints/ConfigurationRouter.ts",
-        "src/EntryPoints/ContainerLogsWebSocket.ts",
-        "src/EntryPoints/RateLimits.ts",
-        "src/EntryPoints/authorizationMatrix.test.ts",
-        "src/Infrastructure/Health/HealthCheckCollector.ts"
-      ],
-      "linter": {
-        "rules": {
-          "complexity": {
-            "noExcessiveCognitiveComplexity": {
-              "level": "info",
-              "options": {
-                "maxAllowedComplexity": 15
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "includes": [
-        "src/DataProviders/Bug/BugRepository.ts",
-        "src/DataProviders/MicroService/MicroServiceRepository.ts",
-        "src/Domain/AccessControl/AccessHierarchyUseCase.ts",
-        "src/Domain/Bug/UseCase/BugLifecycleUseCase.ts",
-        "src/Domain/Bug/UseCase/BugSubmissionUseCase.ts",
-        "src/Domain/Bug/UseCase/BugSyncUseCase.ts",
-        "src/EntryPoints/AuthRouter.ts",
-        "src/EntryPoints/BugRouter.ts",
-        "src/EntryPoints/ConfigurationRouter.ts",
-        "src/EntryPoints/MfaRouter.ts",
-        "src/EntryPoints/MicroServicesV1Router.ts",
-        "src/EntryPoints/PermissionsV1Router.ts",
-        "src/EntryPoints/RolePermissionsV1Router.ts",
-        "src/EntryPoints/RolesV1Router.ts",
-        "src/EntryPoints/UserRolesV1Router.ts",
-        "src/EntryPoints/UsersV1Router.ts",
-        "src/EntryPoints/index.ts"
-      ],
+      "includes": ["src/EntryPoints/AuthRouter.ts"],
       "linter": {
         "rules": {
           "complexity": {

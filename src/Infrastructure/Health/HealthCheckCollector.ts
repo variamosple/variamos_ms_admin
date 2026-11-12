@@ -27,6 +27,42 @@ export function withoutTrailingSlashes(url: string): string {
 }
 
 /**
+ * The addresses a health check tries, once each, for both the Docker
+ * network and a local run.
+ */
+const candidateUrlsOf = (service: ServiceDefinition): string[] => {
+  const path = service.healthPath || "/health";
+  const port = service.defaultPort;
+  // 1. The admin checks itself on the loopback
+  if (service.name === "variamos_ms_admin") {
+    return [
+      `http://127.0.0.1:${port}${path}`,
+      `http://localhost:${port}${path}`,
+    ];
+  }
+  // 2. Container IPs from the Docker API: no DNS lookup involved
+  const urls = (service.containerIps ?? []).map(
+    (ip) => `http://${ip}:${port}${path}`,
+  );
+  // 3. Compose service alias on the Docker network
+  const containerPattern =
+    service.containerNamePattern || service.name.replace(/_/g, "-");
+  if (containerPattern) {
+    urls.push(`http://${containerPattern}:${port}${path}`);
+  }
+  // 4. Host mapped URL if available
+  const target = service.targetUrl;
+  if (
+    target &&
+    !target.includes("localhost") &&
+    !target.includes("127.0.0.1")
+  ) {
+    urls.push(`${withoutTrailingSlashes(target)}${path}`);
+  }
+  return Array.from(new Set(urls));
+};
+
+/**
  * Runs `task` on every item with at most `limit` tasks at the same time and
  * returns the outcomes in the order of the items. A failure does not stop
  * the other tasks.
@@ -243,44 +279,7 @@ export class HealthCheckCollector {
     let status: "UP" | "DEGRADED" | "DOWN" = "DOWN";
     let responseTimeMs = 0;
 
-    const path = service.healthPath || "/health";
-    const cleanServiceName = service.name.replace(/_/g, "-");
-    const containerPattern = service.containerNamePattern || cleanServiceName;
-
-    // Dynamically build candidate URLs for both Docker internal network and local host environments
-    const candidateUrls: string[] = [];
-
-    // 1. If running as variamos_ms_admin itself
-    if (service.name === "variamos_ms_admin") {
-      candidateUrls.push(`http://127.0.0.1:${service.defaultPort}${path}`);
-      candidateUrls.push(`http://localhost:${service.defaultPort}${path}`);
-    } else {
-      // 2. Container IPs from the Docker API: no DNS lookup involved
-      const containerIps = service.containerIps ?? [];
-      for (const ip of containerIps) {
-        candidateUrls.push(`http://${ip}:${service.defaultPort}${path}`);
-      }
-      // 3. Compose service alias on the Docker network
-      if (containerPattern) {
-        candidateUrls.push(
-          `http://${containerPattern}:${service.defaultPort}${path}`,
-        );
-      }
-
-      // 4. Host mapped URL if available
-      if (
-        service.targetUrl &&
-        !service.targetUrl.includes("localhost") &&
-        !service.targetUrl.includes("127.0.0.1")
-      ) {
-        candidateUrls.push(
-          `${withoutTrailingSlashes(service.targetUrl)}${path}`,
-        );
-      }
-    }
-
-    // Deduplicate candidate URLs
-    const uniqueUrls = Array.from(new Set(candidateUrls));
+    const uniqueUrls = candidateUrlsOf(service);
 
     // Aborts the requests still running once one candidate URL has answered
     const pendingRequests = new AbortController();

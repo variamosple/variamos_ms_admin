@@ -1,5 +1,5 @@
 import { hasPermissions } from "@variamosple/variamos-security";
-import { type Request, Router } from "express";
+import { type Request, type RequestHandler, Router } from "express";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { UserFilter } from "#src/Domain/User/Entity/UserFilter.js";
 import type { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
@@ -23,19 +23,9 @@ export interface UsersRouterDependencies {
 
 export const USERS_V1_ROUTE = "/v1/users";
 
-export function createUsersRouter(
-  dependencies: UsersRouterDependencies,
-): Router {
-  const {
-    userQueryUseCase,
-    userPasswordUseCase,
-    userManagementUseCase,
-    userRolesRouter,
-    accessGuard,
-  } = dependencies;
-  const router = Router();
-
-  router.get("/", hasPermissions(["users::query"]), async (req, res) => {
+const queryUsers =
+  (userQueryUseCase: UserQueryUseCase): RequestHandler =>
+  async (req, res) => {
     const transactionId = "queryUsers";
     const {
       pageNumber,
@@ -62,25 +52,142 @@ export function createUsersRouter(
     } catch (error) {
       sendError(res, error, transactionId);
     }
-  });
+  };
+
+const queryUserById =
+  (userQueryUseCase: UserQueryUseCase): RequestHandler<{ userId: string }> =>
+  async (req: Request<{ userId: string }>, res) => {
+    const transactionId = "queryUserById";
+    const userId = req.params.userId;
+
+    try {
+      const request = new RequestModel<string>(transactionId, userId);
+      const response = await userQueryUseCase.queryById(request);
+
+      const status = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(status).json(response);
+    } catch (error) {
+      sendError(res, error, transactionId);
+    }
+  };
+
+const generateRecoveryLink =
+  (
+    userPasswordUseCase: UserPasswordUseCase,
+  ): RequestHandler<{ userId: string }> =>
+  async (req: Request<{ userId: string }>, res) => {
+    const transactionId = "generateRecoveryLink";
+    const userId = req.params.userId;
+    const adminId = signedInUser(req).id;
+
+    try {
+      const request = new RequestModel<{ userId: string; adminId: string }>(
+        transactionId,
+        {
+          userId,
+          adminId,
+        },
+      );
+      const response = await userPasswordUseCase.generateLink(request);
+
+      const status = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(status).json(response);
+    } catch (error) {
+      sendError(res, error, transactionId);
+    }
+  };
+
+const disableUser =
+  (
+    userManagementUseCase: UserManagementUseCase,
+  ): RequestHandler<{ userId: string }> =>
+  async (req: Request<{ userId: string }>, res) => {
+    const transactionId = "disableUser";
+    const userId = req.params.userId;
+
+    try {
+      const request = new RequestModel<string>(
+        transactionId,
+        userId,
+        actorOf(req),
+      );
+      const response = await userManagementUseCase.disable(request);
+
+      const status = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(status).json(response);
+    } catch (error) {
+      sendError(res, error, transactionId);
+    }
+  };
+
+const enableUser =
+  (
+    userManagementUseCase: UserManagementUseCase,
+  ): RequestHandler<{ userId: string }> =>
+  async (req: Request<{ userId: string }>, res) => {
+    const transactionId = "enableUser";
+    const userId = req.params.userId;
+
+    try {
+      const request = new RequestModel<string>(
+        transactionId,
+        userId,
+        actorOf(req),
+      );
+      const response = await userManagementUseCase.enable(request);
+
+      const status = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(status).json(response);
+    } catch (error) {
+      sendError(res, error, transactionId);
+    }
+  };
+
+const deleteUser =
+  (
+    userManagementUseCase: UserManagementUseCase,
+  ): RequestHandler<{ userId: string }> =>
+  async (req: Request<{ userId: string }>, res) => {
+    const transactionId = "deleteUser";
+    const userId = req.params.userId;
+
+    try {
+      const request = new RequestModel<string>(
+        transactionId,
+        userId,
+        actorOf(req),
+      );
+      const response = await userManagementUseCase.delete(request);
+
+      const status = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(status).json(response);
+    } catch (error) {
+      sendError(res, error, transactionId);
+    }
+  };
+
+export function createUsersRouter(
+  dependencies: UsersRouterDependencies,
+): Router {
+  const {
+    userQueryUseCase,
+    userPasswordUseCase,
+    userManagementUseCase,
+    userRolesRouter,
+    accessGuard,
+  } = dependencies;
+  const router = Router();
+
+  router.get(
+    "/",
+    hasPermissions(["users::query"]),
+    queryUsers(userQueryUseCase),
+  );
 
   router.get(
     "/:userId",
     hasPermissions(["users::query"]),
-    async (req: Request<{ userId: string }>, res) => {
-      const transactionId = "queryUserById";
-      const userId = req.params.userId;
-
-      try {
-        const request = new RequestModel<string>(transactionId, userId);
-        const response = await userQueryUseCase.queryById(request);
-
-        const status = mapDomainErrorToHttpStatus(response.errorCode);
-        res.status(status).json(response);
-      } catch (error) {
-        sendError(res, error, transactionId);
-      }
-    },
+    queryUserById(userQueryUseCase),
   );
 
   router.post(
@@ -90,27 +197,7 @@ export function createUsersRouter(
       const userId = toUserId(req.params.userId);
       return userId ? { kind: "recovery-link", userId } : null;
     }),
-    async (req: Request<{ userId: string }>, res) => {
-      const transactionId = "generateRecoveryLink";
-      const userId = req.params.userId;
-      const adminId = signedInUser(req).id;
-
-      try {
-        const request = new RequestModel<{ userId: string; adminId: string }>(
-          transactionId,
-          {
-            userId,
-            adminId,
-          },
-        );
-        const response = await userPasswordUseCase.generateLink(request);
-
-        const status = mapDomainErrorToHttpStatus(response.errorCode);
-        res.status(status).json(response);
-      } catch (error) {
-        sendError(res, error, transactionId);
-      }
-    },
+    generateRecoveryLink(userPasswordUseCase),
   );
 
   router.put(
@@ -120,24 +207,7 @@ export function createUsersRouter(
       const userId = toUserId(req.params.userId);
       return userId ? { kind: "disable-account", userId } : null;
     }),
-    async (req: Request<{ userId: string }>, res) => {
-      const transactionId = "disableUser";
-      const userId = req.params.userId;
-
-      try {
-        const request = new RequestModel<string>(
-          transactionId,
-          userId,
-          actorOf(req),
-        );
-        const response = await userManagementUseCase.disable(request);
-
-        const status = mapDomainErrorToHttpStatus(response.errorCode);
-        res.status(status).json(response);
-      } catch (error) {
-        sendError(res, error, transactionId);
-      }
-    },
+    disableUser(userManagementUseCase),
   );
 
   router.put(
@@ -147,24 +217,7 @@ export function createUsersRouter(
       const userId = toUserId(req.params.userId);
       return userId ? { kind: "enable-account", userId } : null;
     }),
-    async (req: Request<{ userId: string }>, res) => {
-      const transactionId = "enableUser";
-      const userId = req.params.userId;
-
-      try {
-        const request = new RequestModel<string>(
-          transactionId,
-          userId,
-          actorOf(req),
-        );
-        const response = await userManagementUseCase.enable(request);
-
-        const status = mapDomainErrorToHttpStatus(response.errorCode);
-        res.status(status).json(response);
-      } catch (error) {
-        sendError(res, error, transactionId);
-      }
-    },
+    enableUser(userManagementUseCase),
   );
 
   router.delete(
@@ -174,24 +227,7 @@ export function createUsersRouter(
       const userId = toUserId(req.params.userId);
       return userId ? { kind: "delete-account", userId } : null;
     }),
-    async (req: Request<{ userId: string }>, res) => {
-      const transactionId = "deleteUser";
-      const userId = req.params.userId;
-
-      try {
-        const request = new RequestModel<string>(
-          transactionId,
-          userId,
-          actorOf(req),
-        );
-        const response = await userManagementUseCase.delete(request);
-
-        const status = mapDomainErrorToHttpStatus(response.errorCode);
-        res.status(status).json(response);
-      } catch (error) {
-        sendError(res, error, transactionId);
-      }
-    },
+    deleteUser(userManagementUseCase),
   );
 
   router.use(USER_ROLES_V1_ROUTE, userRolesRouter);

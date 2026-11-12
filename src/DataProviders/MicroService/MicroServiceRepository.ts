@@ -22,6 +22,7 @@ import {
 import type { ServiceDefinition } from "#src/Domain/MicroService/Entity/ServiceDefinition.js";
 import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 import {
+  type ConfigurationUpdateRefusal,
   type ConfigurationValueType,
   readConfigurationValue,
   refuseConfigurationUpdate,
@@ -54,10 +55,6 @@ export function containerIpsOf(container: {
 }
 
 /**
- * A container is a monitored microservice only when it carries the explicit
- * `variamos.service.monitored=true` label.
- */
-/**
  * Age at which an uptime summary is computed again. A service is checked
  * every 30 s by default, so a summary younger than that misses at most one
  * check per service. Measured on 2026-11-02 (EV-92): one computation reads 30
@@ -66,8 +63,144 @@ export function containerIpsOf(container: {
  */
 const UPTIME_MAX_AGE_MS = 30_000;
 
+/**
+ * A container is a monitored microservice only when it carries the explicit
+ * `variamos.service.monitored=true` label.
+ */
 export function isMonitoredContainer(labels: Record<string, string>): boolean {
   return labels["variamos.service.monitored"] === "true";
+}
+
+/**
+ * The service a container runs, read from its labels, else from its compose
+ * service or container name. Null for a container that is not monitored.
+ */
+function serviceDefinitionOf(
+  c: Docker.ContainerInfo,
+): ServiceDefinition | null {
+  const labels = c.Labels || {};
+  // Only containers that explicitly opt in are monitored. Matching on
+  // compose service names also picked up front-end containers and duplicate deployments.
+  if (!isMonitoredContainer(labels)) return null;
+  const composeService = labels["com.docker.compose.service"];
+
+  const rawServiceName =
+    labels["variamos.service.name"] ||
+    composeService?.replace(/-/g, "_") ||
+    c.Names[0]
+      ?.replace(/^\//, "")
+      .replace(/-test$/, "")
+      .replace(/-/g, "_");
+  if (!rawServiceName) return null;
+
+  const rawDisplayName =
+    labels["variamos.service.display-name"] ||
+    rawServiceName
+      .split("_")
+      .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+      .join(" ");
+
+  const internalPort = labels["variamos.service.internal-port"]
+    ? Number.parseInt(labels["variamos.service.internal-port"], 10)
+    : c.Ports?.[0]?.PrivatePort || 4000;
+
+  // Determine targetUrl: if host port is published use localhost, else use internal container alias
+  const hostPort = c.Ports?.find((p) => p.PublicPort)?.PublicPort;
+  const targetUrl = hostPort
+    ? `http://localhost:${hostPort}`
+    : `http://${composeService || rawServiceName}:${internalPort}`;
+
+  return {
+    name: rawServiceName,
+    displayName: rawDisplayName,
+    targetUrl,
+    containerNamePattern: composeService || rawServiceName.replace(/_/g, "-"),
+    containerIps: containerIpsOf(c),
+    defaultPort: internalPort,
+    healthPath: labels["variamos.service.health-path"] || "/health",
+  };
+}
+
+// A container belongs to a service by its label, compose name or name pattern
+function belongsTo(c: Docker.ContainerInfo, def: ServiceDefinition): boolean {
+  const labels = c.Labels || {};
+  if (labels["variamos.service.name"] === def.name) return true;
+  if (labels["com.docker.compose.service"] === def.containerNamePattern) {
+    return true;
+  }
+  const name = def.name.toLowerCase();
+  const pattern = def.containerNamePattern?.toLowerCase();
+  return c.Names.some((n) => {
+    const cleanN = n.replace(/^\//, "").toLowerCase();
+    return (
+      cleanN === name ||
+      cleanN.includes(name.replace(/_/g, "-")) ||
+      Boolean(pattern && cleanN.includes(pattern))
+    );
+  });
+}
+
+const containerInfoOf = (c: Docker.ContainerInfo): ContainerInstanceInfo => ({
+  id: c.Id,
+  name: c.Names[0]?.replace(/^\//, "") ?? c.Id,
+  state: c.State,
+  status: c.Status,
+  created: new Date(c.Created * 1000),
+  labels: c.Labels,
+});
+
+/** A new value for a key of a service, and who sets it. */
+interface ServiceConfigurationChange {
+  serviceName: string;
+  key: string;
+  value: string;
+  operatorId: string;
+}
+
+/**
+ * The value of a new key and its type, read as JSON; a text that is not a
+ * number, a boolean, an array or an object stays a string.
+ */
+function parseNewValue(value: string): {
+  parsedValue: ConfigurationValue;
+  detectedType: ConfigurationValueType;
+} {
+  let parsedValue: ConfigurationValue;
+  try {
+    parsedValue = JSON.parse(value);
+  } catch {
+    return { parsedValue: value, detectedType: "string" };
+  }
+  if (typeof parsedValue === "number") {
+    return { parsedValue, detectedType: "number" };
+  }
+  if (typeof parsedValue === "boolean") {
+    return { parsedValue, detectedType: "boolean" };
+  }
+  if (Array.isArray(parsedValue)) return { parsedValue, detectedType: "array" };
+  if (typeof parsedValue === "object" && parsedValue !== null) {
+    return { parsedValue, detectedType: "object" };
+  }
+  return { parsedValue: value, detectedType: "string" };
+}
+
+// A key no service had: open to all environments, neither secret nor locked
+function createServiceConfiguration(
+  change: ServiceConfigurationChange,
+): Promise<ConfigurationModel> {
+  const { parsedValue, detectedType } = parseNewValue(change.value);
+  return ConfigurationModel.create({
+    key: change.key,
+    value: parsedValue,
+    type: detectedType,
+    category: "env",
+    requiresMfa: false,
+    isSecret: false,
+    environmentScope: "all",
+    isReadOnly: false,
+    targetServices: [change.serviceName],
+    updatedBy: change.operatorId,
+  });
 }
 
 export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
@@ -140,57 +273,12 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         }));
       const discoveredMap = new Map<string, ServiceDefinition>();
 
+      // The first container of a service gives its definition
       for (const c of containers) {
-        const labels = c.Labels || {};
-        const composeService = labels["com.docker.compose.service"];
-
-        // Only containers that explicitly opt in are monitored. Matching on
-        // compose service names also picked up front-end containers and duplicate deployments.
-        if (!isMonitoredContainer(labels)) {
-          continue;
+        const def = serviceDefinitionOf(c);
+        if (def && !discoveredMap.has(def.name)) {
+          discoveredMap.set(def.name, def);
         }
-
-        const rawServiceName =
-          labels["variamos.service.name"] ||
-          composeService?.replace(/-/g, "_") ||
-          c.Names[0]
-            ?.replace(/^\//, "")
-            .replace(/-test$/, "")
-            .replace(/-/g, "_");
-
-        if (!rawServiceName || discoveredMap.has(rawServiceName)) {
-          continue;
-        }
-
-        const rawDisplayName =
-          labels["variamos.service.display-name"] ||
-          rawServiceName
-            .split("_")
-            .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-            .join(" ");
-
-        const internalPort = labels["variamos.service.internal-port"]
-          ? Number.parseInt(labels["variamos.service.internal-port"], 10)
-          : c.Ports?.[0]?.PrivatePort || 4000;
-
-        const healthPath = labels["variamos.service.health-path"] || "/health";
-
-        // Determine targetUrl: if host port is published use localhost, else use internal container alias
-        const hostPort = c.Ports?.find((p) => p.PublicPort)?.PublicPort;
-        const targetUrl = hostPort
-          ? `http://localhost:${hostPort}`
-          : `http://${composeService || rawServiceName}:${internalPort}`;
-
-        discoveredMap.set(rawServiceName, {
-          name: rawServiceName,
-          displayName: rawDisplayName,
-          targetUrl,
-          containerNamePattern:
-            composeService || rawServiceName.replace(/_/g, "-"),
-          containerIps: containerIpsOf(c),
-          defaultPort: internalPort,
-          healthPath,
-        });
       }
 
       return Array.from(discoveredMap.values());
@@ -228,7 +316,6 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
           def.displayName.toLowerCase().includes(nameFilter) ||
           def.name.toLowerCase().includes(nameFilter),
       );
-      const matchedContainerIds = new Set<string>();
 
       // One query for the uptime of every listed service
       const uptimeSummaries = new Map(
@@ -246,39 +333,9 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
 
       const services = await Promise.all(
         discoveredDefs.map(async (def) => {
-          // Match containers belonging to this service by label, compose name or pattern
-          const matchedContainers = containers.filter((c) => {
-            const labels = c.Labels || {};
-            if (labels["variamos.service.name"] === def.name) return true;
-            if (
-              labels["com.docker.compose.service"] === def.containerNamePattern
-            )
-              return true;
-            return c.Names.some((n) => {
-              const cleanN = n.replace(/^\//, "").toLowerCase();
-              return (
-                cleanN === def.name.toLowerCase() ||
-                cleanN.includes(def.name.toLowerCase().replace(/_/g, "-")) ||
-                (def.containerNamePattern &&
-                  cleanN.includes(def.containerNamePattern.toLowerCase()))
-              );
-            });
-          });
-
-          for (const c of matchedContainers) {
-            matchedContainerIds.add(c.Id);
-          }
-
-          const containerInfos: ContainerInstanceInfo[] = matchedContainers.map(
-            (c) => ({
-              id: c.Id,
-              name: c.Names[0]?.replace(/^\//, "") ?? c.Id,
-              state: c.State,
-              status: c.Status,
-              created: new Date(c.Created * 1000),
-              labels: c.Labels,
-            }),
-          );
+          const containerInfos = containers
+            .filter((c) => belongsTo(c, def))
+            .map(containerInfoOf);
 
           const latestHealthLog = await MicroServiceHealthLogModel.findOne({
             where: { serviceName: def.name },
@@ -702,22 +759,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         order: [["key", "ASC"]],
       });
 
-      response.data = configs.map(
-        (c) =>
-          new MicroServiceConfigItem({
-            id: c.id,
-            serviceName,
-            key: c.key,
-            value: this.displayedValueOf(c),
-            type: c.type || "string",
-            isSecret: c.isSecret,
-            isReadOnly: c.isReadOnly,
-            description: c.description,
-            updatedBy: c.updatedBy,
-            createdAt: c.createdAt,
-            updatedAt: c.updatedAt,
-          }),
-      );
+      response.data = configs.map((c) => this.configItemOf(c, serviceName));
       response.totalCount = configs.length;
     } catch (error) {
       logger.err(error);
@@ -756,61 +798,15 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         return response.withError(refusal.errorCode, refusal.message);
       }
 
+      const change = { serviceName, key, value, operatorId };
       let config: ConfigurationModel;
-
       if (existing) {
-        // The refusal above has checked that the value matches the key's type
-        const parsedValue = readConfigurationValue(value, existing.type);
-        if (parsedValue === undefined) {
-          return response.withError(
-            DomainErrorCodes.INVALID_INPUT,
-            `The value does not match the type of '${key}'.`,
-          );
-        }
-        // A secret is never written in clear (T-13)
-        if (existing.isSecret && !this.secrets.canEncrypt()) {
-          return response.withError(
-            DomainErrorCodes.UNAVAILABLE,
-            "Secret configurations cannot be changed: no encryption key is configured.",
-          );
-        }
-        const targetServices = Array.from(
-          new Set([...existing.targetServices, serviceName]),
-        );
-        await existing.update({
-          value: existing.isSecret
-            ? this.secrets.encrypt(key, parsedValue)
-            : parsedValue,
-          targetServices,
-          updatedBy: operatorId,
-        });
+        const failure = await this.writeExisting(existing, change);
+        if (failure)
+          return response.withError(failure.errorCode, failure.message);
         config = existing;
       } else {
-        let parsedValue: ConfigurationValue;
-        let detectedType: ConfigurationValueType = "string";
-        try {
-          parsedValue = JSON.parse(value);
-          if (typeof parsedValue === "number") detectedType = "number";
-          else if (typeof parsedValue === "boolean") detectedType = "boolean";
-          else if (Array.isArray(parsedValue)) detectedType = "array";
-          else if (typeof parsedValue === "object" && parsedValue !== null)
-            detectedType = "object";
-          else parsedValue = value;
-        } catch {
-          parsedValue = value;
-        }
-        config = await ConfigurationModel.create({
-          key,
-          value: parsedValue,
-          type: detectedType,
-          category: "env",
-          requiresMfa: false,
-          isSecret: false,
-          environmentScope: "all",
-          isReadOnly: false,
-          targetServices: [serviceName],
-          updatedBy: operatorId,
-        });
+        config = await createServiceConfiguration(change);
       }
 
       await MicroServiceAuditLogModel.create({
@@ -821,19 +817,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         performedBy: operatorId,
       });
 
-      response.data = new MicroServiceConfigItem({
-        id: config.id,
-        serviceName,
-        key: config.key,
-        value: this.displayedValueOf(config),
-        type: config.type || "string",
-        isSecret: config.isSecret,
-        isReadOnly: config.isReadOnly,
-        description: config.description,
-        updatedBy: config.updatedBy,
-        createdAt: config.createdAt,
-        updatedAt: config.updatedAt,
-      });
+      response.data = this.configItemOf(config, serviceName);
     } catch (error) {
       logger.err(error);
       response.withError(
@@ -843,6 +827,62 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
     }
 
     return response;
+  }
+
+  /** Writes the new value of a known key; the refusal when it cannot. */
+  private async writeExisting(
+    existing: ConfigurationModel,
+    change: ServiceConfigurationChange,
+  ): Promise<ConfigurationUpdateRefusal | null> {
+    const { serviceName, key, value, operatorId } = change;
+    // The refusal checked before has made sure that the value matches the
+    // key's type
+    const parsedValue = readConfigurationValue(value, existing.type);
+    if (parsedValue === undefined) {
+      return {
+        errorCode: DomainErrorCodes.INVALID_INPUT,
+        message: `The value does not match the type of '${key}'.`,
+      };
+    }
+    // A secret is never written in clear (T-13)
+    if (existing.isSecret && !this.secrets.canEncrypt()) {
+      return {
+        errorCode: DomainErrorCodes.UNAVAILABLE,
+        message:
+          "Secret configurations cannot be changed: no encryption key is configured.",
+      };
+    }
+    const targetServices = Array.from(
+      new Set([...existing.targetServices, serviceName]),
+    );
+    await existing.update({
+      value: existing.isSecret
+        ? this.secrets.encrypt(key, parsedValue)
+        : parsedValue,
+      targetServices,
+      updatedBy: operatorId,
+    });
+    return null;
+  }
+
+  // A configuration as the service's configuration list shows it
+  private configItemOf(
+    config: ConfigurationModel,
+    serviceName: string,
+  ): MicroServiceConfigItem {
+    return new MicroServiceConfigItem({
+      id: config.id,
+      serviceName,
+      key: config.key,
+      value: this.displayedValueOf(config),
+      type: config.type || "string",
+      isSecret: config.isSecret,
+      isReadOnly: config.isReadOnly,
+      description: config.description,
+      updatedBy: config.updatedBy,
+      createdAt: config.createdAt,
+      updatedAt: config.updatedAt,
+    });
   }
 
   public async queryAuditLogs(

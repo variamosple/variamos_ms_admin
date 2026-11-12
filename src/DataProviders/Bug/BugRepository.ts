@@ -13,7 +13,10 @@ import { BugFilter } from "#src/Domain/Bug/Entity/BugFilter.js";
 import { BugNote } from "#src/Domain/Bug/Entity/BugNote.js";
 import type { BugPriorityValue } from "#src/Domain/Bug/Entity/BugPriority.js";
 import { BugStatusLog } from "#src/Domain/Bug/Entity/BugStatusLog.js";
-import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
+import type {
+  BugStatusUpdate,
+  IBugRepository,
+} from "#src/Domain/Bug/Repository/IBugRepository.js";
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -89,6 +92,67 @@ async function findPage(
     page.limit === undefined ? undefined : BugModel.count({ where }),
   ]);
   return { dbBugs, totalCount: totalCount ?? dbBugs.length };
+}
+
+/**
+ * Copies what GitHub owns onto the saved bug (title, text, status, priority,
+ * author, link, assignee, creation date); true when one of them changed.
+ */
+function copyGitHubFields(dbBug: BugModel, bug: Bug): boolean {
+  let changed = false;
+  if (dbBug.title !== bug.title) {
+    dbBug.title = bug.title;
+    changed = true;
+  }
+  if (dbBug.description !== bug.description) {
+    dbBug.description = bug.description;
+    changed = true;
+  }
+  if (dbBug.status !== bug.status) {
+    dbBug.status = bug.status;
+    changed = true;
+  }
+  if (dbBug.priority !== bug.priority) {
+    dbBug.priority = bug.priority;
+    changed = true;
+  }
+  if (dbBug.githubCreator !== bug.githubCreator) {
+    dbBug.githubCreator = bug.githubCreator;
+    changed = true;
+  }
+  if (dbBug.githubHtmlUrl !== bug.githubHtmlUrl) {
+    dbBug.githubHtmlUrl = bug.githubHtmlUrl;
+    changed = true;
+  }
+  if (dbBug.githubAssignee !== bug.githubAssignee) {
+    dbBug.githubAssignee = bug.githubAssignee;
+    changed = true;
+  }
+  if (dbBug.githubCreatedAt?.toISOString() !== bug.createdAt?.toISOString()) {
+    dbBug.githubCreatedAt = bug.createdAt;
+    changed = true;
+  }
+
+  return changed;
+}
+
+// The new status, and each corrected field that the update gives
+function applyStatusUpdate(dbBug: BugModel, update: BugStatusUpdate): void {
+  dbBug.status = update.status;
+  if (update.gitIssueNumber !== undefined) {
+    dbBug.gitIssueNumber = update.gitIssueNumber;
+  }
+  if (update.githubHtmlUrl !== undefined) {
+    dbBug.githubHtmlUrl = update.githubHtmlUrl;
+  }
+  if (update.title !== undefined) dbBug.title = update.title;
+  if (update.description !== undefined) {
+    dbBug.description = update.description;
+  }
+  if (update.priority !== undefined) dbBug.priority = update.priority;
+  if (update.category !== undefined) dbBug.category = update.category;
+  if (update.component !== undefined) dbBug.component = update.component;
+  if (update.githubRepo !== undefined) dbBug.githubRepo = update.githubRepo;
 }
 
 export class BugRepositoryImpl implements IBugRepository {
@@ -274,42 +338,7 @@ export class BugRepositoryImpl implements IBugRepository {
         });
         response.data = { created: true, updated: false };
       } else {
-        let changed = false;
-        if (dbBug.title !== bug.title) {
-          dbBug.title = bug.title;
-          changed = true;
-        }
-        if (dbBug.description !== bug.description) {
-          dbBug.description = bug.description;
-          changed = true;
-        }
-        if (dbBug.status !== bug.status) {
-          dbBug.status = bug.status;
-          changed = true;
-        }
-        if (dbBug.priority !== bug.priority) {
-          dbBug.priority = bug.priority;
-          changed = true;
-        }
-        if (dbBug.githubCreator !== bug.githubCreator) {
-          dbBug.githubCreator = bug.githubCreator;
-          changed = true;
-        }
-        if (dbBug.githubHtmlUrl !== bug.githubHtmlUrl) {
-          dbBug.githubHtmlUrl = bug.githubHtmlUrl;
-          changed = true;
-        }
-        if (dbBug.githubAssignee !== bug.githubAssignee) {
-          dbBug.githubAssignee = bug.githubAssignee;
-          changed = true;
-        }
-        if (
-          dbBug.githubCreatedAt?.toISOString() !== bug.createdAt?.toISOString()
-        ) {
-          dbBug.githubCreatedAt = bug.createdAt;
-          changed = true;
-        }
-
+        const changed = copyGitHubFields(dbBug, bug);
         if (changed) {
           await dbBug.save();
           response.data = { created: false, updated: true };
@@ -666,20 +695,7 @@ export class BugRepositoryImpl implements IBugRepository {
   }
 
   public async updateStatus(
-    request: RequestModel<{
-      id: string;
-      status: string;
-      comment?: string;
-      adminId: string;
-      gitIssueNumber?: number;
-      githubHtmlUrl?: string;
-      title?: string;
-      description?: string;
-      priority?: BugPriorityValue;
-      category?: string;
-      component?: BugComponentValue;
-      githubRepo?: string;
-    }>,
+    request: RequestModel<BugStatusUpdate>,
   ): Promise<ResponseModel<Bug>> {
     const response = new ResponseModel<Bug>(request.transactionId);
     try {
@@ -690,20 +706,7 @@ export class BugRepositoryImpl implements IBugRepository {
           "Request data is required.",
         );
       }
-      const {
-        id,
-        status,
-        comment,
-        adminId,
-        gitIssueNumber,
-        githubHtmlUrl,
-        title,
-        description,
-        priority,
-        category,
-        component,
-        githubRepo,
-      } = data;
+      const { id, status, comment, adminId } = data;
       await VARIAMOS_ORM.transaction(async (t) => {
         const dbBug = await BugModel.findByPk(id, { transaction: t });
         if (!dbBug) {
@@ -714,31 +717,7 @@ export class BugRepositoryImpl implements IBugRepository {
           return;
         }
 
-        dbBug.status = status;
-        if (gitIssueNumber !== undefined) {
-          dbBug.gitIssueNumber = gitIssueNumber;
-        }
-        if (githubHtmlUrl !== undefined) {
-          dbBug.githubHtmlUrl = githubHtmlUrl;
-        }
-        if (title !== undefined) {
-          dbBug.title = title;
-        }
-        if (description !== undefined) {
-          dbBug.description = description;
-        }
-        if (priority !== undefined) {
-          dbBug.priority = priority;
-        }
-        if (category !== undefined) {
-          dbBug.category = category;
-        }
-        if (component !== undefined) {
-          dbBug.component = component;
-        }
-        if (githubRepo !== undefined) {
-          dbBug.githubRepo = githubRepo;
-        }
+        applyStatusUpdate(dbBug, data);
         await dbBug.save({ transaction: t });
 
         const resolvedOperatorId = await this.resolveOperatorId(adminId, t);

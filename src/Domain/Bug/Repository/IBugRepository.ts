@@ -8,6 +8,22 @@ import type { BugFilter } from "../Entity/BugFilter.js";
 import type { BugNote } from "../Entity/BugNote.js";
 import type { BugStatusLog } from "../Entity/BugStatusLog.js";
 
+/** A new status, with the fields an approval may have corrected. */
+export interface BugStatusUpdate {
+  id: string;
+  status: string;
+  comment?: string;
+  adminId: string;
+  gitIssueNumber?: number;
+  githubHtmlUrl?: string;
+  title?: string;
+  description?: string;
+  priority?: BugPriorityValue;
+  category?: string;
+  component?: BugComponentValue;
+  githubRepo?: string;
+}
+
 export interface IBugRepository {
   queryBugs(request: RequestModel<BugFilter>): Promise<ResponseModel<Bug[]>>;
   queryLocalBugs(
@@ -64,20 +80,7 @@ export interface IBugRepository {
     request: RequestModel<string>,
   ): Promise<ResponseModel<BugStatusLog[]>>;
   updateStatus(
-    request: RequestModel<{
-      id: string;
-      status: string;
-      comment?: string;
-      adminId: string;
-      gitIssueNumber?: number;
-      githubHtmlUrl?: string;
-      title?: string;
-      description?: string;
-      priority?: BugPriorityValue;
-      category?: string;
-      component?: BugComponentValue;
-      githubRepo?: string;
-    }>,
+    request: RequestModel<BugStatusUpdate>,
   ): Promise<ResponseModel<Bug>>;
   createAttachment(
     request: RequestModel<{

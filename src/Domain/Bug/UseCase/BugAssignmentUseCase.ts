@@ -99,6 +99,31 @@ export class BugAssignmentUseCase {
 
     if (response.errorCode) return response;
 
+    await this.announceAssignment({
+      transactionId,
+      actorId,
+      bug,
+      previous,
+      userIds,
+      assigned: response.data,
+    });
+    return response;
+  }
+
+  /**
+   * Records the change in the bug timeline and tells the newly assigned
+   * administrators; the assignment is saved, so a failure is only logged.
+   */
+  private async announceAssignment(change: {
+    transactionId?: string;
+    actorId?: string;
+    bug: { id: string; title: string };
+    previous: BugUserRef[];
+    userIds: string[];
+    assigned?: BugUserRef[] | null;
+  }): Promise<void> {
+    const { transactionId, actorId, bug, previous, userIds, assigned } = change;
+    const before = previous.map((user) => user.id);
     const added = userIds.filter((id) => !before.includes(id));
     const removed = before.filter((id) => !userIds.includes(id));
     if (added.length > 0 || removed.length > 0) {
@@ -107,7 +132,7 @@ export class BugAssignmentUseCase {
       const note = await this.bugRepository.createNote(
         new RequestModel(transactionId, {
           bugId: bug.id,
-          body: `[Audit] Assigned to: ${namesOf(response.data)} (was: ${namesOf(previous)}).`,
+          body: `[Audit] Assigned to: ${namesOf(assigned)} (was: ${namesOf(previous)}).`,
           authorId: actorId,
         }),
       );
@@ -125,6 +150,5 @@ export class BugAssignmentUseCase {
           ),
         );
     }
-    return response;
   }
 }

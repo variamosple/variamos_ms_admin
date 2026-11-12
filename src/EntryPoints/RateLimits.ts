@@ -114,19 +114,22 @@ function accountLockoutGuard(
       return;
     }
     const { attempt } = admission;
+    // A failure counts toward the lock; a lock is logged and recorded
+    const fail = () => {
+      const lock = attempt.failed();
+      if (!lock) return;
+      logger.warn(
+        `[LOCKOUT] ${maskEmail(email)} locked for ${lock.durationMinutes} min after ${lock.attempts} failed sign-ins`,
+      );
+      if (journal) void recordLock(journal, req, email);
+    };
     res.on("close", () => {
       if (!res.writableFinished || res.statusCode >= 500) {
         attempt.abandoned();
       } else if (res.statusCode < 400) {
         attempt.succeeded();
       } else {
-        const lock = attempt.failed();
-        if (lock) {
-          logger.warn(
-            `[LOCKOUT] ${maskEmail(email)} locked for ${lock.durationMinutes} min after ${lock.attempts} failed sign-ins`,
-          );
-          if (journal) void recordLock(journal, req, email);
-        }
+        fail();
       }
     });
     next();

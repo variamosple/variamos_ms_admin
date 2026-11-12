@@ -64,6 +64,30 @@ function serviceIdOf(message: RawData): string | null {
  * permission, the origin must be listed, the socket closes when the session
  * expires, and a connection follows one log stream at a time.
  */
+// The error of a failed log request, or "not found" when it found no logs
+const logsFailure = (
+  response: ResponseModel<NodeJS.ReadableStream>,
+  microserviceId: string,
+) =>
+  response.errorCode
+    ? response
+    : response.withError(
+        DomainErrorCodes.ENTITY_NOT_FOUND,
+        `No Logs found for microservice with id: ${microserviceId}`,
+      );
+
+// Sends each chunk of the log stream, then its end, while the socket is open
+const forward = (logStream: NodeJS.ReadableStream, ws: WebSocket) => {
+  logStream.on("data", (chunk: Buffer) => {
+    if (ws.readyState === WebSocket.OPEN) ws.send(chunk.toString("utf8"));
+  });
+  logStream.on("end", () => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ message: "Log stream ended" }));
+    }
+  });
+};
+
 export function attachContainerLogsWebSocket(
   server: Server,
   deps: ContainerLogsDependencies,
@@ -122,28 +146,11 @@ export function attachContainerLogsWebSocket(
           new RequestModel("watchMicroServiceLogs", microserviceId),
         );
         if (response.errorCode || !response.data) {
-          ws.send(
-            JSON.stringify(
-              response.errorCode
-                ? response
-                : response.withError(
-                    DomainErrorCodes.ENTITY_NOT_FOUND,
-                    `No Logs found for microservice with id: ${microserviceId}`,
-                  ),
-            ),
-          );
+          ws.send(JSON.stringify(logsFailure(response, microserviceId)));
           return;
         }
-        const logStream = response.data;
-        stream = logStream;
-        logStream.on("data", (chunk: Buffer) => {
-          if (ws.readyState === WebSocket.OPEN) ws.send(chunk.toString("utf8"));
-        });
-        logStream.on("end", () => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ message: "Log stream ended" }));
-          }
-        });
+        stream = response.data;
+        forward(stream, ws);
       } catch (error) {
         logger.err(describeError(error));
         ws.send(JSON.stringify({ error: "Could not read the logs." }));
