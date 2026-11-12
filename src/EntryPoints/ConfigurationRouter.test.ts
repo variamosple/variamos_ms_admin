@@ -171,7 +171,8 @@ describe("ConfigurationRouter Integration Tests", () => {
     });
 
     it("should handle missing items, Admin item, or My Account option (branch coverage)", async () => {
-      vi.spyOn(JSON, "parse").mockReturnValueOnce({
+      // The copy of the menu, replaced by a menu with parts missing
+      vi.spyOn(globalThis, "structuredClone").mockReturnValueOnce({
         options: [],
       });
 
@@ -182,7 +183,7 @@ describe("ConfigurationRouter Integration Tests", () => {
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(response.body.data.items).toBeUndefined();
 
-      vi.spyOn(JSON, "parse").mockReturnValueOnce({
+      vi.spyOn(globalThis, "structuredClone").mockReturnValueOnce({
         items: [{ title: "Home", location: "url" }],
         options: [{ title: "My account", location: "url" }],
       });

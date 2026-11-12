@@ -44,7 +44,7 @@ export async function mapWithConcurrency<T, R>(
       try {
         outcomes[index] = {
           status: "fulfilled",
-          value: await task(items[index] as T),
+          value: await task(items[index]),
         };
       } catch (reason) {
         outcomes[index] = { status: "rejected", reason };

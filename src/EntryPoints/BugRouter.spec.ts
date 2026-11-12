@@ -899,7 +899,7 @@ describe("BugRouter HTTP Integration Tests", () => {
         new ResponseModel<Bug>("tx-id").withResponse(newBug),
       );
       mockValidateSession.mockResolvedValue({
-        data: { id: "user-via-cookie" },
+        data: { sub: "user-via-cookie" },
       });
 
       const res = await request(guestApp)
@@ -1050,13 +1050,13 @@ describe("BugRouter HTTP Integration Tests", () => {
       );
     });
 
-    it("should handle session validation returning empty string for id", async () => {
+    it("should handle session validation returning an empty sub", async () => {
       const newBug = Bug.builder().setId("local-guest").build();
       mockBugSubmissionUseCase.createBug.mockResolvedValue(
         new ResponseModel<Bug>("tx-id").withResponse(newBug),
       );
       mockValidateSession.mockResolvedValue({
-        data: { id: "", sub: "" },
+        data: { sub: "" },
       });
 
       const res = await request(guestApp)
@@ -1308,7 +1308,7 @@ describe("BugRouter upload limits and anonymous files", () => {
       .field("category", "Editor");
 
   it("should answer 413 for a file over the size limit, without calling the use case", async () => {
-    mockValidateSession.mockResolvedValue({ data: { id: "user-1" } });
+    mockValidateSession.mockResolvedValue({ data: { sub: "user-1" } });
     const tooLarge = Buffer.alloc(MAX_ATTACHMENT_SIZE_BYTES + 1, 0x41);
 
     const res = await bugFields(
@@ -1325,7 +1325,7 @@ describe("BugRouter upload limits and anonymous files", () => {
   });
 
   it("should accept a file at exactly the size limit", async () => {
-    mockValidateSession.mockResolvedValue({ data: { id: "user-1" } });
+    mockValidateSession.mockResolvedValue({ data: { sub: "user-1" } });
     const atLimit = Buffer.alloc(MAX_ATTACHMENT_SIZE_BYTES, 0x41);
 
     const res = await bugFields(
@@ -1340,7 +1340,7 @@ describe("BugRouter upload limits and anonymous files", () => {
   });
 
   it("should answer 400 when more than one file is sent", async () => {
-    mockValidateSession.mockResolvedValue({ data: { id: "user-1" } });
+    mockValidateSession.mockResolvedValue({ data: { sub: "user-1" } });
 
     const res = await bugFields(
       request(limitedApp)
@@ -1356,7 +1356,7 @@ describe("BugRouter upload limits and anonymous files", () => {
   });
 
   it("should answer 400 for a file sent under another field name", async () => {
-    mockValidateSession.mockResolvedValue({ data: { id: "user-1" } });
+    mockValidateSession.mockResolvedValue({ data: { sub: "user-1" } });
 
     const res = await bugFields(
       request(limitedApp)
@@ -1408,7 +1408,7 @@ describe("BugRouter upload limits and anonymous files", () => {
   });
 
   it("should accept a file from a guest or user session", async () => {
-    mockValidateSession.mockResolvedValue({ data: { id: "guest-42" } });
+    mockValidateSession.mockResolvedValue({ data: { sub: "guest-42" } });
 
     const res = await bugFields(
       request(limitedApp)

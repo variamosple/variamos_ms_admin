@@ -10,7 +10,7 @@ import { visitBody } from "./adminRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
 import { queryText } from "./queryText.js";
-import { validBody } from "./requestBody.js";
+import { checkedBody, validBody } from "./requestBody.js";
 
 export const VISITS_V1_ROUTE = "/v1/visits";
 
@@ -24,7 +24,7 @@ export function createVisitsRouter(visitUseCase: VisitUseCase): Router {
     async (req, res) => {
       const transactionId = "createVisit";
       const user = req.user;
-      const { pageId } = req.body as { pageId?: string };
+      const { pageId } = checkedBody(visitBody, req);
       const ipAddress: string | undefined =
         queryText(req.headers["x-forwarded-for"]) || req.ip;
 

@@ -247,6 +247,25 @@ describe("Configuration Entity Invariants", () => {
     expect(config.updatedAt).toBeUndefined();
   });
 
+  it("refuses a missing value as a value of another type", () => {
+    const config = Configuration.builder()
+      .setKey(validKey)
+      .setValue(8)
+      .setType("number")
+      .setCategory("security")
+      .setTargetServices(["all"])
+      .build();
+
+    expect(() => config.checkNewValue(undefined)).toThrow(
+      `Value for key '${validKey.getValue()}' must be a number.`,
+    );
+    expect(() => config.updateValue(undefined, "admin123")).toThrow(
+      "must be a number.",
+    );
+    expect(config.value).toBe(8);
+    expect(config.updatedBy).toBeUndefined();
+  });
+
   it("should mask values if it is a secret", () => {
     const secretConfig = Configuration.builder()
       .setKey(new ConfigurationKey("notification.smtp.password"))

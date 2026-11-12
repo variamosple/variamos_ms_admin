@@ -164,7 +164,7 @@ describe("AdminNotificationsRouter Integration Tests", () => {
     });
 
     it("should resolve roles to user IDs and dispatch when audience is role", async () => {
-      const mockRolesWithUsers: (Partial<RoleModel> & {
+      const mockRolesWithUsers: (Omit<Partial<RoleModel>, "users"> & {
         users: Partial<UserModel>[];
       })[] = [
         {

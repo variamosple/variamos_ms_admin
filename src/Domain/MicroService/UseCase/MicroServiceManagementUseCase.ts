@@ -180,7 +180,7 @@ export class MicroServiceManagementUseCase {
   // The replicas are set in the server's compose file: answering success
   // without acting would mislead the operator (T-25, decision D3)
   public scaleMicroService(
-    request: RequestModel<{ serviceName: string; replicas: number }>,
+    request: RequestModel<{ serviceName: string }>,
   ): Promise<ResponseModel<void>> {
     return Promise.resolve(
       new ResponseModel<void>(request.transactionId).withError(
@@ -194,7 +194,7 @@ export class MicroServiceManagementUseCase {
     request: RequestModel<{
       serviceName: string;
       key: string;
-      value: string;
+      value: string | undefined;
       operatorId: string;
     }>,
   ): Promise<ResponseModel<MicroServiceConfigItem>> {
@@ -221,7 +221,7 @@ export class MicroServiceManagementUseCase {
     request: RequestModel<{
       serviceName: string;
       key: string;
-      value: string;
+      value: string | undefined;
       operatorId: string;
     }>,
     onChange: (before: ActivityValues | null, after: ActivityValues) => void,
@@ -229,20 +229,22 @@ export class MicroServiceManagementUseCase {
     const defaultResponse = new ResponseModel<MicroServiceConfigItem>(
       request.transactionId,
     );
-    if (
-      !request.data?.serviceName ||
-      !request.data?.key ||
-      request.data?.value === undefined
-    ) {
+    const data = request.data;
+    if (!data?.serviceName || !data.key || data.value === undefined) {
       return defaultResponse.withError(
         DomainErrorCodes.INVALID_INPUT,
         "Service name, key and value are required.",
       );
     }
-    const { key } = request.data;
+    const { key } = data;
     const before = await this.readConfiguration(request.transactionId, key);
-    const response =
-      await this.microServiceRepository.updateConfiguration(request);
+    const response = await this.microServiceRepository.updateConfiguration(
+      new RequestModel(
+        request.transactionId,
+        { ...data, value: data.value },
+        request.actorId,
+      ),
+    );
     if (response.errorCode) return response;
 
     const updated = await this.readConfiguration(request.transactionId, key);

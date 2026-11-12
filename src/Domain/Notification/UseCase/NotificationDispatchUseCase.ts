@@ -7,15 +7,17 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { INotificationDispatcher } from "../INotificationDispatcher.js";
 import type { INotificationRecipientDirectory } from "../INotificationRecipientDirectory.js";
 
+// As the route reads them: recipientsOf refuses an unknown audience, and
+// dispatch a missing title or body
 export interface NotificationAudience {
-  audience: "broadcast" | "role" | "users";
+  audience?: string;
   roles?: string[];
   userIds?: string[];
 }
 
 export interface NotificationDispatchRequest extends NotificationAudience {
-  title: string;
-  body: string;
+  title?: string;
+  body?: string;
   actorId: string | null;
   // Chosen by the interface for one message, the same when the
   // administrator sends it again after an error (EV-99, CA-NT-05)
@@ -44,9 +46,7 @@ export class NotificationDispatchUseCase {
     const response = new ResponseModel<{ count: number }>(
       request.transactionId,
     );
-    const recipients = await this.recipientsOf(
-      request.data ?? ({} as NotificationAudience),
-    );
+    const recipients = await this.recipientsOf(request.data ?? {});
     if ("refusal" in recipients) {
       return response.withError(
         DomainErrorCodes.INVALID_INPUT,
@@ -59,7 +59,7 @@ export class NotificationDispatchUseCase {
   public async dispatch(
     request: RequestModel<NotificationDispatchRequest>,
   ): Promise<ResponseModel<void>> {
-    const data = request.data ?? ({} as NotificationDispatchRequest);
+    const data: NotificationDispatchRequest = request.data ?? { actorId: null };
     let recipientCount = 0;
 
     return await withJournal(

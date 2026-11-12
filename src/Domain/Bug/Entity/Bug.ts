@@ -56,7 +56,8 @@ class BugBuilder {
   public description!: string;
   public priority!: BugPriorityValue;
   public category?: string;
-  public component?: BugComponentValue;
+  // Any text until build() refuses one that is not a component
+  public component?: string;
   public status!: string;
   public githubRepo?: string;
   public gitIssueNumber?: number;
@@ -95,7 +96,7 @@ class BugBuilder {
   }
   // Checked by build(): the value may come from a request
   public setComponent(component?: string) {
-    this.component = (component || undefined) as BugComponentValue | undefined;
+    this.component = component || undefined;
     return this;
   }
   public setStatus(status: string) {

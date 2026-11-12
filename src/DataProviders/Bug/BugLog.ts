@@ -1,5 +1,6 @@
-import { DATE, INTEGER, Model, TEXT, UUID } from "sequelize";
+import { DATE, INTEGER, Model, type NonAttribute, TEXT, UUID } from "sequelize";
 import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
+import type { UserModel } from "../User/User.js";
 
 export interface BugLogAttributes {
   id?: number;
@@ -22,6 +23,8 @@ export class BugLogModel
   public operatorId?: string;
   public createdAt?: Date;
   public updatedAt?: Date;
+  // Association (BugAssociations.ts), set when a query includes it
+  declare public changedBy?: NonAttribute<UserModel | null>;
 }
 
 BugLogModel.init(

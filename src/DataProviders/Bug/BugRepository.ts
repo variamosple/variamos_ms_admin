@@ -1,4 +1,10 @@
-import { Op, QueryTypes, type Transaction, type WhereOptions } from "sequelize";
+import {
+  Op,
+  QueryTypes,
+  type Transaction,
+  type WhereAttributeHash,
+  type WhereOptions,
+} from "sequelize";
 import logger from "#src/common/logger.js";
 import { Bug, type BugUserRef } from "#src/Domain/Bug/Entity/Bug.js";
 import { BugAttachment } from "#src/Domain/Bug/Entity/BugAttachment.js";
@@ -19,34 +25,8 @@ import { BugAttachmentModel } from "./BugAttachment.js";
 import { BugLogModel } from "./BugLog.js";
 import { BugNoteModel } from "./BugNote.js";
 
-interface DbBugAttachment {
-  id?: number;
-  filePath: string;
-  fileType: string;
-  bugId: string;
-}
-
-interface DbBugWithAssociations extends BugModel {
-  attachments?: DbBugAttachment[] | null;
-  createdBy?: {
-    name: string;
-    email?: string | null;
-  } | null;
-}
-
-interface DbBugLogWithAssociations extends BugLogModel {
-  changedBy?: {
-    id: string;
-    name: string;
-    email: string;
-  } | null;
-}
-
-interface DbBugNoteWithAssociations extends BugNoteModel {
-  author?: {
-    name: string;
-  } | null;
-}
+// Conditions on the bug columns, plus the alternatives of a text search
+type BugWhere = WhereAttributeHash & { [Op.or]?: object[] };
 
 /** Newest first; the id keeps bugs created at the same time on one page. */
 const NEWEST_FIRST: [string, string][] = [
@@ -90,17 +70,7 @@ export class BugRepositoryImpl implements IBugRepository {
     const response = new ResponseModel<Bug[]>(request.transactionId);
     try {
       const filter = request.data || new BugFilter();
-      const whereClause: Record<
-        string | symbol,
-        | string
-        | number
-        | boolean
-        | object
-        | null
-        | undefined
-        | string[]
-        | object[]
-      > = {
+      const whereClause: BugWhere = {
         githubRepo: { [Op.ne]: null },
         gitIssueNumber: { [Op.ne]: null },
       };
@@ -131,45 +101,41 @@ export class BugRepositoryImpl implements IBugRepository {
         whereClause[Op.or] = orConditions;
       }
 
-      const { dbBugs, totalCount } = await findPage(
-        whereClause as WhereOptions,
-        filter,
-      );
+      const { dbBugs, totalCount } = await findPage(whereClause, filter);
       response.totalCount = totalCount;
       const assignees = await this.assigneesOf(
         dbBugs.map((dbBug) => dbBug.id ?? ""),
       );
 
       response.data = dbBugs.map((dbBug) => {
-        const typedBug = dbBug as DbBugWithAssociations;
         return Bug.builder()
-          .setId(typedBug.id)
-          .setTitle(typedBug.title)
-          .setDescription(typedBug.description)
-          .setPriority(typedBug.priority)
-          .setCategory(typedBug.category || undefined)
-          .setComponent(typedBug.component || undefined)
-          .setStatus(typedBug.status)
-          .setGithubRepo(typedBug.githubRepo || undefined)
-          .setGitIssueNumber(typedBug.gitIssueNumber ?? undefined)
-          .setGithubCreator(typedBug.githubCreator || undefined)
-          .setGithubHtmlUrl(typedBug.githubHtmlUrl || undefined)
-          .setGithubAssignee(typedBug.githubAssignee || undefined)
-          .setCreatedById(typedBug.createdById || undefined)
-          .setReporterEmail(typedBug.reporterEmail || undefined)
-          .setCreatedAt(typedBug.createdAt)
-          .setUpdatedAt(typedBug.updatedAt)
+          .setId(dbBug.id)
+          .setTitle(dbBug.title)
+          .setDescription(dbBug.description)
+          .setPriority(dbBug.priority)
+          .setCategory(dbBug.category || undefined)
+          .setComponent(dbBug.component || undefined)
+          .setStatus(dbBug.status)
+          .setGithubRepo(dbBug.githubRepo || undefined)
+          .setGitIssueNumber(dbBug.gitIssueNumber ?? undefined)
+          .setGithubCreator(dbBug.githubCreator || undefined)
+          .setGithubHtmlUrl(dbBug.githubHtmlUrl || undefined)
+          .setGithubAssignee(dbBug.githubAssignee || undefined)
+          .setCreatedById(dbBug.createdById || undefined)
+          .setReporterEmail(dbBug.reporterEmail || undefined)
+          .setCreatedAt(dbBug.createdAt)
+          .setUpdatedAt(dbBug.updatedAt)
           .setCreatedBy(
-            typedBug.createdBy
+            dbBug.createdBy
               ? {
-                  id: typedBug.createdById || "",
-                  name: typedBug.createdBy.name,
-                  email: typedBug.createdBy.email || typedBug.reporterEmail,
+                  id: dbBug.createdById || "",
+                  name: dbBug.createdBy.name,
+                  email: dbBug.createdBy.email || dbBug.reporterEmail,
                 }
               : undefined,
           )
-          .setAttachments(typedBug.attachments ?? undefined)
-          .setAssignedAdmins(assignees.get(typedBug.id ?? "") ?? [])
+          .setAttachments(dbBug.attachments ?? undefined)
+          .setAssignedAdmins(assignees.get(dbBug.id ?? "") ?? [])
           .build();
       });
     } catch (error) {
@@ -185,17 +151,7 @@ export class BugRepositoryImpl implements IBugRepository {
     const response = new ResponseModel<Bug[]>(request.transactionId);
     try {
       const filter = request.data || new BugFilter();
-      const whereClause: Record<
-        string | symbol,
-        | string
-        | number
-        | boolean
-        | object
-        | null
-        | undefined
-        | string[]
-        | object[]
-      > = {
+      const whereClause: BugWhere = {
         reporterEmail: { [Op.ne]: null },
       };
       if (filter.status) {
@@ -219,37 +175,33 @@ export class BugRepositoryImpl implements IBugRepository {
         whereClause[Op.or] = orConditions;
       }
 
-      const { dbBugs, totalCount } = await findPage(
-        whereClause as WhereOptions,
-        filter,
-      );
+      const { dbBugs, totalCount } = await findPage(whereClause, filter);
       response.totalCount = totalCount;
 
       response.data = dbBugs.map((dbBug) => {
-        const typedBug = dbBug as DbBugWithAssociations;
         return Bug.builder()
-          .setId(typedBug.id)
-          .setTitle(typedBug.title)
-          .setDescription(typedBug.description)
-          .setPriority(typedBug.priority)
-          .setCategory(typedBug.category || undefined)
-          .setComponent(typedBug.component || undefined)
-          .setStatus(typedBug.status)
-          .setGithubRepo(typedBug.githubRepo || undefined)
-          .setGitIssueNumber(typedBug.gitIssueNumber ?? undefined)
-          .setCreatedById(typedBug.createdById || undefined)
-          .setReporterEmail(typedBug.reporterEmail || undefined)
-          .setCreatedAt(typedBug.createdAt)
+          .setId(dbBug.id)
+          .setTitle(dbBug.title)
+          .setDescription(dbBug.description)
+          .setPriority(dbBug.priority)
+          .setCategory(dbBug.category || undefined)
+          .setComponent(dbBug.component || undefined)
+          .setStatus(dbBug.status)
+          .setGithubRepo(dbBug.githubRepo || undefined)
+          .setGitIssueNumber(dbBug.gitIssueNumber ?? undefined)
+          .setCreatedById(dbBug.createdById || undefined)
+          .setReporterEmail(dbBug.reporterEmail || undefined)
+          .setCreatedAt(dbBug.createdAt)
           .setCreatedBy(
-            typedBug.createdBy
+            dbBug.createdBy
               ? {
-                  id: typedBug.createdById || "",
-                  name: typedBug.createdBy.name,
-                  email: typedBug.createdBy.email || typedBug.reporterEmail,
+                  id: dbBug.createdById || "",
+                  name: dbBug.createdBy.name,
+                  email: dbBug.createdBy.email || dbBug.reporterEmail,
                 }
               : undefined,
           )
-          .setAttachments(typedBug.attachments ?? undefined)
+          .setAttachments(dbBug.attachments ?? undefined)
           .build();
       });
     } catch (error) {
@@ -283,31 +235,30 @@ export class BugRepositoryImpl implements IBugRepository {
         return response;
       }
 
-      const typedBug = dbBug as DbBugWithAssociations;
       const assignees = await this.assigneesOf([id]);
       response.data = Bug.builder()
-        .setId(typedBug.id)
-        .setTitle(typedBug.title)
-        .setDescription(typedBug.description)
-        .setPriority(typedBug.priority)
-        .setCategory(typedBug.category || undefined)
-        .setComponent(typedBug.component || undefined)
-        .setStatus(typedBug.status)
-        .setGithubRepo(typedBug.githubRepo || undefined)
-        .setGitIssueNumber(typedBug.gitIssueNumber ?? undefined)
-        .setCreatedById(typedBug.createdById || undefined)
-        .setReporterEmail(typedBug.reporterEmail || undefined)
-        .setCreatedAt(typedBug.createdAt)
+        .setId(dbBug.id)
+        .setTitle(dbBug.title)
+        .setDescription(dbBug.description)
+        .setPriority(dbBug.priority)
+        .setCategory(dbBug.category || undefined)
+        .setComponent(dbBug.component || undefined)
+        .setStatus(dbBug.status)
+        .setGithubRepo(dbBug.githubRepo || undefined)
+        .setGitIssueNumber(dbBug.gitIssueNumber ?? undefined)
+        .setCreatedById(dbBug.createdById || undefined)
+        .setReporterEmail(dbBug.reporterEmail || undefined)
+        .setCreatedAt(dbBug.createdAt)
         .setCreatedBy(
-          typedBug.createdBy
+          dbBug.createdBy
             ? {
-                id: typedBug.createdById || "",
-                name: typedBug.createdBy.name,
-                email: typedBug.createdBy.email || typedBug.reporterEmail,
+                id: dbBug.createdById || "",
+                name: dbBug.createdBy.name,
+                email: dbBug.createdBy.email || dbBug.reporterEmail,
               }
             : undefined,
         )
-        .setAttachments(typedBug.attachments ?? undefined)
+        .setAttachments(dbBug.attachments ?? undefined)
         .setAssignedAdmins(assignees.get(id) ?? [])
         .build();
     } catch (error) {
@@ -533,20 +484,19 @@ export class BugRepositoryImpl implements IBugRepository {
       });
 
       response.data = dbBugs.map((dbBug) => {
-        const typedBug = dbBug as DbBugWithAssociations;
         return Bug.builder()
-          .setId(typedBug.id)
-          .setTitle(typedBug.title)
-          .setDescription(typedBug.description)
-          .setPriority(typedBug.priority)
-          .setCategory(typedBug.category || undefined)
-          .setComponent(typedBug.component || undefined)
-          .setStatus(typedBug.status)
-          .setGithubRepo(typedBug.githubRepo || undefined)
-          .setCreatedById(typedBug.createdById || undefined)
-          .setReporterEmail(typedBug.reporterEmail || undefined)
-          .setCreatedAt(typedBug.createdAt)
-          .setAttachments(typedBug.attachments ?? undefined)
+          .setId(dbBug.id)
+          .setTitle(dbBug.title)
+          .setDescription(dbBug.description)
+          .setPriority(dbBug.priority)
+          .setCategory(dbBug.category || undefined)
+          .setComponent(dbBug.component || undefined)
+          .setStatus(dbBug.status)
+          .setGithubRepo(dbBug.githubRepo || undefined)
+          .setCreatedById(dbBug.createdById || undefined)
+          .setReporterEmail(dbBug.reporterEmail || undefined)
+          .setCreatedAt(dbBug.createdAt)
+          .setAttachments(dbBug.attachments ?? undefined)
           .build();
       });
     } catch (error) {
@@ -700,30 +650,32 @@ export class BugRepositoryImpl implements IBugRepository {
           ],
           transaction: t,
         });
+        // Created just above, in the same transaction
+        if (!freshBug)
+          throw new Error("The created bug could not be read back.");
 
-        const typedBug = freshBug as DbBugWithAssociations;
         response.data = Bug.builder()
-          .setId(typedBug.id)
-          .setTitle(typedBug.title)
-          .setDescription(typedBug.description)
-          .setPriority(typedBug.priority)
-          .setCategory(typedBug.category || undefined)
-          .setComponent(typedBug.component || undefined)
-          .setStatus(typedBug.status)
-          .setGithubRepo(typedBug.githubRepo || undefined)
-          .setCreatedById(typedBug.createdById || undefined)
-          .setReporterEmail(typedBug.reporterEmail || undefined)
-          .setCreatedAt(typedBug.createdAt)
+          .setId(freshBug.id)
+          .setTitle(freshBug.title)
+          .setDescription(freshBug.description)
+          .setPriority(freshBug.priority)
+          .setCategory(freshBug.category || undefined)
+          .setComponent(freshBug.component || undefined)
+          .setStatus(freshBug.status)
+          .setGithubRepo(freshBug.githubRepo || undefined)
+          .setCreatedById(freshBug.createdById || undefined)
+          .setReporterEmail(freshBug.reporterEmail || undefined)
+          .setCreatedAt(freshBug.createdAt)
           .setCreatedBy(
-            typedBug.createdBy
+            freshBug.createdBy
               ? {
-                  id: typedBug.createdById || "",
-                  name: typedBug.createdBy.name,
-                  email: typedBug.createdBy.email || typedBug.reporterEmail,
+                  id: freshBug.createdById || "",
+                  name: freshBug.createdBy.name,
+                  email: freshBug.createdBy.email || freshBug.reporterEmail,
                 }
               : undefined,
           )
-          .setAttachments(typedBug.attachments ?? undefined)
+          .setAttachments(freshBug.attachments ?? undefined)
           .build();
       });
     } catch (error) {
@@ -758,15 +710,22 @@ export class BugRepositoryImpl implements IBugRepository {
       });
 
       response.data = logs.map((l) => {
-        const typedLog = l as DbBugLogWithAssociations;
         return BugStatusLog.builder()
-          .setId(typedLog.id)
-          .setStatus(typedLog.action)
-          .setComment(typedLog.comment)
-          .setChangedAt(typedLog.createdAt)
-          .setBugId(typedLog.bugId)
-          .setChangedById(typedLog.operatorId || "")
-          .setChangedBy(typedLog.changedBy ?? undefined)
+          .setId(l.id)
+          .setStatus(l.action)
+          .setComment(l.comment)
+          .setChangedAt(l.createdAt)
+          .setBugId(l.bugId)
+          .setChangedById(l.operatorId || "")
+          .setChangedBy(
+            l.changedBy
+              ? {
+                  id: l.changedBy.id ?? "",
+                  name: l.changedBy.name,
+                  email: l.changedBy.email,
+                }
+              : undefined,
+          )
           .build();
       });
     } catch (error) {
@@ -1035,14 +994,13 @@ export class BugRepositoryImpl implements IBugRepository {
       });
 
       response.data = dbNotes.map((dbNote) => {
-        const typedNote = dbNote as DbBugNoteWithAssociations;
         return BugNote.builder()
-          .setId(typedNote.id)
-          .setBugId(typedNote.bugId)
-          .setBody(typedNote.body)
-          .setAuthorId(typedNote.authorId || "")
-          .setAuthor({ name: typedNote.author?.name || "System" })
-          .setCreatedAt(typedNote.createdAt)
+          .setId(dbNote.id)
+          .setBugId(dbNote.bugId)
+          .setBody(dbNote.body)
+          .setAuthorId(dbNote.authorId || "")
+          .setAuthor({ name: dbNote.author?.name || "System" })
+          .setCreatedAt(dbNote.createdAt)
           .build();
       });
     } catch (error) {

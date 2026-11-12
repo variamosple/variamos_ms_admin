@@ -79,10 +79,11 @@ export class ScheduledConfigurationChangeRepositoryImpl
     replacements: Record<string, unknown>,
     transaction?: Transaction,
   ): Promise<ScheduledConfigurationChange | null> {
-    const [rows] = (await this.sequelize.query(`${sql} RETURNING ${COLUMNS}`, {
-      replacements,
-      transaction,
-    })) as [ChangeRow[], unknown];
+    // As a SELECT: the rows that RETURNING gives back
+    const rows = await this.sequelize.query<ChangeRow>(
+      `${sql} RETURNING ${COLUMNS}`,
+      { replacements, type: QueryTypes.SELECT, transaction },
+    );
     return rows[0] ? toChange(rows[0]) : null;
   }
 

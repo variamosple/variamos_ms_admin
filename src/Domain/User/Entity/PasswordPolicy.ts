@@ -104,7 +104,7 @@ export class PasswordPolicy {
       this.requireLowercase && "lowercase",
       this.requireNumbers && "number",
       this.requireSpecial && "special character",
-    ].filter(Boolean) as string[];
+    ].filter((part) => typeof part === "string");
     const length = `Password must be between ${this.minLength} and ${this.maxLength} characters long`;
     if (parts.length === 0) return `${length}.`;
     const list =

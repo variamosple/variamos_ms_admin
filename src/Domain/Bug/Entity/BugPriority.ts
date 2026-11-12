@@ -1,12 +1,13 @@
 import { DomainError } from "#src/Domain/Core/Error/DomainError.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { isOneOf } from "#src/Domain/Core/Value/isOneOf.js";
 
 // Severity of a bug; "critical" comes from the specification (EV-84 lot 5)
 export const BUG_PRIORITIES = ["low", "medium", "high", "critical"] as const;
 export type BugPriorityValue = (typeof BUG_PRIORITIES)[number];
 
 export const isBugPriority = (value: string): value is BugPriorityValue =>
-  (BUG_PRIORITIES as readonly string[]).includes(value);
+  isOneOf(BUG_PRIORITIES, value);
 
 export class BugPriority {
   private readonly value: BugPriorityValue;

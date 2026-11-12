@@ -1,6 +1,7 @@
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { isOneOf } from "#src/Domain/Core/Value/isOneOf.js";
 import type {
   AccessFilter,
   AccessRecord,
@@ -68,10 +69,11 @@ const oneOf = <T extends string>(
   allowed: readonly T[],
 ): T | null => {
   const value = text(input, key);
-  if (value !== null && !allowed.includes(value as T)) {
+  if (value === null) return null;
+  if (!isOneOf(allowed, value)) {
     throw new InvalidFilter(`The filter ${key} is invalid.`);
   }
-  return value as T | null;
+  return value;
 };
 
 /** Period, account, outcome and page, common to both journals. */

@@ -12,6 +12,7 @@ import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import logger from "#src/common/logger.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { fieldOf } from "#src/Domain/Core/Value/fieldOf.js";
 import type { TrustedDeviceUseCase } from "#src/Domain/Mfa/UseCase/TrustedDeviceUseCase.js";
 import type { UserMfaUseCase } from "#src/Domain/Mfa/UseCase/UserMfaUseCase.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
@@ -29,7 +30,7 @@ const isGuest = (user: SessionUser) =>
   user.roles?.some((role) => role.toLowerCase() === "guest") ?? false;
 
 const text = (body: unknown, field: string): string | null => {
-  const value = (body as Record<string, unknown> | undefined)?.[field];
+  const value: unknown = fieldOf(body, field);
   return typeof value === "string" &&
     value.trim() !== "" &&
     value.length <= MAX_INPUT_LENGTH

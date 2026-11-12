@@ -1,4 +1,5 @@
 import { ARRAY, BOOLEAN, INTEGER, JSONB, Model, STRING, TEXT } from "sequelize";
+import type { EnvironmentScope } from "#src/Domain/Configuration/Entity/Configuration.js";
 import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 
 export type ConfigurationValue =
@@ -16,7 +17,7 @@ export interface ConfigurationAttributes {
   category: "general" | "security" | "notification" | "env";
   requiresMfa: boolean;
   isSecret: boolean;
-  environmentScope: string;
+  environmentScope: EnvironmentScope;
   isReadOnly: boolean;
   targetServices: string[];
   description?: string;
@@ -36,7 +37,7 @@ export class ConfigurationModel
   public category!: "general" | "security" | "notification" | "env";
   public requiresMfa!: boolean;
   public isSecret!: boolean;
-  public environmentScope!: string;
+  public environmentScope!: EnvironmentScope;
   public isReadOnly!: boolean;
   public targetServices!: string[];
   public description?: string;

@@ -14,6 +14,13 @@ const contextOf = (key: string) => `configuration:${key}`;
  * The value is stored as `{"$encrypted": "v1:…"}`, so that a value still in
  * clear can be told apart, row by row.
  */
+const isConfigurationValue = (value: unknown): value is ConfigurationValue =>
+  typeof value === "string" ||
+  typeof value === "number" ||
+  typeof value === "boolean" ||
+  (Array.isArray(value) && value.every((item) => typeof item === "string")) ||
+  (typeof value === "object" && value !== null && !Array.isArray(value));
+
 export class SecretConfigurationValue {
   public constructor(private readonly cipher: ISecretCipher) {}
 
@@ -30,7 +37,7 @@ export class SecretConfigurationValue {
     return (
       fields.length === 1 &&
       fields[0] === ENCRYPTED_FIELD &&
-      typeof (value as Record<string, unknown>)[ENCRYPTED_FIELD] === "string"
+      typeof Reflect.get(value, ENCRYPTED_FIELD) === "string"
     );
   }
 
@@ -44,9 +51,12 @@ export class SecretConfigurationValue {
    * The stored value in clear: as is when not encrypted, null when it cannot
    * be decrypted (no key, another key, altered value).
    */
-  public decrypt(key: string, stored: unknown): ConfigurationValue | null {
+  public decrypt(
+    key: string,
+    stored: ConfigurationValue,
+  ): ConfigurationValue | null {
     if (!SecretConfigurationValue.isEncrypted(stored)) {
-      return stored as ConfigurationValue;
+      return stored;
     }
     if (!this.cipher.isAvailable()) return null;
     try {
@@ -54,7 +64,9 @@ export class SecretConfigurationValue {
         stored[ENCRYPTED_FIELD],
         contextOf(key),
       );
-      return JSON.parse(plain.toString("utf8")) as ConfigurationValue;
+      // Written by encrypt from a value; anything else is refused as altered
+      const value: unknown = JSON.parse(plain.toString("utf8"));
+      return isConfigurationValue(value) ? value : null;
     } catch {
       return null;
     }

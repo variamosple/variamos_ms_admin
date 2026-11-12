@@ -36,7 +36,9 @@ export class UserRoleRepositoryImpl
         offset: (pageNumber - 1) * pageSize,
       });
 
-      response.totalCount = await VARIAMOS_ORM.query(
+      response.totalCount = await VARIAMOS_ORM.query<{
+        count?: string | number;
+      }>(
         `
             SELECT COUNT(1)
             FROM ${DB_SCHEMA}.role r
@@ -44,8 +46,8 @@ export class UserRoleRepositoryImpl
             WHERE ur.user_id = :userId;   
         `,
         { type: QueryTypes.SELECT, replacements },
-      ).then((result: object[]) => {
-        const countObj = result?.[0] as { count?: string | number } | undefined;
+      ).then((result) => {
+        const countObj = result[0];
         return countObj ? Number(countObj.count) : 0;
       });
 
@@ -101,9 +103,7 @@ export class UserRoleRepositoryImpl
         attributes: ["id", "name"],
       }).then((roles) =>
         roles.map((role) => {
-          const typedRole = role as RoleModel & {
-            permissions?: PermissionModel[];
-          };
+          const typedRole = role;
           return new Role(
             typedRole.id,
             typedRole.name,

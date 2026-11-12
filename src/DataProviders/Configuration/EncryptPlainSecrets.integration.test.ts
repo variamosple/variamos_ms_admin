@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { QueryTypes, Sequelize } from "sequelize";
+import type { ConfigurationValue } from "#src/Domain/Configuration/Entity/Configuration.js";
 import { runMigrations } from "#src/Infrastructure/database/Migrations/Migrator.js";
 import { AesGcmSecretCipher } from "#src/Infrastructure/Security/AesGcmSecretCipher.js";
 import { encryptPlainSecrets } from "./EncryptPlainSecrets.js";
@@ -35,7 +36,7 @@ describe.skipIf(!url)("encryptPlainSecrets on PostgreSQL", () => {
   const stored = async () =>
     Object.fromEntries(
       (
-        await sequelize.query<{ key: string; value: unknown }>(
+        await sequelize.query<{ key: string; value: ConfigurationValue }>(
           `SELECT "key", "value" FROM ${table} ORDER BY "key"`,
           { type: QueryTypes.SELECT },
         )

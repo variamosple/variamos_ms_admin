@@ -219,11 +219,7 @@ export class RoleRepositoryImpl
         if (!role) {
           return null;
         }
-        const {
-          id: roleId,
-          name: roleName,
-          permissions = [],
-        } = role as RoleModel & { permissions?: PermissionModel[] };
+        const { id: roleId, name: roleName, permissions = [] } = role;
 
         return new Role(
           roleId,

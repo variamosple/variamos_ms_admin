@@ -1,4 +1,12 @@
-import { BOOLEAN, DATE, Model, TEXT, UUID, UUIDV4 } from "sequelize";
+import {
+  BOOLEAN,
+  DATE,
+  Model,
+  type NonAttribute,
+  TEXT,
+  UUID,
+  UUIDV4,
+} from "sequelize";
 import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 import { CountryModel } from "../Countries/Country.js";
 
@@ -26,6 +34,8 @@ export class UserModel extends Model<UserAttributes> implements UserAttributes {
   public isDeleted?: boolean;
   public createdAt?: Date;
   public lastLogin?: Date;
+  // Association, set when a query includes it
+  declare public country?: NonAttribute<CountryModel | null>;
 }
 
 UserModel.init(

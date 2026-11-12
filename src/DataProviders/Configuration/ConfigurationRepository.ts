@@ -4,7 +4,6 @@ import {
   Configuration,
   ConfigurationKey,
   type ConfigurationValue,
-  type EnvironmentScope,
 } from "#src/Domain/Configuration/Entity/Configuration.js";
 import type {
   ConfigurationFilter,
@@ -186,7 +185,7 @@ export class ConfigurationRepositoryImpl
       .setCategory(model.category)
       .setRequiresMfa(model.requiresMfa)
       .setIsSecret(model.isSecret)
-      .setEnvironmentScope(model.environmentScope as EnvironmentScope)
+      .setEnvironmentScope(model.environmentScope)
       .setIsReadOnly(model.isReadOnly)
       .setTargetServices(model.targetServices)
       .setDescription(model.description)

@@ -1,14 +1,5 @@
-interface Replacements {
-  [key: string]:
-    | string
-    | number
-    | boolean
-    | null
-    | undefined
-    | Date
-    | string[]
-    | number[];
-}
+// As Sequelize takes them; the driver refuses a value it cannot send
+type Replacements = Record<string, unknown>;
 
 export abstract class BaseRepository {
   initializeReplacements(filter: object | undefined | null) {
@@ -18,8 +9,7 @@ export abstract class BaseRepository {
 
     return Object.entries(filter).reduce<Replacements>(
       (result, [key, value]) => {
-        result[key] =
-          value === undefined ? null : (value as Replacements[string]);
+        result[key] = value === undefined ? null : value;
 
         return result;
       },

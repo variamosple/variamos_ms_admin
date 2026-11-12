@@ -10,6 +10,18 @@ export type ConfigurationValue =
   | string[]
   | Record<string, unknown>;
 
+// How the refusal of a value names the expected type
+const EXPECTED_TYPE_TEXT: Record<
+  "boolean" | "string" | "number" | "array" | "object",
+  string
+> = {
+  boolean: "a boolean",
+  string: "a string",
+  number: "a number",
+  array: "an array",
+  object: "an object",
+};
+
 export type EnvironmentScope = "all" | "production" | "development" | "test";
 
 // Value Object for enforcing configuration key patterns
@@ -104,9 +116,11 @@ export class Configuration {
   /**
    * Modifies the value while guaranteeing domain invariants
    */
-  public updateValue(newValue: ConfigurationValue, operatorId: string): void {
-    this.checkNewValue(newValue);
-    this.value = newValue;
+  public updateValue(
+    newValue: ConfigurationValue | undefined,
+    operatorId: string,
+  ): void {
+    this.value = this.checkNewValue(newValue);
     this.updatedBy = operatorId;
     this.updatedAt = new Date();
   }
@@ -114,8 +128,11 @@ export class Configuration {
   /**
    * Throws when updateValue would refuse this value, without changing
    * anything: a change planned for later is checked now (EV-115 lot B).
+   * Gives back the value, known from then on to be one.
    */
-  public checkNewValue(newValue: ConfigurationValue): void {
+  public checkNewValue(
+    newValue: ConfigurationValue | undefined,
+  ): ConfigurationValue {
     if (this.isReadOnly) {
       throw new Error(
         `Configuration '${this.key.getValue()}' is read-only and cannot be updated.`,
@@ -129,6 +146,7 @@ export class Configuration {
     }
 
     Configuration.validateValueType(this.key.getValue(), newValue, this.type);
+    return newValue;
   }
 
   /**
@@ -141,11 +159,17 @@ export class Configuration {
     return this.value;
   }
 
+  /** Throws unless the value has the type of the setting; a missing value never has. */
   private static validateValueType(
     key: string,
-    val: ConfigurationValue,
+    val: ConfigurationValue | undefined,
     expectedType: "boolean" | "string" | "number" | "array" | "object",
-  ): void {
+  ): asserts val is ConfigurationValue {
+    if (val === undefined) {
+      throw new Error(
+        `Value for key '${key}' must be ${EXPECTED_TYPE_TEXT[expectedType]}.`,
+      );
+    }
     const typeofValue = typeof val;
     if (expectedType === "boolean" && typeofValue !== "boolean") {
       throw new Error(`Value for key '${key}' must be a boolean.`);

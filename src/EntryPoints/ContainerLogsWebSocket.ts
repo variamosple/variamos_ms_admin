@@ -1,5 +1,5 @@
 import type { IncomingMessage, Server } from "node:http";
-import type { Readable } from "node:stream";
+import { Readable } from "node:stream";
 import { parseCookie } from "cookie";
 import { type RawData, WebSocket, WebSocketServer } from "ws";
 import { describeError } from "#src/common/describeError.js";
@@ -7,6 +7,7 @@ import logger from "#src/common/logger.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import type { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { fieldOf } from "#src/Domain/Core/Value/fieldOf.js";
 
 /** Same permission as GET /v1/micro-services/:id/logs. */
 export const CONTAINER_LOGS_PERMISSION = "micro-services::query";
@@ -47,8 +48,7 @@ function serviceIdOf(message: RawData): string | null {
     const text = Buffer.isBuffer(message)
       ? message.toString("utf8")
       : String(message);
-    const id = (JSON.parse(text) as { microserviceId?: unknown })
-      .microserviceId;
+    const id: unknown = fieldOf(JSON.parse(text), "microserviceId");
     return typeof id === "string" &&
       id.trim() !== "" &&
       id.length <= MAX_SERVICE_ID_LENGTH
@@ -76,10 +76,12 @@ export function attachContainerLogsWebSocket(
   });
 
   webSocketServer.on("connection", (ws: WebSocket, req: IncomingMessage) => {
-    let stream: Readable | null = null;
+    let stream: NodeJS.ReadableStream | null = null;
     let expiryTimer: NodeJS.Timeout | null = null;
     const stopStream = () => {
-      stream?.destroy();
+      // Docker gives a Readable; another stream only stops being listened to
+      if (stream instanceof Readable) stream.destroy();
+      else stream?.removeAllListeners();
       stream = null;
     };
 
@@ -132,7 +134,7 @@ export function attachContainerLogsWebSocket(
           );
           return;
         }
-        const logStream = response.data as Readable;
+        const logStream = response.data;
         stream = logStream;
         logStream.on("data", (chunk: Buffer) => {
           if (ws.readyState === WebSocket.OPEN) ws.send(chunk.toString("utf8"));

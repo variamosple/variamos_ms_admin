@@ -12,4 +12,19 @@ export class BugFilter {
     public readonly pageNumber?: number,
     public readonly pageSize?: number,
   ) {}
+
+  /** The same filter, limited to these repositories. */
+  public withManagedRepos(managedRepos: string[]): BugFilter {
+    return new BugFilter(
+      this.repo,
+      this.status,
+      this.priority,
+      this.search,
+      managedRepos,
+      this.assigneeId,
+      this.component,
+      this.pageNumber,
+      this.pageSize,
+    );
+  }
 }

@@ -23,7 +23,8 @@ import type { ConfigurationUseCase } from "./ConfigurationUseCase.js";
 
 export interface ScheduleConfigurationChangeRequest {
   key: string;
-  value: ConfigurationValue;
+  // Missing when the body has none: plan refuses it
+  value: ConfigurationValue | undefined;
   /** An ISO 8601 instant. */
   dueAt: string;
   operatorId: string;
@@ -31,7 +32,7 @@ export interface ScheduleConfigurationChangeRequest {
 
 export interface RescheduleConfigurationChangeRequest {
   id: number;
-  value: ConfigurationValue;
+  value: ConfigurationValue | undefined;
   dueAt: string;
   operatorId: string;
 }
@@ -305,7 +306,7 @@ export class ScheduledConfigurationChangeUseCase {
     response: ResponseModel<ScheduledConfigurationChange>,
     data: {
       key: string;
-      value: ConfigurationValue;
+      value: ConfigurationValue | undefined;
       dueAt: string;
       operatorId: string;
     },

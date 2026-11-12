@@ -44,6 +44,17 @@ const METRICS_FUNCTIONS = new Map<string, string>([
   ["yearly_visits", `${DB_SCHEMA}.get_yearly_visits_metrics()`],
 ]);
 
+// A metric as the database functions give it, in the "data" column
+interface MetricRow {
+  id: string;
+  title: string;
+  chartType: string;
+  defaultFilter: string;
+  filters: string[];
+  labelKey: string;
+  data: object;
+}
+
 export class MetricsRepositoryImpl
   extends BaseRepository
   implements IMetricsRepository
@@ -58,25 +69,12 @@ export class MetricsRepositoryImpl
     const response = new ResponseModel<Metric[]>(request.transactionId);
 
     try {
-      response.data = await VARIAMOS_ORM.query(
+      response.data = await VARIAMOS_ORM.query<{ data?: MetricRow[] }>(
         `SELECT ${DB_SCHEMA}.get_metrics() AS data`,
         {
           type: QueryTypes.SELECT,
         },
-      ).then(([row]: object[]) => {
-        const resObj = row as
-          | {
-              data?: {
-                id: string;
-                title: string;
-                chartType: string;
-                defaultFilter: string;
-                filters: string[];
-                labelKey: string;
-                data: object;
-              }[];
-            }
-          | undefined;
+      ).then(([resObj]) => {
         if (!resObj?.data) return [];
         return resObj.data.map(
           ({ id, title, chartType, defaultFilter, filters, labelKey, data }) =>
@@ -127,26 +125,13 @@ export class MetricsRepositoryImpl
         );
       }
 
-      const result = await VARIAMOS_ORM.query(
+      const result = await VARIAMOS_ORM.query<{ data?: MetricRow }>(
         `SELECT ${selectedFunction} AS data`,
         {
           type: QueryTypes.SELECT,
           replacements,
         },
-      ).then(([row]: object[]) => {
-        const resObj = row as
-          | {
-              data: {
-                id: string;
-                title: string;
-                chartType: string;
-                defaultFilter: string;
-                filters: string[];
-                labelKey: string;
-                data: object;
-              };
-            }
-          | undefined;
+      ).then(([resObj]) => {
         if (!resObj?.data) throw new Error("Invalid database response format");
         const {
           id,

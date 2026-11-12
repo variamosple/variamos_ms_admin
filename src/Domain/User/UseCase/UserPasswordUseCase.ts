@@ -193,10 +193,8 @@ export class UserPasswordUseCase {
   ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
     try {
-      const { token, password } = (request.data || {}) as Partial<{
-        token: string;
-        password: string;
-      }>;
+      const token = request.data?.token;
+      const password = request.data?.password;
       if (!token || !password) {
         return response.withErrorPromise(
           DomainErrorCodes.INVALID_INPUT,
@@ -278,10 +276,8 @@ export class UserPasswordUseCase {
     const response = new ResponseModel<{ recoveryUrl: string }>(
       request.transactionId,
     );
-    const { userId, adminId } = (request.data || {}) as Partial<{
-      userId: string;
-      adminId: string;
-    }>;
+    const userId = request.data?.userId;
+    const adminId = request.data?.adminId;
 
     if (!userId || !adminId) {
       return response.withErrorPromise(

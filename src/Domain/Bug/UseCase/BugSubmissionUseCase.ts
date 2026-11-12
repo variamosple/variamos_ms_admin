@@ -6,7 +6,7 @@ import {
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import {
   BUG_COMPONENT_LABELS,
-  type BugComponentValue,
+  isBugComponent,
 } from "#src/Domain/Bug/Entity/BugComponent.js";
 import type { BugPriorityValue } from "#src/Domain/Bug/Entity/BugPriority.js";
 import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
@@ -202,6 +202,11 @@ export class BugSubmissionUseCase {
     resolvedCreatedById: string | undefined,
     resolvedFile: StoredFile | undefined,
   ): Promise<ResponseModel<Bug>> {
+    // Checked by build() in createBug
+    const component =
+      data.component && isBugComponent(data.component)
+        ? data.component
+        : undefined;
     let status = "pending";
     let gitIssueNumber: number | undefined;
     let githubHtmlUrl: string | undefined;
@@ -219,8 +224,8 @@ export class BugSubmissionUseCase {
           issueBody += `\n*Priority: ${data.priority}*`;
         }
         issueBody += `\n*Category: ${data.category}*`;
-        if (data.component) {
-          issueBody += `\n*Component: ${BUG_COMPONENT_LABELS[data.component as BugComponentValue]}*`;
+        if (component) {
+          issueBody += `\n*Component: ${BUG_COMPONENT_LABELS[component]}*`;
         }
         if (resolvedFile) {
           const fileUrl = `${this.githubConfig.getApiBaseUrl?.() || "http://localhost:4000"}${resolvedFile.filePath}`;
@@ -271,9 +276,7 @@ export class BugSubmissionUseCase {
         description: data.description,
         priority: data.priority,
         category: data.category,
-        component: (data.component || undefined) as
-          | BugComponentValue
-          | undefined,
+        component,
         githubRepo: data.githubRepo,
         createdById: resolvedCreatedById || "",
         resolvedFile,

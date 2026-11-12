@@ -32,6 +32,16 @@ describe("SecretConfigurationValue", () => {
     expect(secrets.decrypt(KEY, { user: "u" })).toEqual({ user: "u" });
   });
 
+  it.each([
+    ["null", null],
+    ["a list of numbers", [1, 2]],
+  ])("refuses a decrypted %s, which no setting holds", (_label, value) => {
+    // Only a value of another version of the code could be encrypted so
+    const stored = secrets.encrypt(KEY, value as never);
+
+    expect(secrets.decrypt(KEY, stored)).toBeNull();
+  });
+
   it("does not decrypt a value moved to another key", () => {
     const stored = secrets.encrypt(KEY, "smtp-password");
 

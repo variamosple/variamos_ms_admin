@@ -1,10 +1,21 @@
-import { DATE, ENUM, INTEGER, Model, TEXT, UUID, UUIDV4 } from "sequelize";
+import {
+  DATE,
+  ENUM,
+  INTEGER,
+  Model,
+  type NonAttribute,
+  TEXT,
+  UUID,
+  UUIDV4,
+} from "sequelize";
 import type { BugComponentValue } from "#src/Domain/Bug/Entity/BugComponent.js";
 import {
   BUG_PRIORITIES,
   type BugPriorityValue,
 } from "#src/Domain/Bug/Entity/BugPriority.js";
 import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
+import type { UserModel } from "../User/User.js";
+import type { BugAttachmentModel } from "./BugAttachment.js";
 
 export interface BugAttributes {
   id?: string;
@@ -44,6 +55,9 @@ export class BugModel extends Model<BugAttributes> implements BugAttributes {
   public githubCreatedAt?: Date;
   public createdAt?: Date;
   public updatedAt?: Date;
+  // Associations (BugAssociations.ts), set when a query includes them
+  declare public attachments?: NonAttribute<BugAttachmentModel[]>;
+  declare public createdBy?: NonAttribute<UserModel | null>;
 }
 
 BugModel.init(
