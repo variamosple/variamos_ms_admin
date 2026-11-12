@@ -67,9 +67,8 @@ export class RolePermissionRepositoryImpl
         },
       ).then((res) => res.map(({ id, name }) => new Permission(id, name)));
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in queryRolePermissions:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
@@ -125,9 +124,8 @@ export class RolePermissionRepositoryImpl
         );
       }
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in createRolePermission:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
@@ -166,9 +164,8 @@ export class RolePermissionRepositoryImpl
         where: { roleId, permissionId },
       });
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in deleteRolePermission:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",

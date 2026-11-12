@@ -1,6 +1,7 @@
 import logger from "#src/common/logger.js";
 import type { Configuration } from "#src/Domain/Configuration/Entity/Configuration.js";
 import type { IConfigEventPublisher } from "#src/Domain/Configuration/Event/IConfigEventPublisher.js";
+import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 
 type ConfigUpdateListener = (config: Configuration) => void;
 
@@ -21,7 +22,7 @@ export class ConfigEventPublisherImpl implements IConfigEventPublisher {
         listener(config);
       } catch (err) {
         logger.err(
-          `Error notifying config update listener: ${(err as Error).message}`,
+          `Error notifying config update listener: ${errorMessage(err)}`,
         );
       }
     }

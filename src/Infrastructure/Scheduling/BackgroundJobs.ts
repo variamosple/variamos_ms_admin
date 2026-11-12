@@ -9,6 +9,7 @@ import type { Configuration } from "#src/Domain/Configuration/Entity/Configurati
 import type { ConfigurationUseCase } from "#src/Domain/Configuration/UseCase/ConfigurationUseCase.js";
 import type { ScheduledConfigurationChangeUseCase } from "#src/Domain/Configuration/UseCase/ScheduledConfigurationChangeUseCase.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import {
   HEALTH_CHECK_INTERVAL_KEY,
   healthCheckIntervalMsOf,
@@ -77,8 +78,7 @@ export async function startBackgroundJobs(jobs: BackgroundJobs): Promise<void> {
     jobs.collector.start();
     await jobs.bugLifecycle.purgeExpiredRejectedBugs();
   } catch (e) {
-    const err = e as Error;
-    logger.err(`Failed to start background tasks: ${err.message}`);
+    logger.err(`Failed to start background tasks: ${errorMessage(e)}`);
   }
 
   jobs.bugSyncTask.setIntervalMs(await jobs.bugSchedule.getSyncIntervalMs());

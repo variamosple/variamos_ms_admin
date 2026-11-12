@@ -4,6 +4,7 @@ import logger from "#src/common/logger.js";
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import { SECRET_MASK } from "#src/Domain/Core/Secret/SecretMask.js";
 import { MicroServiceAuditEntry } from "#src/Domain/MicroService/Entity/MicroServiceAuditEntry.js";
 import { MicroServiceConfigItem } from "#src/Domain/MicroService/Entity/MicroServiceConfigItem.js";
@@ -195,7 +196,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
       return Array.from(discoveredMap.values());
     } catch (err) {
       logger.warn(
-        `Failed to dynamically discover service definitions: ${(err as Error).message}`,
+        `Failed to dynamically discover service definitions: ${errorMessage(err)}`,
       );
       return [];
     }
@@ -215,7 +216,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
       try {
         containers = await this.dockerConnection.listContainers({ all: true });
       } catch (err) {
-        logger.warn(`Docker listContainers warning: ${(err as Error).message}`);
+        logger.warn(`Docker listContainers warning: ${errorMessage(err)}`);
       }
 
       const nameFilter = filter?.name?.toLowerCase();
@@ -236,7 +237,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
             discoveredDefs.map((def) => def.name),
           ).catch((err) => {
             logger.warn(
-              `Could not calculate uptime summaries: ${(err as Error).message}`,
+              `Could not calculate uptime summaries: ${errorMessage(err)}`,
             );
             return [];
           })
@@ -284,7 +285,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
             order: [["checked_at", "DESC"]],
           }).catch((err) => {
             logger.warn(
-              `Could not query latest health log: ${(err as Error).message}`,
+              `Could not query latest health log: ${errorMessage(err)}`,
             );
             return null;
           });
@@ -343,7 +344,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
       try {
         containers = await this.dockerConnection.listContainers({ all: true });
       } catch (err) {
-        logger.warn(`Docker connection warning: ${(err as Error).message}`);
+        logger.warn(`Docker connection warning: ${errorMessage(err)}`);
       }
 
       const discoveredDefs = await this.discoverServiceDefinitions(containers);
@@ -459,7 +460,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
       }
     } catch (err) {
       logger.warn(
-        `Could not resolve Docker container for ${idOrServiceName}: ${(err as Error).message}`,
+        `Could not resolve Docker container for ${idOrServiceName}: ${errorMessage(err)}`,
       );
     }
     return null;
@@ -539,7 +540,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         responseTimeMs: 0,
         checkedAt: new Date(),
       }).catch((err) => {
-        logger.warn(`Could not log health DOWN: ${(err as Error).message}`);
+        logger.warn(`Could not log health DOWN: ${errorMessage(err)}`);
       });
     } catch (error) {
       logger.err(error);
@@ -670,7 +671,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
       });
     } catch (error) {
       logger.err(
-        `Failed to record health check for ${healthInfo.serviceName}: ${(error as Error).message}`,
+        `Failed to record health check for ${healthInfo.serviceName}: ${errorMessage(error)}`,
       );
     }
   }

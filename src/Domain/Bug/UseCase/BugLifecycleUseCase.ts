@@ -22,6 +22,7 @@ import type { IGitHubTokenProvider } from "#src/Domain/Bug/Service/IGitHubTokenP
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import type { IIssueTrackerService } from "#src/Domain/Core/Service/IIssueTrackerService.js";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IStorageService } from "#src/Domain/Core/Service/IStorageService.js";
@@ -129,7 +130,7 @@ export class BugLifecycleUseCase {
       const response = new ResponseModel<Bug>(transactionId);
       return response.withErrorPromise(
         DomainErrorCodes.INVALID_INPUT,
-        (error as Error).message,
+        errorMessage(error),
       );
     }
 
@@ -551,8 +552,9 @@ export class BugLifecycleUseCase {
       }
       this.logger.info("Expired rejected bugs purging complete.");
     } catch (error) {
-      const err = error as Error;
-      this.logger.err(`Failed to purge expired rejected bugs: ${err.message}`);
+      this.logger.err(
+        `Failed to purge expired rejected bugs: ${errorMessage(error)}`,
+      );
     }
   }
 }

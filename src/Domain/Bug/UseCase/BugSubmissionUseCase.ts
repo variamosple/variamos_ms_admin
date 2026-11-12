@@ -14,6 +14,7 @@ import type { IGitHubTokenProvider } from "#src/Domain/Bug/Service/IGitHubTokenP
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import {
   ALLOWED_FILE_TYPES_LABEL,
   detectAllowedFileType,
@@ -86,7 +87,7 @@ export class BugSubmissionUseCase {
       const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
         DomainErrorCodes.INVALID_INPUT,
-        (error as Error).message,
+        errorMessage(error),
       );
     }
 

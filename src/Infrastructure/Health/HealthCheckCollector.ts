@@ -1,5 +1,6 @@
 import axios from "axios";
 import logger from "#src/common/logger.js";
+import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import type { MicroServiceHealthInfo } from "#src/Domain/MicroService/Entity/MicroServiceHealth.js";
 import type { ServiceDefinition } from "#src/Domain/MicroService/Entity/ServiceDefinition.js";
 import type { IHealthLogArchive } from "#src/Domain/MicroService/Repository/IHealthLogArchive.js";
@@ -112,13 +113,13 @@ export class HealthCheckCollector {
     // Run daily aggregation & purge once every 24 hours
     this.runDailyAggregationAndPurge().catch((err) =>
       logger.err(
-        `Daily health check aggregation failed on startup: ${(err as Error).message}`,
+        `Daily health check aggregation failed on startup: ${errorMessage(err)}`,
       ),
     );
     this.retentionTimer = setInterval(() => {
       this.runDailyAggregationAndPurge().catch((err) =>
         logger.err(
-          `Daily health check aggregation failed: ${(err as Error).message}`,
+          `Daily health check aggregation failed: ${errorMessage(err)}`,
         ),
       );
     }, DAY_MS);
@@ -183,7 +184,7 @@ export class HealthCheckCollector {
       );
     } catch (err) {
       logger.err(
-        `Failed to run daily health check aggregation and purge: ${(err as Error).message}`,
+        `Failed to run daily health check aggregation and purge: ${errorMessage(err)}`,
       );
     }
 
@@ -225,14 +226,12 @@ export class HealthCheckCollector {
           results.push(outcome.value);
         } else {
           logger.err(
-            `Health check failed for ${targetServices[index]?.name}: ${(outcome.reason as Error)?.message}`,
+            `Health check failed for ${targetServices[index]?.name}: ${errorMessage(outcome.reason)}`,
           );
         }
       }
     } catch (err) {
-      logger.err(
-        `Error during health check collection: ${(err as Error).message}`,
-      );
+      logger.err(`Error during health check collection: ${errorMessage(err)}`);
     } finally {
       this.isCollecting = false;
     }

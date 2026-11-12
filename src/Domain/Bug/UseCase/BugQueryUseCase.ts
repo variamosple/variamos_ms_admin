@@ -59,8 +59,7 @@ export class BugQueryUseCase {
     try {
       response.data = [...this.githubConfig.getGitHubManagedRepos()];
     } catch (error) {
-      const err = error as Error;
-      this.logger.err(err);
+      this.logger.err(error);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return Promise.resolve(response);

@@ -4,6 +4,7 @@ import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import { Permission } from "#src/Domain/Permission/Entity/Permission.js";
 import { PermissionFilter } from "#src/Domain/Permission/Entity/PermissionFilter.js";
 import type { PermissionUseCase } from "#src/Domain/Permission/UseCase/PermissionUseCase.js";
@@ -11,6 +12,7 @@ import { actorOf } from "./actor.js";
 import { nameBody } from "./adminRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
+import { queryText } from "./queryText.js";
 import { validBody } from "./requestBody.js";
 
 export const PERMISSIONS_V1_ROUTE = "/v1/permissions";
@@ -34,7 +36,7 @@ export function createPermissionsRouter(
       } = req.query;
       try {
         const filter: PermissionFilter = PermissionFilter.builder()
-          .setName(name as string)
+          .setName(queryText(name))
           .setPageNumber(Number(pageNumber))
           .setPageSize(Number(pageSize))
           .setSort(sortBy, sortOrder)
@@ -82,7 +84,7 @@ export function createPermissionsRouter(
             .json(
               new ResponseModel<void>(transactionId).withError(
                 DomainErrorCodes.INVALID_INPUT,
-                (error as Error).message,
+                errorMessage(error),
               ),
             );
         }
@@ -208,7 +210,7 @@ export function createPermissionsRouter(
             .json(
               new ResponseModel<void>(transactionId).withError(
                 DomainErrorCodes.INVALID_INPUT,
-                (error as Error).message,
+                errorMessage(error),
               ),
             );
         }

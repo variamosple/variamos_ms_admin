@@ -3,6 +3,7 @@ import axios from "axios";
 import logger from "#src/common/logger.js";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import type { IGitHubTokenProvider } from "#src/Domain/Bug/Service/IGitHubTokenProvider.js";
+import { httpFailureMessage } from "#src/Infrastructure/Http/httpFailure.js";
 
 export class GitHubTokenResolver implements IGitHubTokenProvider {
   public readonly tokenCache = new Map<
@@ -57,12 +58,8 @@ export class GitHubTokenResolver implements IGitHubTokenProvider {
         this.tokenCache.set(repo, { token, expiresAt });
         return token;
       } catch (error) {
-        const err = error as {
-          response?: { data?: { message?: string } };
-          message?: string;
-        };
         logger.err(
-          `Failed to resolve GitHub App token for ${repo}: ${err.response?.data?.message || err.message || "Unknown error"}`,
+          `Failed to resolve GitHub App token for ${repo}: ${httpFailureMessage(error)}`,
         );
       }
     }

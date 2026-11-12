@@ -1,6 +1,7 @@
 import type { Sequelize } from "sequelize";
 import { SequelizeStorage, Umzug } from "umzug";
 import logger from "#src/common/logger.js";
+import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import { baseline } from "./0001-baseline.js";
 import { accountLockoutKeys } from "./0002-account-lockout-keys.js";
 import { userMfa } from "./0003-user-mfa.js";
@@ -96,7 +97,7 @@ export async function waitForDatabase(
         throw e;
       }
       logger.warn(
-        `[MIGRATION] Database unreachable (${attempt}/${attempts}): ${(e as Error).message}`,
+        `[MIGRATION] Database unreachable (${attempt}/${attempts}): ${errorMessage(e)}`,
       );
       await new Promise((resolve) => {
         setTimeout(resolve, delayMs);

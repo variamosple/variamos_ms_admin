@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { IConfigurationRepository } from "#src/Domain/Configuration/Repository/IConfigurationRepository.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { ITrustedDeviceRepository } from "#src/Domain/Mfa/Repository/ITrustedDeviceRepository.js";
 
@@ -59,7 +60,7 @@ export class TrustedDeviceUseCase {
         : 0;
     } catch (error) {
       this.logger.warn(
-        `Could not read ${TRUSTED_DEVICE_DAYS_KEY}: ${(error as Error).message}`,
+        `Could not read ${TRUSTED_DEVICE_DAYS_KEY}: ${errorMessage(error)}`,
       );
       return 0;
     }
@@ -84,7 +85,7 @@ export class TrustedDeviceUseCase {
       );
     } catch (error) {
       this.logger.warn(
-        `[MFA] Trusted device check failed: ${(error as Error).message}`,
+        `[MFA] Trusted device check failed: ${errorMessage(error)}`,
       );
       return false;
     }

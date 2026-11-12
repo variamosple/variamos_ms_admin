@@ -3,6 +3,7 @@ import nodemailer from "nodemailer";
 import EnvVars from "#src/common/EnvVars.js";
 import logger from "#src/common/logger.js";
 import { maskEmail } from "#src/common/maskEmail.js";
+import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
 
 /** "1 hour", "2 hours" or "30 minutes", for the reset e-mail. */
@@ -118,9 +119,8 @@ export class MailServiceImpl implements IMailService {
       );
       return true;
     } catch (error) {
-      const err = error as Error;
       logger.err(
-        `[MAIL ERROR] Failed to send email to ${maskEmail(to)}: ${err.message}`,
+        `[MAIL ERROR] Failed to send email to ${maskEmail(to)}: ${errorMessage(error)}`,
       );
       return false;
     }

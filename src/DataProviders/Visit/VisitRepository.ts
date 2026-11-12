@@ -35,9 +35,8 @@ export class VisitRepositoryImpl
 
       response.data = new Visit(newVisit.pageId, newVisit.userId);
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in registerVisit:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",

@@ -5,6 +5,7 @@ import { MetricsFilter } from "#src/Domain/Metrics/Entity/MetricsFilter.js";
 import type { MetricsQueryUseCase } from "#src/Domain/Metrics/UseCase/MetricsQueryUseCase.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
+import { queryText } from "./queryText.js";
 
 export const METRICS_V1_ROUTE = "/v1/metrics";
 
@@ -44,8 +45,8 @@ export function createMetricsRouter(
           transactionId,
           MetricsFilter.builder()
             .setId(metricId)
-            .setStartDate(startDate as string)
-            .setEndDate(endDate as string)
+            .setStartDate(queryText(startDate) ?? "")
+            .setEndDate(queryText(endDate) ?? "")
             .build(),
         );
         const response = await metricsQueryUseCase.queryMetric(request);

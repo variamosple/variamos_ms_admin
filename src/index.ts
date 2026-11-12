@@ -7,6 +7,7 @@ import {
 } from "@variamosple/variamos-security";
 import EnvVars from "#src/common/EnvVars.js";
 import { missingRequiredSecrets } from "#src/common/requiredSecrets.js";
+import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import {
   AccessJournalInstance,
   ActivityJournalInstance,
@@ -63,7 +64,7 @@ try {
   startJournalPurge([ActivityJournalInstance, AccessJournalInstance]);
 } catch (e) {
   logger.err(
-    `[MIGRATION] Failed, the server does not start: ${(e as Error).message}`,
+    `[MIGRATION] Failed, the server does not start: ${errorMessage(e)}`,
   );
   process.exit(1);
 }
@@ -80,7 +81,7 @@ if (SecretConfigurationValueInstance.canEncrypt()) {
     logger.info(`[CONFIG] ${encrypted} secret configuration(s) encrypted`);
   } catch (e) {
     logger.err(
-      `[CONFIG] Secret configurations left as they were: ${(e as Error).message}`,
+      `[CONFIG] Secret configurations left as they were: ${errorMessage(e)}`,
     );
   }
 } else {

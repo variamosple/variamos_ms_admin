@@ -40,6 +40,7 @@ import type { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagem
 import type { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
 import type { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
 import { recordAccess } from "./accessJournal.js";
+import { signedInUser } from "./actor.js";
 import {
   forgotPasswordBody,
   googleCallbackBody,
@@ -55,11 +56,12 @@ import {
 } from "./authRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
+import { queryText } from "./queryText.js";
 import { readBody } from "./requestBody.js";
 
 /** Body of GET /auth/session-info: an HTTP shape, not a domain entity. */
 interface SessionInfoResponse {
-  user: SessionUser;
+  user: SessionUser | null;
   authToken?: string;
   redirect?: string;
 }
@@ -101,8 +103,7 @@ export const hasMatchingGoogleCsrfToken = (
   req: Request,
   bodyToken: string | undefined,
 ): boolean => {
-  const cookieToken = (req.cookies as Record<string, unknown> | undefined)
-    ?.g_csrf_token;
+  const cookieToken: unknown = req.cookies?.g_csrf_token;
   return (
     typeof cookieToken === "string" &&
     cookieToken !== "" &&
@@ -144,7 +145,7 @@ export function createAuthRouter(
     res: Response,
     remove = true,
   ): URL | undefined => {
-    const redirectUrl = req.cookies.redirectTo as string | undefined;
+    const redirectUrl = queryText(req.cookies.redirectTo);
 
     if (!redirectUrl) {
       return undefined;
@@ -226,8 +227,7 @@ export function createAuthRouter(
   });
 
   const trustedDeviceToken = (req: Request): string | undefined => {
-    const token = req.cookies?.[MFA_TRUSTED_COOKIE] as unknown;
-    return typeof token === "string" ? token : undefined;
+    return queryText(req.cookies?.[MFA_TRUSTED_COOKIE]);
   };
 
   /** Creates the session cookie; gives the address to go to. */
@@ -239,10 +239,10 @@ export function createAuthRouter(
   ): Promise<string> => {
     const redirect = getRedirectUrl(transactionId, req, res);
 
-    const token = (await createJwt(
+    const token = await createJwt(
       sessionUser,
       redirect?.hostname || EnvVars.CookieProps.Options.domain,
-    )) as string;
+    );
 
     res.cookie("authToken", token, getCookieOptions());
     setRedirectAuthToken(redirect, token);
@@ -271,7 +271,7 @@ export function createAuthRouter(
 
         return res.status(200).json(
           response.withResponse({
-            user: sessionInfoToSessionUser(user) as SessionUser,
+            user: sessionInfoToSessionUser(user),
             redirect: redirect?.toString(),
           }),
         );
@@ -359,7 +359,7 @@ export function createAuthRouter(
       // variamos-security 0.0.2) cannot read: the refreshed token holds the
       // host alone again
       const host = audienceHostOf(user.aud);
-      const token = (await createJwt(sessionUser, host)) as string;
+      const token = await createJwt(sessionUser, host);
 
       // The page to go back to receives the refreshed token, not the
       // expired one it replaces
@@ -385,7 +385,7 @@ export function createAuthRouter(
         );
     } catch (error) {
       logger.err("Error verifying JWT:");
-      logger.err(error as Error);
+      logger.err(error);
       res
         .status(HttpStatusCodes.UNAUTHORIZED)
         .json(
@@ -496,9 +496,7 @@ export function createAuthRouter(
   authRouter.post("/sign-in/mfa", async (req, res) => {
     const transactionId = "signInMfa";
     const response = new ResponseModel<SingInResponse>(transactionId);
-    const pendingToken = req.cookies?.[MFA_PENDING_COOKIE] as
-      | string
-      | undefined;
+    const pendingToken = queryText(req.cookies?.[MFA_PENDING_COOKIE]);
     const body = readBody(signInMfaBody, req, res, transactionId);
     if (!body) return;
     const { code, rememberDevice } = body;
@@ -627,9 +625,7 @@ export function createAuthRouter(
 
       if (response.errorCode) {
         return res
-          .status(
-            mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes),
-          )
+          .status(mapDomainErrorToHttpStatus(response.errorCode))
           .json(response);
       }
 
@@ -671,7 +667,7 @@ export function createAuthRouter(
         hostedDomain: payload.hd || undefined,
       };
     } catch (err) {
-      logger.err(err as Error);
+      logger.err(err);
       throw new Error("Error when validating Google's user data.", {
         cause: err,
       });
@@ -770,10 +766,10 @@ export function createAuthRouter(
       }
 
       const redirect = getRedirectUrl(transactionId, req, res, false);
-      const token = (await createJwt(
+      const token = await createJwt(
         sessionUser,
         redirect?.hostname || EnvVars.CookieProps.Options.domain,
-      )) as string;
+      );
 
       res.cookie("authToken", token, getCookieOptions());
 
@@ -799,15 +795,13 @@ export function createAuthRouter(
     hasPermissions(["my-account::query"]),
     async (req, res) => {
       const transactionId = "myAccount";
-      const user = req.user as SessionUser;
+      const user = signedInUser(req);
       try {
         const request = new RequestModel<string>(transactionId, user.id);
 
         const response = await userQueryUseCase.myAccount(request);
 
-        const status = mapDomainErrorToHttpStatus(
-          response.errorCode as DomainErrorCodes,
-        );
+        const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
       } catch (error) {
         sendError(res, error, transactionId);
@@ -820,7 +814,7 @@ export function createAuthRouter(
     hasPermissions(["my-account::update"]),
     async (req, res) => {
       const transactionId = "updateMyAccountInformation";
-      const user = req.user as SessionUser;
+      const user = signedInUser(req);
       const personalInformation = readBody(
         personalInformationBody,
         req,
@@ -842,9 +836,7 @@ export function createAuthRouter(
 
         const response = await userManagementUseCase.updateProfile(request);
 
-        const status = mapDomainErrorToHttpStatus(
-          response.errorCode as DomainErrorCodes,
-        );
+        const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
       } catch (error) {
         sendError(res, error, transactionId);
@@ -857,7 +849,7 @@ export function createAuthRouter(
     hasPermissions(["my-account::update"]),
     async (req, res) => {
       const transactionId = "passwordUpdate";
-      const user = req.user as SessionUser;
+      const user = signedInUser(req);
       const body = readBody(passwordUpdateBody, req, res, transactionId);
       if (!body) return;
       const { currentPassword, newPassword, passwordConfirmation } = body;
@@ -873,9 +865,7 @@ export function createAuthRouter(
           new RequestModel(transactionId, passwordUpdate),
         );
 
-        const status = mapDomainErrorToHttpStatus(
-          response.errorCode as DomainErrorCodes,
-        );
+        const status = mapDomainErrorToHttpStatus(response.errorCode);
         res.status(status).json(response);
       } catch (error) {
         sendError(res, error, transactionId);
@@ -918,10 +908,10 @@ export function createAuthRouter(
       };
 
       const redirect = getRedirectUrl(transactionId, req, res);
-      const token = (await createJwt(
+      const token = await createJwt(
         sessionUser,
         redirect?.hostname || EnvVars.CookieProps.Options.domain,
-      )) as string;
+      );
 
       res.cookie("authToken", token, getCookieOptions());
       setRedirectAuthToken(redirect, token);
@@ -957,7 +947,7 @@ export function createAuthRouter(
       isAllowed = isAllowedRedirect(redirect);
     } catch (error) {
       logger.err(`POST: ${AUTH_ROUTE}/redirects Invalid redirect URL:`);
-      logger.err(error as Error);
+      logger.err(error);
       logger.err(describeError(error));
     }
 

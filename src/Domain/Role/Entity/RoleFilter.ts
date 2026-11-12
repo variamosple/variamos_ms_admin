@@ -49,7 +49,7 @@ class RoleFilterBuilder {
     return this;
   }
 
-  public setName(name: string): RoleFilterBuilder {
+  public setName(name: Nullable<string>): RoleFilterBuilder {
     this.name = name;
     return this;
   }

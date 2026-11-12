@@ -63,9 +63,8 @@ export class UserRoleRepositoryImpl
         },
       ).then((res) => res.map(({ id, name }) => new Role(id, name)));
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in queryUserRoles:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
@@ -117,9 +116,8 @@ export class UserRoleRepositoryImpl
         }),
       );
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in queryUserRolesDetails:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
@@ -170,9 +168,8 @@ export class UserRoleRepositoryImpl
         response.data = new UserRole(newUserRole.userId, newUserRole.roleId);
       }
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in createUserRole:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
@@ -209,9 +206,8 @@ export class UserRoleRepositoryImpl
         where: { userId, roleId },
       });
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in deleteUserRole:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",

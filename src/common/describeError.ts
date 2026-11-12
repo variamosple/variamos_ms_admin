@@ -14,12 +14,15 @@ export function describeError(error: unknown): string {
 }
 
 function errorCode(error: Error): string | undefined {
-  const withCode = error as Error & {
-    code?: unknown;
-    parent?: { code?: unknown };
-  };
-  const code = withCode.code ?? withCode.parent?.code;
+  const code =
+    codeOf(error) ?? ("parent" in error ? codeOf(error.parent) : undefined);
   return typeof code === "string" || typeof code === "number"
     ? String(code)
+    : undefined;
+}
+
+function codeOf(value: unknown): unknown {
+  return typeof value === "object" && value !== null && "code" in value
+    ? value.code
     : undefined;
 }

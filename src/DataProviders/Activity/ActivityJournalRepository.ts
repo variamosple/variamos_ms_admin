@@ -3,6 +3,7 @@ import logger from "#src/common/logger.js";
 import type { ActivityEntry } from "#src/Domain/Activity/ActivityEntry.js";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import type { IJournalPurge } from "#src/Domain/Activity/IJournalPurge.js";
+import { errorName } from "#src/Domain/Core/Error/errorMessage.js";
 
 // Same value as the trigger of migration 0005
 const RETENTION = "1 year";
@@ -41,7 +42,7 @@ export class ActivityJournalRepositoryImpl
     } catch (error) {
       // The name only: a driver message may quote the values
       logger.err(
-        `[ACTIVITY] ${entry.action} on ${entry.entityType} not recorded: ${(error as Error).name}`,
+        `[ACTIVITY] ${entry.action} on ${entry.entityType} not recorded: ${errorName(error)}`,
       );
     }
   }

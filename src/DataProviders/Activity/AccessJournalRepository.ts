@@ -6,6 +6,7 @@ import type {
 } from "#src/Domain/Activity/AccessEntry.js";
 import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
 import type { IJournalPurge } from "#src/Domain/Activity/IJournalPurge.js";
+import { errorName } from "#src/Domain/Core/Error/errorMessage.js";
 import { accountRefusalOf } from "#src/Domain/User/Entity/AccountAccess.js";
 
 // Same value as the trigger of migration 0006
@@ -43,9 +44,7 @@ export class AccessJournalRepositoryImpl
       );
     } catch (error) {
       // The name only: a driver message may quote the values
-      logger.err(
-        `[ACCESS] ${entry.event} not recorded: ${(error as Error).name}`,
-      );
+      logger.err(`[ACCESS] ${entry.event} not recorded: ${errorName(error)}`);
     }
   }
 
@@ -71,7 +70,7 @@ export class AccessJournalRepositoryImpl
           }
         : null;
     } catch (error) {
-      logger.err(`[ACCESS] account lookup failed: ${(error as Error).name}`);
+      logger.err(`[ACCESS] account lookup failed: ${errorName(error)}`);
       return null;
     }
   }

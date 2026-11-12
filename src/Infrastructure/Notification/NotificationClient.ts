@@ -5,6 +5,7 @@ import type {
   INotificationDispatcher,
   NotificationPayload,
 } from "#src/Domain/Notification/INotificationDispatcher.js";
+import { httpFailure } from "#src/Infrastructure/Http/httpFailure.js";
 
 export class NotificationClient implements INotificationDispatcher {
   private readonly baseUrl = EnvVars.NOTIFICATION.SERVICE_URL;
@@ -21,9 +22,8 @@ export class NotificationClient implements INotificationDispatcher {
         },
       });
     } catch (error: unknown) {
-      const err = error as { response?: { data?: unknown }; message?: string };
       logger.err("Failed to dispatch notification via NotificationClient:");
-      logger.err(err.response?.data || err.message || err);
+      logger.err(httpFailure(error));
       throw new Error(
         "Failed to dispatch notification to the notification service.",
         { cause: error },

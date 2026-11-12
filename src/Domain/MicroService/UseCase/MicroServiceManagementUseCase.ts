@@ -284,7 +284,7 @@ export class MicroServiceManagementUseCase {
       }
       return defaultResponse;
     } catch (error) {
-      this.logger.err(error as Error);
+      this.logger.err(error);
       return defaultResponse.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Failed to trigger health checks.",

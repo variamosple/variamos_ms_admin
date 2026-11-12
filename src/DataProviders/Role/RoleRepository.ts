@@ -57,9 +57,8 @@ export class RoleRepositoryImpl
         ],
       }).then((res) => res.map(({ id, name }) => new Role(id, name)));
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in getRoles:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
@@ -89,9 +88,8 @@ export class RoleRepositoryImpl
 
       response.data = new Role(newRole.id, newRole.name);
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in createRole:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
@@ -121,9 +119,8 @@ export class RoleRepositoryImpl
       await RolePermissionModel.destroy({ where: { roleId: numericId } });
       await RoleModel.destroy({ where: { id: numericId } });
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in deleteRole:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
@@ -152,9 +149,8 @@ export class RoleRepositoryImpl
       });
       response.data = found ? new Role(found.id, found.name) : null;
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in queryById:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
@@ -187,9 +183,8 @@ export class RoleRepositoryImpl
 
       response.data = data;
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in updateRole:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
@@ -237,9 +232,8 @@ export class RoleRepositoryImpl
         );
       });
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in queryGuestRole:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",

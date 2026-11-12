@@ -184,8 +184,7 @@ export class BugSyncUseCase {
         `Synchronization finished: Created ${totalCreated} and Updated ${totalUpdated} bugs.`,
       );
     } catch (error) {
-      const err = error as Error;
-      this.logger.err(err);
+      this.logger.err(error);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;

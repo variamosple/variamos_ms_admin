@@ -13,6 +13,7 @@ import {
 } from "./adminRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
+import { queryText } from "./queryText.js";
 import { validBody } from "./requestBody.js";
 
 export const MICRO_SERVICES_V1_ROUTE = "/v1/micro-services";
@@ -22,7 +23,7 @@ export const MICRO_SERVICES_V1_ROUTE = "/v1/micro-services";
  * configuration updates, otherwise their identifier.
  */
 function actorOf(req: Request): string {
-  const user = req.user as { email?: string; id?: string } | undefined;
+  const user = req.user;
   return user?.email || user?.id || "unknown";
 }
 
@@ -42,7 +43,7 @@ export function createMicroServicesRouter(
 
       try {
         const filter: MicroServiceFilter = MicroServiceFilter.builder()
-          .setName((name as string) || "")
+          .setName(queryText(name) || "")
           .setPageNumber(pageNumber ? Number(pageNumber) : 1)
           .setPageSize(pageSize ? Number(pageSize) : 50)
           .build();

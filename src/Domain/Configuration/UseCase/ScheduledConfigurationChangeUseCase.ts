@@ -3,6 +3,7 @@ import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import { refusalOfConfigurationValue } from "../Entity/AppliedConfigurationKeys.js";
 import type { ConfigurationValue } from "../Entity/Configuration.js";
 import {
@@ -331,8 +332,7 @@ export class ScheduledConfigurationChangeUseCase {
     );
     if (current.errorCode || !current.data) {
       return refuse(
-        (current.errorCode as DomainErrorCodes) ||
-          DomainErrorCodes.ENTITY_NOT_FOUND,
+        current.errorCode || DomainErrorCodes.ENTITY_NOT_FOUND,
         current.message || `Configuration with key '${data.key}' not found.`,
       );
     }
@@ -359,7 +359,7 @@ export class ScheduledConfigurationChangeUseCase {
     try {
       configuration.checkNewValue(data.value);
     } catch (e) {
-      return refuse(DomainErrorCodes.INVALID_INPUT, (e as Error).message);
+      return refuse(DomainErrorCodes.INVALID_INPUT, errorMessage(e));
     }
     return { previousValue, newValue: data.value, baseUpdatedAt, dueAt };
   }

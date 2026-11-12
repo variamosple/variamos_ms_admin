@@ -4,6 +4,7 @@ import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import { Role } from "#src/Domain/Role/Entity/Role.js";
 import { RoleFilter } from "#src/Domain/Role/Entity/RoleFilter.js";
 import type { RoleManagementUseCase } from "#src/Domain/Role/UseCase/RoleManagementUseCase.js";
@@ -12,6 +13,7 @@ import { actorOf } from "./actor.js";
 import { nameBody } from "./adminRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
+import { queryText } from "./queryText.js";
 import { ROLE_PERMISSIONS_V1_ROUTE } from "./RolePermissionsV1Router.js";
 import { validBody } from "./requestBody.js";
 import { type AccessGuard, requireAccess, toId } from "./requireAccess.js";
@@ -31,7 +33,7 @@ export function createRolesRouter(
     const { pageNumber, pageSize, name = null, sortBy, sortOrder } = req.query;
     try {
       const filter: RoleFilter = RoleFilter.builder()
-        .setName(name as string)
+        .setName(queryText(name))
         .setPageNumber(Number(pageNumber))
         .setPageSize(Number(pageSize))
         .setSort(sortBy, sortOrder)
@@ -75,7 +77,7 @@ export function createRolesRouter(
             .json(
               new ResponseModel<void>(transactionId).withError(
                 DomainErrorCodes.INVALID_INPUT,
-                (error as Error).message,
+                errorMessage(error),
               ),
             );
         }
@@ -207,7 +209,7 @@ export function createRolesRouter(
             .json(
               new ResponseModel<void>(transactionId).withError(
                 DomainErrorCodes.INVALID_INPUT,
-                (error as Error).message,
+                errorMessage(error),
               ),
             );
         }

@@ -106,9 +106,8 @@ export class UserRepositoryImpl
         ),
       );
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in getUsers:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
@@ -149,9 +148,8 @@ export class UserRepositoryImpl
 
       await this.enrichUserRolesAndPermissions(response.data);
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in findSessionUser:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
@@ -203,9 +201,8 @@ export class UserRepositoryImpl
       // The use case refuses a closed account, then records the sign-in
       response.data = this.accountOf(dbUser);
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in findOrCreateUser:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
@@ -324,9 +321,8 @@ export class UserRepositoryImpl
         .setEmail(newUser.email)
         .build();
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in signUp:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
@@ -375,9 +371,8 @@ export class UserRepositoryImpl
           .build();
       });
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in queryById:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
@@ -410,9 +405,8 @@ export class UserRepositoryImpl
         },
       );
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in disableUser:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
@@ -445,9 +439,8 @@ export class UserRepositoryImpl
         },
       );
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in enableUser:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
@@ -480,9 +473,8 @@ export class UserRepositoryImpl
         },
       );
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in deleteUser:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
@@ -576,12 +568,11 @@ export class UserRepositoryImpl
         await this.forgetTrustedDevices(String(dbUser.id), transaction);
       });
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in updateUserPassword:");
       logger.err(
         `Error trying to update user password with id: ${request.data ? request.data.getId() : ""}`,
       );
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
@@ -786,12 +777,11 @@ export class UserRepositoryImpl
         },
       );
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in updatePersonalInformation:");
       logger.err(
         `Error trying to update user information with id: ${request.data ? request.data.getUserId() : ""}`,
       );
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
@@ -819,9 +809,8 @@ export class UserRepositoryImpl
         where: { id: userId },
       }).then((count) => count > 0);
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in userExists:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",

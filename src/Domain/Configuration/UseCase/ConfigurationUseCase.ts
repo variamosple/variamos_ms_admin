@@ -4,6 +4,7 @@ import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import { refusalOfConfigurationValue } from "../Entity/AppliedConfigurationKeys.js";
 import type {
   Configuration,
@@ -149,8 +150,10 @@ export class ConfigurationUseCase {
     try {
       configuration.updateValue(value, operatorId);
     } catch (e) {
-      const err = e as Error;
-      return response.withError(DomainErrorCodes.INVALID_INPUT, err.message);
+      return response.withError(
+        DomainErrorCodes.INVALID_INPUT,
+        errorMessage(e),
+      );
     }
 
     // 5. Persist updated configuration

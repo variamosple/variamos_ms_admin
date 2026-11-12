@@ -64,7 +64,7 @@ class UserFilterBuilder {
     return this;
   }
 
-  public setName(name: string): UserFilterBuilder {
+  public setName(name: Nullable<string>): UserFilterBuilder {
     this.name = name;
     return this;
   }
@@ -79,7 +79,7 @@ class UserFilterBuilder {
     return this;
   }
 
-  public setSearch(search: string): UserFilterBuilder {
+  public setSearch(search: Nullable<string>): UserFilterBuilder {
     this.search = search;
     return this;
   }
