@@ -307,7 +307,7 @@ END;
 $$ LANGUAGE plpgsql;`;
 
 // get_metrics() calls all the others: it comes last
-export const usageMetricsStatements = (s: string): string[] => [
+const usageMetricsStatements = (s: string): string[] => [
   chart(s),
   userActivity(s),
   projectActivity(s),

@@ -13,7 +13,7 @@ export const MFA_PENDING_COOKIE = "mfaPending";
 /** Holds the token of a browser where the code is not asked (lot 6). */
 export const MFA_TRUSTED_COOKIE = "mfaTrustedDevice";
 
-export const isAllowedOrigin = (origin: string): boolean =>
+const isAllowedOrigin = (origin: string): boolean =>
   EnvVars.CORS.AllowedOriginsPatterns.some((pattern) => pattern.test(origin));
 
 // A page to go back to after sign-in: a web address of an allowed site.

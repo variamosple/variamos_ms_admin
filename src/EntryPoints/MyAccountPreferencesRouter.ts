@@ -12,7 +12,7 @@ import { readBody } from "./requestBody.js";
 
 export const MY_ACCOUNT_PREFERENCES_ROUTE = `${AUTH_ROUTE}/my-account/preferences`;
 
-export interface UserPreferencesDto {
+interface UserPreferencesDto {
   timeZone: string | null;
   updatedAt: string | null;
 }
