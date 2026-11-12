@@ -1,4 +1,4 @@
-import { mock } from "vitest-mock-extended";
+import { type MockProxy, mock } from "vitest-mock-extended";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -8,7 +8,9 @@ import type { IGuestRoleRepository } from "#src/Domain/Role/Repository/IGuestRol
 import { PasswordPolicy } from "#src/Domain/User/Entity/PasswordPolicy.js";
 import { PasswordUpdate } from "#src/Domain/User/Entity/PasswordUpdate.js";
 import type { UserRegistration } from "#src/Domain/User/Entity/UserRegistration.js";
+import type { IUserPasswordRepository } from "#src/Domain/User/IUserPasswordRepository.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
+import type { IUserSignInRepository } from "#src/Domain/User/IUserSignInRepository.js";
 import type { AccountPasswordService } from "#src/Domain/User/Service/AccountPasswordService.js";
 import type { IPasswordPolicyProvider } from "#src/Domain/User/Service/PasswordPolicyService.js";
 import { PasswordResetTokenService } from "#src/Domain/User/Service/PasswordResetTokenService.js";
@@ -28,10 +30,14 @@ const ACCEPTED_BY_DEFAULT = "Short1!aa"; // 9 characters
 const STRICT_MESSAGE = "Password must be between 12 and 64";
 
 describe("configured password policy in the use cases", () => {
-  let users: ReturnType<typeof mock<IUserRepository>>;
+  let users: MockProxy<
+    IUserRepository & IUserSignInRepository & IUserPasswordRepository
+  >;
 
   beforeEach(() => {
-    users = mock<IUserRepository>();
+    users = mock<
+      IUserRepository & IUserSignInRepository & IUserPasswordRepository
+    >();
   });
   afterEach(() => vi.restoreAllMocks());
 
@@ -62,7 +68,7 @@ describe("configured password policy in the use cases", () => {
 
   it("password change refuses it too", async () => {
     const useCase = new UserManagementUseCase(
-      users,
+      { accounts: users, passwords: users },
       activityJournal,
       mock<ILogger>(),
       strict,
@@ -86,7 +92,7 @@ describe("configured password policy in the use cases", () => {
 
   it("password reset refuses it too, before touching the token", async () => {
     const useCase = new UserPasswordUseCase({
-      userRepository: users,
+      repositories: { accounts: users, passwords: users },
       mailService: mock<IMailService>(),
       config: { passwordResetExpiryInMs: 3_600_000, adminHomeUri: "http://ui" },
       journal: activityJournal,
@@ -113,7 +119,7 @@ describe("configured password policy in the use cases", () => {
       .spyOn(PasswordResetTokenService.prototype, "createResetToken")
       .mockResolvedValue("token");
     const useCase = new UserPasswordUseCase({
-      userRepository: users,
+      repositories: { accounts: users, passwords: users },
       mailService: mail,
       config: { passwordResetExpiryInMs: 3_600_000, adminHomeUri: "http://ui" },
       journal: activityJournal,
@@ -135,7 +141,7 @@ describe("configured password policy in the use cases", () => {
 
   it("exposes the policy for the UI forms", async () => {
     const useCase = new UserPasswordUseCase({
-      userRepository: users,
+      repositories: { accounts: users, passwords: users },
       mailService: mock<IMailService>(),
       config: { passwordResetExpiryInMs: 3_600_000, adminHomeUri: "http://ui" },
       journal: activityJournal,

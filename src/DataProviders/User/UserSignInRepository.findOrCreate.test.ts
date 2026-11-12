@@ -9,14 +9,14 @@ import { UserAuthUseCase } from "#src/Domain/User/UseCase/UserAuthUseCase.js";
 import { BcryptPasswordHasher } from "#src/Infrastructure/Security/BcryptPasswordHasher.js";
 import VARIAMOS_ORM from "#src/Infrastructure/VariamosORM.js";
 import { UserModel } from "./User.js";
-import { UserRepositoryImpl } from "./UserRepository.js";
+import { UserSignInRepositoryImpl } from "./UserSignInRepository.js";
 
 vi.mock("#src/common/logger.js");
 
 // The Google sign-in as it runs: the repository reads or creates the
 // account, the use case decides (EV-98)
 describe("Google sign-in (signInWithGoogle)", () => {
-  const repository = new UserRepositoryImpl(
+  const repository = new UserSignInRepositoryImpl(
     new BcryptPasswordHasher({ getCost: async () => 4 }),
   );
   const useCase = new UserAuthUseCase({

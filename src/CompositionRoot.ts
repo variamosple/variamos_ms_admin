@@ -14,7 +14,7 @@ import {
   PermissionRepositoryInstance,
   RolePermissionRepositoryInstance,
   RoleRepositoryInstance,
-  UserRepositoryInstance,
+  UserRepositoriesInstance,
   UserRoleRepositoryInstance,
   VisitRepositoryInstance,
   WatchedAccessJournal,
@@ -128,7 +128,7 @@ const AccountLockoutInstance = new AccountLockout(
 );
 
 const productionUserAuthUseCase = new UserAuthUseCase({
-  userRepository: UserRepositoryInstance,
+  userRepository: UserRepositoriesInstance.signIn,
   roleRepository: RoleRepositoryInstance,
   logger: JetLogger,
   mailService: MailServiceInstance,
@@ -138,7 +138,7 @@ const productionUserAuthUseCase = new UserAuthUseCase({
 });
 
 const productionUserPasswordUseCase = new UserPasswordUseCase({
-  userRepository: UserRepositoryInstance,
+  repositories: UserRepositoriesInstance,
   mailService: MailServiceInstance,
   config: {
     passwordResetExpiryInMs: EnvVars.Auth.APP.PASSWORD_RESET_EXPIRY_IN_MS,
@@ -150,7 +150,7 @@ const productionUserPasswordUseCase = new UserPasswordUseCase({
 });
 
 const productionUserManagementUseCase = new UserManagementUseCase(
-  UserRepositoryInstance,
+  UserRepositoriesInstance,
   WatchedActivityJournal,
   JetLogger,
   PasswordPolicyServiceInstance,
@@ -191,13 +191,15 @@ const productionMfaSignInUseCase = new MfaSignInUseCase({
 // An administrator turns off the second factor of an account that lost it
 const productionMfaResetUseCase = new MfaResetUseCase({
   mfaRepository: userMfaRepository,
-  userRepository: UserRepositoryInstance,
+  userRepository: UserRepositoriesInstance.accounts,
   mailService: MailServiceInstance,
   journal: WatchedActivityJournal,
   logger: JetLogger,
 });
 
-const productionUserQueryUseCase = new UserQueryUseCase(UserRepositoryInstance);
+const productionUserQueryUseCase = new UserQueryUseCase(
+  UserRepositoriesInstance.accounts,
+);
 
 const productionUserRoleUseCase = new UserRoleUseCase(
   UserRoleRepositoryInstance,
@@ -219,7 +221,7 @@ const productionGitHubTokenResolver = new GitHubTokenResolver(bugTrackerConfig);
 // Bug Use Case Instantiations
 const productionBugSubmissionUseCase = new BugSubmissionUseCase({
   bugRepository: BugRepositoriesInstance.bugs,
-  userRepository: UserRepositoryInstance,
+  userRepository: UserRepositoriesInstance.accounts,
   issueTrackerService: GitHubIssuesServiceInstance,
   githubConfig: bugTrackerConfig,
   tokenResolver: productionGitHubTokenResolver,

@@ -77,26 +77,6 @@
           }
         }
       }
-    },
-    {
-      "includes": [
-        "src/DataProviders/Bug/BugRepository.ts",
-        "src/DataProviders/MicroService/MicroServiceRepository.ts",
-        "src/DataProviders/User/UserRepository.ts"
-      ],
-      "linter": {
-        "rules": {
-          "style": {
-            "noExcessiveLinesPerFile": {
-              "level": "info",
-              "options": {
-                "maxLines": 400,
-                "skipBlankLines": true
-              }
-            }
-          }
-        }
-      }
     }
   ]
 }

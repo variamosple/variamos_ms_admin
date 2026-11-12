@@ -56,7 +56,9 @@ interface TestApiResponse<T> {
 
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
+import type { IUserPasswordRepository } from "#src/Domain/User/IUserPasswordRepository.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
+import type { IUserSignInRepository } from "#src/Domain/User/IUserSignInRepository.js";
 import type { UserPasswordUseCaseConfig } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
 
 const allowAll: AccessGuard = {
@@ -70,16 +72,32 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
   beforeAll(() => {
     app = express();
     app.use(express.json());
-    const mockUserQueryUseCase = new UserQueryUseCase(mock<IUserRepository>());
+    const mockUserQueryUseCase = new UserQueryUseCase(
+      mock<IUserRepository & IUserSignInRepository & IUserPasswordRepository>(),
+    );
     const mockUserPasswordUseCase = new UserPasswordUseCase({
-      userRepository: mock<IUserRepository>(),
+      repositories: {
+        accounts: mock<
+          IUserRepository & IUserSignInRepository & IUserPasswordRepository
+        >(),
+        passwords: mock<
+          IUserRepository & IUserSignInRepository & IUserPasswordRepository
+        >(),
+      },
       mailService: mock<IMailService>(),
       config: mock<UserPasswordUseCaseConfig>(),
       journal: mock<IActivityJournal>(),
       logger: mock<ILogger>(),
     });
     const mockUserManagementUseCase = new UserManagementUseCase(
-      mock<IUserRepository>(),
+      {
+        accounts: mock<
+          IUserRepository & IUserSignInRepository & IUserPasswordRepository
+        >(),
+        passwords: mock<
+          IUserRepository & IUserSignInRepository & IUserPasswordRepository
+        >(),
+      },
       mock<IActivityJournal>(),
       mock<ILogger>(),
     );

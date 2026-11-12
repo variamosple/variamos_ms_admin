@@ -11,7 +11,9 @@ import { Credentials } from "#src/Domain/User/Entity/Credentials.js";
 import type { GoogleProfile } from "#src/Domain/User/Entity/GoogleIdentity.js";
 import { User } from "#src/Domain/User/Entity/User.js";
 import { UserRegistration } from "#src/Domain/User/Entity/UserRegistration.js";
+import type { IUserPasswordRepository } from "#src/Domain/User/IUserPasswordRepository.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
+import type { IUserSignInRepository } from "#src/Domain/User/IUserSignInRepository.js";
 import type {
   AccountPasswordService,
   OpenedAccount,
@@ -21,14 +23,18 @@ import { UserAuthUseCase } from "./UserAuthUseCase.js";
 describe("UserAuthUseCase", () => {
   let useCase: UserAuthUseCase;
   let logger: MockProxy<ILogger>;
-  let mockUserRepository: MockProxy<IUserRepository>;
+  let mockUserRepository: MockProxy<
+    IUserRepository & IUserSignInRepository & IUserPasswordRepository
+  >;
   let mockRoleRepository: MockProxy<IGuestRoleRepository>;
   let mailService: MockProxy<IMailService>;
   let accountPasswords: MockProxy<AccountPasswordService>;
 
   beforeEach(() => {
     logger = mock<ILogger>();
-    mockUserRepository = mock<IUserRepository>();
+    mockUserRepository = mock<
+      IUserRepository & IUserSignInRepository & IUserPasswordRepository
+    >();
     mockRoleRepository = mock<IGuestRoleRepository>();
     mailService = mock<IMailService>();
     accountPasswords = mock<AccountPasswordService>();

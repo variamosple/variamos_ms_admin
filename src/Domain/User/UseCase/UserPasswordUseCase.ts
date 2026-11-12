@@ -8,10 +8,7 @@ import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
 import type { PasswordPolicy } from "#src/Domain/User/Entity/PasswordPolicy.js";
-import type {
-  IUserRepository,
-  PasswordResetOutcome,
-} from "#src/Domain/User/IUserRepository.js";
+import type { PasswordResetOutcome } from "#src/Domain/User/IUserPasswordRepository.js";
 import {
   checkNewPassword,
   DEFAULT_PASSWORD_POLICY_PROVIDER,
@@ -19,6 +16,7 @@ import {
   MAX_PASSWORD_RESET_EXPIRY_MS,
 } from "#src/Domain/User/Service/PasswordPolicyService.js";
 import { PasswordResetTokenService } from "#src/Domain/User/Service/PasswordResetTokenService.js";
+import type { UserRepositories } from "#src/Domain/User/UserRepositories.js";
 
 export interface UserPasswordUseCaseConfig {
   passwordResetExpiryInMs: number;
@@ -35,7 +33,7 @@ const RESET_REFUSALS: Record<Exclude<PasswordResetOutcome, "reset">, string> = {
 
 /** What the password of an account uses. */
 export interface UserPasswordUseCaseDependencies {
-  userRepository: IUserRepository;
+  repositories: Pick<UserRepositories, "accounts" | "passwords">;
   mailService: IMailService;
   config: UserPasswordUseCaseConfig;
   journal: IActivityJournal;
@@ -46,7 +44,10 @@ export interface UserPasswordUseCaseDependencies {
 export class UserPasswordUseCase {
   private readonly tokenService: PasswordResetTokenService;
 
-  private readonly userRepository: IUserRepository;
+  private readonly repositories: Pick<
+    UserRepositories,
+    "accounts" | "passwords"
+  >;
   private readonly mailService: IMailService;
   private readonly config: UserPasswordUseCaseConfig;
   private readonly journal: IActivityJournal;
@@ -55,20 +56,23 @@ export class UserPasswordUseCase {
 
   public constructor(dependencies: UserPasswordUseCaseDependencies) {
     const {
-      userRepository,
+      repositories,
       mailService,
       config,
       journal,
       logger,
       passwordPolicy = DEFAULT_PASSWORD_POLICY_PROVIDER,
     } = dependencies;
-    this.userRepository = userRepository;
+    this.repositories = repositories;
     this.mailService = mailService;
     this.config = config;
     this.journal = journal;
     this.logger = logger;
     this.passwordPolicy = passwordPolicy;
-    this.tokenService = new PasswordResetTokenService(userRepository, logger);
+    this.tokenService = new PasswordResetTokenService(
+      repositories.passwords,
+      logger,
+    );
   }
 
   /**
@@ -116,7 +120,7 @@ export class UserPasswordUseCase {
 
   private async sendResetLink(email: string): Promise<void> {
     try {
-      const user = await this.userRepository.getUserByEmail(email);
+      const user = await this.repositories.accounts.getUserByEmail(email);
       if (!user) {
         this.logger.warn("[PASSWORD RESET ATTEMPT] Failed: Email not found.");
         return;
@@ -170,7 +174,7 @@ export class UserPasswordUseCase {
 
       const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
       const dbToken =
-        await this.userRepository.getPasswordResetToken(tokenHash);
+        await this.repositories.passwords.getPasswordResetToken(tokenHash);
 
       if (!dbToken) {
         return response.withError(
@@ -252,7 +256,7 @@ export class UserPasswordUseCase {
       }
 
       const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-      const outcome = await this.userRepository.resetPasswordWithToken(
+      const outcome = await this.repositories.passwords.resetPasswordWithToken(
         tokenHash,
         password,
       );
@@ -311,7 +315,7 @@ export class UserPasswordUseCase {
     }
 
     try {
-      const targetUserResponse = await this.userRepository.queryById(
+      const targetUserResponse = await this.repositories.accounts.queryById(
         new RequestModel<string>(request.transactionId, userId),
       );
 

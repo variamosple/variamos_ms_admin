@@ -25,6 +25,7 @@ import { RoleManagementUseCase } from "#src/Domain/Role/UseCase/RoleManagementUs
 import { RolePermissionUseCase } from "#src/Domain/Role/UseCase/RolePermissionUseCase.js";
 import { User } from "#src/Domain/User/Entity/User.js";
 import { UserRole } from "#src/Domain/User/Entity/UserRole.js";
+import type { IUserPasswordRepository } from "#src/Domain/User/IUserPasswordRepository.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 import type { IUserRoleRepository } from "#src/Domain/User/Repository/IUserRoleRepository.js";
 import { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
@@ -56,7 +57,11 @@ const users = (j: Journal) => {
   repo.enableUser.mockResolvedValue(ok());
   repo.disableUser.mockResolvedValue(ok());
   repo.deleteUser.mockResolvedValue(ok());
-  return new UserManagementUseCase(repo, j, mock<ILogger>());
+  return new UserManagementUseCase(
+    { accounts: repo, passwords: mock<IUserPasswordRepository>() },
+    j,
+    mock<ILogger>(),
+  );
 };
 const roles = (j: Journal) => {
   const repo = mock<IRoleRepository>();
@@ -135,7 +140,10 @@ const recoveryLink = (j: Journal) => {
   // An unknown account: the answer stays silent, the attempt is recorded
   userRepo.queryById.mockResolvedValue(ok());
   return new UserPasswordUseCase({
-    userRepository: userRepo,
+    repositories: {
+      accounts: userRepo,
+      passwords: mock<IUserPasswordRepository>(),
+    },
     mailService: mock<IMailService>(),
     config: { passwordResetExpiryInMs: 3_600_000, adminHomeUri: "http://ui" },
     journal: j,

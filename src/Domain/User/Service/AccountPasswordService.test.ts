@@ -1,7 +1,7 @@
 import { mock } from "vitest-mock-extended";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { User } from "#src/Domain/User/Entity/User.js";
-import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
+import type { IUserSignInRepository } from "#src/Domain/User/IUserSignInRepository.js";
 import { AccountPasswordService } from "./AccountPasswordService.js";
 import type { IPasswordHasher } from "./IPasswordHasher.js";
 
@@ -22,7 +22,7 @@ describe("AccountPasswordService", () => {
   ])(
     "never opens a %s account, whatever the hasher answers",
     async (_, isEnabled, isDeleted) => {
-      const users = mock<Pick<IUserRepository, "findPasswordAccount">>();
+      const users = mock<Pick<IUserSignInRepository, "findPasswordAccount">>();
       users.findPasswordAccount.mockResolvedValue(
         account(isEnabled, isDeleted),
       );

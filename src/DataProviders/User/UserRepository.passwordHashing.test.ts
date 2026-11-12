@@ -6,7 +6,8 @@ import type { UserRegistration } from "#src/Domain/User/Entity/UserRegistration.
 import { BcryptPasswordHasher } from "#src/Infrastructure/Security/BcryptPasswordHasher.js";
 import VARIAMOS_ORM from "#src/Infrastructure/VariamosORM.js";
 import { UserModel } from "./User.js";
-import { UserRepositoryImpl } from "./UserRepository.js";
+import { UserPasswordRepositoryImpl } from "./UserPasswordRepository.js";
+import { UserSignInRepositoryImpl } from "./UserSignInRepository.js";
 
 /**
  * Every new password takes the configured cost (T-18 lot 2). Sign-up and the
@@ -14,9 +15,13 @@ import { UserRepositoryImpl } from "./UserRepository.js";
  */
 describe("UserRepositoryImpl hashes new passwords with the configured cost", () => {
   const CONFIGURED_COST = 5;
-  const repository = new UserRepositoryImpl(
-    new BcryptPasswordHasher({ getCost: async () => CONFIGURED_COST }),
-  );
+  const hasher = new BcryptPasswordHasher({
+    getCost: async () => CONFIGURED_COST,
+  });
+  const repositories = {
+    signIn: new UserSignInRepositoryImpl(hasher),
+    passwords: new UserPasswordRepositoryImpl(hasher),
+  };
   const costOf = (hash: unknown) => Number(String(hash).split("$")[2]);
   const storedPassword = (values: unknown) =>
     String((values as { password?: string } | undefined)?.password);
@@ -53,7 +58,7 @@ describe("UserRepositoryImpl hashes new passwords with the configured cost", () 
       email: "jane@example.com",
     } as unknown as UserModel);
 
-    const response = await repository.signUp(
+    const response = await repositories.signIn.signUp(
       new RequestModel("signUp", {
         email: "jane@example.com",
         password: "New-password-1",
@@ -72,7 +77,7 @@ describe("UserRepositoryImpl hashes new passwords with the configured cost", () 
     const update = vi.spyOn(UserModel, "update").mockResolvedValue([1]);
     vi.spyOn(VARIAMOS_ORM, "query").mockResolvedValue([[], 0] as never);
 
-    const response = await repository.updateUserPassword(
+    const response = await repositories.passwords.updateUserPassword(
       new RequestModel(
         "passwordUpdate",
         PasswordUpdate.builder()
@@ -93,7 +98,7 @@ describe("UserRepositoryImpl hashes new passwords with the configured cost", () 
     await storedAccount();
     const update = vi.spyOn(UserModel, "update");
 
-    const response = await repository.updateUserPassword(
+    const response = await repositories.passwords.updateUserPassword(
       new RequestModel(
         "passwordUpdate",
         PasswordUpdate.builder()
@@ -117,7 +122,7 @@ describe("UserRepositoryImpl hashes new passwords with the configured cost", () 
         ? [{ userId: "u1" }]
         : [[], 0]) as never);
 
-    const outcome = await repository.resetPasswordWithToken(
+    const outcome = await repositories.passwords.resetPasswordWithToken(
       "token-hash",
       "New-password-1",
     );
@@ -134,7 +139,10 @@ describe("UserRepositoryImpl hashes new passwords with the configured cost", () 
     ] as never);
 
     expect(
-      await repository.resetPasswordWithToken("token-hash", "Old-password-1"),
+      await repositories.passwords.resetPasswordWithToken(
+        "token-hash",
+        "Old-password-1",
+      ),
     ).toBe("same_password");
   });
 });

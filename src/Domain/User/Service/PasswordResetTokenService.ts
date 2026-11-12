@@ -1,11 +1,14 @@
 import crypto from "node:crypto";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { User } from "../Entity/User.js";
-import type { IUserRepository } from "../IUserRepository.js";
+import type { IUserPasswordRepository } from "../IUserPasswordRepository.js";
 
 export class PasswordResetTokenService {
   public constructor(
-    private userRepository: IUserRepository,
+    private userRepository: Pick<
+      IUserPasswordRepository,
+      "savePasswordResetToken"
+    >,
     private readonly logger: ILogger,
   ) {}
 
