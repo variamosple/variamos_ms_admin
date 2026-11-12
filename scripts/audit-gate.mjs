@@ -50,36 +50,38 @@ function runAudit() {
 
 // Each advisory is an object in a `via` list. Its GHSA id is in `url`; its
 // numeric id is in `source`. Keep both so an exception can use either form.
-function collectAdvisories(report) {
+function advisoryOf(key, via) {
+  if (typeof via !== "object" || via === null) return undefined; // string = dependency chain
+  if (!GATED_SEVERITIES.has(via.severity)) return undefined;
+  const ghsa =
+    typeof via.url === "string"
+      ? via.url.match(GHSA_PATTERN)?.[0].toUpperCase()
+      : undefined;
+  const numeric = via.source === undefined ? undefined : String(via.source);
+  const primary = ghsa ?? numeric;
+  if (!primary)
+    fail(`high/critical advisory without identifier in package "${key}"`);
+  return {
+    id: primary,
+    ids: new Set([primary, numeric].filter(Boolean)),
+    package: via.name ?? key,
+    severity: via.severity,
+    title: via.title ?? "",
+  };
+}
+
+function collectAdvisories(auditReport) {
   const advisories = new Map();
-  for (const [key, vulnerability] of Object.entries(
-    report.vulnerabilities ?? {},
-  )) {
-    for (const via of vulnerability.via ?? []) {
-      if (typeof via !== "object" || via === null) continue; // string = dependency chain
-      if (!GATED_SEVERITIES.has(via.severity)) continue;
-      const ghsa =
-        typeof via.url === "string"
-          ? via.url.match(GHSA_PATTERN)?.[0].toUpperCase()
-          : undefined;
-      const numeric = via.source !== undefined ? String(via.source) : undefined;
-      const primary = ghsa ?? numeric;
-      if (!primary)
-        fail(`high/critical advisory without identifier in package "${key}"`);
-      const pkg = via.name ?? key;
-      const mapKey = `${pkg}|${primary}`;
-      if (!advisories.has(mapKey)) {
-        advisories.set(mapKey, {
-          id: primary,
-          ids: new Set([primary, numeric].filter(Boolean)),
-          package: pkg,
-          severity: via.severity,
-          title: via.title ?? "",
-        });
-      }
+  const vulnerabilities = Object.entries(auditReport.vulnerabilities ?? {});
+  for (const [key, vulnerability] of vulnerabilities) {
+    const vias = vulnerability.via ?? [];
+    for (const via of vias) {
+      const advisory = advisoryOf(key, via);
+      const mapKey = advisory && `${advisory.package}|${advisory.id}`;
+      if (advisory && !advisories.has(mapKey)) advisories.set(mapKey, advisory);
     }
   }
-  const declared = report.metadata?.vulnerabilities ?? {};
+  const declared = auditReport.metadata?.vulnerabilities ?? {};
   const declaredGated = (declared.high ?? 0) + (declared.critical ?? 0);
   if (declaredGated > 0 && advisories.size === 0) {
     fail(

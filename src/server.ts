@@ -55,12 +55,11 @@ export function createServer(baseRouter: Router) {
       origin: string | undefined,
       callback: (err: Error | null, allow?: boolean) => void,
     ) => {
-      if (!origin || "null" === origin) return callback(null, true);
+      if (!origin || origin === "null") return callback(null, true);
 
-      const isAllowed =
-        EnvVars.CORS.AllowedOriginsPatterns.findIndex((pattern) =>
-          pattern.test(origin),
-        ) !== -1;
+      const isAllowed = EnvVars.CORS.AllowedOriginsPatterns.some((pattern) =>
+        pattern.test(origin),
+      );
 
       if (isAllowed) {
         callback(null, true);

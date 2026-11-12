@@ -1,0 +1,11 @@
+language js
+
+// toHaveBeenCalled() passes for any call: assert the arguments or the result
+`$subject.toHaveBeenCalled()` as $assertion where {
+  not $subject <: `$_.not`,
+  register_diagnostic(
+    span = $assertion,
+    message = "Assert the arguments (toHaveBeenCalledWith) or the result, not only that a call happened.",
+    severity = "info"
+  )
+}

@@ -14,7 +14,8 @@ import type {
 export const MAX_CHANGES_PER_PASS = 50;
 
 interface ChangeRow {
-  id: number;
+  // A bigint column: the driver gives it as a string
+  id: number | string;
   key: string;
   previousValue: ConfigurationValue;
   newValue: ConfigurationValue;

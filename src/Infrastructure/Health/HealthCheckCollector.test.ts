@@ -14,7 +14,10 @@ import {
 // The tests that do not reach the retention
 const noArchive = {} as IHealthLogArchive;
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const delay = (ms: number) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 
 describe("withoutTrailingSlashes", () => {
   it.each([
@@ -219,9 +222,9 @@ describe("HealthCheckCollector.checkService latency threshold", () => {
     vi.useFakeTimers();
     vi.spyOn(axios, "get").mockImplementation(
       () =>
-        new Promise((resolve) =>
-          setTimeout(() => resolve({ status: 200, data: body }), latencyMs),
-        ),
+        new Promise((resolve) => {
+          setTimeout(() => resolve({ status: 200, data: body }), latencyMs);
+        }),
     );
     const repo = {
       recordHealthCheck: vi.fn().mockResolvedValue(undefined),

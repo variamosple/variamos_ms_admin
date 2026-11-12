@@ -86,7 +86,7 @@ function referenceSummary(
   }
   return {
     serviceName,
-    currentStatus: logs[logs.length - 1]?.status ?? "NO_DATA",
+    currentStatus: logs.at(-1)?.status ?? "NO_DATA",
     uptime24hPercentage:
       recentLogs.length > 0
         ? Number(((recentUpLogs.length / recentLogs.length) * 100).toFixed(2))
@@ -134,7 +134,7 @@ function random(seed: number) {
   return () => {
     state = (state + 0x6d2b79f5) | 0;
     let t = Math.imul(state ^ (state >>> 15), 1 | state);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
@@ -151,13 +151,14 @@ function dataset(): Log[] {
     const draw = next();
     return draw < 0.9 ? "UP" : draw < 0.95 ? "DEGRADED" : "DOWN";
   };
-  const add = (serviceName: string, at: number, forced?: HealthStatus) =>
+  const add = (serviceName: string, at: number, forced?: HealthStatus) => {
     logs.push({
       serviceName,
       status: forced ?? status(),
       responseTimeMs: 1 + Math.floor(next() * 500),
       checkedAt: new Date(at),
     });
+  };
 
   // From before the window to after its end, every 20 minutes
   for (

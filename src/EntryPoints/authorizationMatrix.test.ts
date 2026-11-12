@@ -327,8 +327,10 @@ describe("authorization of every route (T-17 lot 2)", () => {
   });
 
   it("knows every declared route, and only those", () => {
-    const declared = [...routes].sort();
-    const listed = [...Object.keys(GUARDED), ...PUBLIC].sort();
+    const declared = [...routes].sort((a, b) => a.localeCompare(b));
+    const listed = [...Object.keys(GUARDED), ...PUBLIC].sort((a, b) =>
+      a.localeCompare(b),
+    );
 
     expect(declared.filter((route) => !listed.includes(route))).toEqual([]);
     expect(listed.filter((route) => !declared.includes(route))).toEqual([]);

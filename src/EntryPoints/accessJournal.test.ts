@@ -61,7 +61,9 @@ describe("access journal of the routes (T-24)", () => {
     async (status) => {
       await supertest(appWith(status)).get("/v1/users");
 
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      await new Promise((resolve) => {
+        setTimeout(resolve, 20);
+      });
       expect(journal.record).not.toHaveBeenCalled();
     },
   );
@@ -71,7 +73,9 @@ describe("access journal of the routes (T-24)", () => {
     async (path) => {
       await supertest(appWith(401)).get(path);
 
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      await new Promise((resolve) => {
+        setTimeout(resolve, 20);
+      });
       expect(journal.record).not.toHaveBeenCalled();
     },
   );
@@ -111,7 +115,9 @@ describe("access journal of the routes (T-24)", () => {
         }),
       ),
     );
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await new Promise((resolve) => {
+      setTimeout(resolve, 20);
+    });
     expect(journal.record).toHaveBeenCalledTimes(1);
   });
 });

@@ -40,7 +40,7 @@ describe("UserRepositoryImpl forgets the trusted browsers", () => {
 
   const forgetCalls = () =>
     (query.mock.calls as [string, object][]).filter(([sql]) =>
-      String(sql).includes("user_mfa_trusted_device"),
+      sql.includes("user_mfa_trusted_device"),
     );
 
   it("when the user changes the password", async () => {
@@ -66,7 +66,7 @@ describe("UserRepositoryImpl forgets the trusted browsers", () => {
 
   it("when the password is reset with a link", async () => {
     query.mockImplementation((async (sql: string) =>
-      String(sql).includes("password_reset_tokens")
+      sql.includes("password_reset_tokens")
         ? [{ userId: "u1" }]
         : [[], 0]) as never);
 

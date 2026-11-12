@@ -74,7 +74,8 @@ export class AccountPasswordService implements IAccountPasswordCheck {
       );
       return rehashed;
     } catch (error) {
-      this.logger.err(`Password rehash failed for user ${userId}: ${error}`);
+      const reason = error instanceof Error ? error.message : "unknown error";
+      this.logger.err(`Password rehash failed for user ${userId}: ${reason}`);
       return undefined;
     }
   }

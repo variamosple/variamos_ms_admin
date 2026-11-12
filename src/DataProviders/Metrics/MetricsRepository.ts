@@ -63,8 +63,8 @@ export class MetricsRepositoryImpl
         {
           type: QueryTypes.SELECT,
         },
-      ).then(([result]: object[]) => {
-        const resObj = result as
+      ).then(([row]: object[]) => {
+        const resObj = row as
           | {
               data?: {
                 id: string;
@@ -134,8 +134,8 @@ export class MetricsRepositoryImpl
           type: QueryTypes.SELECT,
           replacements,
         },
-      ).then(([result]: object[]) => {
-        const resObj = result as
+      ).then(([row]: object[]) => {
+        const resObj = row as
           | {
               data: {
                 id: string;

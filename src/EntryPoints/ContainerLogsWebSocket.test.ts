@@ -47,7 +47,9 @@ describe("container logs WebSocket", () => {
     } as typeof deps;
     server = createServer();
     attachContainerLogsWebSocket(server, deps);
-    await new Promise<void>((resolve) => server.listen(0, resolve));
+    await new Promise<void>((resolve) => {
+      server.listen(0, resolve);
+    });
     url = `ws://127.0.0.1:${(server.address() as AddressInfo).port}`;
   };
 
@@ -58,16 +60,16 @@ describe("container logs WebSocket", () => {
     });
 
   const closed = (ws: WebSocket) =>
-    new Promise<{ code: number; reason: string }>((resolve) =>
+    new Promise<{ code: number; reason: string }>((resolve) => {
       ws.on("close", (code, reason) =>
         resolve({ code, reason: reason.toString() }),
-      ),
-    );
+      );
+    });
 
   const nextMessage = (ws: WebSocket) =>
-    new Promise<string>((resolve) =>
-      ws.once("message", (data) => resolve(data.toString())),
-    );
+    new Promise<string>((resolve) => {
+      ws.once("message", (data) => resolve(data.toString()));
+    });
 
   beforeEach(() => {
     vi.spyOn(logger, "err").mockImplementation(() => {});
@@ -75,7 +77,9 @@ describe("container logs WebSocket", () => {
   });
 
   afterEach(async () => {
-    await new Promise((resolve) => server.close(resolve));
+    await new Promise((resolve) => {
+      server.close(resolve);
+    });
     vi.restoreAllMocks();
   });
 
@@ -83,9 +87,9 @@ describe("container logs WebSocket", () => {
     await start();
     const ws = open("https://evil.example.com");
 
-    const error = await new Promise<Error>((resolve) =>
-      ws.on("error", resolve),
-    );
+    const error = await new Promise<Error>((resolve) => {
+      ws.on("error", resolve);
+    });
 
     expect(error.message).toContain("401");
     expect(deps.checkAccess).not.toHaveBeenCalled();
@@ -127,7 +131,9 @@ describe("container logs WebSocket", () => {
   it("follows one stream at a time: a new request closes the previous one", async () => {
     await start();
     const ws = open();
-    await new Promise((resolve) => ws.on("open", resolve));
+    await new Promise((resolve) => {
+      ws.on("open", resolve);
+    });
 
     ws.send(JSON.stringify({ microserviceId: "svc-a" }));
     await vi.waitFor(() => expect(streams).toHaveLength(1));

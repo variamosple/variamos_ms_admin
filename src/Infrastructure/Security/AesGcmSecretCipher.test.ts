@@ -37,7 +37,8 @@ describe("AesGcmSecretCipher", () => {
     const cipher = new AesGcmSecretCipher(key);
     const stored = cipher.encrypt(secret, "user-1");
     const payload = Buffer.from(stored.slice(3), "base64");
-    payload[payload.length - 1] = (payload[payload.length - 1] as number) ^ 1;
+    const last = payload.length - 1;
+    payload.writeUInt8(payload.readUInt8(last) ^ 1, last);
 
     expect(() =>
       cipher.decrypt(`v1:${payload.toString("base64")}`, "user-1"),

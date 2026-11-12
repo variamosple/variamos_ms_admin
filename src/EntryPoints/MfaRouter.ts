@@ -94,9 +94,7 @@ export function createMfaRouter(
   router.get(
     "/",
     requirePermissions(["my-account::query"]),
-    handle("getMfaStatus", (user) =>
-      useCase.status("getMfaStatus", String(user.id)),
-    ),
+    handle("getMfaStatus", (user) => useCase.status("getMfaStatus", user.id)),
   );
 
   router.post(
@@ -110,7 +108,7 @@ export function createMfaRouter(
       }
       return useCase.startEnrollment(
         "startMfaEnrollment",
-        String(user.id),
+        user.id,
         user.email,
         password,
       );
@@ -126,11 +124,7 @@ export function createMfaRouter(
       if (!code) {
         return invalid("confirmMfaEnrollment", "The code is required.");
       }
-      return useCase.confirmEnrollment(
-        "confirmMfaEnrollment",
-        String(user.id),
-        code,
-      );
+      return useCase.confirmEnrollment("confirmMfaEnrollment", user.id, code);
     }),
   );
 
@@ -144,7 +138,7 @@ export function createMfaRouter(
       if (!password || !code) {
         return invalid("disableMfa", "The password and a code are required.");
       }
-      return useCase.disable("disableMfa", String(user.id), password, code);
+      return useCase.disable("disableMfa", user.id, password, code);
     }),
   );
 
@@ -153,7 +147,7 @@ export function createMfaRouter(
     "/trusted-devices",
     requirePermissions(["my-account::update"]),
     handle("forgetTrustedDevices", async (user) => {
-      const removed = await trustedDevices.forgetAll(String(user.id));
+      const removed = await trustedDevices.forgetAll(user.id);
       logger.info(`[MFA] User ${user.id} forgot ${removed} trusted browser(s)`);
       return new ResponseModel<{ removed: number }>(
         "forgetTrustedDevices",

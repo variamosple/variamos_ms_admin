@@ -129,9 +129,7 @@ export function createAuthRouter(
     !!host && !HOME_URL_HOST_REGEX.test(host);
 
   const isAllowedOrigin = (origin: string): boolean =>
-    EnvVars.CORS.AllowedOriginsPatterns.findIndex((pattern) =>
-      pattern.test(origin),
-    ) !== -1;
+    EnvVars.CORS.AllowedOriginsPatterns.some((pattern) => pattern.test(origin));
 
   // A page to go back to after sign-in: a web address of an allowed site.
   // A javascript: or data: address has the origin "null"; given to the
@@ -467,7 +465,7 @@ export function createAuthRouter(
 
       // With a second factor, no session until the code is right
       const pendingToken = await mfaSignIn.begin(
-        String(sessionUser.id),
+        sessionUser.id,
         trustedDeviceToken(req),
       );
       recordAccess(accessJournal, req, res, {
@@ -674,7 +672,9 @@ export function createAuthRouter(
       };
     } catch (err) {
       logger.err(err as Error);
-      throw new Error("Error when validating Google's user data.");
+      throw new Error("Error when validating Google's user data.", {
+        cause: err,
+      });
     }
   };
 
@@ -702,7 +702,7 @@ export function createAuthRouter(
       if (response.errorCode) {
         const inactive = response.errorCode === DomainErrorCodes.FORBIDDEN;
         const refusal = GOOGLE_SIGN_IN_REFUSALS.find(
-          (reason) => reason === response.message,
+          (code) => code === response.message,
         );
         const account = profile.email
           ? await accessJournal.accountByEmail(profile.email)
@@ -751,7 +751,7 @@ export function createAuthRouter(
       };
 
       const pendingToken = await mfaSignIn.begin(
-        String(sessionUser.id),
+        sessionUser.id,
         trustedDeviceToken(req),
       );
       recordAccess(accessJournal, req, res, {

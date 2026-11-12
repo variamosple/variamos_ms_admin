@@ -171,8 +171,12 @@ describe("security alert keys migration", () => {
       ),
     );
 
-    expect(SECURITY_ALERT_ROWS.map(({ key }) => key).sort()).toEqual(
-      Object.values(SECURITY_ALERT_KEYS).sort(),
+    expect(
+      SECURITY_ALERT_ROWS.map(({ key }) => key).sort((a, b) =>
+        a.localeCompare(b),
+      ),
+    ).toEqual(
+      Object.values(SECURITY_ALERT_KEYS).sort((a, b) => a.localeCompare(b)),
     );
     expect(policy).toEqual(SecurityAlertPolicy.DEFAULT);
   });
@@ -209,8 +213,14 @@ describe("bug schedule keys migration", () => {
     const seededValue = (key: string) =>
       BUG_SCHEDULE_ROWS.find((row) => row.key === key)?.value;
 
-    expect(BUG_SCHEDULE_ROWS.map(({ key }) => key).sort()).toEqual(
-      [BUG_SYNC_INTERVAL_KEY, REJECTED_BUG_RETENTION_KEY].sort(),
+    expect(
+      BUG_SCHEDULE_ROWS.map(({ key }) => key).sort((a, b) =>
+        a.localeCompare(b),
+      ),
+    ).toEqual(
+      [BUG_SYNC_INTERVAL_KEY, REJECTED_BUG_RETENTION_KEY].sort((a, b) =>
+        a.localeCompare(b),
+      ),
     );
     expect(bugSyncIntervalMsOf(seededValue(BUG_SYNC_INTERVAL_KEY))).toBe(
       bugSyncIntervalMsOf(undefined),

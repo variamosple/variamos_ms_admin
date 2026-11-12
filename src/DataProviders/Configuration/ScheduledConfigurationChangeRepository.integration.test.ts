@@ -160,7 +160,9 @@ describe.skipIf(!url)(
       const seen: number[] = [];
       const resolve = async (change: { id: number }) => {
         seen.push(change.id);
-        await new Promise((done) => setTimeout(done, 50));
+        await new Promise((done) => {
+          setTimeout(done, 50);
+        });
         return { status: "applied" as const, reason: null };
       };
 
@@ -170,7 +172,8 @@ describe.skipIf(!url)(
       ]);
 
       expect(first + second).toBe(2);
-      expect(seen.sort()).toEqual([a?.id, b?.id].sort());
+      const byId = (x?: number, y?: number) => Number(x) - Number(y);
+      expect(seen.sort(byId)).toEqual([a?.id, b?.id].sort(byId));
       expect(await changes.findById(a?.id as number)).toEqual(
         expect.objectContaining({ status: "applied", reason: null }),
       );
@@ -209,7 +212,9 @@ describe.skipIf(!url)(
       await changes.resolveDue(new Date(), async () => {
         // Sent while the row is held: it waits, then finds it applied
         cancelled = changes.cancel(due?.id as number, "admin");
-        await new Promise((done) => setTimeout(done, 50));
+        await new Promise((done) => {
+          setTimeout(done, 50);
+        });
         return { status: "applied", reason: null };
       });
 

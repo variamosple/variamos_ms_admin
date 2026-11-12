@@ -1,0 +1,10 @@
+language js
+
+// `x as unknown as T` silences the type checker instead of fixing the type
+`$value as unknown as $type` as $cast where {
+  register_diagnostic(
+    span = $cast,
+    message = "Do not cast through unknown: fix the type, or parse the value.",
+    severity = "error"
+  )
+}

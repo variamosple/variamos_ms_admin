@@ -178,8 +178,11 @@ export class BugSubmissionUseCase {
       }
       if (!response.errorCode) {
         // Ids and status only: never the description or the reporter's address
+        const author = resolvedCreatedById
+          ? `user ${resolvedCreatedById}`
+          : "a guest";
         this.logger.info(
-          `Bug ${response.data?.id} submitted (${response.data?.status}) by ${resolvedCreatedById ? `user ${resolvedCreatedById}` : "a guest"}.`,
+          `Bug ${response.data?.id} submitted (${response.data?.status}) by ${author}.`,
         );
       }
       return response;

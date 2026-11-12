@@ -100,7 +100,8 @@ describe("UserMfaV1Router", () => {
   it("answers 404 when the account has no second factor", async () => {
     useCase.reset.mockResolvedValue(failed(DomainErrorCodes.ENTITY_NOT_FOUND));
 
-    await request(appWith().app).delete(path("user-2")).expect(404);
+    const response = await request(appWith().app).delete(path("user-2"));
+    expect(response.status).toBe(404);
   });
 
   it("answers 500 when the use case throws", async () => {

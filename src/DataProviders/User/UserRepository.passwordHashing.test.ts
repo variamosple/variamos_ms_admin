@@ -113,7 +113,7 @@ describe("UserRepositoryImpl hashes new passwords with the configured cost", () 
     await storedAccount();
     const update = vi.spyOn(UserModel, "update").mockResolvedValue([1]);
     vi.spyOn(VARIAMOS_ORM, "query").mockImplementation((async (sql: string) =>
-      String(sql).includes("password_reset_tokens")
+      sql.includes("password_reset_tokens")
         ? [{ userId: "u1" }]
         : [[], 0]) as never);
 

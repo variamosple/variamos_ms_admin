@@ -19,9 +19,9 @@ export function createHealthRouter(checkDatabase: DatabaseCheck): Router {
       const dbStart = Date.now();
       await Promise.race([
         checkDatabase(),
-        new Promise<void>((_, reject) =>
-          setTimeout(() => reject(new Error("DB check timeout")), 1500),
-        ),
+        new Promise<void>((_, reject) => {
+          setTimeout(() => reject(new Error("DB check timeout")), 1500);
+        }),
       ]);
       dbLatencyMs = Date.now() - dbStart;
     } catch {

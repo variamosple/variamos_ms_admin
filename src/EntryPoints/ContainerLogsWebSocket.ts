@@ -105,7 +105,7 @@ export function attachContainerLogsWebSocket(
       return false;
     });
 
-    ws.on("message", async (message) => {
+    const onMessage = async (message: RawData) => {
       if (!(await authorized)) return;
       const microserviceId = serviceIdOf(message);
       if (!microserviceId) {
@@ -146,6 +146,12 @@ export function attachContainerLogsWebSocket(
         logger.err(describeError(error));
         ws.send(JSON.stringify({ error: "Could not read the logs." }));
       }
+    };
+    // A failure while streaming is logged, never left unhandled
+    ws.on("message", (message) => {
+      onMessage(message).catch((error: unknown) => {
+        logger.err(describeError(error));
+      });
     });
 
     ws.on("close", () => {
