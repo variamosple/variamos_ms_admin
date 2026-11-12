@@ -4,6 +4,7 @@ import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
 import type { PasswordPolicy } from "#src/Domain/User/Entity/PasswordPolicy.js";
@@ -106,7 +107,7 @@ export class UserPasswordUseCase {
           "PASSWORD RESET ATTEMPT",
         );
       } catch (error) {
-        const msg = (error as Error).message;
+        const msg = errorMessage(error);
         if (msg.includes("disabled") || msg.includes("deleted")) {
           return;
         }
@@ -126,7 +127,7 @@ export class UserPasswordUseCase {
       }
     } catch (error) {
       this.logger.err("Error sending the password reset link:");
-      this.logger.err(error as Error);
+      this.logger.err(error);
     }
   }
 
@@ -179,7 +180,7 @@ export class UserPasswordUseCase {
       return response;
     } catch (error) {
       this.logger.err("Error verifying reset token:");
-      this.logger.err(error as Error);
+      this.logger.err(error);
       return response.withErrorPromise(
         DomainErrorCodes.SYSTEM_ERROR,
         "Error verifying reset token",
@@ -245,7 +246,7 @@ export class UserPasswordUseCase {
       return response;
     } catch (error) {
       this.logger.err("Error resetting password:");
-      this.logger.err(error as Error);
+      this.logger.err(error);
       return response.withErrorPromise(
         DomainErrorCodes.SYSTEM_ERROR,
         "Error resetting password",
@@ -314,7 +315,7 @@ export class UserPasswordUseCase {
           "ADMIN PASSWORD RESET ATTEMPT",
         );
       } catch (error) {
-        const msg = (error as Error).message;
+        const msg = errorMessage(error);
         if (msg.includes("disabled") || msg.includes("deleted")) {
           return response;
         }
@@ -331,7 +332,7 @@ export class UserPasswordUseCase {
       return response;
     } catch (error) {
       this.logger.err("Error generating recovery link:");
-      this.logger.err(error as Error);
+      this.logger.err(error);
       return response.withErrorPromise(
         DomainErrorCodes.SYSTEM_ERROR,
         "Error generating recovery link",

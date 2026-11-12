@@ -1,5 +1,6 @@
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import type { ISecretCipher } from "#src/Domain/Core/Secret/ISecretCipher.js";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IUserMfaRepository } from "#src/Domain/Mfa/Repository/IUserMfaRepository.js";
@@ -75,7 +76,7 @@ export class MfaSignInUseCase {
       return trusted;
     } catch (error) {
       this.logger.warn(
-        `[MFA] Could not trust the browser of user ${userId}: ${(error as Error).message}`,
+        `[MFA] Could not trust the browser of user ${userId}: ${errorMessage(error)}`,
       );
       return null;
     }
@@ -145,9 +146,7 @@ export class MfaSignInUseCase {
       return response.withResponse(userId);
     } catch (error) {
       this.pending.release(token);
-      this.logger.err(
-        `[MFA] Sign-in check failed: ${(error as Error).message}`,
-      );
+      this.logger.err(`[MFA] Sign-in check failed: ${errorMessage(error)}`);
       return response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",

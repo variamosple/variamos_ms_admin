@@ -92,9 +92,8 @@ export class MetricsRepositoryImpl
         );
       });
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in getMetrics:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
@@ -172,9 +171,8 @@ export class MetricsRepositoryImpl
 
       response.data = result;
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in queryMetric:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",

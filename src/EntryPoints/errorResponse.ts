@@ -52,7 +52,10 @@ export function errorResponse(
     body.withError(codeOfStatus(error.status), error.message);
     return { status: error.status, body };
   }
-  const status = (error as { status?: unknown } | null)?.status;
+  const status =
+    typeof error === "object" && error !== null && "status" in error
+      ? error.status
+      : undefined;
   if (typeof status === "number" && status >= 400 && status < 500) {
     body.withError(codeOfStatus(status), requestErrorMessage(status));
     return { status, body };
@@ -90,8 +93,8 @@ export function hideInternalErrorMessages(
       typeof body === "object" &&
       !Array.isArray(body) &&
       (res.statusCode >= 500 ||
-        (body as { errorCode?: unknown }).errorCode ===
-          DomainErrorCodes.SYSTEM_ERROR) &&
+        ("errorCode" in body &&
+          body.errorCode === DomainErrorCodes.SYSTEM_ERROR)) &&
       res.statusCode !== HttpStatusCodes.SERVICE_UNAVAILABLE
     ) {
       const safe: Record<string, unknown> = { ...body };

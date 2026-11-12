@@ -1,4 +1,3 @@
-import type { SessionUser } from "@variamosple/variamos-security";
 import {
   type Request,
   type RequestHandler,
@@ -33,7 +32,7 @@ export function createNotificationAccessRouter(
     async (req: Request, res: Response) => {
       const transactionId = "issueNotificationAccessToken";
       res.setHeader("Cache-Control", "no-store");
-      const userId = (req.user as SessionUser | undefined)?.id;
+      const userId = req.user?.id;
       if (!userId) {
         res
           .status(HttpStatusCodes.UNAUTHORIZED)

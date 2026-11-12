@@ -3,6 +3,7 @@ import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
 import type { IUserMfaRepository } from "#src/Domain/Mfa/Repository/IUserMfaRepository.js";
@@ -112,7 +113,7 @@ export class MfaResetUseCase {
     operation: string,
     error: unknown,
   ): ResponseModel<T> {
-    this.logger.err(`[MFA] ${operation} failed: ${(error as Error).message}`);
+    this.logger.err(`[MFA] ${operation} failed: ${errorMessage(error)}`);
     return response.withError(
       DomainErrorCodes.SYSTEM_ERROR,
       "Internal server error",

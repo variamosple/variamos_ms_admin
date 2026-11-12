@@ -9,6 +9,7 @@ import type { VisitUseCase } from "#src/Domain/Visit/UseCase/VisitUseCase.js";
 import { visitBody } from "./adminRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
+import { queryText } from "./queryText.js";
 import { validBody } from "./requestBody.js";
 
 export const VISITS_V1_ROUTE = "/v1/visits";
@@ -25,7 +26,7 @@ export function createVisitsRouter(visitUseCase: VisitUseCase): Router {
       const user = req.user;
       const { pageId } = req.body as { pageId?: string };
       const ipAddress: string | undefined =
-        (req.headers["x-forwarded-for"] as string) || req.ip;
+        queryText(req.headers["x-forwarded-for"]) || req.ip;
 
       try {
         if (!pageId || !user?.id) {

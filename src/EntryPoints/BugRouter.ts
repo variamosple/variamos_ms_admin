@@ -1,6 +1,6 @@
 import {
   hasPermissions,
-  type SessionUser,
+  type SessionInfo,
   validateSession,
 } from "@variamosple/variamos-security";
 import {
@@ -28,7 +28,7 @@ import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { MAX_ATTACHMENT_SIZE_BYTES } from "#src/Domain/Core/File/AllowedFileType.js";
 import type { UploadedFile } from "#src/Domain/Core/File/UploadedFile.js";
-import { actorOf } from "./actor.js";
+import { actorOf, signedInUser } from "./actor.js";
 import {
   bugCreateBody,
   bugNoteBody,
@@ -36,6 +36,7 @@ import {
 } from "./adminRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
+import { queryText } from "./queryText.js";
 import { validBody } from "./requestBody.js";
 
 /**
@@ -45,10 +46,6 @@ export interface MulterUpload {
   single(fieldName: string): RequestHandler;
 }
 
-interface RequestWithUser extends Request {
-  user: SessionUser;
-}
-
 const FILE_FIELD = "file";
 const MAX_ATTACHMENT_SIZE_MB = MAX_ATTACHMENT_SIZE_BYTES / (1024 * 1024);
 
@@ -56,8 +53,18 @@ function isMulterError(error: unknown): error is { code?: string } {
   return (
     typeof error === "object" &&
     error !== null &&
-    (error as { name?: unknown }).name === "MulterError"
+    "name" in error &&
+    error.name === "MulterError"
   );
+}
+
+/**
+ * Id of the user of a validated token: createJwt puts it in `sub`; an `id`
+ * field, when a token carries one, comes first, as before.
+ */
+function sessionUserId(data: SessionInfo): string | undefined {
+  const id = "id" in data ? data.id : undefined;
+  return typeof id === "string" && id !== "" ? id : data.sub || undefined;
 }
 
 /**
@@ -111,8 +118,7 @@ function maskReporterEmails(
   req: Request,
   bugs: Bug[] | null | undefined,
 ): Bug[] | null | undefined {
-  const permissions =
-    (req.user as { permissions?: string[] } | undefined)?.permissions ?? [];
+  const permissions = req.user?.permissions ?? [];
   if (!bugs || permissions.includes("bugs::update")) return bugs;
   return bugs.map((bug) =>
     Object.assign(Object.create(Object.getPrototypeOf(bug)) as Bug, bug, {
@@ -185,13 +191,13 @@ export function createBugRouter(
       const { repo, status, priority, search, assignee, component } = req.query;
       try {
         const filter = new BugFilter(
-          repo as string,
-          status as string,
-          priority as string,
-          search as string,
+          queryText(repo),
+          queryText(status),
+          queryText(priority),
+          queryText(search),
           undefined,
           typeof assignee === "string" && assignee ? assignee : undefined,
-          component as string,
+          queryText(component),
           page.pageNumber,
           page.pageSize,
         );
@@ -222,13 +228,13 @@ export function createBugRouter(
       const { repo, status, priority, search, component } = req.query;
       try {
         const filter = new BugFilter(
-          repo as string,
-          status as string,
-          priority as string,
-          search as string,
+          queryText(repo),
+          queryText(status),
+          queryText(priority),
+          queryText(search),
           undefined,
           undefined,
-          component as string,
+          queryText(component),
           page.pageNumber,
           page.pageSize,
         );
@@ -358,25 +364,24 @@ export function createBugRouter(
         reporterEmail?: string;
       };
       let adminId: string | undefined;
-      if ((req as RequestWithUser).user) {
-        adminId = (req as RequestWithUser).user.id;
+      if (req.user) {
+        adminId = req.user.id;
       } else {
         const token =
-          (req.cookies?.authToken as string | undefined) ||
+          queryText(req.cookies?.authToken) ||
           req.headers.authorization?.split(" ")[1];
         if (token) {
           try {
             const session = await validateSession(token);
             if (session?.data) {
-              const sessionData = session.data as { id?: string; sub?: string };
-              const resolvedId = sessionData.id || sessionData.sub;
+              const resolvedId = sessionUserId(session.data);
               if (resolvedId) {
                 adminId = resolvedId;
               }
             }
           } catch (e) {
             logger.err("POST /bugs: Error during session validation:");
-            logger.err(e as Error);
+            logger.err(e);
           }
         }
       }
@@ -477,7 +482,7 @@ export function createBugRouter(
         component?: string;
         githubRepo?: string;
       };
-      const adminId = (req as RequestWithUser).user.id;
+      const adminId = signedInUser(req).id;
 
       try {
         const resolvedPriority = isBugPriority(priority || "")
@@ -518,7 +523,7 @@ export function createBugRouter(
     async (req: Request<{ id: string }>, res: Response) => {
       const transactionId = "restoreBug";
       const { id } = req.params;
-      const adminId = (req as RequestWithUser).user.id;
+      const adminId = signedInUser(req).id;
 
       try {
         const payload = { id, adminId };
@@ -545,7 +550,7 @@ export function createBugRouter(
     async (req: Request<{ id: string }>, res: Response) => {
       const transactionId = "rejectBug";
       const { id } = req.params;
-      const adminId = (req as RequestWithUser).user.id;
+      const adminId = signedInUser(req).id;
 
       try {
         const payload = { id, adminId };
@@ -672,7 +677,7 @@ export function createBugRouter(
       const transactionId = "createBugNote";
       const { id } = req.params;
       const { body } = req.body as { body?: string };
-      const authorId = (req as RequestWithUser).user.id;
+      const authorId = signedInUser(req).id;
 
       try {
         const payload = { bugId: id, body: body || "", authorId };

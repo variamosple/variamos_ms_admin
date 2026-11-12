@@ -18,6 +18,7 @@ import type { Menu } from "#src/Domain/Menu/Entity/Menu.js";
 import { configurationUpdateBody } from "./adminRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
+import { queryText } from "./queryText.js";
 import { validBody } from "./requestBody.js";
 
 export const CONFIGURATION_V1_ROUTE = "/v1/configurations";
@@ -309,8 +310,8 @@ export function createConfigurationRouter(
 
       try {
         const filter = {
-          category: category as string,
-          environmentScope: environmentScope as string,
+          category: queryText(category),
+          environmentScope: queryText(environmentScope),
         };
         const request = new RequestModel(transactionId, filter);
         const useCaseResponse =
@@ -348,7 +349,7 @@ export function createConfigurationRouter(
       const { value } = req.body as { value: ConfigurationValueDto };
 
       try {
-        const operatorId = (req.user as { id?: string })?.id || "system";
+        const operatorId = req.user?.id || "system";
 
         const request = new RequestModel(transactionId, {
           key,

@@ -62,8 +62,7 @@ const toResponse = (
 const planned = (change: ScheduledConfigurationChange) =>
   toResponse(change, announcementOf(change.key, change.newValue, change.dueAt));
 
-const operatorOf = (req: Request) =>
-  (req.user as { id?: string })?.id || "system";
+const operatorOf = (req: Request) => req.user?.id || "system";
 
 const ID = /^\d{1,9}$/;
 

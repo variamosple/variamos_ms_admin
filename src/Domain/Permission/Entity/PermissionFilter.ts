@@ -50,7 +50,7 @@ class PermissionFilterBuilder {
     return this;
   }
 
-  public setName(name: string): PermissionFilterBuilder {
+  public setName(name: Nullable<string>): PermissionFilterBuilder {
     this.name = name;
     return this;
   }

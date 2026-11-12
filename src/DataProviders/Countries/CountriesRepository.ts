@@ -30,9 +30,8 @@ export class CountriesRepositoryImpl
         ),
       );
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in getCountries:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
@@ -50,9 +49,8 @@ export class CountriesRepositoryImpl
         (result) => result?.countryCode,
       );
     } catch (error) {
-      const err = error as Error;
       logger.err("Error in getUserCountryCode:");
-      logger.err(err);
+      logger.err(error);
       response.withError(
         DomainErrorCodes.SYSTEM_ERROR,
         "Internal server error",
@@ -76,9 +74,8 @@ export class CountriesRepositoryImpl
         response.data = data?.location?.country_code;
       })
       .catch((error) => {
-        const err = error as Error;
         logger.err("Error in getIpCountryCode:");
-        logger.err(err);
+        logger.err(error);
         response.withError(
           DomainErrorCodes.SYSTEM_ERROR,
           "Internal server error",

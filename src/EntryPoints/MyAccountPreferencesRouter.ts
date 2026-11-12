@@ -4,6 +4,7 @@ import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import type { UserPreferences } from "#src/Domain/User/Entity/UserPreferences.js";
 import type { UserPreferencesUseCase } from "#src/Domain/User/UseCase/UserPreferencesUseCase.js";
 import { AUTH_ROUTE } from "./AuthRouter.js";
+import { signedInUser } from "./actor.js";
 import { preferencesBody } from "./authRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
@@ -31,7 +32,7 @@ const send = (res: Response, response: ResponseModel<UserPreferences>) => {
   res.status(mapDomainErrorToHttpStatus(answer.errorCode)).json(answer);
 };
 
-const userIdOf = (req: Request) => (req.user as { id: string }).id;
+const userIdOf = (req: Request) => signedInUser(req).id;
 
 /**
  * The display preferences of the signed-in account (EV-115 lot C): its time

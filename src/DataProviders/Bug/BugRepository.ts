@@ -173,8 +173,7 @@ export class BugRepositoryImpl implements IBugRepository {
           .build();
       });
     } catch (error) {
-      const err = error as Error;
-      logger.err(err);
+      logger.err(error);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;
@@ -254,8 +253,7 @@ export class BugRepositoryImpl implements IBugRepository {
           .build();
       });
     } catch (error) {
-      const err = error as Error;
-      logger.err(err);
+      logger.err(error);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;
@@ -313,8 +311,7 @@ export class BugRepositoryImpl implements IBugRepository {
         .setAssignedAdmins(assignees.get(id) ?? [])
         .build();
     } catch (error) {
-      const err = error as Error;
-      logger.err(err);
+      logger.err(error);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;
@@ -405,8 +402,7 @@ export class BugRepositoryImpl implements IBugRepository {
         }
       }
     } catch (error) {
-      const err = error as Error;
-      logger.err(err);
+      logger.err(error);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;
@@ -457,8 +453,7 @@ export class BugRepositoryImpl implements IBugRepository {
           .build();
       });
     } catch (error) {
-      const err = error as Error;
-      logger.err(err);
+      logger.err(error);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;
@@ -509,8 +504,7 @@ export class BugRepositoryImpl implements IBugRepository {
           .build();
       });
     } catch (error) {
-      const err = error as Error;
-      logger.err(err);
+      logger.err(error);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;
@@ -556,8 +550,7 @@ export class BugRepositoryImpl implements IBugRepository {
           .build();
       });
     } catch (error) {
-      const err = error as Error;
-      logger.err(err);
+      logger.err(error);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;
@@ -578,8 +571,7 @@ export class BugRepositoryImpl implements IBugRepository {
       const { id, filePath } = data;
       await BugAttachmentModel.update({ filePath }, { where: { id } });
     } catch (error) {
-      const err = error as Error;
-      logger.err(err);
+      logger.err(error);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;
@@ -610,8 +602,7 @@ export class BugRepositoryImpl implements IBugRepository {
         operatorId: operatorId || undefined,
       });
     } catch (error) {
-      const err = error as Error;
-      logger.err(err);
+      logger.err(error);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;
@@ -736,8 +727,7 @@ export class BugRepositoryImpl implements IBugRepository {
           .build();
       });
     } catch (error) {
-      const err = error as Error;
-      logger.err(err);
+      logger.err(error);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;
@@ -780,8 +770,7 @@ export class BugRepositoryImpl implements IBugRepository {
           .build();
       });
     } catch (error) {
-      const err = error as Error;
-      logger.err(err);
+      logger.err(error);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;
@@ -881,8 +870,7 @@ export class BugRepositoryImpl implements IBugRepository {
           .build();
       });
     } catch (error) {
-      const err = error as Error;
-      logger.err(err);
+      logger.err(error);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;
@@ -917,8 +905,7 @@ export class BugRepositoryImpl implements IBugRepository {
         .setBugId(attachment.bugId)
         .build();
     } catch (error) {
-      const err = error as Error;
-      logger.err(err);
+      logger.err(error);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;
@@ -938,8 +925,7 @@ export class BugRepositoryImpl implements IBugRepository {
       }
       await BugAttachmentModel.destroy({ where: { id } });
     } catch (error) {
-      const err = error as Error;
-      logger.err(err);
+      logger.err(error);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;
@@ -969,8 +955,7 @@ export class BugRepositoryImpl implements IBugRepository {
             .build()
         : null;
     } catch (error) {
-      const err = error as Error;
-      logger.err(err);
+      logger.err(error);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;
@@ -1025,8 +1010,7 @@ export class BugRepositoryImpl implements IBugRepository {
         .setCreatedAt(dbNote.createdAt)
         .build();
     } catch (error) {
-      const err = error as Error;
-      logger.err(err);
+      logger.err(error);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;
@@ -1062,8 +1046,7 @@ export class BugRepositoryImpl implements IBugRepository {
           .build();
       });
     } catch (error) {
-      const err = error as Error;
-      logger.err(err);
+      logger.err(error);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;
@@ -1108,8 +1091,7 @@ export class BugRepositoryImpl implements IBugRepository {
       });
       response.data = (await this.assigneesOf([bugId])).get(bugId) ?? [];
     } catch (error) {
-      const err = error as Error;
-      logger.err(err);
+      logger.err(error);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;
@@ -1134,8 +1116,7 @@ export class BugRepositoryImpl implements IBugRepository {
         },
       );
     } catch (error) {
-      const err = error as Error;
-      logger.err(err);
+      logger.err(error);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;

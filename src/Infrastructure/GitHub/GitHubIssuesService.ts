@@ -4,13 +4,10 @@ import type {
   GitHubIssue,
   IIssueTrackerService,
 } from "#src/Domain/Core/Service/IIssueTrackerService.js";
-
-interface GitHubError {
-  response?: {
-    data?: string;
-  };
-  message?: string;
-}
+import {
+  httpFailure,
+  httpStatus,
+} from "#src/Infrastructure/Http/httpFailure.js";
 
 // 10,000 issues: a bound against a Link header that never ends
 export const MAX_ISSUE_PAGES = 100;
@@ -66,9 +63,8 @@ export class GitHubIssuesService implements IIssueTrackerService {
       );
       return response.data.number;
     } catch (error) {
-      const err = error as GitHubError;
       logger.err(`GitHub error [createIssue] on ${repo}:`);
-      logger.err(err.response?.data || err.message || "Unknown error");
+      logger.err(httpFailure(error));
       return null;
     }
   }
@@ -97,9 +93,8 @@ export class GitHubIssuesService implements IIssueTrackerService {
       );
       return true;
     } catch (error) {
-      const err = error as GitHubError;
       logger.err(`GitHub error [updateIssue] on ${repo}:`);
-      logger.err(err.response?.data || err.message || "Unknown error");
+      logger.err(httpFailure(error));
       return false;
     }
   }
@@ -121,9 +116,8 @@ export class GitHubIssuesService implements IIssueTrackerService {
       );
       return true;
     } catch (error) {
-      const err = error as GitHubError;
       logger.err(`GitHub error [closeIssue] on ${repo}:`);
-      logger.err(err.response?.data || err.message || "Unknown error");
+      logger.err(httpFailure(error));
       return false;
     }
   }
@@ -143,9 +137,8 @@ export class GitHubIssuesService implements IIssueTrackerService {
       );
       return true;
     } catch (error) {
-      const err = error as GitHubError;
       logger.err(`GitHub error [reopenIssue] on ${repo}:`);
-      logger.err(err.response?.data || err.message || "Unknown error");
+      logger.err(httpFailure(error));
       return false;
     }
   }
@@ -162,9 +155,8 @@ export class GitHubIssuesService implements IIssueTrackerService {
       await axios.post(url, { labels }, { headers: this.getHeaders(token) });
       return true;
     } catch (error) {
-      const err = error as GitHubError;
       logger.err(`GitHub error [addLabels] on ${repo}:`);
-      logger.err(err.response?.data || err.message || "Unknown error");
+      logger.err(httpFailure(error));
       return false;
     }
   }
@@ -181,11 +173,10 @@ export class GitHubIssuesService implements IIssueTrackerService {
       await axios.delete(url, { headers: this.getHeaders(token) });
       return true;
     } catch (error) {
-      const err = error as GitHubError & { response?: { status?: number } };
       // 404: the label was not on the issue, which is the expected end state
-      if (err.response?.status === 404) return true;
+      if (httpStatus(error) === 404) return true;
       logger.err(`GitHub error [removeLabel] on ${repo}:`);
-      logger.err(err.response?.data || err.message || "Unknown error");
+      logger.err(httpFailure(error));
       return false;
     }
   }
@@ -219,9 +210,8 @@ export class GitHubIssuesService implements IIssueTrackerService {
       }
       return issues;
     } catch (error) {
-      const err = error as GitHubError;
       logger.err(`GitHub error [getIssues] on ${repo}:`);
-      logger.err(err.response?.data || err.message || "Unknown error");
+      logger.err(httpFailure(error));
       return null;
     }
   }

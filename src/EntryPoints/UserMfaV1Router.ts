@@ -1,8 +1,8 @@
 import { hasPermissions } from "@variamosple/variamos-security";
 import { type Request, type Response, Router } from "express";
 import type { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
-import type { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { MfaResetUseCase } from "#src/Domain/Mfa/UseCase/MfaResetUseCase.js";
+import { signedInUser } from "./actor.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
 import type { PermissionGuard } from "./MfaRouter.js";
@@ -27,11 +27,7 @@ export function createUserMfaRouter(
   const router = Router({ mergeParams: true });
 
   const send = <T>(res: Response, response: ResponseModel<T>) => {
-    res
-      .status(
-        mapDomainErrorToHttpStatus(response.errorCode as DomainErrorCodes),
-      )
-      .json(response);
+    res.status(mapDomainErrorToHttpStatus(response.errorCode)).json(response);
   };
 
   const fail = (res: Response, transactionId: string, error: unknown) => {
@@ -60,7 +56,7 @@ export function createUserMfaRouter(
     }),
     async (req: Request<{ userId: string }>, res) => {
       const transactionId = "resetAccountMfa";
-      const adminId = (req.user as { id: string }).id;
+      const adminId = signedInUser(req).id;
       try {
         send(
           res,

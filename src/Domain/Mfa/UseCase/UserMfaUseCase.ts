@@ -1,5 +1,6 @@
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import type { ISecretCipher } from "#src/Domain/Core/Secret/ISecretCipher.js";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import {
@@ -245,7 +246,7 @@ export class UserMfaUseCase {
     operation: string,
     error: unknown,
   ): ResponseModel<T> {
-    this.logger.err(`[MFA] ${operation} failed: ${(error as Error).message}`);
+    this.logger.err(`[MFA] ${operation} failed: ${errorMessage(error)}`);
     return response.withError(
       DomainErrorCodes.SYSTEM_ERROR,
       "Internal server error",

@@ -219,7 +219,7 @@
         "noUnsafeIframeSandbox": "error",
         "noUnsafePlusOperands": "error",
         "noUnsafeReturn": "error",
-        "noUnsafeTypeAssertion": "info",
+        "noUnsafeTypeAssertion": "error",
         "noUnsafeUnaryMinus": "error",
         "noUselessAssignment": "error",
         "noUselessCall": "error",

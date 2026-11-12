@@ -160,7 +160,7 @@ export function mfaFailureLimiter(): RequestHandler {
   return limiter("mfa", RATE_LIMITS.mfaFailuresPerAccount, {
     skipSuccessfulRequests: true,
     keyGenerator: (req: Request) => {
-      const id = (req.user as { id?: unknown } | null | undefined)?.id;
+      const id = req.user?.id;
       return id ? `user:${String(id)}` : `address:${addressKey(req)}`;
     },
   });

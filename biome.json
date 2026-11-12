@@ -232,6 +232,61 @@
           }
         }
       }
+    },
+    {
+      "includes": [
+        "src/DataProviders/Activity/AccessJournalRepository.ts",
+        "src/DataProviders/Activity/ActivityJournalRepository.ts",
+        "src/DataProviders/BaseRepository.ts",
+        "src/DataProviders/Bug/BugRepository.ts",
+        "src/DataProviders/Configuration/ConfigurationRepository.ts",
+        "src/DataProviders/Configuration/ScheduledConfigurationChangeRepository.ts",
+        "src/DataProviders/Configuration/SecretConfigurationValue.ts",
+        "src/DataProviders/Countries/CountriesRepository.ts",
+        "src/DataProviders/Metrics/MetricsRepository.ts",
+        "src/DataProviders/MicroService/MicroServiceRepository.ts",
+        "src/DataProviders/Notification/NotificationRecipientDirectory.ts",
+        "src/DataProviders/Permission/PermissionRepository.ts",
+        "src/DataProviders/Role/RolePermissionRepository.ts",
+        "src/DataProviders/Role/RoleRepository.ts",
+        "src/DataProviders/User/UserRepository.ts",
+        "src/DataProviders/User/UserRoleRepository.ts",
+        "src/Domain/Activity/JournalQueryUseCase.ts",
+        "src/Domain/Activity/SecurityAlertPolicyService.ts",
+        "src/Domain/Bug/Entity/Bug.ts",
+        "src/Domain/Bug/Entity/BugComponent.ts",
+        "src/Domain/Bug/Entity/BugPriority.ts",
+        "src/Domain/Bug/Entity/BugStatus.ts",
+        "src/Domain/Bug/UseCase/BugLifecycleUseCase.ts",
+        "src/Domain/Bug/UseCase/BugQueryUseCase.ts",
+        "src/Domain/Bug/UseCase/BugSubmissionUseCase.ts",
+        "src/Domain/MicroService/Service/ConfigurationUpdateRule.ts",
+        "src/Domain/Notification/UseCase/NotificationDispatchUseCase.ts",
+        "src/Domain/User/Entity/PasswordPolicy.ts",
+        "src/Domain/User/UseCase/UserPasswordUseCase.ts",
+        "src/EntryPoints/AdminNotificationsRouter.ts",
+        "src/EntryPoints/BugRouter.ts",
+        "src/EntryPoints/ConfigurationRouter.ts",
+        "src/EntryPoints/ContainerLogsWebSocket.ts",
+        "src/EntryPoints/JournalV1Router.ts",
+        "src/EntryPoints/MfaRouter.ts",
+        "src/EntryPoints/MicroServicesV1Router.ts",
+        "src/EntryPoints/PermissionsV1Router.ts",
+        "src/EntryPoints/RateLimits.ts",
+        "src/EntryPoints/RolePermissionsV1Router.ts",
+        "src/EntryPoints/RolesV1Router.ts",
+        "src/EntryPoints/ScheduledConfigurationChangeRouter.ts",
+        "src/EntryPoints/UserRolesV1Router.ts",
+        "src/EntryPoints/VisitsV1Router.ts",
+        "src/Infrastructure/Health/HealthCheckCollector.ts"
+      ],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noUnsafeTypeAssertion": "info"
+          }
+        }
+      }
     }
   ]
 }

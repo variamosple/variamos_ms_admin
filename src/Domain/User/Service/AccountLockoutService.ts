@@ -1,5 +1,6 @@
 import type { IConfigurationRepository } from "#src/Domain/Configuration/Repository/IConfigurationRepository.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
+import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { AccountLockoutPolicy } from "#src/Domain/User/Entity/AccountLockoutPolicy.js";
 
@@ -36,7 +37,7 @@ export class AccountLockoutPolicyService
       );
       return response.errorCode ? undefined : response.data?.value;
     } catch (error) {
-      this.logger.warn(`Could not read ${key}: ${(error as Error).message}`);
+      this.logger.warn(`Could not read ${key}: ${errorMessage(error)}`);
       return undefined;
     }
   }

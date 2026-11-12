@@ -61,7 +61,7 @@ export function createMfaRouter(
     async (req: Request, res: Response) => {
       // Secrets and recovery codes must not stay in any cache
       res.setHeader("Cache-Control", "no-store");
-      const user = req.user as SessionUser | undefined;
+      const user = req.user;
       if (!user?.id || isGuest(user)) {
         res
           .status(HttpStatusCodes.FORBIDDEN)

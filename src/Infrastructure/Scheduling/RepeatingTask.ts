@@ -1,4 +1,5 @@
 import logger from "#src/common/logger.js";
+import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 
 /**
  * A task run at a fixed interval, which a configuration change can move
@@ -50,7 +51,7 @@ export class RepeatingTask {
       logger.info(`${this.name}: running...`);
       await this.run();
     } catch (e) {
-      logger.err(`${this.name} failed: ${(e as Error).message}`);
+      logger.err(`${this.name} failed: ${errorMessage(e)}`);
     }
   }
 }
