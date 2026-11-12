@@ -54,6 +54,11 @@ jobs:
       run: |
         npm run check-arch
 
+    # Unused files, exports and dependencies: knip exits with an error on any finding
+    - name: Find dead code (knip)
+      run: |
+        npm run find-deadcode
+
     - name: Run unit tests with the coverage thresholds
       run: |
         npm run test:coverage
