@@ -245,7 +245,13 @@
         "useMathAbs": "error",
         "useMathTrunc": "off" /* | 0 ramène aussi sur 32 bits, ce que Math.trunc ne fait pas */,
         "useModernMathApis": "error",
-        "useNullishCoalescing": "info",
+        "useNullishCoalescing": {
+          "level": "error",
+          "options": {
+            /* || sur une chaîne traite "" comme une absence, exprès (message vide, champ vide) */
+            "ignorePrimitives": { "string": true }
+          }
+        },
         "usePromiseRejectErrors": "error",
         "useReactNamingConvention": "error",
         "useRegexpExec": "error",
@@ -257,7 +263,7 @@
       },
       "performance": {
         "noAccumulatingSpread": "error",
-        "noAwaitInLoops": "info",
+        "noAwaitInLoops": "off" /* les boucles séquentielles du module sont voulues : pagination, purge par lots, transactions dans l'ordre, limites de débit */,
         "noDelete": "error",
         "noDynamicNamespaceImportAccess": "error",
         "noJsxPropsBind": "off" /* les fonctions fléchées en props sont l'usage React courant */,
@@ -419,7 +425,7 @@
         "noTsIgnore": "error",
         "noUnassignedVariables": "error",
         "noUnknownAttribute": "error",
-        "noUnnecessaryConditions": "info",
+        "noUnnecessaryConditions": "off" /* inférence de types de Biome incomplète : faux positif avec useState<T>(), qui vaut T | undefined ; à retester à chaque version de Biome */,
         "noUnsafeDeclarationMerging": "error",
         "noUnsafeNegation": "error",
         "noUnusedExpressions": "error",
