@@ -70,7 +70,8 @@ import {
   type UserPasswordUseCaseConfig,
 } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
 import { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
-import { AUTH_ROUTE, audienceHostOf, createAuthRouter } from "./AuthRouter.js";
+import { AUTH_ROUTE, createAuthRouter } from "./AuthRouter.js";
+import { audienceHostOf } from "./AuthSessionRoutes.js";
 
 /** Accounts of these tests have no second factor. */
 const noMfaSignIn = {

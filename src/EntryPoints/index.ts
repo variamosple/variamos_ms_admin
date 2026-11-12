@@ -43,11 +43,8 @@ import {
 } from "./AdminNotificationsRouter.js";
 import { AUTH_ROUTE, createAuthRouter } from "./AuthRouter.js";
 import { recordRefusals } from "./accessJournal.js";
-import {
-  BUG_V1_ROUTE,
-  createBugRouter,
-  type MulterUpload,
-} from "./BugRouter.js";
+import { BUG_V1_ROUTE, createBugRouter } from "./BugRouter.js";
+import type { MulterUpload } from "./bugRouteSupport.js";
 import {
   CONFIGURATION_V1_ROUTE,
   createConfigurationRouter,

@@ -79,30 +79,10 @@
       }
     },
     {
-      "includes": ["src/EntryPoints/AuthRouter.ts"],
-      "linter": {
-        "rules": {
-          "complexity": {
-            "noExcessiveLinesPerFunction": {
-              "level": "info",
-              "options": {
-                "maxLines": 80,
-                "skipBlankLines": true
-              }
-            }
-          }
-        }
-      }
-    },
-    {
       "includes": [
-        "src/CompositionRoot.ts",
         "src/DataProviders/Bug/BugRepository.ts",
         "src/DataProviders/MicroService/MicroServiceRepository.ts",
-        "src/DataProviders/User/UserRepository.ts",
-        "src/Domain/Bug/UseCase/BugLifecycleUseCase.ts",
-        "src/EntryPoints/AuthRouter.ts",
-        "src/EntryPoints/BugRouter.ts"
+        "src/DataProviders/User/UserRepository.ts"
       ],
       "linter": {
         "rules": {
