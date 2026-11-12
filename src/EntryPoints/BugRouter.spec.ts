@@ -979,7 +979,9 @@ describe("BugRouter HTTP Integration Tests", () => {
 
       expect(res.status).toBe(201);
       expect(mockValidateSession).toHaveBeenCalledWith("bad-token");
-      expect(mockLoggerErr).toHaveBeenCalled();
+      expect(mockLoggerErr).toHaveBeenCalledWith(
+        "POST /bugs: Error during session validation:",
+      );
       // Fall back to guest (createdById is undefined)
       expect(mockBugSubmissionUseCase.createBug).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1336,7 +1338,20 @@ describe("BugRouter upload limits and anonymous files", () => {
     );
 
     expect(res.status).toBe(201);
-    expect(mockBugSubmissionUseCase.createBug).toHaveBeenCalled();
+    expect(mockBugSubmissionUseCase.createBug).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          createdById: "user-1",
+          file: {
+            // Its size, not its 5 MB of content, keeps a failure readable
+            content: expect.objectContaining({
+              length: MAX_ATTACHMENT_SIZE_BYTES,
+            }),
+            originalName: "big.log",
+          },
+        }),
+      }),
+    );
   });
 
   it("should answer 400 when more than one file is sent", async () => {

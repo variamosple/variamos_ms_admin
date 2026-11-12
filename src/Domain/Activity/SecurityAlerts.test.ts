@@ -217,7 +217,9 @@ describe("SecurityAlertDetector, delivery", () => {
 
     expect(journal.record).toHaveBeenCalledOnce();
     expect(notifier.notify).not.toHaveBeenCalled();
-    expect(logger.warn).toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(
+      "[ALERT] failed-sign-ins: no recipient",
+    );
   });
 
   it("never throws: a failure is logged", async () => {
@@ -225,7 +227,9 @@ describe("SecurityAlertDetector, delivery", () => {
     recipients.list.mockRejectedValue(new Error("database down"));
 
     await expect(raiseOne(detector)).resolves.toBeUndefined();
-    expect(logger.err).toHaveBeenCalled();
+    expect(logger.err).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "database down" }),
+    );
   });
 });
 

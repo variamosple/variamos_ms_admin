@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { type MockProxy, mock } from "vitest-mock-extended";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -75,7 +76,11 @@ describe("UserPasswordUseCase", () => {
 
       expect(res.errorCode).toBeUndefined();
       await vi.waitFor(() =>
-        expect(mockMailService.sendPasswordResetMail).toHaveBeenCalled(),
+        expect(mockMailService.sendPasswordResetMail).toHaveBeenCalledWith(
+          "user@example.com",
+          "http://localhost:3000/#/reset-password?token=generated-token",
+          expect.any(Number),
+        ),
       );
       expect(mockUserRepository.getUserByEmail).toHaveBeenCalledWith(
         "user@example.com",
@@ -105,7 +110,9 @@ describe("UserPasswordUseCase", () => {
 
       expect(res.errorCode).toBeUndefined();
       await vi.waitFor(() =>
-        expect(mockUserRepository.getUserByEmail).toHaveBeenCalled(),
+        expect(mockUserRepository.getUserByEmail).toHaveBeenCalledWith(
+          "nonexistent@example.com",
+        ),
       );
       expect(createTokenSpy).not.toHaveBeenCalled();
       expect(mockMailService.sendPasswordResetMail).not.toHaveBeenCalled();
@@ -122,7 +129,13 @@ describe("UserPasswordUseCase", () => {
       const res = await useCase.requestReset(req);
 
       expect(res.errorCode).toBeUndefined();
-      await vi.waitFor(() => expect(createTokenSpy).toHaveBeenCalled());
+      await vi.waitFor(() =>
+        expect(createTokenSpy).toHaveBeenCalledWith(
+          mockUser,
+          3600000,
+          "PASSWORD RESET ATTEMPT",
+        ),
+      );
       expect(mockMailService.sendPasswordResetMail).not.toHaveBeenCalled();
       createTokenSpy.mockRestore();
     });
@@ -178,7 +191,9 @@ describe("UserPasswordUseCase", () => {
       const res = await useCase.verifyToken(req);
 
       expect(res.errorCode).toBeUndefined();
-      expect(mockUserRepository.getPasswordResetToken).toHaveBeenCalled();
+      expect(mockUserRepository.getPasswordResetToken).toHaveBeenCalledWith(
+        createHash("sha256").update("token-123").digest("hex"),
+      );
     });
 
     it("should return INVALID_INPUT if token is not found", async () => {
@@ -326,7 +341,11 @@ describe("UserPasswordUseCase", () => {
 
       await capped.requestReset(new RequestModel("tx-1", "user@example.com"));
       await vi.waitFor(() =>
-        expect(mockMailService.sendPasswordResetMail).toHaveBeenCalled(),
+        expect(mockMailService.sendPasswordResetMail).toHaveBeenCalledWith(
+          "user@example.com",
+          "http://localhost:3000/#/reset-password?token=generated-token",
+          expect.any(Number),
+        ),
       );
 
       expect(createTokenSpy).toHaveBeenCalledWith(
@@ -362,7 +381,9 @@ describe("UserPasswordUseCase", () => {
       expect(res.data?.recoveryUrl).toBe(
         "http://localhost:3000/#/reset-password?token=generated-token",
       );
-      expect(mockUserRepository.queryById).toHaveBeenCalled();
+      expect(mockUserRepository.queryById).toHaveBeenCalledWith(
+        expect.objectContaining({ transactionId: "tx-1", data: "user-123" }),
+      );
       expect(createTokenSpy).toHaveBeenCalledWith(
         mockUser,
         mockConfig.passwordResetExpiryInMs,

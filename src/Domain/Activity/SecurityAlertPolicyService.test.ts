@@ -49,6 +49,8 @@ describe("SecurityAlertPolicyService", () => {
     ).getPolicy();
 
     expect(policy.failedSignIns.max).toBe(10);
-    expect(logger.warn).toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringMatching(/^Could not read .+: database down$/),
+    );
   });
 });

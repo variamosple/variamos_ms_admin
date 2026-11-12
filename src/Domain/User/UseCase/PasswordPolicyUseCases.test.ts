@@ -129,7 +129,11 @@ describe("configured password policy in the use cases", () => {
 
     await useCase.requestReset(new RequestModel("forgot", "ana@example.com"));
     await vi.waitFor(() =>
-      expect(mail.sendPasswordResetMail).toHaveBeenCalled(),
+      expect(mail.sendPasswordResetMail).toHaveBeenCalledWith(
+        "ana@example.com",
+        "http://ui/#/reset-password?token=token",
+        expect.any(Number),
+      ),
     );
 
     expect(createToken).toHaveBeenCalledWith(

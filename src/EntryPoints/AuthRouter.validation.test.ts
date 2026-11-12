@@ -178,7 +178,14 @@ describe("AuthRouter request bodies (EV-97 lot 6a)", () => {
 
     await send("put", "/my-account/information", { countryCode: null });
 
-    expect(management.updateProfile).toHaveBeenCalled();
+    expect(management.updateProfile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: "user-123",
+          countryCode: null,
+        }),
+      }),
+    );
   });
 
   it("drops the fields it does not know", async () => {

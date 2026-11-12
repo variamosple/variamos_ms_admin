@@ -93,7 +93,17 @@ describe("BugSyncUseCase", () => {
     const res = await useCase.syncBugs(req);
 
     expect(res.errorCode).toBeUndefined();
-    expect(mockBugRepository.saveOrUpdateBug).toHaveBeenCalled();
+    expect(mockBugRepository.saveOrUpdateBug).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transactionId: "tx-1",
+        data: expect.objectContaining({
+          title: "Test Issue",
+          description: "Test Body",
+          githubRepo: "VariaMos/VariaMosAdmin",
+          gitIssueNumber: 5,
+        }),
+      }),
+    );
     expect(logger.info).toHaveBeenCalledWith(
       "Starting bugs sync for repos: VariaMos/VariaMosAdmin",
     );
@@ -116,7 +126,10 @@ describe("BugSyncUseCase", () => {
     const first = useCase.syncBugs(new RequestModel<void>("periodicSyncBugs"));
     const second = useCase.syncBugs(new RequestModel<void>("syncBugs"));
     await vi.waitFor(() =>
-      expect(mockIssueTracker.getIssues).toHaveBeenCalled(),
+      expect(mockIssueTracker.getIssues).toHaveBeenCalledWith(
+        "Repo1",
+        "mock-token",
+      ),
     );
     answerGitHub([]);
 

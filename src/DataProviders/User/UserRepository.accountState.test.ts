@@ -95,7 +95,7 @@ describe("UserRepositoryImpl account state", () => {
           "New-pass-1!",
         ),
       ).toBe("inactive_account");
-      expect(transaction.rollback).toHaveBeenCalled();
+      expect(transaction.rollback).toHaveBeenCalledOnce();
       expect(transaction.commit).not.toHaveBeenCalled();
       expect(update).not.toHaveBeenCalled();
     });

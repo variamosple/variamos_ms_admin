@@ -170,7 +170,11 @@ describe("UserAuthUseCase", () => {
         );
 
         const res = await useCase.signUp(registration());
-        await vi.waitFor(() => expect(logger.err).toHaveBeenCalled());
+        await vi.waitFor(() =>
+          expect(logger.err).toHaveBeenCalledWith(
+            expect.objectContaining({ message: "SMTP down" }),
+          ),
+        );
 
         expect(res.errorCode).toBeUndefined();
       });

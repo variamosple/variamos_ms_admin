@@ -506,7 +506,12 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       const response = await supertest(app).get("/auth/session-info");
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(UserQueryUseCase.prototype.sessionUser).toHaveBeenCalled();
+      expect(UserQueryUseCase.prototype.sessionUser).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionId: "getSessionInfo",
+          data: "user-123",
+        }),
+      );
     });
 
     it("should ignore disallowed redirect origin", async () => {
@@ -2191,7 +2196,12 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       const response = await supertest(app).get("/auth/session-info");
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(UserQueryUseCase.prototype.sessionUser).toHaveBeenCalled();
+      expect(UserQueryUseCase.prototype.sessionUser).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionId: "getSessionInfo",
+          data: "user-123",
+        }),
+      );
       expect(createJwt).toHaveBeenCalledWith(
         expect.objectContaining({ roles: [] }),
         undefined,
@@ -3011,7 +3021,12 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       const response = await supertest(app).get("/auth/session-info");
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(UserAuthUseCase.prototype.getGuestData).toHaveBeenCalled();
+      expect(UserAuthUseCase.prototype.getGuestData).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionId: "getSessionInfo",
+          data: "guest-123",
+        }),
+      );
       expect(UserQueryUseCase.prototype.sessionUser).not.toHaveBeenCalled();
     });
   });
