@@ -2,11 +2,11 @@ import { BugFilter } from "#src/Domain/Bug/Entity/BugFilter.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import VARIAMOS_ORM from "#src/Infrastructure/VariamosORM.js";
 import { BugModel } from "./Bug.js";
-import { BugRepositoryImpl } from "./BugRepository.js";
+import { BugQueryRepositoryImpl } from "./BugQueryRepository.js";
 
 /** Pages of the bug lists; the limit lands in the subquery on bugs, before the attachments join. */
-describe("BugRepositoryImpl paging", () => {
-  const repository = new BugRepositoryImpl();
+describe("BugQueryRepositoryImpl paging", () => {
+  const repository = new BugQueryRepositoryImpl();
   const bug = (id: string) =>
     ({ id, title: id, status: "open", attachments: [] }) as never;
   const onPage = (pageNumber?: number, pageSize?: number) =>

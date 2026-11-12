@@ -3,6 +3,10 @@ import logger from "#src/common/logger.js";
 import { SecurityAlertRecipientRepository } from "./DataProviders/AccessControl/SecurityAlertRecipientRepository.js";
 import { AccessJournalRepositoryImpl } from "./DataProviders/Activity/AccessJournalRepository.js";
 import { ActivityJournalRepositoryImpl } from "./DataProviders/Activity/ActivityJournalRepository.js";
+import { BugAssigneeRepositoryImpl } from "./DataProviders/Bug/BugAssigneeRepository.js";
+import { BugAttachmentRepositoryImpl } from "./DataProviders/Bug/BugAttachmentRepository.js";
+import { BugNoteRepositoryImpl } from "./DataProviders/Bug/BugNoteRepository.js";
+import { BugQueryRepositoryImpl } from "./DataProviders/Bug/BugQueryRepository.js";
 import { BugRepositoryImpl } from "./DataProviders/Bug/BugRepository.js";
 import { ConfigurationRepositoryImpl } from "./DataProviders/Configuration/ConfigurationRepository.js";
 import { SecretConfigurationValue } from "./DataProviders/Configuration/SecretConfigurationValue.js";
@@ -23,6 +27,7 @@ import {
   watchedAccessJournal,
   watchedActivityJournal,
 } from "./Domain/Activity/SecurityAlerts.js";
+import type { BugRepositories } from "./Domain/Bug/Repository/BugRepositories.js";
 import { AccountPasswordService } from "./Domain/User/Service/AccountPasswordService.js";
 import { PasswordHashingCostService } from "./Domain/User/Service/PasswordHashingCostService.js";
 import { JetLogger } from "./Infrastructure/Logging/JetLogger.js";
@@ -35,7 +40,6 @@ import {
   parseEncryptionKey,
 } from "./Infrastructure/Security/AesGcmSecretCipher.js";
 import { BcryptPasswordHasher } from "./Infrastructure/Security/BcryptPasswordHasher.js";
-
 import VARIAMOS_ORM, { DB_SCHEMA } from "./Infrastructure/VariamosORM.js";
 
 // Secret configurations are encrypted at rest (T-13, EV-78 lot 2); without
@@ -73,7 +77,14 @@ export const PermissionRepositoryInstance = new PermissionRepositoryImpl();
 export const VisitRepositoryInstance = new VisitRepositoryImpl();
 export const CountriesRepositoryInstance = new CountriesRepositoryImpl();
 export const MetricsRepositoryInstance = new MetricsRepositoryImpl();
-export const BugRepositoryInstance = new BugRepositoryImpl();
+// One repository per subject of the bug tracker
+export const BugRepositoriesInstance: BugRepositories = {
+  bugs: new BugRepositoryImpl(),
+  queries: new BugQueryRepositoryImpl(),
+  attachments: new BugAttachmentRepositoryImpl(),
+  notes: new BugNoteRepositoryImpl(),
+  assignees: new BugAssigneeRepositoryImpl(),
+};
 export const ConfigurationRepositoryInstance = new ConfigurationRepositoryImpl(
   SecretConfigurationValueInstance,
 );

@@ -2,7 +2,7 @@ import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js"
 import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import type { BugAttachment } from "#src/Domain/Bug/Entity/BugAttachment.js";
 import type { BugNote } from "#src/Domain/Bug/Entity/BugNote.js";
-import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
+import type { BugRepositories } from "#src/Domain/Bug/Repository/BugRepositories.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -16,7 +16,10 @@ import type { IStorageService } from "#src/Domain/Core/Service/IStorageService.j
 
 export class BugAttachmentUseCase {
   public constructor(
-    private readonly bugRepository: IBugRepository,
+    private readonly repositories: Pick<
+      BugRepositories,
+      "attachments" | "notes"
+    >,
     private readonly storageService: IStorageService,
     private readonly logger: ILogger,
     private readonly journal: IActivityJournal,
@@ -84,7 +87,7 @@ export class BugAttachmentUseCase {
       fileType.extension,
     );
     try {
-      const created = await this.bugRepository.createAttachment(
+      const created = await this.repositories.attachments.createAttachment(
         new RequestModel(request.transactionId, {
           filePath,
           fileType: fileType.mimeType,
@@ -144,9 +147,10 @@ export class BugAttachmentUseCase {
         "Attachment ID is required.",
       );
     }
-    const attachmentResp = await this.bugRepository.findAttachmentById(
-      new RequestModel(request.transactionId, id),
-    );
+    const attachmentResp =
+      await this.repositories.attachments.findAttachmentById(
+        new RequestModel(request.transactionId, id),
+      );
     if (!attachmentResp.data) {
       return response.withErrorPromise(
         DomainErrorCodes.ENTITY_NOT_FOUND,
@@ -162,7 +166,7 @@ export class BugAttachmentUseCase {
         this.logger.warn(`Failed to delete physical file: ${filePath}`);
       }
     }
-    return this.bugRepository.deleteAttachment(request);
+    return this.repositories.attachments.deleteAttachment(request);
   }
 
   /** Recorded in the activity journal: the bug and the note, not its text. */
@@ -178,7 +182,7 @@ export class BugAttachmentUseCase {
         entityId: request.data?.bugId,
         transactionId: request.transactionId,
       },
-      () => this.bugRepository.createNote(request),
+      () => this.repositories.notes.createNote(request),
       (created) => ({ after: { noteId: created.data?.id ?? null } }),
     );
   }

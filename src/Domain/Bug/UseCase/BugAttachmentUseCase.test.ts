@@ -2,7 +2,8 @@ import { type MockProxy, mock } from "vitest-mock-extended";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import type { BugAttachment } from "#src/Domain/Bug/Entity/BugAttachment.js";
 import { BugNote } from "#src/Domain/Bug/Entity/BugNote.js";
-import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
+import type { IBugAttachmentRepository } from "#src/Domain/Bug/Repository/IBugAttachmentRepository.js";
+import type { IBugNoteRepository } from "#src/Domain/Bug/Repository/IBugNoteRepository.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -19,17 +20,19 @@ const HTML_BYTES = new TextEncoder().encode("<html><script>alert(1)</script>");
 describe("BugAttachmentUseCase", () => {
   let useCase: BugAttachmentUseCase;
   let logger: MockProxy<ILogger>;
-  let mockBugRepository: MockProxy<IBugRepository>;
+  let mockBugRepository: MockProxy<
+    IBugAttachmentRepository & IBugNoteRepository
+  >;
   let mockStorageService: MockProxy<IStorageService>;
   let mockJournal: MockProxy<IActivityJournal>;
 
   beforeEach(() => {
     logger = mock<ILogger>();
-    mockBugRepository = mock<IBugRepository>();
+    mockBugRepository = mock<IBugAttachmentRepository & IBugNoteRepository>();
     mockStorageService = mock<IStorageService>();
     mockJournal = mock<IActivityJournal>();
     useCase = new BugAttachmentUseCase(
-      mockBugRepository,
+      { attachments: mockBugRepository, notes: mockBugRepository },
       mockStorageService,
       logger,
       mockJournal,

@@ -1,7 +1,7 @@
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import { withJournal } from "#src/Domain/Activity/withJournal.js";
 import type { BugUserRef } from "#src/Domain/Bug/Entity/Bug.js";
-import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
+import type { BugRepositories } from "#src/Domain/Bug/Repository/BugRepositories.js";
 import type { IBugAssignmentNotifier } from "#src/Domain/Bug/Service/IBugAssignmentNotifier.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -21,7 +21,10 @@ export const ASSIGNABLE_PERMISSION = "bugs::update";
  */
 export class BugAssignmentUseCase {
   public constructor(
-    private readonly bugRepository: IBugRepository,
+    private readonly repositories: Pick<
+      BugRepositories,
+      "queries" | "notes" | "assignees"
+    >,
     private readonly notifier: IBugAssignmentNotifier,
     private readonly journal: IActivityJournal,
     private readonly logger: ILogger,
@@ -30,7 +33,7 @@ export class BugAssignmentUseCase {
   public queryAssignableUsers(
     request: RequestModel<void>,
   ): Promise<ResponseModel<BugUserRef[]>> {
-    return this.bugRepository.queryUsersWithPermission(
+    return this.repositories.assignees.queryUsersWithPermission(
       new RequestModel(request.transactionId, ASSIGNABLE_PERMISSION),
     );
   }
@@ -47,7 +50,7 @@ export class BugAssignmentUseCase {
     }
     const userIds = [...new Set(data.userIds)];
 
-    const bugResponse = await this.bugRepository.findById(
+    const bugResponse = await this.repositories.queries.findById(
       new RequestModel(transactionId, data.bugId),
     );
     if (bugResponse.errorCode) {
@@ -88,7 +91,7 @@ export class BugAssignmentUseCase {
         transactionId,
       },
       () =>
-        this.bugRepository.setAssignees(
+        this.repositories.assignees.setAssignees(
           new RequestModel(
             transactionId,
             { bugId: bug.id, userIds, assignedBy: actorId },
@@ -129,7 +132,7 @@ export class BugAssignmentUseCase {
     if (added.length > 0 || removed.length > 0) {
       // Shown in the bug timeline like a status change; names only, as
       // the notes are read without bugs::update
-      const note = await this.bugRepository.createNote(
+      const note = await this.repositories.notes.createNote(
         new RequestModel(transactionId, {
           bugId: bug.id,
           body: `[Audit] Assigned to: ${namesOf(assigned)} (was: ${namesOf(previous)}).`,

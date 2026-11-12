@@ -4,7 +4,7 @@ import logger from "#src/common/logger.js";
 import { MAX_ATTACHMENT_SIZE_BYTES } from "#src/Domain/Core/File/AllowedFileType.js";
 import {
   AccountPasswordServiceInstance,
-  BugRepositoryInstance,
+  BugRepositoriesInstance,
   ConfigEventPublisherInstance,
   ConfigurationRepositoryInstance,
   CountriesRepositoryInstance,
@@ -89,7 +89,6 @@ import {
   parseEncryptionKey,
 } from "./Infrastructure/Security/AesGcmSecretCipher.js";
 import { DiskStorageServiceInstance } from "./Infrastructure/Storage/DiskStorageService.js";
-
 import VARIAMOS_ORM, { DB_SCHEMA } from "./Infrastructure/VariamosORM.js";
 
 // Read-only pages of both journals (T-24 lot 3)
@@ -219,7 +218,7 @@ const productionGitHubTokenResolver = new GitHubTokenResolver(bugTrackerConfig);
 
 // Bug Use Case Instantiations
 const productionBugSubmissionUseCase = new BugSubmissionUseCase({
-  bugRepository: BugRepositoryInstance,
+  bugRepository: BugRepositoriesInstance.bugs,
   userRepository: UserRepositoryInstance,
   issueTrackerService: GitHubIssuesServiceInstance,
   githubConfig: bugTrackerConfig,
@@ -234,7 +233,7 @@ const BugScheduleServiceInstance = new BugScheduleService(
 );
 
 export const productionBugLifecycleUseCase = new BugLifecycleUseCase({
-  bugRepository: BugRepositoryInstance,
+  repositories: BugRepositoriesInstance,
   issueTrackerService: GitHubIssuesServiceInstance,
   storageService: DiskStorageServiceInstance,
   githubConfig: bugTrackerConfig,
@@ -245,7 +244,7 @@ export const productionBugLifecycleUseCase = new BugLifecycleUseCase({
 });
 
 const productionBugSyncUseCase = new BugSyncUseCase({
-  bugRepository: BugRepositoryInstance,
+  repositories: BugRepositoriesInstance,
   issueTrackerService: GitHubIssuesServiceInstance,
   githubConfig: bugTrackerConfig,
   tokenResolver: productionGitHubTokenResolver,
@@ -254,20 +253,20 @@ const productionBugSyncUseCase = new BugSyncUseCase({
 });
 
 const productionBugQueryUseCase = new BugQueryUseCase(
-  BugRepositoryInstance,
+  BugRepositoriesInstance,
   bugTrackerConfig,
   JetLogger,
 );
 
 const productionBugAssignmentUseCase = new BugAssignmentUseCase(
-  BugRepositoryInstance,
+  BugRepositoriesInstance,
   new BugAssignmentNotifier(NotificationClientInstance),
   WatchedActivityJournal,
   JetLogger,
 );
 
 const productionBugAttachmentUseCase = new BugAttachmentUseCase(
-  BugRepositoryInstance,
+  BugRepositoriesInstance,
   DiskStorageServiceInstance,
   JetLogger,
   WatchedActivityJournal,

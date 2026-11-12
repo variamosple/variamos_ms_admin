@@ -3,7 +3,7 @@ import type { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import { BugFilter } from "#src/Domain/Bug/Entity/BugFilter.js";
 import type { BugNote } from "#src/Domain/Bug/Entity/BugNote.js";
 import type { BugStatusLog } from "#src/Domain/Bug/Entity/BugStatusLog.js";
-import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
+import type { BugRepositories } from "#src/Domain/Bug/Repository/BugRepositories.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -22,7 +22,7 @@ export const ALLOWED_CATEGORIES = [
 
 export class BugQueryUseCase {
   public constructor(
-    private readonly bugRepository: IBugRepository,
+    private readonly repositories: Pick<BugRepositories, "queries" | "notes">,
     private readonly githubConfig: IBugTrackerConfig,
     private readonly logger: ILogger,
   ) {}
@@ -34,7 +34,7 @@ export class BugQueryUseCase {
     const filter = given.repo
       ? given
       : given.withManagedRepos(this.githubConfig.getGitHubManagedRepos());
-    return await this.bugRepository.queryBugs(
+    return await this.repositories.queries.queryBugs(
       new RequestModel(request.transactionId, filter),
     );
   }
@@ -42,13 +42,13 @@ export class BugQueryUseCase {
   public async queryLocalBugs(
     request: RequestModel<BugFilter>,
   ): Promise<ResponseModel<Bug[]>> {
-    return await this.bugRepository.queryLocalBugs(request);
+    return await this.repositories.queries.queryLocalBugs(request);
   }
 
   public async queryHistory(
     request: RequestModel<string>,
   ): Promise<ResponseModel<BugStatusLog[]>> {
-    return await this.bugRepository.queryHistory(request);
+    return await this.repositories.queries.queryHistory(request);
   }
 
   public queryBugRepos(
@@ -75,6 +75,6 @@ export class BugQueryUseCase {
   public async queryNotes(
     request: RequestModel<string>,
   ): Promise<ResponseModel<BugNote[]>> {
-    return await this.bugRepository.queryNotes(request);
+    return await this.repositories.notes.queryNotes(request);
   }
 }

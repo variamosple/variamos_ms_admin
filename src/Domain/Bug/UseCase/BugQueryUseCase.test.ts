@@ -4,7 +4,8 @@ import type { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import { BugFilter } from "#src/Domain/Bug/Entity/BugFilter.js";
 import type { BugNote } from "#src/Domain/Bug/Entity/BugNote.js";
 import type { BugStatusLog } from "#src/Domain/Bug/Entity/BugStatusLog.js";
-import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
+import type { IBugNoteRepository } from "#src/Domain/Bug/Repository/IBugNoteRepository.js";
+import type { IBugQueryRepository } from "#src/Domain/Bug/Repository/IBugQueryRepository.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
@@ -15,14 +16,18 @@ import { ALLOWED_CATEGORIES, BugQueryUseCase } from "./BugQueryUseCase.js";
 describe("BugQueryUseCase", () => {
   let useCase: BugQueryUseCase;
   let logger: MockProxy<ILogger>;
-  let mockBugRepository: MockProxy<IBugRepository>;
+  let mockBugRepository: MockProxy<IBugQueryRepository & IBugNoteRepository>;
   let mockGithubConfig: MockProxy<IBugTrackerConfig>;
 
   beforeEach(() => {
     logger = mock<ILogger>();
-    mockBugRepository = mock<IBugRepository>();
+    mockBugRepository = mock<IBugQueryRepository & IBugNoteRepository>();
     mockGithubConfig = mock<IBugTrackerConfig>();
-    useCase = new BugQueryUseCase(mockBugRepository, mockGithubConfig, logger);
+    useCase = new BugQueryUseCase(
+      { queries: mockBugRepository, notes: mockBugRepository },
+      mockGithubConfig,
+      logger,
+    );
   });
 
   describe("queryBugs", () => {

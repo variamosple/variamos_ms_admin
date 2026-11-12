@@ -2,7 +2,9 @@ import { type MockProxy, mock } from "vitest-mock-extended";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import { Bug, type BugUserRef } from "#src/Domain/Bug/Entity/Bug.js";
 import type { BugNote } from "#src/Domain/Bug/Entity/BugNote.js";
-import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
+import type { IBugAssigneeRepository } from "#src/Domain/Bug/Repository/IBugAssigneeRepository.js";
+import type { IBugNoteRepository } from "#src/Domain/Bug/Repository/IBugNoteRepository.js";
+import type { IBugQueryRepository } from "#src/Domain/Bug/Repository/IBugQueryRepository.js";
 import type { IBugAssignmentNotifier } from "#src/Domain/Bug/Service/IBugAssignmentNotifier.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -18,7 +20,9 @@ const BEN = { id: "u-ben", name: "Ben" };
 const CAM = { id: "u-cam", name: "Cam" };
 
 describe("BugAssignmentUseCase", () => {
-  let repository: MockProxy<IBugRepository>;
+  let repository: MockProxy<
+    IBugQueryRepository & IBugNoteRepository & IBugAssigneeRepository
+  >;
   let notifier: MockProxy<IBugAssignmentNotifier>;
   let journal: MockProxy<IActivityJournal>;
   let useCase: BugAssignmentUseCase;
@@ -37,10 +41,17 @@ describe("BugAssignmentUseCase", () => {
 
   beforeEach(() => {
     logger = mock<ILogger>();
-    repository = mock<IBugRepository>();
+    repository = mock<
+      IBugQueryRepository & IBugNoteRepository & IBugAssigneeRepository
+    >();
     notifier = mock<IBugAssignmentNotifier>();
     journal = mock<IActivityJournal>();
-    useCase = new BugAssignmentUseCase(repository, notifier, journal, logger);
+    useCase = new BugAssignmentUseCase(
+      { queries: repository, notes: repository, assignees: repository },
+      notifier,
+      journal,
+      logger,
+    );
 
     repository.findById.mockResolvedValue(
       new ResponseModel<Bug | null>("tx").withResponse(bugAssignedTo(ANA)),

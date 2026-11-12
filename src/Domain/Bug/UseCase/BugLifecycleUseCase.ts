@@ -4,7 +4,7 @@ import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig
 import type { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import { isBugComponent } from "#src/Domain/Bug/Entity/BugComponent.js";
 import { canChangeStatus } from "#src/Domain/Bug/Entity/BugStatus.js";
-import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
+import type { BugRepositories } from "#src/Domain/Bug/Repository/BugRepositories.js";
 import type { IBugScheduleProvider } from "#src/Domain/Bug/Service/BugScheduleService.js";
 import type { IGitHubTokenProvider } from "#src/Domain/Bug/Service/IGitHubTokenProvider.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
@@ -24,7 +24,10 @@ import {
 } from "./bugApproval.js";
 
 export interface BugLifecycleUseCaseDependencies {
-  bugRepository: IBugRepository;
+  repositories: Pick<
+    BugRepositories,
+    "bugs" | "queries" | "attachments" | "notes"
+  >;
   issueTrackerService: IIssueTrackerService;
   storageService: IStorageService;
   githubConfig: IBugTrackerConfig;
@@ -35,7 +38,10 @@ export interface BugLifecycleUseCaseDependencies {
 }
 
 export class BugLifecycleUseCase {
-  private readonly bugRepository: IBugRepository;
+  private readonly repositories: Pick<
+    BugRepositories,
+    "bugs" | "queries" | "attachments" | "notes"
+  >;
   private readonly storageService: IStorageService;
   private readonly issues: BugIssueSync;
   private readonly journal: IActivityJournal;
@@ -47,7 +53,7 @@ export class BugLifecycleUseCase {
 
   public constructor(dependencies: BugLifecycleUseCaseDependencies) {
     const {
-      bugRepository,
+      repositories,
       issueTrackerService,
       storageService,
       githubConfig,
@@ -56,7 +62,7 @@ export class BugLifecycleUseCase {
       logger,
       schedule,
     } = dependencies;
-    this.bugRepository = bugRepository;
+    this.repositories = repositories;
     this.storageService = storageService;
     this.issues = new BugIssueSync({
       githubConfig,
@@ -88,7 +94,7 @@ export class BugLifecycleUseCase {
       );
     }
 
-    const bugResponse = await this.bugRepository.findById(
+    const bugResponse = await this.repositories.queries.findById(
       new RequestModel(request.transactionId, data.id),
     );
 
@@ -176,7 +182,7 @@ export class BugLifecycleUseCase {
     }
 
     if (data.status === "open") {
-      await this.bugRepository.createNote(
+      await this.repositories.notes.createNote(
         new RequestModel(transactionId, {
           bugId: bug.id,
           body: approvalNoteOf(modifiedFields, data.comment),
@@ -184,7 +190,7 @@ export class BugLifecycleUseCase {
       );
     }
 
-    return this.bugRepository.updateStatus(
+    return this.repositories.bugs.updateStatus(
       new RequestModel(transactionId, {
         id: data.id,
         status: data.status,
@@ -238,7 +244,7 @@ export class BugLifecycleUseCase {
       );
     }
 
-    const bugResponse = await this.bugRepository.findById(
+    const bugResponse = await this.repositories.queries.findById(
       new RequestModel(request.transactionId, data.id),
     );
 
@@ -258,7 +264,7 @@ export class BugLifecycleUseCase {
       );
     }
 
-    return this.bugRepository.rejectBug(
+    return this.repositories.bugs.rejectBug(
       new RequestModel(request.transactionId, {
         id: data.id,
         adminId: data.adminId,
@@ -303,7 +309,7 @@ export class BugLifecycleUseCase {
       );
     }
 
-    const bugResponse = await this.bugRepository.findById(
+    const bugResponse = await this.repositories.queries.findById(
       new RequestModel(request.transactionId, data.id),
     );
 
@@ -323,7 +329,7 @@ export class BugLifecycleUseCase {
       );
     }
 
-    return this.bugRepository.restoreBug(
+    return this.repositories.bugs.restoreBug(
       new RequestModel(request.transactionId, {
         id: data.id,
         adminId: data.adminId,
@@ -341,9 +347,10 @@ export class BugLifecycleUseCase {
       );
 
       const transactionId = "purgeExpiredBugs";
-      const expiredResponse = await this.bugRepository.findExpiredRejectedBugs(
-        new RequestModel(transactionId, thresholdDate),
-      );
+      const expiredResponse =
+        await this.repositories.queries.findExpiredRejectedBugs(
+          new RequestModel(transactionId, thresholdDate),
+        );
 
       const expiredBugs = expiredResponse.data || [];
       if (expiredBugs.length === 0) return;
@@ -366,7 +373,7 @@ export class BugLifecycleUseCase {
   private async purge(bug: Bug, transactionId: string): Promise<void> {
     const hasAttachments = await this.purgeAttachments(bug, transactionId);
 
-    await this.bugRepository.updateStatus(
+    await this.repositories.bugs.updateStatus(
       new RequestModel(transactionId, {
         id: bug.id,
         status: "purged",
@@ -374,7 +381,7 @@ export class BugLifecycleUseCase {
       }),
     );
 
-    await this.bugRepository.createLog(
+    await this.repositories.bugs.createLog(
       new RequestModel(transactionId, {
         action: "purge",
         comment: hasAttachments
@@ -398,7 +405,7 @@ export class BugLifecycleUseCase {
       await this.storageService.deleteFile(attachment.filePath);
       // A stored attachment always has its id; the type allows a new one
       if (attachment.id !== undefined) {
-        await this.bugRepository.updateAttachmentPath(
+        await this.repositories.attachments.updateAttachmentPath(
           new RequestModel(transactionId, {
             id: attachment.id,
             filePath: "/purged",
