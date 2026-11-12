@@ -1,6 +1,10 @@
 import { QueryTypes } from "sequelize";
 import logger from "#src/common/logger.js";
-import type { MigrationContext, SchemaMigration } from "./MigrationContext.js";
+import {
+  type MigrationContext,
+  refuseRollback,
+  type SchemaMigration,
+} from "./MigrationContext.js";
 
 // Values as of 2026-10-30 (EV-18): a migration never changes once applied,
 // so they are written here rather than read from the code
@@ -52,10 +56,6 @@ export const bugScheduleKeys: SchemaMigration = {
       `[MIGRATION] 0011-bug-schedule-keys: ${added.length} key(s) added (${added.join(", ") || "none"}), ${BUG_SCHEDULE_ROWS.length - added.length} already present and left untouched`,
     );
   },
-  down: () => {
-    // Reverting would drop the values an administrator may have set
-    return Promise.reject(
-      new Error("The bug schedule keys migration cannot be reverted."),
-    );
-  },
+  // Reverting would drop the values an administrator may have set
+  down: refuseRollback("bug schedule keys"),
 };

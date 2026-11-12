@@ -1,6 +1,10 @@
 import { QueryTypes } from "sequelize";
 import logger from "#src/common/logger.js";
-import type { MigrationContext, SchemaMigration } from "./MigrationContext.js";
+import {
+  type MigrationContext,
+  refuseRollback,
+  type SchemaMigration,
+} from "./MigrationContext.js";
 
 // Values as of 2026-10-18 (EV-87 lot 4): a migration never changes once
 // applied, so they are written here rather than read from the code
@@ -50,10 +54,6 @@ export const accountLockoutKeys: SchemaMigration = {
       `[MIGRATION] 0002-account-lockout-keys: ${added.length} key(s) added (${added.join(", ") || "none"}), ${ACCOUNT_LOCKOUT_ROWS.length - added.length} already present and left untouched`,
     );
   },
-  down: () => {
-    // Reverting would drop the values an administrator may have set
-    return Promise.reject(
-      new Error("The account lockout keys migration cannot be reverted."),
-    );
-  },
+  // Reverting would drop the values an administrator may have set
+  down: refuseRollback("account lockout keys"),
 };

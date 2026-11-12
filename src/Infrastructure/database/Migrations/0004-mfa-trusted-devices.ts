@@ -1,6 +1,10 @@
 import { QueryTypes } from "sequelize";
 import logger from "#src/common/logger.js";
-import type { MigrationContext, SchemaMigration } from "./MigrationContext.js";
+import {
+  type MigrationContext,
+  refuseRollback,
+  type SchemaMigration,
+} from "./MigrationContext.js";
 
 export const TRUSTED_DEVICE_TABLE = "user_mfa_trusted_device";
 
@@ -60,10 +64,6 @@ export const mfaTrustedDevices: SchemaMigration = {
       `[MIGRATION] 0004-mfa-trusted-devices: table ready, key ${TRUSTED_DEVICE_DAYS_ROW.key} ${added.length > 0 ? "added" : "already present and left untouched"}`,
     );
   },
-  down: () => {
-    // Reverting would drop the value an administrator may have set
-    return Promise.reject(
-      new Error("The trusted devices migration cannot be reverted."),
-    );
-  },
+  // Reverting would drop the value an administrator may have set
+  down: refuseRollback("trusted devices"),
 };

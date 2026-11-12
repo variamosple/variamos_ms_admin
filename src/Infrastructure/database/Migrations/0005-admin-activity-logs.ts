@@ -1,5 +1,9 @@
 import logger from "#src/common/logger.js";
-import type { MigrationContext, SchemaMigration } from "./MigrationContext.js";
+import {
+  type MigrationContext,
+  refuseRollback,
+  type SchemaMigration,
+} from "./MigrationContext.js";
 
 export const ACTIVITY_LOG_TABLE = "admin_activity_logs";
 
@@ -68,10 +72,6 @@ export const adminActivityLogs: SchemaMigration = {
       `[MIGRATION] 0005-admin-activity-logs: table ${ACTIVITY_LOG_TABLE} ready, append-only`,
     );
   },
-  down: () => {
-    // Reverting would erase the journal
-    return Promise.reject(
-      new Error("The activity journal migration cannot be reverted."),
-    );
-  },
+  // Reverting would erase the journal
+  down: refuseRollback("activity journal"),
 };

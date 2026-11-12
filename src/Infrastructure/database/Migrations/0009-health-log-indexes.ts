@@ -1,5 +1,9 @@
 import logger from "#src/common/logger.js";
-import type { MigrationContext, SchemaMigration } from "./MigrationContext.js";
+import {
+  type MigrationContext,
+  refuseRollback,
+  type SchemaMigration,
+} from "./MigrationContext.js";
 
 export const HEALTH_LOG_INDEX = "microservice_health_logs_service_checked_idx";
 export const DAILY_STATS_KEY = "microservice_daily_stats_service_date_key";
@@ -45,10 +49,6 @@ export const healthLogIndexes: SchemaMigration = {
       "[MIGRATION] 0009-health-log-indexes: health log index and one daily row per service ready",
     );
   },
-  down: () => {
-    // The duplicate rows removed cannot be restored
-    return Promise.reject(
-      new Error("The health log index migration cannot be reverted."),
-    );
-  },
+  // The duplicate rows removed cannot be restored
+  down: refuseRollback("health log index"),
 };

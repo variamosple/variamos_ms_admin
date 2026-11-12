@@ -1,5 +1,9 @@
 import logger from "#src/common/logger.js";
-import type { MigrationContext, SchemaMigration } from "./MigrationContext.js";
+import {
+  type MigrationContext,
+  refuseRollback,
+  type SchemaMigration,
+} from "./MigrationContext.js";
 
 export const BUG_ASSIGNEES_TABLE = "bug_assignees";
 
@@ -39,10 +43,6 @@ export const bugAssignees: SchemaMigration = {
       `[MIGRATION] 0007-bug-assignees: table ${BUG_ASSIGNEES_TABLE} ready`,
     );
   },
-  down: () => {
-    // Reverting would drop every assignment
-    return Promise.reject(
-      new Error("The bug assignees migration cannot be reverted."),
-    );
-  },
+  // Reverting would drop every assignment
+  down: refuseRollback("bug assignees"),
 };

@@ -8,3 +8,10 @@ export interface MigrationContext {
 }
 
 export type SchemaMigration = RunnableMigration<MigrationContext>;
+
+/**
+ * The rollback of a migration that cannot be undone: it refuses, naming the
+ * migration, instead of losing data or leaving the schema half reverted.
+ */
+export const refuseRollback = (subject: string) => (): Promise<never> =>
+  Promise.reject(new Error(`The ${subject} migration cannot be reverted.`));

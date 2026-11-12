@@ -1,6 +1,10 @@
 import { QueryTypes } from "sequelize";
 import logger from "#src/common/logger.js";
-import type { MigrationContext, SchemaMigration } from "./MigrationContext.js";
+import {
+  type MigrationContext,
+  refuseRollback,
+  type SchemaMigration,
+} from "./MigrationContext.js";
 
 // Opens the Laboratory: its backend checks it on every route, and the menu
 // shows the Laboratory tab with it
@@ -62,12 +66,6 @@ export const laboratoryAccessPermission: SchemaMigration = {
         : `[MIGRATION] 0012-laboratory-access-permission: no permission tables in this schema, ${LABORATORY_ACCESS_PERMISSION} to create in the Permissions page`,
     );
   },
-  down: () => {
-    // Reverting would take the permission from roles an administrator gave it to
-    return Promise.reject(
-      new Error(
-        "The Laboratory access permission migration cannot be reverted.",
-      ),
-    );
-  },
+  // Reverting would take the permission from roles an administrator gave it to
+  down: refuseRollback("Laboratory access permission"),
 };

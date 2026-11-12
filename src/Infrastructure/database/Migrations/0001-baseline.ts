@@ -1,6 +1,10 @@
 import { QueryTypes } from "sequelize";
 import logger from "#src/common/logger.js";
-import type { MigrationContext, SchemaMigration } from "./MigrationContext.js";
+import {
+  type MigrationContext,
+  refuseRollback,
+  type SchemaMigration,
+} from "./MigrationContext.js";
 
 interface BaselineTable {
   name: string;
@@ -219,10 +223,6 @@ export const baseline: SchemaMigration = {
       `[MIGRATION] 0001-baseline: ${created.length} table(s) created (${created.join(", ") || "none"}), ${BASELINE_TABLES.length - created.length} already present and left untouched`,
     );
   },
-  down: () => {
-    // Reverting would drop the tables and the data they hold
-    return Promise.reject(
-      new Error("The baseline migration cannot be reverted."),
-    );
-  },
+  // Reverting would drop the tables and the data they hold
+  down: refuseRollback("baseline"),
 };
