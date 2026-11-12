@@ -11,9 +11,62 @@ import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { INTERNAL_ERROR_MESSAGE } from "#src/Domain/Core/Error/InternalErrorMessage.js";
-import type { IIssueTrackerService } from "#src/Domain/Core/Service/IIssueTrackerService.js";
+import type {
+  GitHubIssue,
+  IIssueTrackerService,
+} from "#src/Domain/Core/Service/IIssueTrackerService.js";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { ALLOWED_CATEGORIES } from "./BugQueryUseCase.js";
+
+// The first group a label falls in gives the priority; "critical" is a
+// priority of its own since EV-84 lot 5: read back as "high", it would be
+// downgraded at every sync
+const PRIORITY_LABELS: readonly [BugPriorityValue, readonly string[]][] = [
+  ["critical", ["critical", "p0", "blocker"]],
+  ["high", ["high", "p1", "urg", "important"]],
+  ["low", ["low", "p3", "minor"]],
+];
+
+const priorityOf = (labels: string[]): BugPriorityValue =>
+  PRIORITY_LABELS.find(([, words]) =>
+    labels.some((label) => words.some((word) => label.includes(word))),
+  )?.[0] ?? "medium";
+
+// The first label that names a known category
+const categoryOf = (labels: string[]): string | undefined => {
+  for (const label of labels) {
+    const category = ALLOWED_CATEGORIES.find(
+      (allowed) => allowed.toLowerCase() === label,
+    );
+    if (category) return category;
+  }
+  return undefined;
+};
+
+/** The bug a GitHub issue stands for, keeping its local status. */
+const bugOfIssue = (
+  issue: GitHubIssue,
+  repo: string,
+  localStatus: string | undefined,
+): Bug => {
+  const labels = Array.isArray(issue.labels)
+    ? issue.labels.map((label) => label.name.toLowerCase())
+    : [];
+  return Bug.builder()
+    .setTitle(issue.title)
+    .setDescription(issue.body || "No description provided.")
+    .setPriority(priorityOf(labels))
+    .setCategory(categoryOf(labels))
+    .setStatus(statusFromGitHub(issue.state, localStatus))
+    .setGithubRepo(repo)
+    .setGitIssueNumber(issue.number)
+    .setGithubCreator(issue.user?.login || "System")
+    .setGithubHtmlUrl(issue.html_url || "")
+    .setGithubAssignee(issue.assignee?.login || undefined)
+    .setCreatedAt(new Date(issue.created_at || ""))
+    .setUpdatedAt(new Date(issue.updated_at || issue.created_at || ""))
+    .build();
+};
 
 /** What the GitHub sync of the bugs reads and writes. */
 export interface BugSyncUseCaseDependencies {
@@ -82,14 +135,7 @@ export class BugSyncUseCase {
   ): Promise<ResponseModel<void>> {
     const response = new ResponseModel<void>(request.transactionId);
     try {
-      const appId = this.githubConfig.getGitHubAppId?.()?.trim();
-      const privateKey = this.githubConfig.getGitHubPrivateKey?.()?.trim();
-      const patToken = this.githubConfig.getGitHubToken()?.trim();
-
-      const hasAppConfig = Boolean(appId && privateKey);
-      const hasPatConfig = Boolean(patToken);
-
-      if (!hasAppConfig && !hasPatConfig) {
+      if (!this.isConfigured()) {
         this.logger.warn(
           "GitHub token is not defined in environment variables. Synchronization aborted.",
         );
@@ -104,105 +150,10 @@ export class BugSyncUseCase {
 
       let totalCreated = 0;
       let totalUpdated = 0;
-
       for (const repo of repos) {
-        const token = await this.tokenResolver.resolveGitHubToken(repo);
-        if (!token) {
-          this.logger.warn(
-            `GitHub token could not be resolved for repo: ${repo}. Skipping.`,
-          );
-          continue;
-        }
-        const issues = await this.issueTrackerService.getIssues(repo, token);
-        if (!issues) continue;
-
-        // Without the local statuses, a synchronization would bring In
-        // Progress or Resolved back to open or closed: the repository waits
-        const localStatuses = await this.localStatusesOf(
-          repo,
-          request.transactionId,
-        );
-        if (!localStatuses) {
-          this.logger.warn(
-            `Local bugs of ${repo} could not be read. Skipping its synchronization.`,
-          );
-          continue;
-        }
-
-        for (const issue of issues) {
-          if (issue.pull_request) continue;
-
-          let priority: BugPriorityValue = "medium";
-          let category: string | undefined;
-          if (issue.labels && Array.isArray(issue.labels)) {
-            const labelNames = issue.labels.map((l) => l.name.toLowerCase());
-            // "critical" is a priority of its own since EV-84 lot 5; read
-            // back as "high", it would be downgraded at every sync
-            if (
-              labelNames.some(
-                (n: string) =>
-                  n.includes("critical") ||
-                  n.includes("p0") ||
-                  n.includes("blocker"),
-              )
-            ) {
-              priority = "critical";
-            } else if (
-              labelNames.some(
-                (n: string) =>
-                  n.includes("high") ||
-                  n.includes("p1") ||
-                  n.includes("urg") ||
-                  n.includes("important"),
-              )
-            ) {
-              priority = "high";
-            } else if (
-              labelNames.some(
-                (n: string) =>
-                  n.includes("low") || n.includes("p3") || n.includes("minor"),
-              )
-            ) {
-              priority = "low";
-            }
-
-            for (const label of labelNames) {
-              const matchedCategory = ALLOWED_CATEGORIES.find(
-                (cat) => cat.toLowerCase() === label,
-              );
-              if (matchedCategory) {
-                category = matchedCategory;
-                break;
-              }
-            }
-          }
-
-          const bugEntity = Bug.builder()
-            .setTitle(issue.title)
-            .setDescription(issue.body || "No description provided.")
-            .setPriority(priority)
-            .setCategory(category)
-            .setStatus(
-              statusFromGitHub(issue.state, localStatuses.get(issue.number)),
-            )
-            .setGithubRepo(repo)
-            .setGitIssueNumber(issue.number)
-            .setGithubCreator(issue.user?.login || "System")
-            .setGithubHtmlUrl(issue.html_url || "")
-            .setGithubAssignee(issue.assignee?.login || undefined)
-            .setCreatedAt(new Date(issue.created_at || ""))
-            .setUpdatedAt(new Date(issue.updated_at || issue.created_at || ""))
-            .build();
-
-          const saveResponse = await this.bugRepository.saveOrUpdateBug(
-            new RequestModel(request.transactionId, bugEntity),
-          );
-
-          if (saveResponse.data) {
-            if (saveResponse.data.created) totalCreated++;
-            if (saveResponse.data.updated) totalUpdated++;
-          }
-        }
+        const counts = await this.synchronizeRepo(repo, request.transactionId);
+        totalCreated += counts.created;
+        totalUpdated += counts.updated;
       }
 
       this.logger.info(
@@ -213,6 +164,52 @@ export class BugSyncUseCase {
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
     }
     return response;
+  }
+
+  // A GitHub App, or else a personal token
+  private isConfigured(): boolean {
+    const appId = this.githubConfig.getGitHubAppId?.()?.trim();
+    const privateKey = this.githubConfig.getGitHubPrivateKey?.()?.trim();
+    const patToken = this.githubConfig.getGitHubToken()?.trim();
+    return Boolean(appId && privateKey) || Boolean(patToken);
+  }
+
+  /** Saves the issues of one repository; a repository that fails is skipped. */
+  private async synchronizeRepo(
+    repo: string,
+    transactionId: string | undefined,
+  ): Promise<{ created: number; updated: number }> {
+    const counts = { created: 0, updated: 0 };
+    const token = await this.tokenResolver.resolveGitHubToken(repo);
+    if (!token) {
+      this.logger.warn(
+        `GitHub token could not be resolved for repo: ${repo}. Skipping.`,
+      );
+      return counts;
+    }
+    const issues = await this.issueTrackerService.getIssues(repo, token);
+    if (!issues) return counts;
+
+    // Without the local statuses, a synchronization would bring In
+    // Progress or Resolved back to open or closed: the repository waits
+    const localStatuses = await this.localStatusesOf(repo, transactionId);
+    if (!localStatuses) {
+      this.logger.warn(
+        `Local bugs of ${repo} could not be read. Skipping its synchronization.`,
+      );
+      return counts;
+    }
+
+    for (const issue of issues) {
+      if (issue.pull_request) continue;
+      const bug = bugOfIssue(issue, repo, localStatuses.get(issue.number));
+      const saveResponse = await this.bugRepository.saveOrUpdateBug(
+        new RequestModel(transactionId, bug),
+      );
+      if (saveResponse.data?.created) counts.created++;
+      if (saveResponse.data?.updated) counts.updated++;
+    }
+    return counts;
   }
 
   private async localStatusesOf(

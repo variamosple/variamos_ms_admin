@@ -6,6 +6,7 @@ import {
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import {
   BUG_COMPONENT_LABELS,
+  type BugComponentValue,
   isBugComponent,
 } from "#src/Domain/Bug/Entity/BugComponent.js";
 import type { BugPriorityValue } from "#src/Domain/Bug/Entity/BugPriority.js";
@@ -17,6 +18,7 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import {
   ALLOWED_FILE_TYPES_LABEL,
+  type AllowedFileType,
   detectAllowedFileType,
 } from "#src/Domain/Core/File/AllowedFileType.js";
 import type { UploadedFile } from "#src/Domain/Core/File/UploadedFile.js";
@@ -65,6 +67,33 @@ export interface BugSubmissionUseCaseDependencies {
   logger: ILogger;
 }
 
+/** The issue a bug opened on GitHub. */
+interface PublishedIssue {
+  gitIssueNumber: number;
+  githubHtmlUrl: string;
+}
+
+/** The text of the issue an administrator's report opens. */
+const issueBodyOf = (
+  data: BugSubmissionData,
+  component: BugComponentValue | undefined,
+  attachment: { url: string; type: string } | undefined,
+) => {
+  let issueBody = data.description || "No description provided.";
+  issueBody += "\n\n---\n*Reported directly by Admin*";
+  if (data.priority) {
+    issueBody += `\n*Priority: ${data.priority}*`;
+  }
+  issueBody += `\n*Category: ${data.category}*`;
+  if (component) {
+    issueBody += `\n*Component: ${BUG_COMPONENT_LABELS[component]}*`;
+  }
+  if (attachment) {
+    issueBody += `\n\n### Attachments\n- [Attachment](${attachment.url}) (Type: ${attachment.type})`;
+  }
+  return issueBody;
+};
+
 /** The log comment of a submission: by an admin, a user or a guest. */
 const submissionComment = (createdById: string | undefined, status: string) => {
   if (!createdById) return "Bug submitted locally by guest.";
@@ -104,101 +133,22 @@ export class BugSubmissionUseCase {
   public async createBug(
     request: RequestModel<BugSubmissionData>,
   ): Promise<ResponseModel<Bug>> {
+    const refuse = (message: string) =>
+      new ResponseModel<Bug>(request.transactionId).withErrorPromise(
+        DomainErrorCodes.INVALID_INPUT,
+        message,
+      );
     const data = request.data;
-    if (!data) {
-      const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(
-        DomainErrorCodes.INVALID_INPUT,
-        "Request data is required.",
-      );
-    }
-
-    if (!data.title || !data.description || !data.category) {
-      const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(
-        DomainErrorCodes.INVALID_INPUT,
-        "Title, description and category are required.",
-      );
-    }
-
-    try {
-      Bug.builder()
-        .setTitle(data.title)
-        .setDescription(data.description)
-        .setPriority(data.priority)
-        .setComponent(data.component)
-        .build();
-    } catch (error) {
-      const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(
-        DomainErrorCodes.INVALID_INPUT,
-        errorMessage(error),
-      );
-    }
-
-    if (!ALLOWED_CATEGORIES.includes(data.category)) {
-      const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(
-        DomainErrorCodes.INVALID_INPUT,
-        `Invalid category selected. Allowed: ${ALLOWED_CATEGORIES.join(", ")}`,
-      );
-    }
-
-    if (
-      data.githubRepo &&
-      !isManagedRepository(this.githubConfig, data.githubRepo)
-    ) {
-      const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(
-        DomainErrorCodes.INVALID_INPUT,
-        UNMANAGED_REPOSITORY_MESSAGE,
-      );
-    }
+    if (!data) return refuse("Request data is required.");
 
     const fileType = data.file
       ? detectAllowedFileType(data.file.content, data.file.originalName)
       : null;
-    if (data.file && !fileType) {
-      const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(
-        DomainErrorCodes.INVALID_INPUT,
-        `Unsupported file type. Allowed: ${ALLOWED_FILE_TYPES_LABEL}.`,
-      );
-    }
+    const refusal = this.refusalOf(data, fileType);
+    if (refusal) return refuse(refusal);
 
-    if (!data.createdById && !data.reporterEmail) {
-      const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(
-        DomainErrorCodes.INVALID_INPUT,
-        "An email address is required for guest bug submissions.",
-      );
-    }
-
-    let reporterEmail = data.reporterEmail;
-    let resolvedCreatedById: string | undefined = data.createdById;
-
-    if (data.createdById) {
-      // A closed account reports as a guest would
-      const userResponse = refuseClosedAccount(
-        await this.userRepository.findSessionUser(
-          new RequestModel(request.transactionId, data.createdById),
-        ),
-        DomainErrorCodes.INVALID_INPUT,
-      );
-      if (userResponse.data?.email) {
-        reporterEmail = userResponse.data.email;
-      } else {
-        resolvedCreatedById = undefined;
-      }
-    }
-
-    if (!reporterEmail) {
-      const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(
-        DomainErrorCodes.INVALID_INPUT,
-        "Reporter email could not be resolved.",
-      );
-    }
+    const reporter = await this.reporterOf(request.transactionId, data);
+    if (!reporter.email) return refuse("Reporter email could not be resolved.");
 
     // The file is written only once the request is valid, and removed again
     // if the bug cannot be recorded.
@@ -211,14 +161,79 @@ export class BugSubmissionUseCase {
       resolvedFile = { filePath, fileType: fileType.mimeType };
     }
 
+    return this.submitOrRemoveFile({
+      transactionId: request.transactionId,
+      data,
+      reporterEmail: reporter.email,
+      resolvedCreatedById: reporter.createdById,
+      resolvedFile,
+    });
+  }
+
+  /** Why the submission is refused, in the order the form shows it. */
+  private refusalOf(
+    data: BugSubmissionData,
+    fileType: AllowedFileType | null,
+  ): string | null {
+    if (!data.title || !data.description || !data.category) {
+      return "Title, description and category are required.";
+    }
     try {
-      const response = await this.submitBug({
-        transactionId: request.transactionId,
-        data,
-        reporterEmail,
-        resolvedCreatedById,
-        resolvedFile,
-      });
+      Bug.builder()
+        .setTitle(data.title)
+        .setDescription(data.description)
+        .setPriority(data.priority)
+        .setComponent(data.component)
+        .build();
+    } catch (error) {
+      return errorMessage(error);
+    }
+    if (!ALLOWED_CATEGORIES.includes(data.category)) {
+      return `Invalid category selected. Allowed: ${ALLOWED_CATEGORIES.join(", ")}`;
+    }
+    if (
+      data.githubRepo &&
+      !isManagedRepository(this.githubConfig, data.githubRepo)
+    ) {
+      return UNMANAGED_REPOSITORY_MESSAGE;
+    }
+    if (data.file && !fileType) {
+      return `Unsupported file type. Allowed: ${ALLOWED_FILE_TYPES_LABEL}.`;
+    }
+    if (!data.createdById && !data.reporterEmail) {
+      return "An email address is required for guest bug submissions.";
+    }
+    return null;
+  }
+
+  /**
+   * The address and account of the reporter: those of the account when it
+   * is open; a closed account reports as a guest would.
+   */
+  private async reporterOf(
+    transactionId: string | undefined,
+    data: BugSubmissionData,
+  ): Promise<{ email?: string; createdById?: string }> {
+    if (!data.createdById) return { email: data.reporterEmail };
+    const userResponse = refuseClosedAccount(
+      await this.userRepository.findSessionUser(
+        new RequestModel(transactionId, data.createdById),
+      ),
+      DomainErrorCodes.INVALID_INPUT,
+    );
+    const email = userResponse.data?.email;
+    return email
+      ? { email, createdById: data.createdById }
+      : { email: data.reporterEmail };
+  }
+
+  // The stored file is removed when the bug is not recorded
+  private async submitOrRemoveFile(
+    submission: BugSubmission,
+  ): Promise<ResponseModel<Bug>> {
+    const { resolvedFile, resolvedCreatedById } = submission;
+    try {
+      const response = await this.submitBug(submission);
       if (response.errorCode && resolvedFile) {
         await this.storageService.deleteFile(resolvedFile.filePath);
       }
@@ -256,64 +271,25 @@ export class BugSubmissionUseCase {
         ? data.component
         : undefined;
     let status = "pending";
-    let gitIssueNumber: number | undefined;
-    let githubHtmlUrl: string | undefined;
+    let issue: PublishedIssue | undefined;
 
     // Only a session tied to an existing account publishes directly; the
     // other reports wait for an administrator's approval
     if (data.githubRepo && resolvedCreatedById) {
-      const gitHubToken = await this.tokenResolver.resolveGitHubToken(
-        data.githubRepo,
-      );
-      if (gitHubToken) {
-        let issueBody = data.description || "No description provided.";
-        issueBody += "\n\n---\n*Reported directly by Admin*";
-        if (data.priority) {
-          issueBody += `\n*Priority: ${data.priority}*`;
-        }
-        issueBody += `\n*Category: ${data.category}*`;
-        if (component) {
-          issueBody += `\n*Component: ${BUG_COMPONENT_LABELS[component]}*`;
-        }
-        if (resolvedFile) {
-          const fileUrl = `${this.githubConfig.getApiBaseUrl?.() || "http://localhost:4000"}${resolvedFile.filePath}`;
-          issueBody += `\n\n### Attachments\n- [Attachment](${fileUrl}) (Type: ${resolvedFile.fileType})`;
-        }
-
-        const labels = ["bug", data.category.toLowerCase()];
-        if (data.priority) {
-          labels.push(data.priority.toLowerCase());
-        }
-
-        const issueNum = await this.issueTrackerService.createIssue(
-          data.githubRepo,
-          { title: data.title, body: issueBody, labels: labels },
-          gitHubToken,
-        );
-        if (issueNum) {
-          status = "open";
-          gitIssueNumber = issueNum;
-          githubHtmlUrl = `https://github.com/${data.githubRepo}/issues/${issueNum}`;
-        } else {
-          this.logger.warn(
-            `Bug submission refused: the issue could not be created on ${data.githubRepo}.`,
-          );
-          const response = new ResponseModel<Bug>(transactionId);
-          return response.withErrorPromise(
-            DomainErrorCodes.INVALID_INPUT,
-            "Failed to push bug to GitHub repository. Please verify repository existence and permissions.",
-          );
-        }
-      } else {
-        this.logger.warn(
-          `Bug submission refused: no GitHub token for ${data.githubRepo}.`,
-        );
-        const response = new ResponseModel<Bug>(transactionId);
-        return response.withErrorPromise(
+      const published = await this.publish({
+        repo: data.githubRepo,
+        data,
+        component,
+        resolvedFile,
+      });
+      if (typeof published === "string") {
+        return new ResponseModel<Bug>(transactionId).withErrorPromise(
           DomainErrorCodes.INVALID_INPUT,
-          "GitHub integration token is not configured.",
+          published,
         );
       }
+      status = "open";
+      issue = published;
     }
 
     return this.bugRepository.createBug(
@@ -329,9 +305,51 @@ export class BugSubmissionUseCase {
         reporterEmail,
         status,
         logComment: submissionComment(resolvedCreatedById, status),
-        gitIssueNumber,
-        githubHtmlUrl,
+        gitIssueNumber: issue?.gitIssueNumber,
+        githubHtmlUrl: issue?.githubHtmlUrl,
       }),
     );
+  }
+
+  /** Opens the GitHub issue of the bug; a string tells why it failed. */
+  private async publish(bug: {
+    repo: string;
+    data: BugSubmissionData;
+    component: BugComponentValue | undefined;
+    resolvedFile: StoredFile | undefined;
+  }): Promise<PublishedIssue | string> {
+    const { repo, data, component, resolvedFile } = bug;
+    const gitHubToken = await this.tokenResolver.resolveGitHubToken(repo);
+    if (!gitHubToken) {
+      this.logger.warn(`Bug submission refused: no GitHub token for ${repo}.`);
+      return "GitHub integration token is not configured.";
+    }
+    const attachment = resolvedFile && {
+      url: `${this.githubConfig.getApiBaseUrl?.() || "http://localhost:4000"}${resolvedFile.filePath}`,
+      type: resolvedFile.fileType,
+    };
+    const labels = ["bug", data.category.toLowerCase()];
+    if (data.priority) {
+      labels.push(data.priority.toLowerCase());
+    }
+    const issueNum = await this.issueTrackerService.createIssue(
+      repo,
+      {
+        title: data.title,
+        body: issueBodyOf(data, component, attachment),
+        labels,
+      },
+      gitHubToken,
+    );
+    if (!issueNum) {
+      this.logger.warn(
+        `Bug submission refused: the issue could not be created on ${repo}.`,
+      );
+      return "Failed to push bug to GitHub repository. Please verify repository existence and permissions.";
+    }
+    return {
+      gitIssueNumber: issueNum,
+      githubHtmlUrl: `https://github.com/${repo}/issues/${issueNum}`,
+    };
   }
 }

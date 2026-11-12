@@ -71,6 +71,20 @@ const signInFailureReason = (
     : "invalid_credentials";
 };
 
+// A code as typed: some text, at most 32 characters
+const isCodeShaped = (code: unknown): code is string =>
+  typeof code === "string" && code.trim() !== "" && code.length <= 32;
+
+/** The session of an account, as its token carries it. */
+const sessionUserOf = (account: User, email = account.email): SessionUser => ({
+  id: account.id || "",
+  name: account.name,
+  email,
+  user: account.user,
+  roles: account.roles,
+  permissions: account.permissions,
+});
+
 /** Body of GET /auth/session-info: an HTTP shape, not a domain entity. */
 interface SessionInfoResponse {
   user: SessionUser | null;
@@ -275,6 +289,37 @@ export function createAuthRouter(dependencies: AuthRouterDependencies): Router {
       : `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`;
   };
 
+  // The answer to a session that cannot be refreshed: sign in again
+  const sessionExpired = (
+    res: Response,
+    response: ResponseModel<SessionInfoResponse>,
+  ) => {
+    res
+      .status(HttpStatusCodes.UNAUTHORIZED)
+      .json(
+        response.withError(
+          DomainErrorCodes.UNAUTHORIZED_ACCESS,
+          "Your session has expired, please log in again.",
+        ),
+      );
+  };
+
+  /** The account of a session read again; null when it is gone or closed. */
+  const reloadSessionUser = async (
+    sub: string | undefined,
+    tokenRoles: string[] | undefined,
+  ): Promise<SessionUser | null> => {
+    const isGuest =
+      tokenRoles?.some((role: string) => role.toLowerCase() === "guest") ??
+      false;
+    const request = new RequestModel<string>("getSessionInfo", sub);
+    const refreshedUser = isGuest
+      ? await userAuthUseCase.getGuestData(request)
+      : await userQueryUseCase.sessionUser(request);
+    if (refreshedUser.errorCode || !refreshedUser.data) return null;
+    return sessionUserOf(refreshedUser.data);
+  };
+
   authRouter.get("/session-info", async (req: Request, res) => {
     const response = new ResponseModel<SessionInfoResponse>("getSessionInfo");
 
@@ -300,86 +345,20 @@ export function createAuthRouter(dependencies: AuthRouterDependencies): Router {
         return;
       }
 
-      if (!user?.iat) {
-        res
-          .status(HttpStatusCodes.UNAUTHORIZED)
-          .json(
-            response.withError(
-              DomainErrorCodes.UNAUTHORIZED_ACCESS,
-              "Your session has expired, please log in again.",
-            ),
-          );
+      // An expired token is refreshed until the cookie's own age
+      if (
+        !user?.iat ||
+        Date.now() > user.iat * 1000 + EnvVars.CookieProps.Options.maxAge
+      ) {
+        sessionExpired(res, response);
         return;
       }
 
-      const currentDateInMs = Date.now();
-
-      // Get max refresh time
-      const refreshTimeInMs =
-        user.iat * 1000 + EnvVars.CookieProps.Options.maxAge;
-
-      if (currentDateInMs > refreshTimeInMs) {
-        res
-          .status(HttpStatusCodes.UNAUTHORIZED)
-          .json(
-            response.withError(
-              DomainErrorCodes.UNAUTHORIZED_ACCESS,
-              "Your session has expired, please log in again.",
-            ),
-          );
+      const sessionUser = await reloadSessionUser(user.sub, user.roles);
+      if (!sessionUser) {
+        sessionExpired(res, response);
         return;
       }
-
-      const isGuest =
-        user.roles?.some((role: string) => role.toLowerCase() === "guest") ??
-        false;
-
-      const findSessionUserRequest = new RequestModel<string>(
-        "getSessionInfo",
-        user.sub,
-      );
-
-      let refreshedUser: ResponseModel<User>;
-
-      if (isGuest) {
-        refreshedUser = await userAuthUseCase.getGuestData(
-          findSessionUserRequest,
-        );
-      } else {
-        refreshedUser = await userQueryUseCase.sessionUser(
-          findSessionUserRequest,
-        );
-      }
-
-      if (refreshedUser.errorCode || !refreshedUser.data) {
-        res
-          .status(HttpStatusCodes.UNAUTHORIZED)
-          .json(
-            response.withError(
-              DomainErrorCodes.UNAUTHORIZED_ACCESS,
-              "Your session has expired, please log in again.",
-            ),
-          );
-        return;
-      }
-
-      const {
-        id,
-        name,
-        user: userName,
-        email,
-        roles,
-        permissions,
-      } = refreshedUser.data;
-
-      const sessionUser: SessionUser = {
-        id: id || "",
-        name,
-        email,
-        user: userName,
-        roles,
-        permissions,
-      };
       // A token issued between #183 and its revert holds the audience
       // ["variamos-platform", host], which vms_projects (Python
       // variamos-security 0.0.2) cannot read: the refreshed token holds the
@@ -392,20 +371,17 @@ export function createAuthRouter(dependencies: AuthRouterDependencies): Router {
       const redirect = getRedirectUrl("getSessionInfo", req, res);
       setRedirectAuthToken(redirect, token);
 
+      // The token is given to a page of another site only
+      const origin = getUrl(response.transactionId || "", req.headers.origin);
+      const shared =
+        isExternalDomain(host) && isExternalDomain(origin?.hostname);
       res
         .cookie("authToken", token, getCookieOptions())
         .status(200)
         .json(
           response.withResponse({
             user: sessionUser,
-            authToken:
-              isExternalDomain(host) &&
-              isExternalDomain(
-                getUrl(response.transactionId || "", req.headers.origin)
-                  ?.hostname,
-              )
-                ? token
-                : undefined,
+            authToken: shared ? token : undefined,
             redirect: redirect?.toString(),
           }),
         );
@@ -468,22 +444,8 @@ export function createAuthRouter(dependencies: AuthRouterDependencies): Router {
         return;
       }
 
-      const {
-        id,
-        name,
-        user: username,
-        roles,
-        permissions,
-      } = singInResponse.data;
-
-      const sessionUser: SessionUser = {
-        id: id || "",
-        name,
-        email,
-        user: username,
-        roles,
-        permissions,
-      };
+      // The address typed at sign-in, as before
+      const sessionUser = sessionUserOf(singInResponse.data, email);
 
       // With a second factor, no session until the code is right
       const pendingToken = await mfaSignIn.begin(
@@ -516,6 +478,84 @@ export function createAuthRouter(dependencies: AuthRouterDependencies): Router {
     }
   });
 
+  // A wrong code keeps the pending sign-in; any other failure ends it
+  const refuseMfaCode = (
+    req: Request,
+    res: Response,
+    checked: ResponseModel<string>,
+    pendingUserId: string | null,
+  ) => {
+    recordAccess(accessJournal, req, res, {
+      event: "sign-in.mfa",
+      outcome: "failed",
+      reason: MFA_FAILURES[String(checked.errorCode)] ?? "failed",
+      userId: pendingUserId,
+    });
+    if (checked.errorCode !== DomainErrorCodes.INVALID_INPUT) {
+      res.clearCookie(MFA_PENDING_COOKIE, getCookieOptions({ maxAge: false }));
+    }
+    res.status(mapDomainErrorToHttpStatus(checked.errorCode)).json(checked);
+  };
+
+  // A trusted device skips the code for some days
+  const trustDevice = async (res: Response, userId: string) => {
+    const trusted = await mfaSignIn.trustDevice(userId);
+    if (trusted) {
+      res.cookie(
+        MFA_TRUSTED_COOKIE,
+        trusted.token,
+        mfaTrustedCookieOptions(trusted.maxAgeMs),
+      );
+    }
+  };
+
+  /**
+   * Opens the session once the code is right, or refuses an account closed
+   * since the password was typed.
+   */
+  const finishMfaSignIn = async (
+    req: Request,
+    res: Response,
+    signIn: { userId: string; account?: User | null; rememberDevice: boolean },
+  ) => {
+    const transactionId = "signInMfa";
+    const response = new ResponseModel<SingInResponse>(transactionId);
+    const { userId, account, rememberDevice } = signIn;
+    if (!account) {
+      recordAccess(accessJournal, req, res, {
+        event: "sign-in.mfa",
+        outcome: "failed",
+        reason: "account_inactive",
+        userId,
+      });
+      res
+        .status(HttpStatusCodes.UNAUTHORIZED)
+        .json(
+          response.withError(
+            DomainErrorCodes.UNAUTHORIZED_ACCESS,
+            "Your sign-in has expired, please sign in again.",
+          ),
+        );
+      return;
+    }
+    recordAccess(accessJournal, req, res, {
+      event: "sign-in.mfa",
+      outcome: "success",
+      reason: null,
+      userId,
+    });
+    if (rememberDevice) await trustDevice(res, userId);
+    response.data = {
+      redirect: await openSession(
+        transactionId,
+        req,
+        res,
+        sessionUserOf(account),
+      ),
+    };
+    res.status(200).json(response);
+  };
+
   authRouter.post("/sign-in/mfa", async (req, res) => {
     const transactionId = "signInMfa";
     const response = new ResponseModel<SingInResponse>(transactionId);
@@ -526,7 +566,7 @@ export function createAuthRouter(dependencies: AuthRouterDependencies): Router {
     const clearPending = () =>
       res.clearCookie(MFA_PENDING_COOKIE, getCookieOptions({ maxAge: false }));
 
-    if (typeof code !== "string" || !code.trim() || code.length > 32) {
+    if (!isCodeShaped(code)) {
       res
         .status(HttpStatusCodes.BAD_REQUEST)
         .json(
@@ -549,16 +589,7 @@ export function createAuthRouter(dependencies: AuthRouterDependencies): Router {
         code,
       );
       if (checked.errorCode || !checked.data) {
-        recordAccess(accessJournal, req, res, {
-          event: "sign-in.mfa",
-          outcome: "failed",
-          reason: MFA_FAILURES[String(checked.errorCode)] ?? "failed",
-          userId: pendingUserId,
-        });
-        if (checked.errorCode !== DomainErrorCodes.INVALID_INPUT) {
-          clearPending();
-        }
-        res.status(mapDomainErrorToHttpStatus(checked.errorCode)).json(checked);
+        refuseMfaCode(req, res, checked, pendingUserId);
         return;
       }
 
@@ -567,59 +598,11 @@ export function createAuthRouter(dependencies: AuthRouterDependencies): Router {
         new RequestModel<string>(transactionId, checked.data),
       );
       clearPending();
-      if (found.errorCode || !found.data) {
-        recordAccess(accessJournal, req, res, {
-          event: "sign-in.mfa",
-          outcome: "failed",
-          reason: "account_inactive",
-          userId: checked.data,
-        });
-        res
-          .status(HttpStatusCodes.UNAUTHORIZED)
-          .json(
-            response.withError(
-              DomainErrorCodes.UNAUTHORIZED_ACCESS,
-              "Your sign-in has expired, please sign in again.",
-            ),
-          );
-        return;
-      }
-
-      const {
-        id,
-        name,
-        user: username,
-        email,
-        roles,
-        permissions,
-      } = found.data;
-      recordAccess(accessJournal, req, res, {
-        event: "sign-in.mfa",
-        outcome: "success",
-        reason: null,
+      await finishMfaSignIn(req, res, {
         userId: checked.data,
+        account: found.errorCode ? undefined : found.data,
+        rememberDevice: rememberDevice === true,
       });
-      if (rememberDevice === true) {
-        const trusted = await mfaSignIn.trustDevice(checked.data);
-        if (trusted) {
-          res.cookie(
-            MFA_TRUSTED_COOKIE,
-            trusted.token,
-            mfaTrustedCookieOptions(trusted.maxAgeMs),
-          );
-        }
-      }
-      response.data = {
-        redirect: await openSession(transactionId, req, res, {
-          id: id || "",
-          name,
-          email,
-          user: username,
-          roles,
-          permissions,
-        }),
-      };
-      res.status(200).json(response);
     } catch (err) {
       sendError(res, err, transactionId);
     }
@@ -697,6 +680,60 @@ export function createAuthRouter(dependencies: AuthRouterDependencies): Router {
     }
   };
 
+  /**
+   * A refused Google sign-in, recorded with its reason; the login page
+   * shows the message of a reason code, never a text read from its address
+   * (T-16).
+   */
+  const refuseGoogleSignIn = async (
+    req: Request,
+    res: Response,
+    response: ResponseModel<User>,
+    email: string | undefined,
+  ) => {
+    const inactive = response.errorCode === DomainErrorCodes.FORBIDDEN;
+    const refusal = GOOGLE_SIGN_IN_REFUSALS.find(
+      (code) => code === response.message,
+    );
+    const account = email ? await accessJournal.accountByEmail(email) : null;
+    recordAccess(accessJournal, req, res, {
+      event: "sign-in.google",
+      outcome: "failed",
+      reason: inactive ? "account_inactive" : (refusal ?? "sign_in_failed"),
+      userId: account?.id,
+    });
+    const reason = inactive ? "account-inactive" : "sign-in-failed";
+    res.redirect(
+      302,
+      `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?reason=${reason}`,
+    );
+  };
+
+  // An error after the checks: recorded once, back to the login page
+  const failGoogleSignIn = (req: Request, res: Response) => {
+    if (!res.locals.accessRecorded) {
+      recordAccess(accessJournal, req, res, {
+        event: "sign-in.google",
+        outcome: "failed",
+        reason: "sign_in_failed",
+      });
+    }
+    res.redirect(
+      302,
+      `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?reason=sign-in-failed`,
+    );
+  };
+
+  // The login page asks the code of the second factor
+  const askGoogleMfaCode = async (res: Response, pendingToken: string) => {
+    res.cookie(MFA_PENDING_COOKIE, pendingToken, mfaPendingCookieOptions());
+    const days = await mfaSignIn.trustedDeviceDays();
+    res.redirect(
+      302,
+      `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?mfa=required&trustedDeviceDays=${days}`,
+    );
+  };
+
   authRouter.post("/google/callback", async (req, res) => {
     const transactionId = "loginWithGoogle";
     const body = readBody(googleCallbackBody, req, res, transactionId);
@@ -719,24 +756,7 @@ export function createAuthRouter(dependencies: AuthRouterDependencies): Router {
       // The login page shows the message of a reason code, never a text
       // read from its address (T-16)
       if (response.errorCode) {
-        const inactive = response.errorCode === DomainErrorCodes.FORBIDDEN;
-        const refusal = GOOGLE_SIGN_IN_REFUSALS.find(
-          (code) => code === response.message,
-        );
-        const account = profile.email
-          ? await accessJournal.accountByEmail(profile.email)
-          : null;
-        recordAccess(accessJournal, req, res, {
-          event: "sign-in.google",
-          outcome: "failed",
-          reason: inactive ? "account_inactive" : (refusal ?? "sign_in_failed"),
-          userId: account?.id,
-        });
-        const reason = inactive ? "account-inactive" : "sign-in-failed";
-        res.redirect(
-          302,
-          `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?reason=${reason}`,
-        );
+        await refuseGoogleSignIn(req, res, response, profile.email);
         return;
       }
 
@@ -753,23 +773,7 @@ export function createAuthRouter(dependencies: AuthRouterDependencies): Router {
         return;
       }
 
-      const {
-        id,
-        name,
-        user: username,
-        email,
-        roles,
-        permissions,
-      } = response.data;
-
-      const sessionUser: SessionUser = {
-        id: id || "",
-        name,
-        email,
-        user: username,
-        roles,
-        permissions,
-      };
+      const sessionUser = sessionUserOf(response.data);
 
       const pendingToken = await mfaSignIn.begin(
         sessionUser.id,
@@ -782,12 +786,7 @@ export function createAuthRouter(dependencies: AuthRouterDependencies): Router {
         userId: sessionUser.id,
       });
       if (pendingToken) {
-        res.cookie(MFA_PENDING_COOKIE, pendingToken, mfaPendingCookieOptions());
-        const days = await mfaSignIn.trustedDeviceDays();
-        res.redirect(
-          302,
-          `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?mfa=required&trustedDeviceDays=${days}`,
-        );
+        await askGoogleMfaCode(res, pendingToken);
         return;
       }
 
@@ -802,17 +801,7 @@ export function createAuthRouter(dependencies: AuthRouterDependencies): Router {
       res.redirect(302, `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`);
     } catch (err) {
       logger.err(describeError(err));
-      if (!res.locals.accessRecorded) {
-        recordAccess(accessJournal, req, res, {
-          event: "sign-in.google",
-          outcome: "failed",
-          reason: "sign_in_failed",
-        });
-      }
-      res.redirect(
-        302,
-        `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?reason=sign-in-failed`,
-      );
+      failGoogleSignIn(req, res);
     }
   });
 

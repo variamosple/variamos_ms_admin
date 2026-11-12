@@ -204,6 +204,14 @@ function buildRouter(accessGuard: AccessGuard) {
   }
 
   const routes = new Set<string>();
+  // The path a sub-router is mounted on; each mount is used once
+  const mountOf = (
+    children: { path: string; child: unknown }[],
+    handle: unknown,
+  ) => {
+    const index = children.findIndex((c) => c.child === handle);
+    return index >= 0 ? (children.splice(index, 1)[0]?.path ?? "") : "";
+  };
   const walk = (current: { stack: Layer[] }, prefix: string) => {
     const children = [...(mounts.get(current) ?? [])];
     for (const layer of current.stack) {
@@ -212,9 +220,7 @@ function buildRouter(accessGuard: AccessGuard) {
           routes.add(keyOf(method, prefix + layer.route.path));
         }
       } else if (layer.handle.stack) {
-        const index = children.findIndex((c) => c.child === layer.handle);
-        const mount =
-          index >= 0 ? (children.splice(index, 1)[0]?.path ?? "") : "";
+        const mount = mountOf(children, layer.handle);
         walk(layer.handle as { stack: Layer[] }, prefix + mount);
       }
     }

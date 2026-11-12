@@ -1,6 +1,6 @@
 // User Flow Use Cases
 import { isAuthenticated } from "@variamosple/variamos-security";
-import { Router } from "express";
+import { type RequestHandler, Router } from "express";
 import EnvVars from "#src/common/EnvVars.js";
 import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
 import type { JournalQueryUseCase } from "#src/Domain/Activity/JournalQueryUseCase.js";
@@ -157,6 +157,31 @@ export interface BaseRouterDependencies {
   checkDatabase: DatabaseCheck;
 }
 
+// The accounts, with the roles of each account under them
+const createAccountsRouter = (
+  usersUseCases: UserFlowUseCases,
+  accessGuard: AccessGuard,
+) =>
+  createUsersRouter({
+    userQueryUseCase: usersUseCases.query,
+    userPasswordUseCase: usersUseCases.password, // needed for generateRecoveryLink
+    userManagementUseCase: usersUseCases.management,
+    userRolesRouter: createUserRolesRouter(usersUseCases.role, accessGuard),
+    accessGuard,
+  });
+
+// The roles, with the permissions of each role under them
+const createRolesTreeRouter = (
+  rolesUseCases: RoleFlowUseCases,
+  accessGuard: AccessGuard,
+) =>
+  createRolesRouter(
+    rolesUseCases.management,
+    rolesUseCases.query,
+    createRolePermissionsRouter(rolesUseCases.permission, accessGuard),
+    accessGuard,
+  );
+
 export function createBaseRouter({
   users: usersUseCases,
   bugs: bugUseCases,
@@ -188,27 +213,8 @@ export function createBaseRouter({
     accessJournal,
   });
   const configurationV1Router = createConfigurationRouter(configurationUseCase);
-  const userRolesRouter = createUserRolesRouter(
-    usersUseCases.role,
-    accessGuard,
-  );
-  const usersV1Router = createUsersRouter({
-    userQueryUseCase: usersUseCases.query,
-    userPasswordUseCase: usersUseCases.password, // needed for generateRecoveryLink
-    userManagementUseCase: usersUseCases.management,
-    userRolesRouter,
-    accessGuard,
-  });
-  const rolePermissionsRouter = createRolePermissionsRouter(
-    rolesUseCases.permission,
-    accessGuard,
-  );
-  const rolesV1Router = createRolesRouter(
-    rolesUseCases.management,
-    rolesUseCases.query,
-    rolePermissionsRouter,
-    accessGuard,
-  );
+  const usersV1Router = createAccountsRouter(usersUseCases, accessGuard);
+  const rolesV1Router = createRolesTreeRouter(rolesUseCases, accessGuard);
   const permissionsV1Router = createPermissionsRouter(permissionsUseCase);
   const microServicesV1Router = createMicroServicesRouter(
     microServiceUseCases.query,
@@ -270,18 +276,21 @@ export function createBaseRouter({
   baseRouter.use(ACCESS_LOGS_V1_ROUTE, createAccessLogsRouter(journalQuery));
   baseRouter.use("/health", createHealthRouter(checkDatabase));
 
-  baseRouter.get("/version", (_, res) => {
-    try {
-      const data = {
-        message: "variamos_ms_admin",
-        version: EnvVars.VERSION,
-      };
-
-      res.status(200).json(data);
-    } catch (error) {
-      res.status(400).send(JSON.stringify(error));
-    }
-  });
+  baseRouter.get("/version", sendVersion);
 
   return baseRouter;
 }
+
+// The name and version of the service
+const sendVersion: RequestHandler = (_, res) => {
+  try {
+    const data = {
+      message: "variamos_ms_admin",
+      version: EnvVars.VERSION,
+    };
+
+    res.status(200).json(data);
+  } catch (error) {
+    res.status(400).send(JSON.stringify(error));
+  }
+};

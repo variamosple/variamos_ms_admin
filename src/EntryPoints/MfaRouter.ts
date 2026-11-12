@@ -39,6 +39,47 @@ const text = (body: unknown, field: string): string | null => {
 };
 
 /**
+ * The handler of a 2FA route: for a signed-in account only, never cached,
+ * the result of the work sent with its HTTP status.
+ */
+const handle =
+  (
+    transactionId: string,
+    work: (user: SessionUser, req: Request) => Promise<ResponseModel<unknown>>,
+  ) =>
+  async (req: Request, res: Response) => {
+    // Secrets and recovery codes must not stay in any cache
+    res.setHeader("Cache-Control", "no-store");
+    const user = req.user;
+    if (!user?.id || isGuest(user)) {
+      res
+        .status(HttpStatusCodes.FORBIDDEN)
+        .json(
+          new ResponseModel(transactionId).withError(
+            DomainErrorCodes.FORBIDDEN,
+            "Two-factor authentication needs a signed-in account.",
+          ),
+        );
+      return;
+    }
+    try {
+      const response = await work(user, req);
+      res.status(mapDomainErrorToHttpStatus(response.errorCode)).json(response);
+    } catch (error) {
+      sendError(res, error, transactionId);
+    }
+  };
+
+// A refused request, answered without asking the use case
+const invalid = (transactionId: string, message: string) =>
+  Promise.resolve(
+    new ResponseModel(transactionId).withError(
+      DomainErrorCodes.INVALID_INPUT,
+      message,
+    ),
+  );
+
+/**
  * Two-factor authentication of one's own account (SPC-2026-10-17-001):
  * status, enrollment with a first code, and removal. Guests have no
  * account, so no second factor.
@@ -50,47 +91,6 @@ export function createMfaRouter(
 ): Router {
   const router = Router();
   const failureLimiter = mfaFailureLimiter();
-
-  const handle =
-    (
-      transactionId: string,
-      work: (
-        user: SessionUser,
-        req: Request,
-      ) => Promise<ResponseModel<unknown>>,
-    ) =>
-    async (req: Request, res: Response) => {
-      // Secrets and recovery codes must not stay in any cache
-      res.setHeader("Cache-Control", "no-store");
-      const user = req.user;
-      if (!user?.id || isGuest(user)) {
-        res
-          .status(HttpStatusCodes.FORBIDDEN)
-          .json(
-            new ResponseModel(transactionId).withError(
-              DomainErrorCodes.FORBIDDEN,
-              "Two-factor authentication needs a signed-in account.",
-            ),
-          );
-        return;
-      }
-      try {
-        const response = await work(user, req);
-        res
-          .status(mapDomainErrorToHttpStatus(response.errorCode))
-          .json(response);
-      } catch (error) {
-        sendError(res, error, transactionId);
-      }
-    };
-
-  const invalid = (transactionId: string, message: string) =>
-    Promise.resolve(
-      new ResponseModel(transactionId).withError(
-        DomainErrorCodes.INVALID_INPUT,
-        message,
-      ),
-    );
 
   router.get(
     "/",

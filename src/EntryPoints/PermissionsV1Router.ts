@@ -1,5 +1,10 @@
 import { hasPermissions } from "@variamosple/variamos-security";
-import { type Request, type Response, Router } from "express";
+import {
+  type Request,
+  type RequestHandler,
+  type Response,
+  Router,
+} from "express";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -43,6 +48,141 @@ const permissionIdOf = (
   return Number.parseInt(permissionId, 10);
 };
 
+const queryPermissions =
+  (permissionUseCase: PermissionUseCase): RequestHandler =>
+  async (req, res) => {
+    const transactionId = "queryPermissions";
+    const { pageNumber, pageSize, name = null, sortBy, sortOrder } = req.query;
+    try {
+      const filter: PermissionFilter = PermissionFilter.builder()
+        .setName(queryText(name))
+        .setPageNumber(Number(pageNumber))
+        .setPageSize(Number(pageSize))
+        .setSort(sortBy, sortOrder)
+        .build();
+
+      const request = new RequestModel<PermissionFilter>(transactionId, filter);
+      const response = await permissionUseCase.queryPermissions(request);
+
+      const status = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(status).json(response);
+    } catch (error) {
+      sendError(res, error, transactionId);
+    }
+  };
+
+const createPermission =
+  (permissionUseCase: PermissionUseCase): RequestHandler =>
+  async (req, res) => {
+    const transactionId = "createPermission";
+    const { name } = checkedBody(nameBody, req);
+    try {
+      if (!name) {
+        refuse(res, transactionId, "name is required.");
+        return;
+      }
+
+      let permission: Permission;
+      try {
+        permission = new Permission(null, name);
+      } catch (error) {
+        refuse(res, transactionId, errorMessage(error));
+        return;
+      }
+
+      const request = new RequestModel<Permission>(
+        transactionId,
+        permission,
+        actorOf(req),
+      );
+      const response = await permissionUseCase.createPermission(request);
+
+      const status = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(status).json(response);
+    } catch (error) {
+      sendError(res, error, transactionId);
+    }
+  };
+
+const deletePermission =
+  (
+    permissionUseCase: PermissionUseCase,
+  ): RequestHandler<{ permissionId: string }> =>
+  async (req: Request<{ permissionId: string }>, res) => {
+    const transactionId = "deletePermission";
+    const permissionId = permissionIdOf(req, res, transactionId);
+    if (permissionId === null) return;
+    try {
+      const request = new RequestModel<number>(
+        transactionId,
+        permissionId,
+        actorOf(req),
+      );
+      const response = await permissionUseCase.deletePermission(request);
+
+      const status = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(status).json(response);
+    } catch (error) {
+      sendError(res, error, transactionId);
+    }
+  };
+
+const queryPermissionById =
+  (
+    permissionUseCase: PermissionUseCase,
+  ): RequestHandler<{ permissionId: string }> =>
+  async (req: Request<{ permissionId: string }>, res) => {
+    const transactionId = "queryPermissionById";
+    const permissionId = permissionIdOf(req, res, transactionId);
+    if (permissionId === null) return;
+    try {
+      const request = new RequestModel<number>(transactionId, permissionId);
+      const response = await permissionUseCase.queryById(request);
+
+      const status = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(status).json(response);
+    } catch (error) {
+      sendError(res, error, transactionId);
+    }
+  };
+
+const updatePermission =
+  (
+    permissionUseCase: PermissionUseCase,
+  ): RequestHandler<{ permissionId: string }> =>
+  async (req: Request<{ permissionId: string }>, res) => {
+    const transactionId = "updatePermission";
+    const permissionId = permissionIdOf(req, res, transactionId);
+    if (permissionId === null) return;
+    const { name } = checkedBody(nameBody, req);
+    try {
+      if (!name) {
+        refuse(res, transactionId, "name is required.");
+        return;
+      }
+
+      let permission: Permission;
+      try {
+        permission = new Permission(permissionId, name);
+      } catch (error) {
+        refuse(res, transactionId, errorMessage(error));
+        return;
+      }
+
+      const request = new RequestModel<Permission>(
+        transactionId,
+        permission,
+        actorOf(req),
+      );
+      const response = await permissionUseCase.updatePermission(request);
+
+      const status = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(status).json(response);
+    } catch (error) {
+      sendError(res, error, transactionId);
+    }
+  };
+
 export function createPermissionsRouter(
   permissionUseCase: PermissionUseCase,
 ): Router {
@@ -51,151 +191,33 @@ export function createPermissionsRouter(
   permissionsV1Router.get(
     "/",
     hasPermissions(["permissions::query"]),
-    async (req, res) => {
-      const transactionId = "queryPermissions";
-      const {
-        pageNumber,
-        pageSize,
-        name = null,
-        sortBy,
-        sortOrder,
-      } = req.query;
-      try {
-        const filter: PermissionFilter = PermissionFilter.builder()
-          .setName(queryText(name))
-          .setPageNumber(Number(pageNumber))
-          .setPageSize(Number(pageSize))
-          .setSort(sortBy, sortOrder)
-          .build();
-
-        const request = new RequestModel<PermissionFilter>(
-          transactionId,
-          filter,
-        );
-        const response = await permissionUseCase.queryPermissions(request);
-
-        const status = mapDomainErrorToHttpStatus(response.errorCode);
-        res.status(status).json(response);
-      } catch (error) {
-        sendError(res, error, transactionId);
-      }
-    },
+    queryPermissions(permissionUseCase),
   );
 
   permissionsV1Router.post(
     "/",
     hasPermissions(["permissions::create"]),
     validBody(nameBody, "createPermission"),
-    async (req, res) => {
-      const transactionId = "createPermission";
-      const { name } = checkedBody(nameBody, req);
-      try {
-        if (!name) {
-          refuse(res, transactionId, "name is required.");
-          return;
-        }
-
-        let permission: Permission;
-        try {
-          permission = new Permission(null, name);
-        } catch (error) {
-          refuse(res, transactionId, errorMessage(error));
-          return;
-        }
-
-        const request = new RequestModel<Permission>(
-          transactionId,
-          permission,
-          actorOf(req),
-        );
-        const response = await permissionUseCase.createPermission(request);
-
-        const status = mapDomainErrorToHttpStatus(response.errorCode);
-        res.status(status).json(response);
-      } catch (error) {
-        sendError(res, error, transactionId);
-      }
-    },
+    createPermission(permissionUseCase),
   );
 
   permissionsV1Router.delete(
     "/:permissionId",
     hasPermissions(["permissions::delete"]),
-    async (req: Request<{ permissionId: string }>, res) => {
-      const transactionId = "deletePermission";
-      const permissionId = permissionIdOf(req, res, transactionId);
-      if (permissionId === null) return;
-      try {
-        const request = new RequestModel<number>(
-          transactionId,
-          permissionId,
-          actorOf(req),
-        );
-        const response = await permissionUseCase.deletePermission(request);
-
-        const status = mapDomainErrorToHttpStatus(response.errorCode);
-        res.status(status).json(response);
-      } catch (error) {
-        sendError(res, error, transactionId);
-      }
-    },
+    deletePermission(permissionUseCase),
   );
 
   permissionsV1Router.get(
     "/:permissionId",
     hasPermissions(["permissions::query"]),
-    async (req: Request<{ permissionId: string }>, res) => {
-      const transactionId = "queryPermissionById";
-      const permissionId = permissionIdOf(req, res, transactionId);
-      if (permissionId === null) return;
-      try {
-        const request = new RequestModel<number>(transactionId, permissionId);
-        const response = await permissionUseCase.queryById(request);
-
-        const status = mapDomainErrorToHttpStatus(response.errorCode);
-        res.status(status).json(response);
-      } catch (error) {
-        sendError(res, error, transactionId);
-      }
-    },
+    queryPermissionById(permissionUseCase),
   );
 
   permissionsV1Router.put(
     "/:permissionId",
     hasPermissions(["permissions::update"]),
     validBody(nameBody, "updatePermission"),
-    async (req: Request<{ permissionId: string }>, res) => {
-      const transactionId = "updatePermission";
-      const permissionId = permissionIdOf(req, res, transactionId);
-      if (permissionId === null) return;
-      const { name } = checkedBody(nameBody, req);
-      try {
-        if (!name) {
-          refuse(res, transactionId, "name is required.");
-          return;
-        }
-
-        let permission: Permission;
-        try {
-          permission = new Permission(permissionId, name);
-        } catch (error) {
-          refuse(res, transactionId, errorMessage(error));
-          return;
-        }
-
-        const request = new RequestModel<Permission>(
-          transactionId,
-          permission,
-          actorOf(req),
-        );
-        const response = await permissionUseCase.updatePermission(request);
-
-        const status = mapDomainErrorToHttpStatus(response.errorCode);
-        res.status(status).json(response);
-      } catch (error) {
-        sendError(res, error, transactionId);
-      }
-    },
+    updatePermission(permissionUseCase),
   );
 
   return permissionsV1Router;

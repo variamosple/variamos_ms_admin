@@ -1,5 +1,5 @@
 import { hasPermissions } from "@variamosple/variamos-security";
-import { type Request, Router } from "express";
+import { type Request, type RequestHandler, Router } from "express";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -20,15 +20,9 @@ import { type AccessGuard, requireAccess, toId } from "./requireAccess.js";
 
 export const ROLES_V1_ROUTE = "/v1/roles";
 
-export function createRolesRouter(
-  roleManagementUseCase: RoleManagementUseCase,
-  roleQueryUseCase: RoleQueryUseCase,
-  rolePermissionsRouter: Router,
-  accessGuard: AccessGuard,
-): Router {
-  const rolesV1Router = Router();
-
-  rolesV1Router.get("/", hasPermissions(["roles::query"]), async (req, res) => {
+const queryRoles =
+  (roleQueryUseCase: RoleQueryUseCase): RequestHandler =>
+  async (req, res) => {
     const transactionId = "queryRoles";
     const { pageNumber, pageSize, name = null, sortBy, sortOrder } = req.query;
     try {
@@ -47,58 +41,196 @@ export function createRolesRouter(
     } catch (error) {
       sendError(res, error, transactionId);
     }
-  });
+  };
+
+const createRole =
+  (roleManagementUseCase: RoleManagementUseCase): RequestHandler =>
+  async (req, res) => {
+    const transactionId = "createRole";
+    const { name } = checkedBody(nameBody, req);
+    try {
+      if (!name) {
+        res
+          .status(HttpStatusCodes.BAD_REQUEST)
+          .json(
+            new ResponseModel<void>(transactionId).withError(
+              DomainErrorCodes.INVALID_INPUT,
+              "name is required.",
+            ),
+          );
+        return;
+      }
+
+      let role: Role;
+      try {
+        role = new Role(null, name);
+      } catch (error) {
+        res
+          .status(HttpStatusCodes.BAD_REQUEST)
+          .json(
+            new ResponseModel<void>(transactionId).withError(
+              DomainErrorCodes.INVALID_INPUT,
+              errorMessage(error),
+            ),
+          );
+        return;
+      }
+
+      const request = new RequestModel<Role>(transactionId, role, actorOf(req));
+      const response = await roleManagementUseCase.createRole(request);
+
+      const status = response.errorCode
+        ? mapDomainErrorToHttpStatus(response.errorCode)
+        : HttpStatusCodes.CREATED;
+      res.status(status).json(response);
+    } catch (error) {
+      sendError(res, error, transactionId);
+    }
+  };
+
+const deleteRole =
+  (
+    roleManagementUseCase: RoleManagementUseCase,
+  ): RequestHandler<{ roleId: string }> =>
+  async (req: Request<{ roleId: string }>, res) => {
+    const transactionId = "deleteRole";
+    const roleId = req.params.roleId;
+    try {
+      if (!roleId || Number.isNaN(Number(roleId))) {
+        res
+          .status(HttpStatusCodes.BAD_REQUEST)
+          .json(
+            new ResponseModel<void>(transactionId).withError(
+              DomainErrorCodes.INVALID_INPUT,
+              "roleId is required.",
+            ),
+          );
+        return;
+      }
+
+      const request = new RequestModel<string>(
+        transactionId,
+        roleId,
+        actorOf(req),
+      );
+      const response = await roleManagementUseCase.deleteRole(request);
+
+      const status = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(status).json(response);
+    } catch (error) {
+      sendError(res, error, transactionId);
+    }
+  };
+
+const queryRoleById =
+  (roleQueryUseCase: RoleQueryUseCase): RequestHandler<{ roleId: string }> =>
+  async (req: Request<{ roleId: string }>, res) => {
+    const transactionId = "queryRoleById";
+    const roleId = req.params.roleId;
+    try {
+      if (!roleId || Number.isNaN(Number(roleId))) {
+        res
+          .status(HttpStatusCodes.BAD_REQUEST)
+          .json(
+            new ResponseModel<void>(transactionId).withError(
+              DomainErrorCodes.INVALID_INPUT,
+              "roleId is required.",
+            ),
+          );
+        return;
+      }
+
+      const request = new RequestModel<string>(transactionId, roleId);
+      const response = await roleQueryUseCase.queryById(request);
+
+      const status = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(status).json(response);
+    } catch (error) {
+      sendError(res, error, transactionId);
+    }
+  };
+
+const updateRole =
+  (
+    roleManagementUseCase: RoleManagementUseCase,
+  ): RequestHandler<{ roleId: string }> =>
+  async (req: Request<{ roleId: string }>, res) => {
+    const transactionId = "updateRole";
+    const roleId = req.params.roleId;
+    const { name } = checkedBody(nameBody, req);
+    try {
+      if (!roleId || Number.isNaN(Number(roleId))) {
+        res
+          .status(HttpStatusCodes.BAD_REQUEST)
+          .json(
+            new ResponseModel<void>(transactionId).withError(
+              DomainErrorCodes.INVALID_INPUT,
+              "roleId is required.",
+            ),
+          );
+        return;
+      }
+
+      if (!name) {
+        res
+          .status(HttpStatusCodes.BAD_REQUEST)
+          .json(
+            new ResponseModel<void>(transactionId).withError(
+              DomainErrorCodes.INVALID_INPUT,
+              "name is required.",
+            ),
+          );
+        return;
+      }
+
+      let permission: Role;
+      try {
+        permission = new Role(Number.parseInt(roleId, 10), name);
+      } catch (error) {
+        res
+          .status(HttpStatusCodes.BAD_REQUEST)
+          .json(
+            new ResponseModel<void>(transactionId).withError(
+              DomainErrorCodes.INVALID_INPUT,
+              errorMessage(error),
+            ),
+          );
+        return;
+      }
+
+      const request = new RequestModel<Role>(
+        transactionId,
+        permission,
+        actorOf(req),
+      );
+      const response = await roleManagementUseCase.updateRole(request);
+
+      const status = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(status).json(response);
+    } catch (error) {
+      sendError(res, error, transactionId);
+    }
+  };
+
+export function createRolesRouter(
+  roleManagementUseCase: RoleManagementUseCase,
+  roleQueryUseCase: RoleQueryUseCase,
+  rolePermissionsRouter: Router,
+  accessGuard: AccessGuard,
+): Router {
+  const rolesV1Router = Router();
+
+  rolesV1Router.get(
+    "/",
+    hasPermissions(["roles::query"]),
+    queryRoles(roleQueryUseCase),
+  );
 
   rolesV1Router.post(
     "/",
     hasPermissions(["roles::create"]),
     validBody(nameBody, "createRole"),
-    async (req, res) => {
-      const transactionId = "createRole";
-      const { name } = checkedBody(nameBody, req);
-      try {
-        if (!name) {
-          res
-            .status(HttpStatusCodes.BAD_REQUEST)
-            .json(
-              new ResponseModel<void>(transactionId).withError(
-                DomainErrorCodes.INVALID_INPUT,
-                "name is required.",
-              ),
-            );
-          return;
-        }
-
-        let role: Role;
-        try {
-          role = new Role(null, name);
-        } catch (error) {
-          res
-            .status(HttpStatusCodes.BAD_REQUEST)
-            .json(
-              new ResponseModel<void>(transactionId).withError(
-                DomainErrorCodes.INVALID_INPUT,
-                errorMessage(error),
-              ),
-            );
-          return;
-        }
-
-        const request = new RequestModel<Role>(
-          transactionId,
-          role,
-          actorOf(req),
-        );
-        const response = await roleManagementUseCase.createRole(request);
-
-        const status = response.errorCode
-          ? mapDomainErrorToHttpStatus(response.errorCode)
-          : HttpStatusCodes.CREATED;
-        res.status(status).json(response);
-      } catch (error) {
-        sendError(res, error, transactionId);
-      }
-    },
+    createRole(roleManagementUseCase),
   );
 
   rolesV1Router.delete(
@@ -108,65 +240,13 @@ export function createRolesRouter(
       const roleId = toId(req.params.roleId);
       return roleId ? { kind: "delete-role", roleId } : null;
     }),
-    async (req: Request<{ roleId: string }>, res) => {
-      const transactionId = "deleteRole";
-      const roleId = req.params.roleId;
-      try {
-        if (!roleId || Number.isNaN(Number(roleId))) {
-          res
-            .status(HttpStatusCodes.BAD_REQUEST)
-            .json(
-              new ResponseModel<void>(transactionId).withError(
-                DomainErrorCodes.INVALID_INPUT,
-                "roleId is required.",
-              ),
-            );
-          return;
-        }
-
-        const request = new RequestModel<string>(
-          transactionId,
-          roleId,
-          actorOf(req),
-        );
-        const response = await roleManagementUseCase.deleteRole(request);
-
-        const status = mapDomainErrorToHttpStatus(response.errorCode);
-        res.status(status).json(response);
-      } catch (error) {
-        sendError(res, error, transactionId);
-      }
-    },
+    deleteRole(roleManagementUseCase),
   );
 
   rolesV1Router.get(
     "/:roleId",
     hasPermissions(["roles::query"]),
-    async (req: Request<{ roleId: string }>, res) => {
-      const transactionId = "queryRoleById";
-      const roleId = req.params.roleId;
-      try {
-        if (!roleId || Number.isNaN(Number(roleId))) {
-          res
-            .status(HttpStatusCodes.BAD_REQUEST)
-            .json(
-              new ResponseModel<void>(transactionId).withError(
-                DomainErrorCodes.INVALID_INPUT,
-                "roleId is required.",
-              ),
-            );
-          return;
-        }
-
-        const request = new RequestModel<string>(transactionId, roleId);
-        const response = await roleQueryUseCase.queryById(request);
-
-        const status = mapDomainErrorToHttpStatus(response.errorCode);
-        res.status(status).json(response);
-      } catch (error) {
-        sendError(res, error, transactionId);
-      }
-    },
+    queryRoleById(roleQueryUseCase),
   );
 
   rolesV1Router.put(
@@ -177,63 +257,7 @@ export function createRolesRouter(
       const roleId = toId(req.params.roleId);
       return roleId ? { kind: "update-role", roleId } : null;
     }),
-    async (req: Request<{ roleId: string }>, res) => {
-      const transactionId = "updateRole";
-      const roleId = req.params.roleId;
-      const { name } = checkedBody(nameBody, req);
-      try {
-        if (!roleId || Number.isNaN(Number(roleId))) {
-          res
-            .status(HttpStatusCodes.BAD_REQUEST)
-            .json(
-              new ResponseModel<void>(transactionId).withError(
-                DomainErrorCodes.INVALID_INPUT,
-                "roleId is required.",
-              ),
-            );
-          return;
-        }
-
-        if (!name) {
-          res
-            .status(HttpStatusCodes.BAD_REQUEST)
-            .json(
-              new ResponseModel<void>(transactionId).withError(
-                DomainErrorCodes.INVALID_INPUT,
-                "name is required.",
-              ),
-            );
-          return;
-        }
-
-        let permission: Role;
-        try {
-          permission = new Role(Number.parseInt(roleId, 10), name);
-        } catch (error) {
-          res
-            .status(HttpStatusCodes.BAD_REQUEST)
-            .json(
-              new ResponseModel<void>(transactionId).withError(
-                DomainErrorCodes.INVALID_INPUT,
-                errorMessage(error),
-              ),
-            );
-          return;
-        }
-
-        const request = new RequestModel<Role>(
-          transactionId,
-          permission,
-          actorOf(req),
-        );
-        const response = await roleManagementUseCase.updateRole(request);
-
-        const status = mapDomainErrorToHttpStatus(response.errorCode);
-        res.status(status).json(response);
-      } catch (error) {
-        sendError(res, error, transactionId);
-      }
-    },
+    updateRole(roleManagementUseCase),
   );
 
   rolesV1Router.use(ROLE_PERMISSIONS_V1_ROUTE, rolePermissionsRouter);

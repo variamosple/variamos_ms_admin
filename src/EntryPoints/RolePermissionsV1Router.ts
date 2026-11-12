@@ -1,5 +1,5 @@
 import { hasPermissions } from "@variamosple/variamos-security";
-import { type Request, Router } from "express";
+import { type Request, type RequestHandler, Router } from "express";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -16,6 +16,141 @@ import { type AccessGuard, requireAccess, toId } from "./requireAccess.js";
 
 export const ROLE_PERMISSIONS_V1_ROUTE = "/:roleId/permissions";
 
+const queryRolePermissions =
+  (
+    rolePermissionUseCase: RolePermissionUseCase,
+  ): RequestHandler<{ roleId: string }> =>
+  async (req: Request<{ roleId: string }>, res) => {
+    const transactionId = "queryRolePermissions";
+    const { pageNumber, pageSize, search } = req.query;
+    const roleId = req.params.roleId;
+    try {
+      if (!roleId || Number.isNaN(Number(roleId))) {
+        res
+          .status(HttpStatusCodes.BAD_REQUEST)
+          .json(
+            new ResponseModel<void>(transactionId).withError(
+              DomainErrorCodes.INVALID_INPUT,
+              "roleId is required.",
+            ),
+          );
+        return;
+      }
+
+      const filter: RolePermissionFilter = RolePermissionFilter.builder()
+        .setRoleId(Number.parseInt(roleId, 10))
+        .setPageNumber(Number(pageNumber))
+        .setPageSize(Number(pageSize))
+        .setSearch(typeof search === "string" && search ? search : null)
+        .build();
+
+      const request = new RequestModel<RolePermissionFilter>(
+        transactionId,
+        filter,
+      );
+      const response =
+        await rolePermissionUseCase.queryRolePermissions(request);
+
+      const status = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(status).json(response);
+    } catch (error) {
+      sendError(res, error, transactionId);
+    }
+  };
+
+const createRolePermission =
+  (
+    rolePermissionUseCase: RolePermissionUseCase,
+  ): RequestHandler<{ roleId: string }> =>
+  async (req: Request<{ roleId: string }>, res) => {
+    const transactionId = "createRolePermission";
+    const roleId = req.params.roleId;
+    const { permissionId } = checkedBody(rolePermissionBody, req);
+    try {
+      if (
+        !roleId ||
+        Number.isNaN(Number(roleId)) ||
+        !permissionId ||
+        Number.isNaN(Number(permissionId))
+      ) {
+        res
+          .status(HttpStatusCodes.BAD_REQUEST)
+          .json(
+            new ResponseModel<void>(transactionId).withError(
+              DomainErrorCodes.INVALID_INPUT,
+              "roleId and permissionId are required.",
+            ),
+          );
+        return;
+      }
+
+      const rolePermission: RolePermission = new RolePermission(
+        Number.parseInt(roleId, 10),
+        Number.parseInt(String(permissionId), 10),
+      );
+
+      const request = new RequestModel<RolePermission>(
+        transactionId,
+        rolePermission,
+        actorOf(req),
+      );
+      const response =
+        await rolePermissionUseCase.createRolePermission(request);
+
+      const status = response.errorCode
+        ? mapDomainErrorToHttpStatus(response.errorCode)
+        : HttpStatusCodes.CREATED;
+      res.status(status).json(response);
+    } catch (error) {
+      sendError(res, error, transactionId);
+    }
+  };
+
+const deleteRolePermission =
+  (
+    rolePermissionUseCase: RolePermissionUseCase,
+  ): RequestHandler<{ roleId: string; permissionId: string }> =>
+  async (req: Request<{ roleId: string; permissionId: string }>, res) => {
+    const transactionId = "deleteRolePermission";
+    const { roleId, permissionId } = req.params;
+    try {
+      if (
+        !roleId ||
+        Number.isNaN(Number(roleId)) ||
+        !permissionId ||
+        Number.isNaN(Number(permissionId))
+      ) {
+        res
+          .status(HttpStatusCodes.BAD_REQUEST)
+          .json(
+            new ResponseModel<void>(transactionId).withError(
+              DomainErrorCodes.INVALID_INPUT,
+              "roleId and permissionId are required.",
+            ),
+          );
+        return;
+      }
+
+      const rolePermission: RolePermission = new RolePermission(
+        Number.parseInt(roleId, 10),
+        Number.parseInt(permissionId, 10),
+      );
+
+      const request = new RequestModel<RolePermission>(
+        transactionId,
+        rolePermission,
+        actorOf(req),
+      );
+      const response =
+        await rolePermissionUseCase.deleteRolePermission(request);
+
+      const status = mapDomainErrorToHttpStatus(response.errorCode);
+      res.status(status).json(response);
+    } catch (error) {
+      sendError(res, error, transactionId);
+    }
+  };
+
 export function createRolePermissionsRouter(
   rolePermissionUseCase: RolePermissionUseCase,
   accessGuard: AccessGuard,
@@ -25,43 +160,7 @@ export function createRolePermissionsRouter(
   rolePermissionsV1Router.get(
     "/",
     hasPermissions(["roles::query"]),
-    async (req: Request<{ roleId: string }>, res) => {
-      const transactionId = "queryRolePermissions";
-      const { pageNumber, pageSize, search } = req.query;
-      const roleId = req.params.roleId;
-      try {
-        if (!roleId || Number.isNaN(Number(roleId))) {
-          res
-            .status(HttpStatusCodes.BAD_REQUEST)
-            .json(
-              new ResponseModel<void>(transactionId).withError(
-                DomainErrorCodes.INVALID_INPUT,
-                "roleId is required.",
-              ),
-            );
-          return;
-        }
-
-        const filter: RolePermissionFilter = RolePermissionFilter.builder()
-          .setRoleId(Number.parseInt(roleId, 10))
-          .setPageNumber(Number(pageNumber))
-          .setPageSize(Number(pageSize))
-          .setSearch(typeof search === "string" && search ? search : null)
-          .build();
-
-        const request = new RequestModel<RolePermissionFilter>(
-          transactionId,
-          filter,
-        );
-        const response =
-          await rolePermissionUseCase.queryRolePermissions(request);
-
-        const status = mapDomainErrorToHttpStatus(response.errorCode);
-        res.status(status).json(response);
-      } catch (error) {
-        sendError(res, error, transactionId);
-      }
-    },
+    queryRolePermissions(rolePermissionUseCase),
   );
 
   rolePermissionsV1Router.post(
@@ -77,49 +176,7 @@ export function createRolePermissionsRouter(
         ? { kind: "add-permission", roleId, permissionId }
         : null;
     }),
-    async (req: Request<{ roleId: string }>, res) => {
-      const transactionId = "createRolePermission";
-      const roleId = req.params.roleId;
-      const { permissionId } = checkedBody(rolePermissionBody, req);
-      try {
-        if (
-          !roleId ||
-          Number.isNaN(Number(roleId)) ||
-          !permissionId ||
-          Number.isNaN(Number(permissionId))
-        ) {
-          res
-            .status(HttpStatusCodes.BAD_REQUEST)
-            .json(
-              new ResponseModel<void>(transactionId).withError(
-                DomainErrorCodes.INVALID_INPUT,
-                "roleId and permissionId are required.",
-              ),
-            );
-          return;
-        }
-
-        const rolePermission: RolePermission = new RolePermission(
-          Number.parseInt(roleId, 10),
-          Number.parseInt(String(permissionId), 10),
-        );
-
-        const request = new RequestModel<RolePermission>(
-          transactionId,
-          rolePermission,
-          actorOf(req),
-        );
-        const response =
-          await rolePermissionUseCase.createRolePermission(request);
-
-        const status = response.errorCode
-          ? mapDomainErrorToHttpStatus(response.errorCode)
-          : HttpStatusCodes.CREATED;
-        res.status(status).json(response);
-      } catch (error) {
-        sendError(res, error, transactionId);
-      }
-    },
+    createRolePermission(rolePermissionUseCase),
   );
 
   rolePermissionsV1Router.delete(
@@ -132,46 +189,7 @@ export function createRolePermissionsRouter(
         ? { kind: "remove-permission", roleId, permissionId }
         : null;
     }),
-    async (req: Request<{ roleId: string; permissionId: string }>, res) => {
-      const transactionId = "deleteRolePermission";
-      const { roleId, permissionId } = req.params;
-      try {
-        if (
-          !roleId ||
-          Number.isNaN(Number(roleId)) ||
-          !permissionId ||
-          Number.isNaN(Number(permissionId))
-        ) {
-          res
-            .status(HttpStatusCodes.BAD_REQUEST)
-            .json(
-              new ResponseModel<void>(transactionId).withError(
-                DomainErrorCodes.INVALID_INPUT,
-                "roleId and permissionId are required.",
-              ),
-            );
-          return;
-        }
-
-        const rolePermission: RolePermission = new RolePermission(
-          Number.parseInt(roleId, 10),
-          Number.parseInt(permissionId, 10),
-        );
-
-        const request = new RequestModel<RolePermission>(
-          transactionId,
-          rolePermission,
-          actorOf(req),
-        );
-        const response =
-          await rolePermissionUseCase.deleteRolePermission(request);
-
-        const status = mapDomainErrorToHttpStatus(response.errorCode);
-        res.status(status).json(response);
-      } catch (error) {
-        sendError(res, error, transactionId);
-      }
-    },
+    deleteRolePermission(rolePermissionUseCase),
   );
 
   return rolePermissionsV1Router;
