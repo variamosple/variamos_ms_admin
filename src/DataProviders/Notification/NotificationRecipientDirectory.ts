@@ -30,7 +30,7 @@ export class NotificationRecipientDirectory
       (r) =>
         (r as RoleModel & { users?: UserModel[] }).users?.map(
           (u) => u.id as string,
-        ) || [],
+        ) ?? [],
     );
     return Array.from(new Set(ids)).filter(Boolean);
   }

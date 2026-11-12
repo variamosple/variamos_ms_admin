@@ -151,7 +151,7 @@ export class BugRepositoryImpl implements IBugRepository {
           .setComponent(typedBug.component || undefined)
           .setStatus(typedBug.status)
           .setGithubRepo(typedBug.githubRepo || undefined)
-          .setGitIssueNumber(typedBug.gitIssueNumber || undefined)
+          .setGitIssueNumber(typedBug.gitIssueNumber ?? undefined)
           .setGithubCreator(typedBug.githubCreator || undefined)
           .setGithubHtmlUrl(typedBug.githubHtmlUrl || undefined)
           .setGithubAssignee(typedBug.githubAssignee || undefined)
@@ -237,7 +237,7 @@ export class BugRepositoryImpl implements IBugRepository {
           .setComponent(typedBug.component || undefined)
           .setStatus(typedBug.status)
           .setGithubRepo(typedBug.githubRepo || undefined)
-          .setGitIssueNumber(typedBug.gitIssueNumber || undefined)
+          .setGitIssueNumber(typedBug.gitIssueNumber ?? undefined)
           .setCreatedById(typedBug.createdById || undefined)
           .setReporterEmail(typedBug.reporterEmail || undefined)
           .setCreatedAt(typedBug.createdAt)
@@ -296,7 +296,7 @@ export class BugRepositoryImpl implements IBugRepository {
         .setComponent(typedBug.component || undefined)
         .setStatus(typedBug.status)
         .setGithubRepo(typedBug.githubRepo || undefined)
-        .setGitIssueNumber(typedBug.gitIssueNumber || undefined)
+        .setGitIssueNumber(typedBug.gitIssueNumber ?? undefined)
         .setCreatedById(typedBug.createdById || undefined)
         .setReporterEmail(typedBug.reporterEmail || undefined)
         .setCreatedAt(typedBug.createdAt)
@@ -776,7 +776,7 @@ export class BugRepositoryImpl implements IBugRepository {
           .setChangedAt(typedLog.createdAt)
           .setBugId(typedLog.bugId)
           .setChangedById(typedLog.operatorId || "")
-          .setChangedBy(typedLog.changedBy || undefined)
+          .setChangedBy(typedLog.changedBy ?? undefined)
           .build();
       });
     } catch (error) {
