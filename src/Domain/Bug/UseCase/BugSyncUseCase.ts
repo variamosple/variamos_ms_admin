@@ -18,6 +18,15 @@ import type {
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { ALLOWED_CATEGORIES } from "./BugQueryUseCase.js";
 
+/** Bugs created and updated by the synchronization of one repository. */
+interface SyncCounts {
+  created: number;
+  updated: number;
+}
+
+// A repository skipped saves nothing
+const NOTHING_SAVED: Readonly<SyncCounts> = { created: 0, updated: 0 };
+
 // The first group a label falls in gives the priority; "critical" is a
 // priority of its own since EV-84 lot 5: read back as "high", it would be
 // downgraded at every sync
@@ -178,17 +187,16 @@ export class BugSyncUseCase {
   private async synchronizeRepo(
     repo: string,
     transactionId: string | undefined,
-  ): Promise<{ created: number; updated: number }> {
-    const counts = { created: 0, updated: 0 };
+  ): Promise<SyncCounts> {
     const token = await this.tokenResolver.resolveGitHubToken(repo);
     if (!token) {
       this.logger.warn(
         `GitHub token could not be resolved for repo: ${repo}. Skipping.`,
       );
-      return counts;
+      return NOTHING_SAVED;
     }
     const issues = await this.issueTrackerService.getIssues(repo, token);
-    if (!issues) return counts;
+    if (!issues) return NOTHING_SAVED;
 
     // Without the local statuses, a synchronization would bring In
     // Progress or Resolved back to open or closed: the repository waits
@@ -197,19 +205,21 @@ export class BugSyncUseCase {
       this.logger.warn(
         `Local bugs of ${repo} could not be read. Skipping its synchronization.`,
       );
-      return counts;
+      return NOTHING_SAVED;
     }
 
+    let created = 0;
+    let updated = 0;
     for (const issue of issues) {
       if (issue.pull_request) continue;
       const bug = bugOfIssue(issue, repo, localStatuses.get(issue.number));
       const saveResponse = await this.repositories.bugs.saveOrUpdateBug(
         new RequestModel(transactionId, bug),
       );
-      if (saveResponse.data?.created) counts.created++;
-      if (saveResponse.data?.updated) counts.updated++;
+      if (saveResponse.data?.created) created++;
+      if (saveResponse.data?.updated) updated++;
     }
-    return counts;
+    return { created, updated };
   }
 
   private async localStatusesOf(
