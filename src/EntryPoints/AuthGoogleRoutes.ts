@@ -139,12 +139,20 @@ const googleCallback =
     if (!body) return;
     const { credential } = body;
     // Google posts the same random value in a cookie of our domain and in
-    // the body; only a page of ours can set the cookie. Logged only until
-    // production shows that the cookie arrives (EV-70 lot 5).
+    // the body; only a page of ours can set the cookie, so another site
+    // cannot post a credential in the name of a visitor (EV-70 lot 5).
+    // Refused since production showed that the cookie arrives.
     if (!hasMatchingGoogleCsrfToken(req, body.g_csrf_token)) {
-      logger.warn(
-        "POST /auth/google/callback: g_csrf_token missing or not matching (not enforced yet)",
+      recordAccess(accessJournal, req, res, {
+        event: "sign-in.google",
+        outcome: "failed",
+        reason: "google_csrf_mismatch",
+      });
+      res.redirect(
+        302,
+        `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?reason=sign-in-failed`,
       );
+      return;
     }
     try {
       const profile = await validateGoogleCode(credential);
