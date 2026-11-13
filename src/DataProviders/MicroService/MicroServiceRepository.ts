@@ -40,11 +40,17 @@ import { RecentResults } from "./RecentResults.js";
  */
 const UPTIME_MAX_AGE_MS = 30_000;
 
+/** Shown on the screen instead of an empty list. */
+export const DOCKER_UNREACHABLE_MESSAGE =
+  "The services cannot be listed: Docker does not answer. Their health checks go on.";
+
 /** The monitored services, read from Docker, and their health checks. */
 export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
   private dockerConnection: Docker;
   private readonly statistics: HealthLogStatistics;
   private readonly recentUptimes: RecentResults<MicroServiceUptimeSummary[]>;
+  /** The services of the last listing that worked, for a Docker outage. */
+  private lastDefinitions: ServiceDefinition[] = [];
 
   public constructor(config: {
     docker: Docker.DockerOptions;
@@ -67,12 +73,11 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
   public async discoverServiceDefinitions(
     listedContainers?: Docker.ContainerInfo[],
   ): Promise<ServiceDefinition[]> {
+    const containers = listedContainers ?? (await this.listContainersOrNull());
+    // The health checks go on for the services known: a proxy that stops
+    // answering does not stop the measures (EV-71)
+    if (!containers) return this.lastDefinitions;
     try {
-      const containers =
-        listedContainers ??
-        (await this.dockerConnection.listContainers({
-          all: true,
-        }));
       const discoveredMap = new Map<string, ServiceDefinition>();
 
       // The first container of a service gives its definition
@@ -83,7 +88,14 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         }
       }
 
-      return Array.from(discoveredMap.values());
+      const definitions = Array.from(discoveredMap.values());
+      // A recreated container gets another address, maybe one of another
+      // service: the copy kept for a Docker outage holds none
+      this.lastDefinitions = definitions.map((def) => ({
+        ...def,
+        containerIps: [],
+      }));
+      return definitions;
     } catch (err) {
       logger.warn(
         `Failed to dynamically discover service definitions: ${errorMessage(err)}`,
@@ -101,12 +113,12 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
 
     try {
       const { data: filter } = request;
-      let containers: Docker.ContainerInfo[] = [];
-
-      try {
-        containers = await this.dockerConnection.listContainers({ all: true });
-      } catch (err) {
-        logger.warn(`Docker listContainers warning: ${errorMessage(err)}`);
+      const containers = await this.listContainersOrNull();
+      if (!containers) {
+        return response.withError(
+          DomainErrorCodes.UNAVAILABLE,
+          DOCKER_UNREACHABLE_MESSAGE,
+        );
       }
 
       const nameFilter = filter?.name?.toLowerCase();
@@ -199,11 +211,12 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
     const serviceName = request.data;
 
     try {
-      let containers: Docker.ContainerInfo[] = [];
-      try {
-        containers = await this.dockerConnection.listContainers({ all: true });
-      } catch (err) {
-        logger.warn(`Docker connection warning: ${errorMessage(err)}`);
+      const containers = await this.listContainersOrNull();
+      if (!containers) {
+        return response.withError(
+          DomainErrorCodes.UNAVAILABLE,
+          DOCKER_UNREACHABLE_MESSAGE,
+        );
       }
 
       const discoveredDefs = await this.discoverServiceDefinitions(containers);
@@ -325,7 +338,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         httpStatusCode: healthInfo.status === "UP" ? 200 : 500,
         errorMessage:
           healthInfo.status === "DOWN"
-            ? "Service unreachable or unhealthy"
+            ? (healthInfo.errorMessage ?? "Service unreachable or unhealthy")
             : undefined,
       });
     } catch (error) {
@@ -340,6 +353,16 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
    * and kept UPTIME_MAX_AGE_MS: every screen open in that time reads the same
    * computation (EV-92).
    */
+  /** The containers, or null when Docker does not answer. */
+  private async listContainersOrNull(): Promise<Docker.ContainerInfo[] | null> {
+    try {
+      return await this.dockerConnection.listContainers({ all: true });
+    } catch (err) {
+      logger.warn(`Docker unreachable: ${errorMessage(err)}`);
+      return null;
+    }
+  }
+
   private uptimeSummaries(
     serviceNames: string[],
     days = 30,

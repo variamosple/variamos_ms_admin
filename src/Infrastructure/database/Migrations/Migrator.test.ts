@@ -12,6 +12,11 @@ import {
   REJECTED_BUG_RETENTION_KEY,
   rejectedBugRetentionDaysOf,
 } from "#src/Domain/Bug/Entity/BugSchedule.js";
+import {
+  HEALTH_CHECK_INTERVAL_BOUNDS,
+  HEALTH_CHECK_INTERVAL_KEY,
+  healthCheckIntervalMsOf,
+} from "#src/Domain/MicroService/Entity/HealthCheckInterval.js";
 import { AccountLockoutPolicy } from "#src/Domain/User/Entity/AccountLockoutPolicy.js";
 import { ACCOUNT_LOCKOUT_KEYS } from "#src/Domain/User/Service/AccountLockoutService.js";
 import { BASELINE_TABLES, baseline } from "./0001-baseline.js";
@@ -31,6 +36,10 @@ import {
   BUG_ISSUE_INDEX,
   bugIssueUniqueIndex,
 } from "./0013-bug-issue-unique-index.js";
+import {
+  HEALTH_CHECK_INTERVAL_ROWS,
+  healthCheckIntervalKey,
+} from "./0022-health-check-interval-key.js";
 import {
   ADMIN_MIGRATIONS,
   createMigrator,
@@ -285,6 +294,42 @@ describe("bug issue unique index migration", () => {
   });
 });
 
+describe("health check interval key migration", () => {
+  it("adds the key the collector follows, with its 30 s default", () => {
+    expect(HEALTH_CHECK_INTERVAL_ROWS.map(({ key }) => key)).toEqual([
+      HEALTH_CHECK_INTERVAL_KEY,
+    ]);
+    const value = HEALTH_CHECK_INTERVAL_ROWS[0]?.value ?? 0;
+    expect(healthCheckIntervalMsOf(value)).toBe(30_000);
+    expect(value).toBeGreaterThanOrEqual(HEALTH_CHECK_INTERVAL_BOUNDS.min);
+    expect(value).toBeLessThanOrEqual(HEALTH_CHECK_INTERVAL_BOUNDS.max);
+  });
+
+  it("never overwrites the key, in the configured schema", async () => {
+    const { sequelize, statements } = fakeSequelize([]);
+
+    await healthCheckIntervalKey.up({
+      name: healthCheckIntervalKey.name,
+      context: { sequelize, schema: "custom" },
+    });
+
+    expect(statements).toHaveLength(1);
+    expect(statements[0]).toContain('INSERT INTO "custom"."configurations"');
+    expect(statements[0]).toContain('ON CONFLICT ("key") DO NOTHING');
+  });
+
+  it("refuses to be reverted", async () => {
+    const { sequelize } = fakeSequelize([]);
+
+    await expect(
+      healthCheckIntervalKey.down?.({
+        name: healthCheckIntervalKey.name,
+        context: { sequelize, schema: "custom" },
+      }),
+    ).rejects.toThrow("cannot be reverted");
+  });
+});
+
 describe("createMigrator", () => {
   it.each(["", "  "])("refuses an empty schema (%j)", (schema) => {
     const { sequelize } = fakeSequelize([]);
@@ -317,6 +362,7 @@ describe("createMigrator", () => {
       "0019-scheduled-configuration-changes",
       "0020-user-preferences",
       "0021-user-display-preferences",
+      "0022-health-check-interval-key",
     ]);
   });
 });

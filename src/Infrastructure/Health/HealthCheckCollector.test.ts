@@ -5,6 +5,7 @@ import type { ServiceDefinition } from "#src/Domain/MicroService/Entity/ServiceD
 import type { IHealthLogArchive } from "#src/Domain/MicroService/Repository/IHealthLogArchive.js";
 import type { IMicroServiceRepository } from "#src/Domain/MicroService/Repository/IMicroServiceRepository.js";
 import {
+  answersAs,
   DEGRADED_LATENCY_MS,
   HealthCheckCollector,
   mapWithConcurrency,
@@ -290,6 +291,73 @@ describe("HealthCheckCollector.checkService latency threshold", () => {
     const info = await checkAnsweringAfter(10, { status: "DEGRADED" });
 
     expect(info.status).toBe("DEGRADED");
+  });
+});
+
+describe("answersAs", () => {
+  it.each([
+    ["variamos_ms_languages", true],
+    ["variamos-ms-languages", true],
+    [" Variamos_MS_Languages ", true],
+    [undefined, true],
+    [42, true],
+    ["vms_projects", false],
+  ])("reads %j as %s for variamos_ms_languages", (announced, expected) => {
+    expect(answersAs(announced, "variamos_ms_languages")).toBe(expected);
+  });
+});
+
+/** A health answer from another service is not taken (EV-71). */
+describe("HealthCheckCollector.checkService identity", () => {
+  const service = {
+    name: "variamos_ms_languages",
+    displayName: "Languages",
+    defaultPort: 4000,
+    healthPath: "/health",
+    containerIps: ["10.0.0.1"],
+  } as ServiceDefinition;
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const check = async (nameAt: (url: string) => string) => {
+    vi.spyOn(axios, "get").mockImplementation(async (url) => ({
+      status: 200,
+      data: { status: "UP", serviceName: nameAt(url) },
+    }));
+    const recordHealthCheck = vi.fn().mockResolvedValue(undefined);
+    const repo = { recordHealthCheck } as unknown as IMicroServiceRepository;
+    const info = await new HealthCheckCollector(repo, noArchive).checkService(
+      service,
+    );
+    return { info, recorded: recordHealthCheck.mock.calls[0]?.[0] };
+  };
+
+  it("keeps a service that gives its own name UP", async () => {
+    const { info } = await check(() => "variamos-ms-languages");
+
+    expect(info.status).toBe("UP");
+    expect(info.errorMessage).toBeUndefined();
+  });
+
+  it("marks a service DOWN when every address answers for another one", async () => {
+    const { info, recorded } = await check(() => "vms_projects");
+
+    expect(info.status).toBe("DOWN");
+    expect(recorded).toMatchObject({
+      status: "DOWN",
+      errorMessage: "Answered as another service: vms_projects",
+    });
+  });
+
+  it("takes the address that answers for the service checked", async () => {
+    // The old container address now belongs to another service
+    const { info } = await check((url) =>
+      url.includes("10.0.0.1") ? "vms_projects" : "variamos_ms_languages",
+    );
+
+    expect(info.status).toBe("UP");
   });
 });
 

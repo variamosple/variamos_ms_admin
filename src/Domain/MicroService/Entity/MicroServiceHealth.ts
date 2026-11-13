@@ -33,6 +33,8 @@ export interface MicroServiceHealthInfo {
   responseTimeMs?: number;
   checkedAt?: Date;
   checks?: Record<string, HealthCheckDetail>;
+  /** Why a DOWN service is down, when the check knows it. */
+  errorMessage?: string;
 }
 
 export interface MicroServiceStatusInfo

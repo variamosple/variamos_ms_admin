@@ -16,6 +16,24 @@ const HEALTH_CHECK_CONCURRENCY = 4;
 // one that does not answer within the 5 s timeout is DOWN
 export const DEGRADED_LATENCY_MS = 2000;
 
+/** Compose names use hyphens where service names use underscores. */
+const comparableName = (name: string) =>
+  name.trim().toLowerCase().replaceAll("-", "_");
+
+/**
+ * Whether a health answer comes from the service checked. An answer without
+ * a name is taken: not every service gives one.
+ */
+export function answersAs(announced: unknown, expected: string): boolean {
+  return (
+    typeof announced !== "string" ||
+    comparableName(announced) === comparableName(expected)
+  );
+}
+
+/** An answer from another service: a wrong port, or an address reused. */
+class OtherServiceAnswer extends Error {}
+
 /**
  * The address without its final slashes. Read from the end: the former
  * expression /\/+$/ took a time quadratic in the number of slashes.
@@ -278,6 +296,7 @@ export class HealthCheckCollector {
     const startTime = Date.now();
     let status: "UP" | "DEGRADED" | "DOWN" = "DOWN";
     let responseTimeMs = 0;
+    let downReason: string | undefined;
 
     const uniqueUrls = candidateUrlsOf(service);
 
@@ -296,12 +315,16 @@ export class HealthCheckCollector {
           // A service that declares itself DEGRADED often answers 503 with
           // it (semantic_translator does): it answered, so it is not DOWN
           if (
-            (response.status >= 200 && response.status < 300) ||
-            response.data?.status === "DEGRADED"
+            !(response.status >= 200 && response.status < 300) &&
+            response.data?.status !== "DEGRADED"
           ) {
-            return { response, latency: Date.now() - reqStart };
+            throw new Error(`HTTP status ${response.status}`);
           }
-          throw new Error(`HTTP status ${response.status}`);
+          const announced: unknown = response.data?.serviceName;
+          if (!answersAs(announced, service.name)) {
+            throw new OtherServiceAnswer(String(announced).slice(0, 100));
+          }
+          return { response, latency: Date.now() - reqStart };
         }),
       );
 
@@ -311,10 +334,16 @@ export class HealthCheckCollector {
           ? "DEGRADED"
           : "UP";
       responseTimeMs = successfulResult.latency;
-    } catch {
+    } catch (failure) {
       // All candidate URLs failed
       status = "DOWN";
       responseTimeMs = Date.now() - startTime;
+      const other = (
+        failure instanceof AggregateError ? failure.errors : []
+      ).find((error) => error instanceof OtherServiceAnswer);
+      if (other) {
+        downReason = `Answered as another service: ${other.message}`;
+      }
     } finally {
       pendingRequests.abort();
     }
@@ -324,6 +353,7 @@ export class HealthCheckCollector {
       status,
       responseTimeMs,
       checkedAt: new Date(),
+      errorMessage: downReason,
     };
 
     await this.microServiceRepository.recordHealthCheck(healthInfo);
