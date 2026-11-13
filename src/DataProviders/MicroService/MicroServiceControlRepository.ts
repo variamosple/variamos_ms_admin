@@ -23,10 +23,8 @@ export class MicroServiceControlRepositoryImpl
     ) => Promise<MicroServiceHealthInfo[]>;
   };
 
-  public constructor(config: { socketPath: string }) {
-    this.dockerConnection = new Docker({
-      socketPath: config.socketPath,
-    });
+  public constructor(config: { docker: Docker.DockerOptions }) {
+    this.dockerConnection = new Docker(config.docker);
   }
 
   public setHealthCollector(collector: {

@@ -13,7 +13,7 @@ describe("MicroServiceControlRepositoryImpl audit actor", () => {
 
   beforeEach(() => {
     repository = new MicroServiceControlRepositoryImpl({
-      socketPath: "/nonexistent/docker.sock",
+      docker: { socketPath: "/nonexistent/docker.sock" },
     });
     // The container lookup talks to Docker: replace it with a fake container
     vi.spyOn(

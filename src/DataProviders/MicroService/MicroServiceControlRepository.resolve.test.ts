@@ -21,7 +21,7 @@ const unmonitored = {
 describe("MicroServiceControlRepositoryImpl container resolution", () => {
   const resolve = (target: string) => {
     const repository = new MicroServiceControlRepositoryImpl({
-      socketPath: "/nonexistent/docker.sock",
+      docker: { socketPath: "/nonexistent/docker.sock" },
     });
     (repository as unknown as { dockerConnection: unknown }).dockerConnection =
       {

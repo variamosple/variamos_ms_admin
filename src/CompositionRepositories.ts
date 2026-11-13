@@ -12,6 +12,7 @@ import { ConfigurationRepositoryImpl } from "./DataProviders/Configuration/Confi
 import { SecretConfigurationValue } from "./DataProviders/Configuration/SecretConfigurationValue.js";
 import { CountriesRepositoryImpl } from "./DataProviders/Countries/CountriesRepository.js";
 import { MetricsRepositoryImpl } from "./DataProviders/Metrics/MetricsRepository.js";
+import { dockerOptionsOf } from "./DataProviders/MicroService/dockerOptions.js";
 import { HealthLogStatistics } from "./DataProviders/MicroService/HealthLogStatistics.js";
 import { MicroServiceConfigRepositoryImpl } from "./DataProviders/MicroService/MicroServiceConfigRepository.js";
 import { MicroServiceControlRepositoryImpl } from "./DataProviders/MicroService/MicroServiceControlRepository.js";
@@ -69,14 +70,19 @@ export const HealthLogStatisticsInstance = new HealthLogStatistics(
   DB_SCHEMA,
 );
 
+const DOCKER_OPTIONS = dockerOptionsOf({
+  host: EnvVars.DOCKER.HOST,
+  socketPath: EnvVars.DOCKER.SOCKET_PATH,
+});
+
 // One repository per subject of the monitoring
 export const MicroServiceRepositoriesInstance = {
   services: new MicroServiceRepositoryImpl({
-    socketPath: EnvVars.DOCKER.SOCKET_PATH,
+    docker: DOCKER_OPTIONS,
     statistics: HealthLogStatisticsInstance,
   }),
   control: new MicroServiceControlRepositoryImpl({
-    socketPath: EnvVars.DOCKER.SOCKET_PATH,
+    docker: DOCKER_OPTIONS,
   }),
   configuration: new MicroServiceConfigRepositoryImpl({
     secrets: SecretConfigurationValueInstance,
