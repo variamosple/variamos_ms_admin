@@ -19,7 +19,7 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "@vitest/*"
         update-types: ["version-update:semver-major"]
-      # Types follow the Node version in use: 24 until Node 26 is LTS
+      # Types follow the Node version in use: 26 until Node 28 is LTS
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
   - package-ecosystem: "github-actions"
