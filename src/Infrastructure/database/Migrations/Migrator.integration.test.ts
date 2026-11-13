@@ -286,6 +286,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
     ).toEqual([
       { key: "bugs.rejected_retention_days", value: 7 },
       { key: "bugs.sync_interval_minutes", value: 15 },
+      { key: "monitoring.health_check_interval_seconds", value: 30 },
       { key: "security.alerts.cooldown_minutes", value: 60 },
       { key: "security.alerts.failed_sign_ins.max_attempts", value: 10 },
       { key: "security.alerts.failed_sign_ins.window_minutes", value: 15 },
