@@ -23,6 +23,12 @@ COPY --from=build /variaMosAdminService/dist ./dist
 # The variables come from the container, never from a file in the image (EV-69)
 ENV NODE_ENV=production
 
+# Not root (EV-71 lot 5): Docker is reached through the socket proxy, and the
+# JWT key and the uploads directory are readable and writable by uid 1000. The
+# server mounts its own uploads directory over this one
+RUN mkdir -p dist/public/uploads && chown node:node dist/public/uploads
+USER node
+
 EXPOSE 4000
 
 CMD [ "npm", "start" ]
