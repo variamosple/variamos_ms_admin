@@ -84,6 +84,11 @@ import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 
+// Google posts the same random value as a cookie of our domain and in the
+// body; the callback refuses a sign-in without it (EV-70 lot 5)
+const GOOGLE_CSRF = "csrf-from-google";
+const googleCsrfCookie = `g_csrf_token=${GOOGLE_CSRF}`;
+
 // The access journal is checked by its own tests (T-24)
 const accessJournal = mock<IAccessJournal>();
 
@@ -1381,7 +1386,11 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       const response = await supertest(app)
         .post("/auth/google/callback")
-        .send({ credential: "mock-google-id-token" });
+        .set("Cookie", [googleCsrfCookie])
+        .send({
+          credential: "mock-google-id-token",
+          g_csrf_token: GOOGLE_CSRF,
+        });
 
       expect(response.status).toBe(302);
       expect(response.headers.location).toBe("http://localhost:3000");
@@ -1398,7 +1407,11 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       const response = await supertest(app)
         .post("/auth/google/callback")
-        .send({ credential: "mock-google-id-token" });
+        .set("Cookie", [googleCsrfCookie])
+        .send({
+          credential: "mock-google-id-token",
+          g_csrf_token: GOOGLE_CSRF,
+        });
 
       expect(response.status).toBe(302);
       expect(response.headers.location).toContain("reason=sign-in-failed");
@@ -1415,7 +1428,11 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       const response = await supertest(app)
         .post("/auth/google/callback")
-        .send({ credential: "mock-google-id-token" });
+        .set("Cookie", [googleCsrfCookie])
+        .send({
+          credential: "mock-google-id-token",
+          g_csrf_token: GOOGLE_CSRF,
+        });
 
       expect(response.status).toBe(302);
       expect(response.headers.location).toContain("reason=account-inactive");
@@ -1436,7 +1453,11 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       await supertest(app)
         .post("/auth/google/callback")
-        .send({ credential: "mock-google-id-token" });
+        .set("Cookie", [googleCsrfCookie])
+        .send({
+          credential: "mock-google-id-token",
+          g_csrf_token: GOOGLE_CSRF,
+        });
 
       await vi.waitFor(() =>
         expect(accessJournal.record).toHaveBeenCalledWith(
@@ -1459,7 +1480,11 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       await supertest(app)
         .post("/auth/google/callback")
-        .send({ credential: "mock-google-id-token" });
+        .set("Cookie", [googleCsrfCookie])
+        .send({
+          credential: "mock-google-id-token",
+          g_csrf_token: GOOGLE_CSRF,
+        });
 
       await vi.waitFor(() =>
         expect(accessJournal.record).toHaveBeenCalledWith(
@@ -1482,7 +1507,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       await supertest(app)
         .post("/auth/google/callback")
-        .send({ credential: "unverified-token" });
+        .set("Cookie", [googleCsrfCookie])
+        .send({ credential: "unverified-token", g_csrf_token: GOOGLE_CSRF });
 
       expect(UserAuthUseCase.prototype.signInWithGoogle).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1507,7 +1533,11 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       const response = await supertest(app)
         .post("/auth/google/callback")
-        .send({ credential: "mock-google-id-token" });
+        .set("Cookie", [googleCsrfCookie])
+        .send({
+          credential: "mock-google-id-token",
+          g_csrf_token: GOOGLE_CSRF,
+        });
 
       expect(response.headers.location).toContain("reason=sign-in-failed");
       await vi.waitFor(() =>
@@ -1521,43 +1551,37 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       );
     });
 
-    it("only logs a missing or different g_csrf_token for now", async () => {
-      const warn = vi.spyOn(logger, "warn").mockImplementation(() => {});
-      vi.mocked(createJwt).mockResolvedValue("google-jwt-token");
-      (UserAuthUseCase.prototype.signInWithGoogle as Mock).mockResolvedValue(
-        new ResponseModel("loginWithGoogle").withResponse(
-          User.builder().setId("user-123").setEmail("john@example.com").build(),
-        ),
-      );
+    it("refuses a missing or different g_csrf_token before reading the credential", async () => {
+      (UserAuthUseCase.prototype.signInWithGoogle as Mock).mockClear();
 
       const missing = await supertest(app)
         .post("/auth/google/callback")
         .send({ credential: "mock-google-id-token" });
+      const onlyInBody = await supertest(app)
+        .post("/auth/google/callback")
+        .send({ credential: "mock-google-id-token", g_csrf_token: "x" });
       const different = await supertest(app)
         .post("/auth/google/callback")
         .set("Cookie", ["g_csrf_token=from-cookie"])
         .send({ credential: "mock-google-id-token", g_csrf_token: "other" });
 
-      expect(missing.headers.location).toBe("http://localhost:3000");
-      expect(different.headers.location).toBe("http://localhost:3000");
-      expect(warn).toHaveBeenCalledTimes(2);
-      expect(warn).toHaveBeenCalledWith(
-        expect.stringContaining("g_csrf_token missing or not matching"),
+      for (const response of [missing, onlyInBody, different]) {
+        expect(response.status).toBe(302);
+        expect(response.headers.location).toContain("reason=sign-in-failed");
+        expect(String(response.headers["set-cookie"] ?? "")).not.toContain(
+          "authToken",
+        );
+      }
+      expect(UserAuthUseCase.prototype.signInWithGoogle).not.toHaveBeenCalled();
+      await vi.waitFor(() =>
+        expect(accessJournal.record).toHaveBeenCalledWith(
+          expect.objectContaining({
+            event: "sign-in.google",
+            outcome: "failed",
+            reason: "google_csrf_mismatch",
+          }),
+        ),
       );
-
-      warn.mockClear();
-      await supertest(app)
-        .post("/auth/google/callback")
-        .set("Cookie", ["g_csrf_token=same-value"])
-        .send({
-          credential: "mock-google-id-token",
-          g_csrf_token: "same-value",
-        });
-
-      expect(warn).not.toHaveBeenCalledWith(
-        expect.stringContaining("g_csrf_token"),
-      );
-      warn.mockRestore();
     });
 
     it("records a Google sign-in once, even when the session fails after it", async () => {
@@ -1570,7 +1594,11 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       await supertest(app)
         .post("/auth/google/callback")
-        .send({ credential: "mock-google-id-token" });
+        .set("Cookie", [googleCsrfCookie])
+        .send({
+          credential: "mock-google-id-token",
+          g_csrf_token: GOOGLE_CSRF,
+        });
 
       await vi.waitFor(() =>
         expect(accessJournal.record).toHaveBeenCalledWith(
@@ -1583,7 +1611,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     it("records a Google sign-in that fails on the token", async () => {
       const response = await supertest(app)
         .post("/auth/google/callback")
-        .send({ credential: "invalid-token" });
+        .set("Cookie", [googleCsrfCookie])
+        .send({ credential: "invalid-token", g_csrf_token: GOOGLE_CSRF });
 
       expect(response.status).toBe(302);
       await vi.waitFor(() =>
@@ -1600,7 +1629,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     it("should redirect to login if ticket verification throws an exception", async () => {
       const response = await supertest(app)
         .post("/auth/google/callback")
-        .send({ credential: "invalid-token" });
+        .set("Cookie", [googleCsrfCookie])
+        .send({ credential: "invalid-token", g_csrf_token: GOOGLE_CSRF });
 
       expect(response.status).toBe(302);
       expect(response.headers.location).toContain("reason=sign-in-failed");
@@ -1609,7 +1639,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     it("should redirect to login if ticket verification succeeds but payload is empty", async () => {
       const response = await supertest(app)
         .post("/auth/google/callback")
-        .send({ credential: "empty-payload-token" });
+        .set("Cookie", [googleCsrfCookie])
+        .send({ credential: "empty-payload-token", g_csrf_token: GOOGLE_CSRF });
 
       expect(response.status).toBe(302);
       expect(response.headers.location).toContain("reason=sign-in-failed");
@@ -1637,8 +1668,14 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       const response = await supertest(app)
         .post("/auth/google/callback")
-        .set("Cookie", ["redirectTo=http://allowed-origin.com/dashboard"])
-        .send({ credential: "mock-google-id-token" });
+        .set("Cookie", [
+          "redirectTo=http://allowed-origin.com/dashboard",
+          googleCsrfCookie,
+        ])
+        .send({
+          credential: "mock-google-id-token",
+          g_csrf_token: GOOGLE_CSRF,
+        });
 
       expect(response.status).toBe(302);
       expect(response.headers.location).toBe("http://localhost:3000");
@@ -2393,7 +2430,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       const response = await supertest(app)
         .post("/auth/google/callback")
-        .send({ credential: "invalid-token" });
+        .set("Cookie", [googleCsrfCookie])
+        .send({ credential: "invalid-token", g_csrf_token: GOOGLE_CSRF });
 
       expect(response.status).toBe(302);
       expect(loggerSpy).toHaveBeenCalledWith(expect.any(Error));
@@ -2416,7 +2454,11 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       const response = await supertest(app)
         .post("/auth/google/callback")
-        .send({ credential: "mock-google-id-token" });
+        .set("Cookie", [googleCsrfCookie])
+        .send({
+          credential: "mock-google-id-token",
+          g_csrf_token: GOOGLE_CSRF,
+        });
 
       expect(response.status).toBe(302);
       expect(UserAuthUseCase.prototype.signInWithGoogle).toHaveBeenCalledWith(
@@ -2434,7 +2476,11 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       const response = await supertest(app)
         .post("/auth/google/callback")
-        .send({ credential: "mock-google-id-token" });
+        .set("Cookie", [googleCsrfCookie])
+        .send({
+          credential: "mock-google-id-token",
+          g_csrf_token: GOOGLE_CSRF,
+        });
 
       expect(response.status).toBe(302);
       expect(response.headers.location).toContain("reason=sign-in-failed");
@@ -2445,7 +2491,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       const response = await supertest(app)
         .post("/auth/google/callback")
-        .send({ credential: "invalid-token" });
+        .set("Cookie", [googleCsrfCookie])
+        .send({ credential: "invalid-token", g_csrf_token: GOOGLE_CSRF });
 
       expect(response.status).toBe(302);
       expect(errorLogOf(loggerSpy)).toEqual(SAFE_ERROR_LOG);

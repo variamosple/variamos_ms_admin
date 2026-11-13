@@ -25,6 +25,11 @@ import type { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase
 import { AUTH_ROUTE, createAuthRouter } from "./AuthRouter.js";
 import { MFA_PENDING_COOKIE, MFA_TRUSTED_COOKIE } from "./authWeb.js";
 
+// Google posts the same random value as a cookie of our domain and in the
+// body; the callback refuses a sign-in without it (EV-70 lot 5)
+const GOOGLE_CSRF = "csrf-from-google";
+const googleCsrfCookie = `g_csrf_token=${GOOGLE_CSRF}`;
+
 // The access journal is checked by its own tests (T-24)
 const accessJournal = mock<IAccessJournal>();
 
@@ -370,7 +375,8 @@ describe("sign-in with a second factor", () => {
 
     const response = await supertest(app)
       .post("/auth/google/callback")
-      .send({ credential: "google-token" })
+      .set("Cookie", [googleCsrfCookie])
+      .send({ credential: "google-token", g_csrf_token: GOOGLE_CSRF })
       .expect(302);
 
     expect(response.headers.location).toMatch(
@@ -385,7 +391,8 @@ describe("sign-in with a second factor", () => {
 
     const response = await supertest(app)
       .post("/auth/google/callback")
-      .send({ credential: "google-token" })
+      .set("Cookie", [googleCsrfCookie])
+      .send({ credential: "google-token", g_csrf_token: GOOGLE_CSRF })
       .expect(302);
 
     expect(response.headers.location).not.toContain("mfa=required");
@@ -486,8 +493,8 @@ describe("browsers where the code is not asked (lot 6)", () => {
 
     const response = await supertest(app)
       .post("/auth/google/callback")
-      .set("Cookie", trusted.split(";")[0] as string)
-      .send({ credential: "google-token" })
+      .set("Cookie", [trusted.split(";")[0] as string, googleCsrfCookie])
+      .send({ credential: "google-token", g_csrf_token: GOOGLE_CSRF })
       .expect(302);
 
     expect(response.headers.location).not.toContain("mfa=required");
