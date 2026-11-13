@@ -1,5 +1,5 @@
 # Build stage: the development dependencies compile the code, then leave
-FROM node:24-alpine AS build
+FROM node:26-alpine AS build
 
 WORKDIR /variaMosAdminService
 # Dependencies first: a change of the source code reuses this layer
@@ -13,7 +13,7 @@ COPY ./src ./src
 RUN npm run build && npm prune --omit=dev
 
 # Run stage: the compiled code and the production dependencies only (T-30)
-FROM node:24-alpine
+FROM node:26-alpine
 
 WORKDIR /variaMosAdminService
 COPY --from=build /variaMosAdminService/package.json ./package.json
