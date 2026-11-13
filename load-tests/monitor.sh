@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# The CPUPerc field of docker stats
+# cspell:ignore Perc
 # Every 5 s: CPU and memory of the admin and database containers, and the
 # connections the admin holds on PostgreSQL (pool of 20), until k6 stops
 OUT=$1

@@ -1,5 +1,8 @@
 # VariaMos Admin Microservice
 
+<!-- The start of every RSA private key, in the example below -->
+<!-- cspell:ignore IBAAKCAQ -->
+
 ## How to Run
 
 ### Prerequisites
