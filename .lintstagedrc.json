@@ -3,5 +3,6 @@
     "biome check --write --no-errors-on-unmatched",
     "cspell --no-must-find-files"
   ],
-  "src/**/*.md": ["cspell"]
+  "*.{md,yml,yaml,sh}": ["cspell --no-must-find-files"],
+  "**/Dockerfile*": ["cspell --no-must-find-files"]
 }
