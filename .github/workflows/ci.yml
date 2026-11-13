@@ -46,6 +46,11 @@ jobs:
       run: |
         npm run lint
 
+    # Spelling of code, docs, workflows, scripts and Docker files (American English)
+    - name: Check spelling (cspell)
+      run: |
+        npm run spell
+
     - name: Verify TypeScript types
       run: |
         npm run typecheck

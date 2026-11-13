@@ -74,7 +74,11 @@
     "biome.shared.jsonc",
     ".env",
     ".env.*",
-    "**/*.env"
+    "**/*.env",
+    ".git/**",
+    ".stryker-tmp/**",
+    "reports/**",
+    "CLAUDE.local.md"
   ],
   "ignoreRegExpList": ["/GHSA(-[a-z0-9]{4}){3}/g"]
 }
