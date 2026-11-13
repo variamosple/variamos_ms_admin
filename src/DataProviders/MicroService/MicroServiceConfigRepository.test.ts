@@ -228,7 +228,7 @@ describe("microservice configurations and secrets", () => {
     ] as never);
 
     const response = await new MicroServiceControlRepositoryImpl({
-      socketPath: "/nonexistent/docker.sock",
+      docker: { socketPath: "/nonexistent/docker.sock" },
     }).queryAuditLogs(
       new RequestModel("tx", { serviceName: "variamos_ms_notifications" }),
     );

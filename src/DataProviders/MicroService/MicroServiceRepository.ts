@@ -47,13 +47,11 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
   private readonly recentUptimes: RecentResults<MicroServiceUptimeSummary[]>;
 
   public constructor(config: {
-    socketPath: string;
+    docker: Docker.DockerOptions;
     statistics?: HealthLogStatistics;
     uptimeMaxAgeMs?: number;
   }) {
-    this.dockerConnection = new Docker({
-      socketPath: config.socketPath,
-    });
+    this.dockerConnection = new Docker(config.docker);
     this.statistics =
       config.statistics ?? new HealthLogStatistics(VARIAMOS_ORM, DB_SCHEMA);
     this.recentUptimes = new RecentResults(

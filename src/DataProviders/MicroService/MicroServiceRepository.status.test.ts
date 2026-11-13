@@ -19,7 +19,7 @@ describe("MicroServiceRepositoryImpl.queryByName status", () => {
 
   beforeEach(() => {
     repository = new MicroServiceRepositoryImpl({
-      socketPath: "/nonexistent/docker.sock",
+      docker: { socketPath: "/nonexistent/docker.sock" },
       // No check in the uptime period
       statistics: {
         uptimeCounts: vi.fn().mockResolvedValue(new Map()),
@@ -104,7 +104,7 @@ describe("MicroServiceRepositoryImpl.queryMicroServices", () => {
     });
     const uptimeCounts = vi.fn().mockResolvedValue(new Map());
     const repository = new MicroServiceRepositoryImpl({
-      socketPath: "/nonexistent/docker.sock",
+      docker: { socketPath: "/nonexistent/docker.sock" },
       statistics: {
         uptimeCounts,
         lastStatuses: vi.fn().mockResolvedValue(new Map()),
@@ -146,7 +146,7 @@ describe("MicroServiceRepositoryImpl uptime kept between screens", () => {
   const repositoryWith = (uptimeMaxAgeMs?: number) => {
     const uptimeCounts = vi.fn().mockResolvedValue(new Map());
     const repository = new MicroServiceRepositoryImpl({
-      socketPath: "/nonexistent/docker.sock",
+      docker: { socketPath: "/nonexistent/docker.sock" },
       statistics: {
         uptimeCounts,
         lastStatuses: vi.fn().mockResolvedValue(new Map()),

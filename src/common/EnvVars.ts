@@ -64,6 +64,8 @@ export default {
     },
   },
   DOCKER: {
+    // tcp://<proxy>:2375: the socket proxy (EV-71); takes over SOCKET_PATH
+    HOST: process.env.DOCKER_HOST ?? "",
     SOCKET_PATH: process.env.DOCKER_SOCKET_PATH ?? "",
   },
   MONITORING: {
