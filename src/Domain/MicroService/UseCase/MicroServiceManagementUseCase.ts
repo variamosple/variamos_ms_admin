@@ -67,34 +67,10 @@ export class MicroServiceManagementUseCase {
     request: RequestModel<string>,
     actorId: string,
   ): Promise<ResponseModel<void>> {
-    const defaultResponse = new ResponseModel<void>(request.transactionId);
-    if (!request.data) {
-      return defaultResponse.withError(
-        DomainErrorCodes.INVALID_INPUT,
-        "MicroService Id is required.",
-      );
-    }
-
-    if (this.repositories.services.queryByName) {
-      const queryResponse =
-        await this.repositories.services.queryByName(request);
-      if (queryResponse?.errorCode) {
-        return defaultResponse.withError(
-          queryResponse.errorCode,
-          queryResponse.message ?? "An unexpected error occurred",
-        );
-      }
-      // Actions follow the container, not the health check: a running
-      // service that answers badly can still be stopped or restarted
-      if (queryResponse?.data && isRunning(queryResponse.data.containers)) {
-        return defaultResponse.withError(
-          DomainErrorCodes.INVALID_INPUT,
-          "MicroService is not in exited state.",
-        );
-      }
-    }
-
-    return this.repositories.control.startMicroService(request, actorId);
+    const refused = await this.refuseUnless(request, "exited");
+    return (
+      refused ?? this.repositories.control.startMicroService(request, actorId)
+    );
   }
 
   public async stopMicroService(
@@ -112,32 +88,10 @@ export class MicroServiceManagementUseCase {
     request: RequestModel<string>,
     actorId: string,
   ): Promise<ResponseModel<void>> {
-    const defaultResponse = new ResponseModel<void>(request.transactionId);
-    if (!request.data) {
-      return defaultResponse.withError(
-        DomainErrorCodes.INVALID_INPUT,
-        "MicroService Id is required.",
-      );
-    }
-
-    if (this.repositories.services.queryByName) {
-      const queryResponse =
-        await this.repositories.services.queryByName(request);
-      if (queryResponse?.errorCode) {
-        return defaultResponse.withError(
-          queryResponse.errorCode,
-          queryResponse.message ?? "An unexpected error occurred",
-        );
-      }
-      if (queryResponse?.data && !isRunning(queryResponse.data.containers)) {
-        return defaultResponse.withError(
-          DomainErrorCodes.INVALID_INPUT,
-          "MicroService is not in running state.",
-        );
-      }
-    }
-
-    return this.repositories.control.stopMicroService(request, actorId);
+    const refused = await this.refuseUnless(request, "running");
+    return (
+      refused ?? this.repositories.control.stopMicroService(request, actorId)
+    );
   }
 
   public async restartMicroService(
@@ -155,6 +109,21 @@ export class MicroServiceManagementUseCase {
     request: RequestModel<string>,
     actorId: string,
   ): Promise<ResponseModel<void>> {
+    const refused = await this.refuseUnless(request, "running");
+    return (
+      refused ?? this.repositories.control.restartMicroService(request, actorId)
+    );
+  }
+
+  /**
+   * Refuses the action unless the service's container is in the `required`
+   * state. Actions follow the container, not the health check: a running
+   * service that answers badly can still be stopped or restarted.
+   */
+  private async refuseUnless(
+    request: RequestModel<string>,
+    required: "running" | "exited",
+  ): Promise<ResponseModel<void> | undefined> {
     const defaultResponse = new ResponseModel<void>(request.transactionId);
     if (!request.data) {
       return defaultResponse.withError(
@@ -163,24 +132,24 @@ export class MicroServiceManagementUseCase {
       );
     }
 
-    if (this.repositories.services.queryByName) {
-      const queryResponse =
-        await this.repositories.services.queryByName(request);
-      if (queryResponse?.errorCode) {
-        return defaultResponse.withError(
-          queryResponse.errorCode,
-          queryResponse.message ?? "An unexpected error occurred",
-        );
-      }
-      if (queryResponse?.data && !isRunning(queryResponse.data.containers)) {
-        return defaultResponse.withError(
-          DomainErrorCodes.INVALID_INPUT,
-          "MicroService is not in running state.",
-        );
-      }
+    if (!this.repositories.services.queryByName) return undefined;
+    const queryResponse = await this.repositories.services.queryByName(request);
+    if (queryResponse?.errorCode) {
+      return defaultResponse.withError(
+        queryResponse.errorCode,
+        queryResponse.message ?? "An unexpected error occurred",
+      );
     }
-
-    return this.repositories.control.restartMicroService(request, actorId);
+    if (
+      queryResponse?.data &&
+      isRunning(queryResponse.data.containers) !== (required === "running")
+    ) {
+      return defaultResponse.withError(
+        DomainErrorCodes.INVALID_INPUT,
+        `MicroService is not in ${required} state.`,
+      );
+    }
+    return undefined;
   }
 
   // Start, stop and restart appear in the activity journal with their real

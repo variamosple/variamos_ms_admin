@@ -21,10 +21,15 @@ import {
 
 export const USER_ROLES_V1_ROUTE = "/:userId/roles";
 
-const queryUserRoles =
-  (userRoleUseCase: UserRoleUseCase): RequestHandler<{ userId: string }> =>
+/** Pages of a user's roles, as the use case's `query` answers them. */
+const pageOfUserRoles =
+  (
+    transactionId: string,
+    query: (
+      request: RequestModel<UserRoleFilter>,
+    ) => Promise<ResponseModel<unknown>>,
+  ): RequestHandler<{ userId: string }> =>
   async (req: Request<{ userId: string }>, res) => {
-    const transactionId = "queryUserRoles";
     const { pageNumber, pageSize } = req.query;
     const { userId } = req.params;
     try {
@@ -34,8 +39,9 @@ const queryUserRoles =
         .setPageSize(Number(pageSize))
         .build();
 
-      const request = new RequestModel<UserRoleFilter>(transactionId, filter);
-      const response = await userRoleUseCase.queryUserRoles(request);
+      const response = await query(
+        new RequestModel<UserRoleFilter>(transactionId, filter),
+      );
 
       const status = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(status).json(response);
@@ -44,28 +50,19 @@ const queryUserRoles =
     }
   };
 
-const queryUserRolesDetails =
-  (userRoleUseCase: UserRoleUseCase): RequestHandler<{ userId: string }> =>
-  async (req: Request<{ userId: string }>, res) => {
-    const transactionId = "queryUserRolesDetails";
-    const { pageNumber, pageSize } = req.query;
-    const { userId } = req.params;
-    try {
-      const filter: UserRoleFilter = UserRoleFilter.builder()
-        .setUserId(userId)
-        .setPageNumber(Number(pageNumber))
-        .setPageSize(Number(pageSize))
-        .build();
+const queryUserRoles = (
+  userRoleUseCase: UserRoleUseCase,
+): RequestHandler<{ userId: string }> =>
+  pageOfUserRoles("queryUserRoles", (request) =>
+    userRoleUseCase.queryUserRoles(request),
+  );
 
-      const request = new RequestModel<UserRoleFilter>(transactionId, filter);
-      const response = await userRoleUseCase.queryUserRolesDetails(request);
-
-      const status = mapDomainErrorToHttpStatus(response.errorCode);
-      res.status(status).json(response);
-    } catch (error) {
-      sendError(res, error, transactionId);
-    }
-  };
+const queryUserRolesDetails = (
+  userRoleUseCase: UserRoleUseCase,
+): RequestHandler<{ userId: string }> =>
+  pageOfUserRoles("queryUserRolesDetails", (request) =>
+    userRoleUseCase.queryUserRolesDetails(request),
+  );
 
 const createUserRole =
   (userRoleUseCase: UserRoleUseCase): RequestHandler<{ userId: string }> =>

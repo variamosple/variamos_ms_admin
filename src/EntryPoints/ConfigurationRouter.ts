@@ -83,68 +83,33 @@ interface PublicSettingsDto {
   siteName: string;
 }
 
+type AdminPage = Menu["subMenu"][number]["items"][number];
+
+/** A page of the administration, shown to whoever holds its permission. */
+const adminPage = (
+  title: string,
+  location: string,
+  permission: string,
+): AdminPage => ({ title, location, allowedPermissions: [permission] });
+
 // The pages of the administration, in the order of its sub-menu
-const ADMIN_PAGES: Menu["subMenu"][number]["items"] = [
-  {
-    title: "Users",
-    location: "/users",
-    allowedPermissions: ["users::query"],
-  },
-  {
-    title: "Roles",
-    location: "/roles",
-    allowedPermissions: ["roles::query"],
-  },
-  {
-    title: "Permission",
-    location: "/permissions",
-    allowedPermissions: ["permissions::query"],
-  },
-  {
-    title: "Languages",
-    location: "/languages",
-    allowedPermissions: ["admin::languages::query"],
-  },
-  {
-    title: "Projects",
-    location: "/projects",
-    allowedPermissions: ["admin::projects::query"],
-  },
-  {
-    title: "Models",
-    location: "/models",
-    allowedPermissions: ["admin::models::query"],
-  },
-  {
-    title: "Metrics",
-    location: "/metrics",
-    allowedPermissions: ["metrics::query"],
-  },
-  {
-    title: "Monitoring",
-    location: "/monitoring",
-    allowedPermissions: ["micro-services::query"],
-  },
-  {
-    title: "Bugs",
-    location: "/bugs",
-    allowedPermissions: ["bugs::query"],
-  },
-  {
-    title: "Configurations",
-    location: "/configurations",
-    allowedPermissions: ["configurations::query"],
-  },
-  {
-    title: "Notifications",
-    location: "/admin/notifications",
-    allowedPermissions: ["admin::notifications::dispatch"],
-  },
-  {
-    title: "Journal",
-    location: "/journal",
-    allowedPermissions: ["activity-logs::query"],
-  },
+const ADMIN_PAGES: AdminPage[] = [
+  adminPage("Users", "/users", "users::query"),
+  adminPage("Roles", "/roles", "roles::query"),
+  adminPage("Permission", "/permissions", "permissions::query"),
+  adminPage("Languages", "/languages", "admin::languages::query"),
+  adminPage("Projects", "/projects", "admin::projects::query"),
+  adminPage("Models", "/models", "admin::models::query"),
+  adminPage("Metrics", "/metrics", "metrics::query"),
+  adminPage("Monitoring", "/monitoring", "micro-services::query"),
+  adminPage("Bugs", "/bugs", "bugs::query"),
+  adminPage("Configurations", "/configurations", "configurations::query"),
+  adminPage(
+    "Notifications",
+    "/admin/notifications",
+    "admin::notifications::dispatch",
+  ),
+  adminPage("Journal", "/journal", "activity-logs::query"),
 ];
 
 /**

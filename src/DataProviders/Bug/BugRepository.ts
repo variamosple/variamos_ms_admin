@@ -136,59 +136,23 @@ export class BugRepositoryImpl implements IBugRepository {
     return response;
   }
 
-  public async rejectBug(
+  public rejectBug(
     request: RequestModel<{ id: string; adminId: string; logComment: string }>,
   ): Promise<ResponseModel<Bug>> {
-    const response = new ResponseModel<Bug>(request.transactionId);
-    try {
-      const data = request.data;
-      if (!data) {
-        return response.withError(
-          DomainErrorCodes.INVALID_INPUT,
-          "Request data is required.",
-        );
-      }
-      const { id, adminId, logComment } = data;
-      await VARIAMOS_ORM.transaction(async (t) => {
-        const dbBug = await BugModel.findByPk(id, { transaction: t });
-
-        if (!dbBug) {
-          response.withError(
-            DomainErrorCodes.ENTITY_NOT_FOUND,
-            "Local bug not found",
-          );
-          return;
-        }
-
-        dbBug.status = "rejected";
-        await dbBug.save({ transaction: t });
-
-        const resolvedOperatorId = await resolveOperatorId(adminId, t);
-
-        await BugLogModel.create(
-          {
-            action: "reject",
-            comment: logComment,
-            bugId: dbBug.id ?? "",
-            operatorId: resolvedOperatorId || "",
-          },
-          { transaction: t },
-        );
-
-        response.data = Bug.builder()
-          .setId(dbBug.id)
-          .setStatus(dbBug.status)
-          .build();
-      });
-    } catch (error) {
-      logger.err(error);
-      response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
-    }
-    return response;
+    return this.moveBugTo(request, "rejected", "reject");
   }
 
-  public async restoreBug(
+  public restoreBug(
     request: RequestModel<{ id: string; adminId: string; logComment: string }>,
+  ): Promise<ResponseModel<Bug>> {
+    return this.moveBugTo(request, "pending", "restore");
+  }
+
+  /** Sets the bug's status and logs the action, in one transaction. */
+  private async moveBugTo(
+    request: RequestModel<{ id: string; adminId: string; logComment: string }>,
+    status: string,
+    action: string,
   ): Promise<ResponseModel<Bug>> {
     const response = new ResponseModel<Bug>(request.transactionId);
     try {
@@ -211,14 +175,14 @@ export class BugRepositoryImpl implements IBugRepository {
           return;
         }
 
-        dbBug.status = "pending";
+        dbBug.status = status;
         await dbBug.save({ transaction: t });
 
         const resolvedOperatorId = await resolveOperatorId(adminId, t);
 
         await BugLogModel.create(
           {
-            action: "restore",
+            action,
             comment: logComment,
             bugId: dbBug.id ?? "",
             operatorId: resolvedOperatorId || "",
