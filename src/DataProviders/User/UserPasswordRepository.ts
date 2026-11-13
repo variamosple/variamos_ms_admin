@@ -3,7 +3,7 @@ import logger from "#src/common/logger.js";
 import type { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
-import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
+import { errorName } from "#src/Domain/Core/Error/errorMessage.js";
 import { accountRefusalOf } from "#src/Domain/User/Entity/AccountAccess.js";
 import type { PasswordUpdate } from "#src/Domain/User/Entity/PasswordUpdate.js";
 import type {
@@ -114,7 +114,7 @@ export class UserPasswordRepositoryImpl implements IUserPasswordRepository {
         },
       );
     } catch (error) {
-      logger.err(`Error in savePasswordResetToken: ${errorMessage(error)}`);
+      logger.err(`Error in savePasswordResetToken: ${errorName(error)}`);
       throw error;
     }
   }
@@ -160,7 +160,7 @@ export class UserPasswordRepositoryImpl implements IUserPasswordRepository {
           }
         : null;
     } catch (error) {
-      logger.err(`Error in getPasswordResetToken: ${errorMessage(error)}`);
+      logger.err(`Error in getPasswordResetToken: ${errorName(error)}`);
       return null;
     }
   }
@@ -224,7 +224,7 @@ export class UserPasswordRepositoryImpl implements IUserPasswordRepository {
       return "reset";
     } catch (error) {
       await transaction.rollback();
-      logger.err(`Error in resetPasswordWithToken: ${errorMessage(error)}`);
+      logger.err(`Error in resetPasswordWithToken: ${errorName(error)}`);
       throw error;
     }
   }
