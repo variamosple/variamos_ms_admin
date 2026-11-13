@@ -224,52 +224,20 @@ export class BugLifecycleUseCase {
     );
   }
 
-  private async applyRejectBug(
+  private applyRejectBug(
     request: RequestModel<{ id: string; adminId: string }>,
   ): Promise<ResponseModel<Bug>> {
-    const data = request.data;
-    if (!data) {
-      const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(
-        DomainErrorCodes.INVALID_INPUT,
-        "Request data is required.",
-      );
-    }
-
-    if (!data.id) {
-      const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(
-        DomainErrorCodes.INVALID_INPUT,
-        "Bug ID is required.",
-      );
-    }
-
-    const bugResponse = await this.repositories.queries.findById(
-      new RequestModel(request.transactionId, data.id),
-    );
-
-    if (!bugResponse.data) {
-      const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(
-        DomainErrorCodes.ENTITY_NOT_FOUND,
-        "Local bug not found.",
-      );
-    }
-
-    if (bugResponse.data.status !== "pending") {
-      const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(
-        DomainErrorCodes.INVALID_INPUT,
-        "Only pending bugs can be rejected.",
-      );
-    }
-
-    return this.repositories.bugs.rejectBug(
-      new RequestModel(request.transactionId, {
-        id: data.id,
-        adminId: data.adminId,
-        logComment: "Bug rejected.",
-      }),
+    return this.whenBugIs(
+      request,
+      "pending",
+      "Only pending bugs can be rejected.",
+      (data) =>
+        this.repositories.bugs.rejectBug(
+          new RequestModel(request.transactionId, {
+            ...data,
+            logComment: "Bug rejected.",
+          }),
+        ),
     );
   }
 
@@ -289,12 +257,39 @@ export class BugLifecycleUseCase {
     );
   }
 
-  private async applyRestoreBug(
+  private applyRestoreBug(
     request: RequestModel<{ id: string; adminId: string }>,
   ): Promise<ResponseModel<Bug>> {
+    return this.whenBugIs(
+      request,
+      "rejected",
+      "Only rejected bugs can be restored.",
+      (data) =>
+        this.repositories.bugs.restoreBug(
+          new RequestModel(request.transactionId, {
+            ...data,
+            logComment: "Bug restored.",
+          }),
+        ),
+    );
+  }
+
+  /**
+   * Applies `change` to the bug only when it exists and has the `required`
+   * status; otherwise answers with the matching error.
+   */
+  private async whenBugIs(
+    request: RequestModel<{ id: string; adminId: string }>,
+    required: string,
+    refusal: string,
+    change: (data: {
+      id: string;
+      adminId: string;
+    }) => Promise<ResponseModel<Bug>>,
+  ): Promise<ResponseModel<Bug>> {
+    const response = new ResponseModel<Bug>(request.transactionId);
     const data = request.data;
     if (!data) {
-      const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
         DomainErrorCodes.INVALID_INPUT,
         "Request data is required.",
@@ -302,7 +297,6 @@ export class BugLifecycleUseCase {
     }
 
     if (!data.id) {
-      const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
         DomainErrorCodes.INVALID_INPUT,
         "Bug ID is required.",
@@ -314,28 +308,17 @@ export class BugLifecycleUseCase {
     );
 
     if (!bugResponse.data) {
-      const response = new ResponseModel<Bug>(request.transactionId);
       return response.withErrorPromise(
         DomainErrorCodes.ENTITY_NOT_FOUND,
         "Local bug not found.",
       );
     }
 
-    if (bugResponse.data.status !== "rejected") {
-      const response = new ResponseModel<Bug>(request.transactionId);
-      return response.withErrorPromise(
-        DomainErrorCodes.INVALID_INPUT,
-        "Only rejected bugs can be restored.",
-      );
+    if (bugResponse.data.status !== required) {
+      return response.withErrorPromise(DomainErrorCodes.INVALID_INPUT, refusal);
     }
 
-    return this.repositories.bugs.restoreBug(
-      new RequestModel(request.transactionId, {
-        id: data.id,
-        adminId: data.adminId,
-        logComment: "Bug restored.",
-      }),
-    );
+    return change({ id: data.id, adminId: data.adminId });
   }
 
   public async purgeExpiredRejectedBugs(): Promise<void> {
