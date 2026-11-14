@@ -19,15 +19,17 @@ import { redirectBody } from "./authRequestBodies.js";
 import {
   getCookieOptions,
   getRedirectUrl,
-  getUrl,
   isAllowedRedirect,
 } from "./authWeb.js";
 import { readBody } from "./requestBody.js";
 
-/** Body of GET /auth/session-info: an HTTP shape, not a domain entity. */
+/**
+ * Body of GET /auth/session-info: an HTTP shape, not a domain entity. The
+ * token never appears in it: it stays in the httpOnly cookie, out of reach of
+ * the page's scripts (EV-117).
+ */
 interface SessionInfoResponse {
   user: SessionUser | null;
-  authToken?: string;
   redirect?: string;
 }
 
@@ -79,7 +81,6 @@ const reloadSessionUser = async (
 const sessionInfo =
   (ctx: AuthContext): RequestHandler =>
   async (req, res) => {
-    const { isExternalDomain } = ctx;
     const response = new ResponseModel<SessionInfoResponse>("getSessionInfo");
 
     try {
@@ -126,17 +127,12 @@ const sessionInfo =
 
       const redirect = getRedirectUrl("getSessionInfo", req, res);
 
-      // The token is given to a page of another site only
-      const origin = getUrl(response.transactionId || "", req.headers.origin);
-      const shared =
-        isExternalDomain(host) && isExternalDomain(origin?.hostname);
       res
         .cookie("authToken", token, getCookieOptions())
         .status(200)
         .json(
           response.withResponse({
             user: sessionUser,
-            authToken: shared ? token : undefined,
             redirect: redirect?.toString(),
           }),
         );
