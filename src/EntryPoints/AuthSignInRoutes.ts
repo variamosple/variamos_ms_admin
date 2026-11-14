@@ -276,7 +276,7 @@ const signInMfa =
 const signInAsGuest =
   (ctx: AuthContext): RequestHandler =>
   async (req, res) => {
-    const { userAuthUseCase, setRedirectAuthToken } = ctx;
+    const { userAuthUseCase } = ctx;
     const transactionId = "signInAsGuest";
     const body = readBody(guestSignInBody, req, res, transactionId);
     if (!body) return;
@@ -317,7 +317,6 @@ const signInAsGuest =
       );
 
       res.cookie("authToken", token, getCookieOptions());
-      setRedirectAuthToken(redirect, token);
 
       response.data = {
         id: id || "",

@@ -4,7 +4,6 @@ import { isAllowedOrigin } from "#src/common/allowedOrigins.js";
 import { describeError } from "#src/common/describeError.js";
 import EnvVars from "#src/common/EnvVars.js";
 import logger from "#src/common/logger.js";
-import type { Nullable } from "#src/Domain/Core/Entity/Nullable.js";
 import { MFA_SIGN_IN_TTL_MS } from "#src/Domain/Mfa/Service/PendingMfaSignIns.js";
 import { queryText } from "./queryText.js";
 
@@ -123,12 +122,6 @@ export function createAuthWeb() {
   const isExternalDomain = (host?: string): boolean =>
     host !== undefined && host !== "" && !HOME_URL_HOST_REGEX.test(host);
 
-  const setRedirectAuthToken = (url: Nullable<URL>, token: string) => {
-    if (url && isExternalDomain(url.hostname)) {
-      url.searchParams.set("authToken", token);
-    }
-  };
-
   /** Creates the session cookie; gives the address to go to. */
   const openSession = async (
     transactionId: string,
@@ -143,15 +136,16 @@ export function createAuthWeb() {
       redirect?.hostname || EnvVars.CookieProps.Options.domain,
     );
 
+    // The token stays in the cookie: never in an address, which ends up in
+    // the history, the server logs and the Referer header (EV-75)
     res.cookie("authToken", token, getCookieOptions());
-    setRedirectAuthToken(redirect, token);
 
     return redirect
       ? redirect.toString()
       : `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`;
   };
 
-  return { isExternalDomain, setRedirectAuthToken, openSession };
+  return { isExternalDomain, openSession };
 }
 
 /** What the routes use from createAuthWeb. */
