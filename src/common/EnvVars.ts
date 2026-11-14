@@ -74,6 +74,10 @@ export default {
     HOST: process.env.DOCKER_HOST ?? "",
     SOCKET_PATH: process.env.DOCKER_SOCKET_PATH ?? "",
   },
+  BACKUP: {
+    // Status of the nightly database backup, written by the server (EV-86)
+    STATUS_FILE: process.env.BACKUP_STATUS_FILE ?? "",
+  },
   MONITORING: {
     HEALTH_CHECK_INTERVAL_MS: numberFromEnv(
       process.env.HEALTH_CHECK_INTERVAL_MS,

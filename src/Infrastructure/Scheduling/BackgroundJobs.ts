@@ -19,6 +19,9 @@ import { RepeatingTask } from "./RepeatingTask.js";
 
 const BUG_PURGE_EVERY_MS = 24 * 60 * 60 * 1000;
 
+/** The backup status is written once a night: an hourly look is enough. */
+export const BACKUP_CHECK_EVERY_MS = 60 * 60 * 1000;
+
 /** Planned changes are applied within a minute of their date (EV-115). */
 export const SCHEDULED_CHANGES_EVERY_MS = 60 * 1000;
 
@@ -31,6 +34,8 @@ export interface BackgroundJobs {
   scheduledChanges: Pick<ScheduledConfigurationChangeUseCase, "applyDue">;
   /** Reads the CPU and memory of the containers (EV-86 lot 2). */
   resourceSampler: { start(): void };
+  /** Checks the nightly database backup; null without its status file. */
+  backupAlerts: { check(): Promise<void> } | null;
 }
 
 /** Applies a change of the health check interval at once (T-18 lot 4b). */
@@ -102,4 +107,17 @@ export async function startBackgroundJobs(jobs: BackgroundJobs): Promise<void> {
   );
   await scheduledChanges.runNow();
   scheduledChanges.start();
+
+  const { backupAlerts } = jobs;
+  if (!backupAlerts) {
+    logger.info("Backup check off: no BACKUP_STATUS_FILE");
+    return;
+  }
+  const backupCheck = new RepeatingTask(
+    "Backup status check",
+    () => backupAlerts.check(),
+    BACKUP_CHECK_EVERY_MS,
+  );
+  await backupCheck.runNow();
+  backupCheck.start();
 }

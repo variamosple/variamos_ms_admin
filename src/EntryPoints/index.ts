@@ -43,6 +43,11 @@ import {
 } from "./AdminNotificationsRouter.js";
 import { AUTH_ROUTE, createAuthRouter } from "./AuthRouter.js";
 import { recordRefusals } from "./accessJournal.js";
+import {
+  BACKUPS_V1_ROUTE,
+  type BackupReports,
+  createBackupsRouter,
+} from "./BackupsV1Router.js";
 import { BUG_V1_ROUTE, createBugRouter } from "./BugRouter.js";
 import type { MulterUpload } from "./bugRouteSupport.js";
 import {
@@ -152,6 +157,7 @@ export interface BaseRouterDependencies {
   accessJournal: IAccessJournal;
   journalQuery: JournalQueryUseCase;
   checkDatabase: DatabaseCheck;
+  backups: BackupReports;
 }
 
 // The accounts, with the roles of each account under them
@@ -198,6 +204,7 @@ export function createBaseRouter({
   accessJournal,
   journalQuery,
   checkDatabase,
+  backups,
 }: BaseRouterDependencies): Router {
   const baseRouter = Router();
 
@@ -261,6 +268,7 @@ export function createBaseRouter({
   baseRouter.use(PERMISSIONS_V1_ROUTE, permissionsV1Router);
   baseRouter.use(MICRO_SERVICES_V1_ROUTE, microServicesV1Router);
   baseRouter.use(VISITS_V1_ROUTE, visitsV1Router);
+  baseRouter.use(BACKUPS_V1_ROUTE, createBackupsRouter(backups));
   baseRouter.use(METRICS_V1_ROUTE, metricsV1Router);
   baseRouter.use(COUNTRIES_V1_ROUTE, countriesV1Router);
   baseRouter.use(BUG_V1_ROUTE, bugV1Router);
