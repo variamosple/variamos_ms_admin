@@ -5,13 +5,29 @@ import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { Metric } from "#src/Domain/Metrics/Entity/Metric.js";
 import type { MetricsFilter } from "#src/Domain/Metrics/Entity/MetricsFilter.js";
+import type { MetricsPeriod } from "#src/Domain/Metrics/Entity/MetricsPeriod.js";
 import type { IMetricsRepository } from "#src/Domain/Metrics/Repository/IMetricsRepository.js";
 import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 import { BaseRepository } from "../BaseRepository.js";
 
 // Keyed by the ids that get_metrics() gives the dashboard, which sends them
-// back to filter a chart; the functions come from migrations 0015 and 0018
+// back to filter a chart; the functions come from migrations 0015, 0018 and
+// 0026
 const METRICS_FUNCTIONS = new Map<string, string>([
+  ["overview", `${DB_SCHEMA}.get_overview_metrics(:startDate, :endDate)`],
+  [
+    "visits_over_time",
+    `${DB_SCHEMA}.get_visits_over_time_metrics(:startDate, :endDate)`,
+  ],
+  [
+    "activity_over_time",
+    `${DB_SCHEMA}.get_activity_over_time_metrics(:startDate, :endDate)`,
+  ],
+  ["sign_ins", `${DB_SCHEMA}.get_sign_ins_metrics(:startDate, :endDate)`],
+  [
+    "new_accounts",
+    `${DB_SCHEMA}.get_new_accounts_metrics(:startDate, :endDate)`,
+  ],
   [
     "daily_visits",
     `${DB_SCHEMA}.get_daily_visits_metrics(:startDate, :endDate)`,
@@ -40,8 +56,10 @@ const METRICS_FUNCTIONS = new Map<string, string>([
     "top_languages",
     `${DB_SCHEMA}.get_top_languages_metrics(:startDate, :endDate)`,
   ],
-  // Takes no period: it answers every year, by country
+  // Take no period: every year by country, and what the platform holds today
   ["yearly_visits", `${DB_SCHEMA}.get_yearly_visits_metrics()`],
+  ["content_overview", `${DB_SCHEMA}.get_content_metrics()`],
+  ["models_by_type", `${DB_SCHEMA}.get_models_by_type_metrics()`],
 ]);
 
 // A metric as the database functions give it, in the "data" column
@@ -64,15 +82,21 @@ export class MetricsRepositoryImpl
    * dashboard shows today's figures, not those of the last restart.
    */
   public async getMetrics(
-    request: RequestModel<void>,
+    request: RequestModel<MetricsPeriod | undefined>,
   ): Promise<ResponseModel<Metric[]>> {
     const response = new ResponseModel<Metric[]>(request.transactionId);
+    const period = request.data;
 
     try {
       response.data = await VARIAMOS_ORM.query<{ data?: MetricRow[] }>(
-        `SELECT ${DB_SCHEMA}.get_metrics() AS data`,
+        period
+          ? `SELECT ${DB_SCHEMA}.get_metrics(:startDate, :endDate) AS data`
+          : `SELECT ${DB_SCHEMA}.get_metrics() AS data`,
         {
           type: QueryTypes.SELECT,
+          replacements: period
+            ? { startDate: period.startDate, endDate: period.endDate }
+            : {},
         },
       ).then(([resObj]) => {
         if (!resObj?.data) return [];

@@ -44,6 +44,26 @@ describe("MetricsRepositoryImpl.getMetrics", () => {
     expect(second.data?.[0]?.getData()).toEqual({ visits: 5 });
   });
 
+  it("reads every chart over the period asked, the last 30 days without one", async () => {
+    const query = vi
+      .spyOn(VARIAMOS_ORM, "query")
+      .mockResolvedValue(definitionsWith(1) as never);
+    const repository = new MetricsRepositoryImpl();
+
+    await repository.getMetrics(
+      new RequestModel("t", { startDate: "2026-09-01", endDate: "2026-09-30" }),
+    );
+    await repository.getMetrics(new RequestModel("t"));
+
+    expect(query.mock.calls[0]?.[0]).toContain(
+      "get_metrics(:startDate, :endDate)",
+    );
+    expect(query.mock.calls[0]?.[1]).toMatchObject({
+      replacements: { startDate: "2026-09-01", endDate: "2026-09-30" },
+    });
+    expect(query.mock.calls[1]?.[0]).toContain("get_metrics()");
+  });
+
   it("answers a system error when the database cannot be read", async () => {
     vi.spyOn(VARIAMOS_ORM, "query").mockRejectedValue(new Error("down"));
 

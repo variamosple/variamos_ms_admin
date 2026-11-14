@@ -2,6 +2,7 @@ import { hasPermissions } from "@variamosple/variamos-security";
 import { type Request, Router } from "express";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { MetricsFilter } from "#src/Domain/Metrics/Entity/MetricsFilter.js";
+import type { MetricsPeriod } from "#src/Domain/Metrics/Entity/MetricsPeriod.js";
 import type { MetricsQueryUseCase } from "#src/Domain/Metrics/UseCase/MetricsQueryUseCase.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
@@ -17,11 +18,19 @@ export function createMetricsRouter(
   metricsV1Router.get(
     "/",
     hasPermissions(["metrics::query"]),
-    async (_, res) => {
+    async (req, res) => {
       const transactionId = "getMetrics";
+      const startDate = queryText(req.query.startDate);
+      const endDate = queryText(req.query.endDate);
 
       try {
-        const request = new RequestModel<void>(transactionId);
+        // Without a period, the last 30 days; half of one is refused
+        const request = new RequestModel<MetricsPeriod | undefined>(
+          transactionId,
+          startDate === undefined && endDate === undefined
+            ? undefined
+            : { startDate: startDate ?? "", endDate: endDate ?? "" },
+        );
         const response = await metricsQueryUseCase.getMetrics(request);
 
         const status = mapDomainErrorToHttpStatus(response.errorCode);
