@@ -79,7 +79,7 @@ const reloadSessionUser = async (
 const sessionInfo =
   (ctx: AuthContext): RequestHandler =>
   async (req, res) => {
-    const { isExternalDomain, setRedirectAuthToken } = ctx;
+    const { isExternalDomain } = ctx;
     const response = new ResponseModel<SessionInfoResponse>("getSessionInfo");
 
     try {
@@ -93,7 +93,6 @@ const sessionInfo =
       }
       if (!isSessionExpired(user?.exp)) {
         const redirect = getRedirectUrl("getSessionInfo", req, res);
-        setRedirectAuthToken(redirect, authToken);
 
         res.status(200).json(
           response.withResponse({
@@ -125,10 +124,7 @@ const sessionInfo =
       const host = audienceHostOf(user.aud);
       const token = await createJwt(sessionUser, host);
 
-      // The page to go back to receives the refreshed token, not the
-      // expired one it replaces
       const redirect = getRedirectUrl("getSessionInfo", req, res);
-      setRedirectAuthToken(redirect, token);
 
       // The token is given to a page of another site only
       const origin = getUrl(response.transactionId || "", req.headers.origin);

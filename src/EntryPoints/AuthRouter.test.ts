@@ -834,14 +834,11 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         );
       });
 
-      it("sends the refreshed token, not the expired one, to the page to go back to", async () => {
+      it("gives the page to go back to without any token in its address", async () => {
         const response = await refreshAs("allowed-origin.com");
 
         const body = response.body as { data: { redirect: string } };
-        const redirect = new URL(body.data.redirect);
-        expect(redirect.searchParams.get("authToken")).toBe(
-          "new-refreshed-jwt-token",
-        );
+        expect(body.data.redirect).toBe("http://allowed-origin.com/dashboard");
       });
     });
   });
@@ -1012,9 +1009,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       const body = response.body as { data: { redirect: string } };
-      expect(body.data.redirect).toBe(
-        "http://allowed-origin.com/dashboard?authToken=jwt-token",
-      );
+      expect(body.data.redirect).toBe("http://allowed-origin.com/dashboard");
 
       Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
         value: originalPatterns,
@@ -1248,9 +1243,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       const body = response.body as { data: { redirect: string } };
-      expect(body.data.redirect).toBe(
-        "http://allowed-origin.com/dashboard?authToken=guest-jwt-token",
-      );
+      expect(body.data.redirect).toBe("http://allowed-origin.com/dashboard");
 
       Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
         value: originalPatterns,
@@ -3007,7 +3000,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(response.body.data.redirect).toBe(
-        "http://localhost.external.com/dashboard?authToken=jwt-token",
+        "http://localhost.external.com/dashboard",
       );
 
       Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
