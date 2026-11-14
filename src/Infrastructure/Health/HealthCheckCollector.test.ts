@@ -392,3 +392,39 @@ describe("HealthCheckCollector.runDailyAggregationAndPurge", () => {
     expect(outcome).toEqual({ aggregatedDays: 58, purgedLogs: 2880 });
   });
 });
+
+describe("HealthCheckCollector check listeners", () => {
+  const service = {
+    name: "variamos_ms_languages",
+    displayName: "Languages",
+    defaultPort: 4000,
+    healthPath: "/health",
+    containerIps: ["10.0.0.1"],
+  } as ServiceDefinition;
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("tells each listener of the recorded check, even when one fails", async () => {
+    vi.spyOn(axios, "get").mockRejectedValue(new Error("ECONNREFUSED"));
+    vi.spyOn(logger, "err").mockImplementation(() => undefined);
+    const recordHealthCheck = vi.fn().mockResolvedValue(undefined);
+    const repo = { recordHealthCheck } as unknown as IMicroServiceRepository;
+    const collector = new HealthCheckCollector(repo, noArchive);
+    const seen: MicroServiceHealthInfo[] = [];
+    collector.addCheckListener(() => Promise.reject(new Error("mail down")));
+    collector.addCheckListener(async (check) => {
+      seen.push(check);
+    });
+
+    const info = await collector.checkService(service);
+
+    expect(info.status).toBe("DOWN");
+    expect(recordHealthCheck).toHaveBeenCalledWith(info);
+    expect(seen).toEqual([info]);
+    expect(logger.err).toHaveBeenCalledWith(
+      "Health check listener failed for variamos_ms_languages: mail down",
+    );
+  });
+});

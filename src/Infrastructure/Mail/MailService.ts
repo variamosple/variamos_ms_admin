@@ -226,6 +226,28 @@ export class MailServiceImpl implements IMailService {
 `);
     return await this.sendMail(to, subject, html);
   }
+
+  /**
+   * Tells an address of the monitoring alerts that a service is down or back
+   */
+  public async sendServiceAlertMail(
+    to: string,
+    title: string,
+    body: string,
+  ): Promise<boolean> {
+    const subject = `VariaMos - Service alert: ${title}`;
+    const html = renderMail(`
+            <h2 style="color: #212529; font-size: 20px; margin-top: 0; font-weight: 600;">${escapeHtml(title)}</h2>
+            <p style="font-size: 15px; line-height: 1.6; color: #495057;">
+              ${escapeHtml(body)}
+            </p>
+            <p style="font-size: 15px; line-height: 1.6; color: #495057;">
+              You receive this alert because your address is in the monitoring alerts of the <strong>VariaMos</strong> administration (configuration key monitoring.alerts.recipients).
+            </p>
+
+`);
+    return await this.sendMail(to, subject, html);
+  }
 }
 
 export const MailServiceInstance = new MailServiceImpl();

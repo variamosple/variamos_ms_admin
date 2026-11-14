@@ -16,6 +16,10 @@ import {
   healthCheckIntervalMsOf,
 } from "#src/Domain/MicroService/Entity/HealthCheckInterval.js";
 import {
+  SERVICE_ALERT_KEYS,
+  ServiceAlertPolicy,
+} from "#src/Domain/MicroService/Entity/ServiceAlertPolicy.js";
+import {
   DEFAULT_PASSWORD_HASHING_COST,
   PASSWORD_HASHING_COST_KEY,
   passwordHashingCostOf,
@@ -48,6 +52,7 @@ const NUMBER_KEYS = [
   SECURITY_ALERT_KEYS.cooldownMinutes,
   BUG_SYNC_INTERVAL_KEY,
   REJECTED_BUG_RETENTION_KEY,
+  SERVICE_ALERT_KEYS.failuresBeforeAlert,
 ];
 
 /** Any value a configuration may hold, with numbers close to the bounds. */
@@ -127,6 +132,14 @@ describe("applied configuration properties", () => {
       (value: number) => value * 60_000,
       SecurityAlertPolicy.DEFAULT.cooldownMs,
     ],
+    [
+      SERVICE_ALERT_KEYS.failuresBeforeAlert,
+      (value: unknown) =>
+        ServiceAlertPolicy.fromConfiguration({ failuresBeforeAlert: value })
+          .failuresBeforeAlert,
+      (value: number) => value,
+      ServiceAlertPolicy.DEFAULT.failuresBeforeAlert,
+    ],
   ] as const)(
     "%s is used as saved, or replaced by its default",
     (key, read, used, fallback) => {
@@ -150,6 +163,39 @@ describe("applied configuration properties", () => {
 
         expect(healthCheckIntervalMsOf(value)).toBe((value as number) * 1000);
       }),
+    );
+  });
+
+  it("sends the alerts to the addresses of the list, 10 at most", () => {
+    const address = fc
+      .tuple(
+        fc.stringMatching(/^[a-z0-9.]{1,8}$/),
+        fc.stringMatching(/^[a-z0-9]{1,8}$/),
+        fc.constantFrom("com", "org", "co"),
+      )
+      .map(([user, domain, tld]) => `${user}@${domain}.${tld}`);
+    const separator = fc.constantFrom(",", ", ", ";", " ");
+    fc.assert(
+      fc.property(
+        fc.array(address, { maxLength: 12 }),
+        separator,
+        (addresses, between) => {
+          const value = addresses.join(between);
+          const accepted =
+            refusalOfConfigurationValue(
+              SERVICE_ALERT_KEYS.recipients,
+              value,
+            ) === null;
+          const { recipients } = ServiceAlertPolicy.fromConfiguration({
+            recipients: value,
+          });
+
+          // Accepted, the list reaches every address; refused (an older
+          // save), its first 10 distinct addresses
+          expect(accepted).toBe(addresses.length <= 10);
+          expect(recipients).toEqual([...new Set(addresses)].slice(0, 10));
+        },
+      ),
     );
   });
 });

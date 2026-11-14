@@ -17,6 +17,11 @@ import {
   HEALTH_CHECK_INTERVAL_BOUNDS,
   HEALTH_CHECK_INTERVAL_KEY,
 } from "#src/Domain/MicroService/Entity/HealthCheckInterval.js";
+import {
+  isAcceptedRecipientList,
+  SERVICE_ALERT_BOUNDS,
+  SERVICE_ALERT_KEYS,
+} from "#src/Domain/MicroService/Entity/ServiceAlertPolicy.js";
 import { ACCOUNT_LOCKOUT_BOUNDS } from "#src/Domain/User/Entity/AccountLockoutPolicy.js";
 import {
   PASSWORD_HASHING_COST_BOUNDS,
@@ -90,6 +95,19 @@ const APPLIED_CONFIGURATION_RULES: ReadonlyMap<string, ConfigurationRule> =
     [
       HEALTH_CHECK_INTERVAL_KEY,
       wholeNumber(HEALTH_CHECK_INTERVAL_BOUNDS, "seconds"),
+    ],
+    [
+      SERVICE_ALERT_KEYS.failuresBeforeAlert,
+      wholeNumber(SERVICE_ALERT_BOUNDS.failuresBeforeAlert, "failed checks"),
+    ],
+    [
+      SERVICE_ALERT_KEYS.recipients,
+      {
+        accepts: isAcceptedRecipientList,
+        accepted: {
+          text: "up to 10 email addresses separated by commas, or nothing to turn the alerts off",
+        },
+      },
     ],
     [
       PASSWORD_POLICY_KEYS.minLength,

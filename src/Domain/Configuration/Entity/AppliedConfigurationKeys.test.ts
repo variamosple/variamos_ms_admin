@@ -7,6 +7,8 @@ import {
 describe("isConfigurationApplied", () => {
   it.each([
     "monitoring.health_check_interval_seconds",
+    "monitoring.alerts.recipients",
+    "monitoring.alerts.failures_before_alert",
     "security.password.min_length",
     "security.password.require_uppercase",
     "security.password.require_numbers",
@@ -60,6 +62,7 @@ describe("refusalOfConfigurationValue", () => {
     ["security.alerts.cooldown_minutes", 1, 1440],
     ["bugs.sync_interval_minutes", 5, 1440],
     ["bugs.rejected_retention_days", 1, 365],
+    ["monitoring.alerts.failures_before_alert", 2, 20],
   ])("%s accepts a whole number from %i to %i", (key, min, max) => {
     expect(refusalOfConfigurationValue(key, min)).toBeNull();
     expect(refusalOfConfigurationValue(key, max)).toBeNull();
@@ -105,6 +108,21 @@ describe("refusalOfConfigurationValue", () => {
     expect(refusalOfConfigurationValue(siteName, "VariaMos Lab")).toBeNull();
     expect(refusalOfConfigurationValue(siteName, "")).toBe(
       `Configuration '${siteName}' expects a name of 1 to 60 characters on one line.`,
+    );
+  });
+
+  it("accepts a list of alert addresses, or nothing to turn the alerts off", () => {
+    const recipients = "monitoring.alerts.recipients";
+
+    expect(refusalOfConfigurationValue(recipients, "")).toBeNull();
+    expect(
+      refusalOfConfigurationValue(
+        recipients,
+        "ops@example.com, dev@example.org",
+      ),
+    ).toBeNull();
+    expect(refusalOfConfigurationValue(recipients, "ops")).toBe(
+      `Configuration '${recipients}' expects up to 10 email addresses separated by commas, or nothing to turn the alerts off.`,
     );
   });
 

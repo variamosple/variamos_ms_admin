@@ -17,6 +17,10 @@ import {
   HEALTH_CHECK_INTERVAL_KEY,
   healthCheckIntervalMsOf,
 } from "#src/Domain/MicroService/Entity/HealthCheckInterval.js";
+import {
+  SERVICE_ALERT_KEYS,
+  ServiceAlertPolicy,
+} from "#src/Domain/MicroService/Entity/ServiceAlertPolicy.js";
 import { AccountLockoutPolicy } from "#src/Domain/User/Entity/AccountLockoutPolicy.js";
 import { ACCOUNT_LOCKOUT_KEYS } from "#src/Domain/User/Service/AccountLockoutService.js";
 import { BASELINE_TABLES, baseline } from "./0001-baseline.js";
@@ -44,6 +48,10 @@ import {
   HEALTH_CHECK_INTERVAL_CATEGORY_KEY,
   healthCheckIntervalCategory,
 } from "./0023-health-check-interval-category.js";
+import {
+  SERVICE_ALERT_ROWS,
+  serviceAlertKeys,
+} from "./0024-service-alert-keys.js";
 import {
   ADMIN_MIGRATIONS,
   createMigrator,
@@ -383,6 +391,58 @@ describe("health check interval category migration", () => {
   });
 });
 
+describe("service alert keys migration", () => {
+  it("adds the keys under monitoring, with no address so that no alert is sent", async () => {
+    const calls: { sql: string; replacements: unknown }[] = [];
+    const query = vi.fn(
+      async (sql: string, options?: { replacements?: unknown }) => {
+        calls.push({ sql, replacements: options?.replacements });
+        return [];
+      },
+    );
+    const sequelize = {
+      query,
+      transaction: async (work: (t: object) => Promise<void>) => work({}),
+    } as unknown as Sequelize;
+
+    await serviceAlertKeys.up({
+      name: serviceAlertKeys.name,
+      context: { sequelize, schema: "custom" },
+    });
+
+    expect(SERVICE_ALERT_ROWS.map((row) => row.key)).toEqual([
+      SERVICE_ALERT_KEYS.recipients,
+      SERVICE_ALERT_KEYS.failuresBeforeAlert,
+    ]);
+    expect(calls).toHaveLength(SERVICE_ALERT_ROWS.length);
+    for (const call of calls) {
+      expect(call.sql).toContain('INSERT INTO "custom"."configurations"');
+      expect(call.sql).toContain('ON CONFLICT ("key") DO NOTHING');
+      expect(call.replacements).toMatchObject({ category: "monitoring" });
+    }
+    expect(calls[0]?.replacements).toMatchObject({ value: '""' });
+    expect(calls[1]?.replacements).toMatchObject({ value: "3" });
+    // The values added are those the code takes when nothing is set
+    expect(
+      ServiceAlertPolicy.fromConfiguration({
+        recipients: SERVICE_ALERT_ROWS[0]?.value,
+        failuresBeforeAlert: SERVICE_ALERT_ROWS[1]?.value,
+      }),
+    ).toEqual(ServiceAlertPolicy.DEFAULT);
+  });
+
+  it("refuses to be reverted", async () => {
+    const { sequelize } = fakeSequelize([]);
+
+    await expect(
+      serviceAlertKeys.down?.({
+        name: serviceAlertKeys.name,
+        context: { sequelize, schema: "custom" },
+      }),
+    ).rejects.toThrow("cannot be reverted");
+  });
+});
+
 describe("createMigrator", () => {
   it.each(["", "  "])("refuses an empty schema (%j)", (schema) => {
     const { sequelize } = fakeSequelize([]);
@@ -417,6 +477,7 @@ describe("createMigrator", () => {
       "0021-user-display-preferences",
       "0022-health-check-interval-key",
       "0023-health-check-interval-category",
+      "0024-service-alert-keys",
     ]);
   });
 });
