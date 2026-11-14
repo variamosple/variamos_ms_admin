@@ -84,6 +84,25 @@ describe("MetricsV1Router Integration Tests", () => {
       );
     });
 
+    it("passes the period of the page, and half of one so that it is refused", async () => {
+      const getMetrics = MetricsQueryUseCase.prototype.getMetrics as Mock;
+      getMetrics.mockResolvedValue(
+        new ResponseModel("getMetrics").withResponse([]),
+      );
+
+      await supertest(app).get(
+        "/v1/metrics?startDate=2026-09-01&endDate=2026-09-30",
+      );
+      await supertest(app).get("/v1/metrics?startDate=2026-09-01");
+
+      expect(getMetrics.mock.calls[0]?.[0]).toMatchObject({
+        data: { startDate: "2026-09-01", endDate: "2026-09-30" },
+      });
+      expect(getMetrics.mock.calls[1]?.[0]).toMatchObject({
+        data: { startDate: "2026-09-01", endDate: "" },
+      });
+    });
+
     it("should return 500 when MetricsQueryUseCase throws an exception", async () => {
       (MetricsQueryUseCase.prototype.getMetrics as Mock).mockRejectedValue(
         new Error("Query error"),

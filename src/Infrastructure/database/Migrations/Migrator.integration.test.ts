@@ -38,6 +38,7 @@ import { SCHEDULED_CHANGES_TABLE } from "./0019-scheduled-configuration-changes.
 import { retiredUserPreferences } from "./0020-user-preferences.js";
 import { USER_DISPLAY_PREFERENCES_TABLE } from "./0021-user-display-preferences.js";
 import { VISIT_HISTORY_FUNCTIONS } from "./0025-visit-history.js";
+import { USAGE_OVERVIEW_FUNCTIONS } from "./0026-usage-overview.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 import {
   ADMIN_MIGRATIONS,
@@ -130,6 +131,11 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
       `CREATE TABLE "${schema}"."user" ("id" text PRIMARY KEY)`,
     );
   };
+  // The columns of the shared user table that the statistics read
+  const addAccountColumns = (schema: string) =>
+    sequelize.query(`ALTER TABLE "${schema}"."user"
+      ADD COLUMN IF NOT EXISTS "created_at" date NOT NULL DEFAULT current_date,
+      ADD COLUMN IF NOT EXISTS "is_deleted" boolean NOT NULL DEFAULT false`);
 
   beforeAll(async () => {
     sequelize = new Sequelize(url as string, { logging: false });
@@ -660,8 +666,10 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         ...METRICS_FUNCTIONS,
         ...USAGE_METRICS_FUNCTIONS,
         ...VISIT_HISTORY_FUNCTIONS,
-        // A second one, with a period (0018)
+        ...USAGE_OVERVIEW_FUNCTIONS,
+        // A second one, with a period (0018, 0026)
         "get_top_visited_pages_metrics",
+        "get_metrics",
         "insert_user_role",
       ]
         .sort((a, b) => a.localeCompare(b))
@@ -879,10 +887,12 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         CREATE TABLE "${S}".country ("code" varchar(2), "name" text);
         CREATE TABLE "${S}".page_visit ("page_id" varchar(48), "user_id" text NOT NULL,
           "visit_date" date NOT NULL, "country_code" varchar(2));
-        CREATE TABLE "${S}".project ("id" text PRIMARY KEY, "date" timestamptz);
+        CREATE TABLE "${S}".project ("id" text PRIMARY KEY, "date" timestamptz,
+          "is_deleted" boolean NOT NULL DEFAULT false, "is_collaborative" boolean NOT NULL DEFAULT false);
         CREATE TABLE "${S}".project_history ("project_id" varchar(255), "user_id" varchar(255),
           "created_at" timestamptz NOT NULL);
-        CREATE TABLE "${S}".model ("id" text, "project_id" text, "language_id" integer);
+        CREATE TABLE "${S}".model ("id" text, "project_id" text, "language_id" integer,
+          "engineering_type" text, "is_deleted" boolean NOT NULL DEFAULT false);
         CREATE TABLE "${S}".language ("id" integer, "name" text);
         INSERT INTO "${S}".country VALUES ('CO', 'Colombia'), ('FR', 'France');
         INSERT INTO "${S}".page_visit VALUES
@@ -898,6 +908,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
           ('m1', 'p1', 1), ('m2', 'p1', 1), ('m3', 'p2', 2), ('m4', 'p3', 1), ('m5', 'p4', 2);
         INSERT INTO "${S}".language VALUES (1, 'Feature'), (2, 'Class');
       `);
+      await addAccountColumns(S);
       await migrate(S);
       // 23:30 in Bogotá on 30 September is 1 October in UTC
       await sequelize.query(`
@@ -960,30 +971,48 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
       ]);
     });
 
-    it("gives every chart to the dashboard, empty without the tables of the other services", async () => {
+    it("gives every chart of the page for a period, empty without the tables of the other services", async () => {
       const read = async (schema: string) => {
         const [row] = await sequelize.query<{
           data: { id: string; data: unknown }[];
-        }>(`SELECT "${schema}".get_metrics() AS data`, {
-          type: QueryTypes.SELECT,
-        });
+        }>(
+          `SELECT "${schema}".get_metrics('2026-09-01', '2026-10-31') AS data`,
+          {
+            type: QueryTypes.SELECT,
+          },
+        );
         return row?.data ?? [];
       };
       const ids = [
-        "yearly_visits",
-        "daily_visits",
-        "daily_unique_visits",
-        "monthly_visits",
+        "overview",
+        "content_overview",
+        "visits_over_time",
+        "activity_over_time",
         "top_visited_pages",
-        "monthly_active_users",
-        "monthly_active_projects",
         "top_languages",
+        "sign_ins",
+        "new_accounts",
+        "models_by_type",
+        "yearly_visits",
       ];
 
       expect((await read(S)).map((c) => c.id)).toEqual(ids);
+      await addAccountColumns("t07_fresh");
       const empty = await read("t07_fresh");
       expect(empty.map((c) => c.id)).toEqual(ids);
-      expect(empty.every((c) => c.data === null)).toBe(true);
+      // The key figures count 0 (no account yet); the charts have nothing to draw
+      expect(empty.filter((c) => c.data !== null).map((c) => c.id)).toEqual([
+        "overview",
+        "content_overview",
+      ]);
+    });
+
+    it("gives the last 30 days without a period", async () => {
+      const [row] = await sequelize.query<{ data: { id: string }[] }>(
+        `SELECT "${S}".get_metrics() AS data`,
+        { type: QueryTypes.SELECT },
+      );
+      expect(row?.data.map((c) => c.id)).toContain("overview");
     });
   });
 
@@ -1065,6 +1094,218 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
       expect(await chartOf(`get_top_visited_pages_metrics${period}`)).toEqual([
         { page: "home", count: 12 },
         { page: "list", count: 4 },
+      ]);
+    });
+  });
+
+  describe("statistics page for one period (EV-90)", () => {
+    const S = "t26_overview";
+    const chartOf = async (call: string) => {
+      const [row] = await sequelize.query<{ char_data: { data: unknown } }>(
+        `SELECT char_data FROM "${S}".${call}`,
+        { type: QueryTypes.SELECT },
+      );
+      return row?.char_data.data;
+    };
+    // A week, after the week of 25 to 31 August
+    const week = "('2026-09-01', '2026-09-07')";
+
+    beforeAll(async () => {
+      await createSchema(S);
+      await addAccountColumns(S);
+      await sequelize.query(`
+        CREATE TABLE "${S}".page_visit ("page_id" varchar(48), "user_id" text NOT NULL,
+          "visit_date" date NOT NULL, "country_code" varchar(2));
+        CREATE TABLE "${S}".project ("id" text PRIMARY KEY, "date" timestamptz,
+          "is_deleted" boolean NOT NULL DEFAULT false, "is_collaborative" boolean NOT NULL DEFAULT false);
+        CREATE TABLE "${S}".project_history ("project_id" varchar(255), "user_id" varchar(255),
+          "created_at" timestamptz NOT NULL);
+        CREATE TABLE "${S}".model ("id" text, "project_id" text, "language_id" integer,
+          "engineering_type" text, "is_deleted" boolean NOT NULL DEFAULT false);
+        CREATE TABLE "${S}".language ("id" integer, "name" text);
+        INSERT INTO "${S}".page_visit VALUES
+          ('home', 'u1', '2026-09-01', 'CO'), ('home', 'u1', '2026-09-01', 'CO'),
+          ('list', 'u2', '2026-09-01', 'FR'), ('home', 'u2', '2026-09-03', 'FR'),
+          ('home', 'u3', '2026-08-30', NULL);
+        INSERT INTO "${S}"."user" ("id", "created_at", "is_deleted") VALUES
+          ('u1', '2026-08-26', false), ('u4', '2026-09-05', false),
+          ('u5', '2026-09-06', false), ('u6', '2026-01-01', true);
+        INSERT INTO "${S}".project VALUES
+          ('p1', NULL, false, true), ('p2', '2026-09-06T12:00:00Z', false, true),
+          ('p3', '2026-08-26T12:00:00Z', false, false), ('p4', NULL, true, false);
+        INSERT INTO "${S}".project_history VALUES ('p1', 'u2', '2026-09-04T12:00:00Z');
+        INSERT INTO "${S}".model VALUES
+          ('m1', 'p1', 1, 'domainEngineering', false), ('m2', 'p2', 2, 'domainEngineering', false),
+          ('m3', 'p3', 1, 'scope', false), ('m4', 'p4', 1, 'scope', true);
+        INSERT INTO "${S}".language VALUES (1, 'Feature'), (2, 'Class');
+      `);
+      await migrate(S);
+      // The second step of a two-factor sign-in is not a second sign-in
+      await sequelize.query(`
+        INSERT INTO "${S}".admin_access_logs ("occurred_at", "event", "outcome", "user_id") VALUES
+          ('2026-09-02T10:00:00Z', 'sign-in', 'success', 'u1'),
+          ('2026-09-02T10:01:00Z', 'sign-in.mfa', 'success', 'u1'),
+          ('2026-09-05T10:00:00Z', 'sign-in.google', 'success', 'u4'),
+          ('2026-09-05T11:00:00Z', 'sign-in', 'failed', 'u5'),
+          ('2026-08-28T10:00:00Z', 'sign-in', 'success', 'u1')
+      `);
+    });
+
+    it("compares each key figure with the period of the same length just before", async () => {
+      expect(await chartOf(`get_overview_metrics${week}`)).toEqual([
+        {
+          key: "visits",
+          label: "Visits",
+          unit: "count",
+          count: 4,
+          previous: 1,
+        },
+        {
+          key: "visitors",
+          label: "Visitors",
+          unit: "count",
+          count: 2,
+          previous: 1,
+        },
+        {
+          key: "active_users",
+          label: "Active users",
+          unit: "count",
+          count: 3,
+          previous: 2,
+        },
+        // Of u1 and u3, active the week before, u1 came back
+        {
+          key: "returning_users",
+          label: "Returning users",
+          unit: "percent",
+          count: 50,
+          previous: null,
+        },
+        {
+          key: "active_projects",
+          label: "Active projects",
+          unit: "count",
+          count: 2,
+          previous: 1,
+        },
+        {
+          key: "new_accounts",
+          label: "New accounts",
+          unit: "count",
+          count: 2,
+          previous: 1,
+        },
+        {
+          key: "sign_ins",
+          label: "Sign-ins",
+          unit: "count",
+          count: 2,
+          previous: 1,
+        },
+        {
+          key: "failed_sign_ins",
+          label: "Failed sign-ins",
+          unit: "count",
+          count: 1,
+          previous: 0,
+        },
+      ]);
+    });
+
+    it("gives every day of the period, with 0 for a day without visits", async () => {
+      const rows = (await chartOf(`get_visits_over_time_metrics${week}`)) as {
+        series: string;
+        count: number;
+        date: string;
+      }[];
+      expect(rows).toHaveLength(14);
+      expect(rows.slice(0, 6)).toEqual([
+        { series: "Visits", count: 3, date: "2026-09-01" },
+        { series: "Visitors", count: 2, date: "2026-09-01" },
+        { series: "Visits", count: 0, date: "2026-09-02" },
+        { series: "Visitors", count: 0, date: "2026-09-02" },
+        { series: "Visits", count: 1, date: "2026-09-03" },
+        { series: "Visitors", count: 1, date: "2026-09-03" },
+      ]);
+    });
+
+    it("counts by week up to a year, by month beyond", async () => {
+      const dates = async (call: string) =>
+        ((await chartOf(call)) as { date: string }[]).map((r) => r.date);
+      const weeks = await dates(
+        "get_visits_over_time_metrics('2026-01-01', '2026-12-31')",
+      );
+      // 1 January 2026 is a Thursday: its week starts on Monday 29 December
+      expect(weeks[0]).toBe("2025-12-29");
+      expect(new Set(weeks).size).toBe(53);
+      const months = await dates(
+        "get_visits_over_time_metrics('2025-01-01', '2026-12-31')",
+      );
+      expect(new Set(months).size).toBe(24);
+      expect(months.at(-1)).toBe("2026-12");
+    });
+
+    it("counts the sign-ins by method, the failures apart, and the new accounts", async () => {
+      const signIns = (await chartOf(`get_sign_ins_metrics${week}`)) as {
+        series: string;
+        count: number;
+        date: string;
+      }[];
+      expect(signIns.filter((r) => r.count > 0)).toEqual([
+        { series: "Password", count: 1, date: "2026-09-02" },
+        { series: "Google", count: 1, date: "2026-09-05" },
+        { series: "Failed", count: 1, date: "2026-09-05" },
+      ]);
+      const accounts = (await chartOf(`get_new_accounts_metrics${week}`)) as {
+        count: number;
+        date: string;
+      }[];
+      expect(accounts.filter((r) => r.count > 0)).toEqual([
+        { series: "New accounts", count: 1, date: "2026-09-05" },
+        { series: "New accounts", count: 1, date: "2026-09-06" },
+      ]);
+    });
+
+    it("counts what the platform holds, without the deleted rows", async () => {
+      expect(await chartOf("get_content_metrics()")).toEqual([
+        { key: "accounts", label: "Accounts", unit: "count", count: 3 },
+        { key: "projects", label: "Projects", unit: "count", count: 3 },
+        {
+          key: "collaborative_projects",
+          label: "Collaborative projects",
+          unit: "percent",
+          count: 67,
+        },
+        { key: "models", label: "Models", unit: "count", count: 3 },
+        {
+          key: "models_per_project",
+          label: "Models per project",
+          unit: "decimal",
+          count: 1,
+        },
+        {
+          key: "languages_in_use",
+          label: "Languages in use",
+          unit: "count",
+          count: 2,
+        },
+      ]);
+      expect(await chartOf("get_models_by_type_metrics()")).toEqual([
+        { type: "Domain engineering", count: 2 },
+        { type: "Scope", count: 1 },
+      ]);
+    });
+
+    it("ranks pages and languages for the bars of the page", async () => {
+      const [row] = await sequelize.query<{ char_data: { chartType: string } }>(
+        `SELECT char_data FROM "${S}".get_top_visited_pages_metrics${week}`,
+        { type: QueryTypes.SELECT },
+      );
+      expect(row?.char_data.chartType).toBe("ranking");
+      expect(await chartOf(`get_top_visited_pages_metrics${week}`)).toEqual([
+        { page: "home", count: 3 },
+        { page: "list", count: 1 },
       ]);
     });
   });

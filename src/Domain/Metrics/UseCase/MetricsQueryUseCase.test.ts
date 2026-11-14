@@ -31,12 +31,42 @@ describe("MetricsQueryUseCase - Unit Tests", () => {
       );
       mockMetricsRepository.getMetrics.mockResolvedValue(mockResponse);
 
-      const req = new RequestModel<void>("tx-1");
+      const req = new RequestModel<undefined>("tx-1");
       const res = await useCase.getMetrics(req);
 
       expect(res.data).toBe(mockMetrics);
       expect(mockMetricsRepository.getMetrics).toHaveBeenCalledWith(req);
     });
+
+    test("reads every chart over a valid period", async () => {
+      mockMetricsRepository.getMetrics.mockResolvedValue(
+        new ResponseModel<Metric[]>("tx-p").withResponse([]),
+      );
+      const req = new RequestModel("tx-p", {
+        startDate: "2026-09-01",
+        endDate: "2026-09-30",
+      });
+
+      await useCase.getMetrics(req);
+
+      expect(mockMetricsRepository.getMetrics).toHaveBeenCalledWith(req);
+    });
+
+    test.each([
+      [{ startDate: "2026-09-01", endDate: "" }, "required"],
+      [{ startDate: "2026-09-01", endDate: "soon" }, "must be dates"],
+      [{ startDate: "2026-09-30", endDate: "2026-09-01" }, "less than"],
+      [{ startDate: "2023-01-01", endDate: "2026-01-01" }, "2 years"],
+    ])(
+      "refuses the period %j without reading the database",
+      async (period, message) => {
+        const res = await useCase.getMetrics(new RequestModel("tx-p", period));
+
+        expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+        expect(res.message).toContain(message);
+        expect(mockMetricsRepository.getMetrics).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe("queryMetric", () => {
