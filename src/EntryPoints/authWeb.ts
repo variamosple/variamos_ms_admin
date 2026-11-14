@@ -42,10 +42,7 @@ export const getRedirectUrl = (
   return getUrl(transactionId, redirectUrl);
 };
 
-export const getUrl = (
-  transactionId: string,
-  url?: string,
-): URL | undefined => {
+const getUrl = (transactionId: string, url?: string): URL | undefined => {
   if (!url) {
     return undefined;
   }
@@ -108,20 +105,8 @@ export const trustedDeviceToken = (req: Request): string | undefined => {
   return queryText(req.cookies?.[MFA_TRUSTED_COOKIE]);
 };
 
-/**
- * The helpers that depend on the home address, read once when the router
- * is created.
- */
+/** The helpers given to the routes when the router is created. */
 export function createAuthWeb() {
-  const HOME_URL = new URL(
-    EnvVars.Auth.APP.HOME_REDIRECT_URI || "http://localhost:3000",
-  );
-
-  const HOME_URL_HOST_REGEX = new RegExp(`^${HOME_URL.hostname}$`);
-
-  const isExternalDomain = (host?: string): boolean =>
-    host !== undefined && host !== "" && !HOME_URL_HOST_REGEX.test(host);
-
   /** Creates the session cookie; gives the address to go to. */
   const openSession = async (
     transactionId: string,
@@ -145,7 +130,7 @@ export function createAuthWeb() {
       : `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`;
   };
 
-  return { isExternalDomain, openSession };
+  return { openSession };
 }
 
 /** What the routes use from createAuthWeb. */

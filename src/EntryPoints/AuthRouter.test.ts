@@ -706,7 +706,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       expect(response.status).toBe(HttpStatusCodes.OK);
     });
 
-    it("should return authToken in response body if session is refreshed and aud/origin are external", async () => {
+    it("keeps a refreshed token in the cookie, never in the body, even for a page of another site (EV-117)", async () => {
       const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
       Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
         value: [/^https?:\/\/allowed-origin\.com$/],
@@ -752,8 +752,15 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .set("Cookie", ["redirectTo=http://allowed-origin.com/dashboard"]);
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      const body = response.body as { data: { authToken: string } };
-      expect(body.data.authToken).toBe("new-refreshed-jwt-token");
+      const body = response.body as { data: Record<string, unknown> };
+      expect(body.data).not.toHaveProperty("authToken");
+      expect(JSON.stringify(response.body)).not.toContain(
+        "new-refreshed-jwt-token",
+      );
+      const cookies = response.headers["set-cookie"] as unknown as string[];
+      expect(cookies.find((c) => c.startsWith("authToken="))).toContain(
+        "new-refreshed-jwt-token",
+      );
 
       Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
         value: originalPatterns,
@@ -819,8 +826,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         ]);
 
         expect(response.status).toBe(HttpStatusCodes.OK);
-        const body = response.body as { data: { authToken: string } };
-        expect(body.data.authToken).toBe("new-refreshed-jwt-token");
+        expect(response.body.data).not.toHaveProperty("authToken");
         expect(vi.mocked(createJwt).mock.calls[0]?.[1]).toBe(
           "allowed-origin.com",
         );

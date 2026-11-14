@@ -101,7 +101,8 @@ const sessionInfoSchema = z.looseObject({
     roles: z.array(z.string()),
     permissions: z.array(z.string()),
   }),
-  authToken: z.optional(z.string()),
+  // The token stays in the httpOnly cookie (EV-117)
+  authToken: z.optional(z.never()),
   redirect: z.optional(z.string()),
 });
 const userSchema = z.looseObject({
