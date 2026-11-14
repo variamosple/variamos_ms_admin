@@ -480,6 +480,7 @@ describe("createMigrator", () => {
       "0024-service-alert-keys",
       "0025-visit-history",
       "0026-usage-overview",
+      "0027-account-creation-day",
     ]);
   });
 });

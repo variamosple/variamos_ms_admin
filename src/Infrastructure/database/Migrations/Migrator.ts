@@ -28,6 +28,7 @@ import { healthCheckIntervalCategory } from "./0023-health-check-interval-catego
 import { serviceAlertKeys } from "./0024-service-alert-keys.js";
 import { visitHistory } from "./0025-visit-history.js";
 import { usageOverview } from "./0026-usage-overview.js";
+import { accountCreationDay } from "./0027-account-creation-day.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 
 // Applied in order at start-up, each one once; append new migrations here
@@ -58,6 +59,7 @@ export const ADMIN_MIGRATIONS: SchemaMigration[] = [
   serviceAlertKeys,
   visitHistory,
   usageOverview,
+  accountCreationDay,
 ];
 
 // The schema is shared with other services: a name of our own
