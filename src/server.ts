@@ -18,6 +18,7 @@ import express, {
 } from "express";
 import helmet from "helmet";
 import morgan from "morgan";
+import { isAllowedOrigin } from "#src/common/allowedOrigins.js";
 import { RouteError } from "#src/common/classes.js";
 import { describeError } from "#src/common/describeError.js";
 import EnvVars from "#src/common/EnvVars.js";
@@ -55,13 +56,14 @@ export function createServer(baseRouter: Router) {
       origin: string | undefined,
       callback: (err: Error | null, allow?: boolean) => void,
     ) => {
-      if (!origin || origin === "null") return callback(null, true);
+      // Same-origin request, or a client that is not a browser
+      if (!origin) return callback(null, true);
+      // Sandboxed frame or data: page: served, but without CORS headers, so
+      // the page cannot read the response (EV-75). A sign-in that comes back
+      // from Google can carry this origin: it must not be refused.
+      if (origin === "null") return callback(null, false);
 
-      const isAllowed = EnvVars.CORS.AllowedOriginsPatterns.some((pattern) =>
-        pattern.test(origin),
-      );
-
-      if (isAllowed) {
+      if (isAllowedOrigin(origin)) {
         callback(null, true);
       } else {
         callback(
