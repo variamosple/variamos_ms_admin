@@ -8,6 +8,8 @@ export interface ConfigurationKeyRow {
   value: unknown;
   type: string;
   description: string;
+  /** Tab of the configuration screen; "general" when left out. */
+  category?: string;
 }
 
 /**
@@ -29,13 +31,17 @@ export async function addConfigurationKeys(
            ("key", "value", "type", "category", "requires_mfa", "is_secret",
             "environment_scope", "is_read_only", "target_services",
             "description", "updated_by", "created_at", "updated_at")
-         VALUES (:key, CAST(:value AS jsonb), :type, 'general', false, false,
+         VALUES (:key, CAST(:value AS jsonb), :type, :category, false, false,
             'all', false, ARRAY['variamos_ms_admin']::varchar(50)[],
             :description, 'system_migration', now(), now())
          ON CONFLICT ("key") DO NOTHING
          RETURNING "key"`,
         {
-          replacements: { ...row, value: JSON.stringify(row.value) },
+          replacements: {
+            ...row,
+            category: row.category ?? "general",
+            value: JSON.stringify(row.value),
+          },
           type: QueryTypes.SELECT,
           transaction,
         },

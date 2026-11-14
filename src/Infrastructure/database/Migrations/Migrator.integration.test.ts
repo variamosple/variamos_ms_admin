@@ -345,6 +345,38 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
     expect(rows).toHaveLength(ACCOUNT_LOCKOUT_ROWS.length);
   });
 
+  it("files the interval key under monitoring, keeping an administrator's value", async () => {
+    const intervalOf = async (schema: string) =>
+      sequelize.query<{ value: number; category: string }>(
+        `SELECT "value", "category" FROM "${schema}"."configurations"
+          WHERE "key" = 'monitoring.health_check_interval_seconds'`,
+        { type: QueryTypes.SELECT },
+      );
+    await sequelize.query(`DROP SCHEMA IF EXISTS "t07_interval" CASCADE`);
+    await sequelize.query(`CREATE SCHEMA "t07_interval"`);
+    await sequelize.query(productionSchema("t07_interval"));
+    await sequelize.query(
+      `INSERT INTO "t07_interval"."configurations" ("key", "value", "type", "category", "target_services", "updated_by", "created_at", "updated_at")
+       VALUES ('monitoring.health_check_interval_seconds', '45', 'number', 'general', '{variamos_ms_admin}', 'admin-1', now(), now())`,
+    );
+
+    await migrate("t07_interval");
+    await migrate("t07_interval");
+
+    expect(await intervalOf("t07_interval")).toEqual([
+      { value: 45, category: "monitoring" },
+    ]);
+
+    // A database without the key gets it from 0022, then 0023 files it
+    await sequelize.query(`DROP SCHEMA IF EXISTS "t07_interval_new" CASCADE`);
+    await sequelize.query(`CREATE SCHEMA "t07_interval_new"`);
+    await sequelize.query(productionSchema("t07_interval_new"));
+    await migrate("t07_interval_new");
+    expect(await intervalOf("t07_interval_new")).toEqual([
+      { value: 30, category: "monitoring" },
+    ]);
+  });
+
   it("adds the trusted device days without overwriting an administrator's value", async () => {
     await sequelize.query(`DROP SCHEMA IF EXISTS "t07_trusted" CASCADE`);
     await sequelize.query(`CREATE SCHEMA "t07_trusted"`);

@@ -41,6 +41,10 @@ import {
   healthCheckIntervalKey,
 } from "./0022-health-check-interval-key.js";
 import {
+  HEALTH_CHECK_INTERVAL_CATEGORY_KEY,
+  healthCheckIntervalCategory,
+} from "./0023-health-check-interval-category.js";
+import {
   ADMIN_MIGRATIONS,
   createMigrator,
   waitForDatabase,
@@ -330,6 +334,55 @@ describe("health check interval key migration", () => {
   });
 });
 
+describe("health check interval category migration", () => {
+  // Records each statement with its replacements; reports one moved row
+  function recordingSequelize() {
+    const calls: { sql: string; replacements: unknown }[] = [];
+    const query = vi.fn(
+      async (sql: string, options?: { replacements?: unknown }) => {
+        calls.push({ sql, replacements: options?.replacements });
+        return [undefined, 1];
+      },
+    );
+    return { sequelize: { query } as unknown as Sequelize, calls };
+  }
+
+  it("moves the interval key, still under general, to monitoring", async () => {
+    const { sequelize, calls } = recordingSequelize();
+
+    await healthCheckIntervalCategory.up({
+      name: healthCheckIntervalCategory.name,
+      context: { sequelize, schema: "custom" },
+    });
+
+    expect(HEALTH_CHECK_INTERVAL_CATEGORY_KEY).toBe(HEALTH_CHECK_INTERVAL_KEY);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.sql).toContain('UPDATE "custom"."configurations"');
+    expect(calls[0]?.sql).toContain('"category" = :from');
+    expect(calls[0]?.sql).not.toContain('"value"');
+    expect(calls[0]?.replacements).toEqual({
+      key: HEALTH_CHECK_INTERVAL_KEY,
+      from: "general",
+      to: "monitoring",
+    });
+  });
+
+  it("moves it back to general when reverted", async () => {
+    const { sequelize, calls } = recordingSequelize();
+
+    await healthCheckIntervalCategory.down?.({
+      name: healthCheckIntervalCategory.name,
+      context: { sequelize, schema: "custom" },
+    });
+
+    expect(calls[0]?.replacements).toEqual({
+      key: HEALTH_CHECK_INTERVAL_KEY,
+      from: "monitoring",
+      to: "general",
+    });
+  });
+});
+
 describe("createMigrator", () => {
   it.each(["", "  "])("refuses an empty schema (%j)", (schema) => {
     const { sequelize } = fakeSequelize([]);
@@ -363,6 +416,7 @@ describe("createMigrator", () => {
       "0020-user-preferences",
       "0021-user-display-preferences",
       "0022-health-check-interval-key",
+      "0023-health-check-interval-category",
     ]);
   });
 });
