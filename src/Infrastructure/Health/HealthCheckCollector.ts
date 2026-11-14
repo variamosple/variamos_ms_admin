@@ -107,7 +107,13 @@ export async function mapWithConcurrency<T, R>(
   return outcomes;
 }
 
+/** Told of every recorded health check, such as the service alerts. */
+export type HealthCheckListener = (
+  check: MicroServiceHealthInfo,
+) => Promise<void>;
+
 export class HealthCheckCollector {
+  private readonly checkListeners: HealthCheckListener[] = [];
   private intervalTimer: NodeJS.Timeout | null = null;
   private retentionTimer: NodeJS.Timeout | null = null;
   private isCollecting = false;
@@ -124,6 +130,11 @@ export class HealthCheckCollector {
     private readonly concurrency: number = HEALTH_CHECK_CONCURRENCY,
   ) {
     this.pollIntervalMs = initialPollIntervalMs;
+  }
+
+  /** Called after each recorded check; a listener that fails is logged. */
+  public addCheckListener(listener: HealthCheckListener): void {
+    this.checkListeners.push(listener);
   }
 
   public getIntervalMs(): number {
@@ -357,6 +368,15 @@ export class HealthCheckCollector {
     };
 
     await this.microServiceRepository.recordHealthCheck(healthInfo);
+    for (const listener of this.checkListeners) {
+      try {
+        await listener(healthInfo);
+      } catch (error) {
+        logger.err(
+          `Health check listener failed for ${service.name}: ${errorMessage(error)}`,
+        );
+      }
+    }
     return healthInfo;
   }
 }

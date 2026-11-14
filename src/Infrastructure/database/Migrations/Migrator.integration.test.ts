@@ -286,6 +286,8 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
     ).toEqual([
       { key: "bugs.rejected_retention_days", value: 7 },
       { key: "bugs.sync_interval_minutes", value: 15 },
+      { key: "monitoring.alerts.failures_before_alert", value: 3 },
+      { key: "monitoring.alerts.recipients", value: "" },
       { key: "monitoring.health_check_interval_seconds", value: 30 },
       { key: "security.alerts.cooldown_minutes", value: 60 },
       { key: "security.alerts.failed_sign_ins.max_attempts", value: 10 },
@@ -374,6 +376,19 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
     await migrate("t07_interval_new");
     expect(await intervalOf("t07_interval_new")).toEqual([
       { value: 30, category: "monitoring" },
+    ]);
+    expect(
+      await sequelize.query(
+        `SELECT "key", "category" FROM "t07_interval_new"."configurations"
+          WHERE "key" LIKE 'monitoring.alerts.%' ORDER BY "key"`,
+        { type: QueryTypes.SELECT },
+      ),
+    ).toEqual([
+      {
+        key: "monitoring.alerts.failures_before_alert",
+        category: "monitoring",
+      },
+      { key: "monitoring.alerts.recipients", category: "monitoring" },
     ]);
   });
 

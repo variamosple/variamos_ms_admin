@@ -112,6 +112,25 @@ describe("MailServiceImpl messages", () => {
     expect(html).toContain("&lt;script&gt;&quot;x&quot;&lt;/script&gt;");
     expect(html).not.toContain("<script>");
   });
+
+  it("sends a service alert that names the key holding the address", async () => {
+    const service = new MailServiceImpl();
+    const send = vi.spyOn(service, "sendMail").mockResolvedValue(true);
+
+    await service.sendServiceAlertMail(
+      "ops@example.com",
+      "variamos_ms_languages is down",
+      "Last reason: <b>502</b>.",
+    );
+
+    const [to, subject, html] = send.mock.calls[0] as [string, string, string];
+    expect(to).toBe("ops@example.com");
+    expect(subject).toBe(
+      "VariaMos - Service alert: variamos_ms_languages is down",
+    );
+    expect(html).toContain("&lt;b&gt;502&lt;/b&gt;");
+    expect(html).toContain("monitoring.alerts.recipients");
+  });
 });
 
 describe("MailServiceImpl transport", () => {

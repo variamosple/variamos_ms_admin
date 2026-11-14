@@ -21,4 +21,10 @@ export interface IMailService {
     title: string,
     body: string,
   ): Promise<boolean>;
+  /** Tells an address of the monitoring alerts that a service is down or back. */
+  sendServiceAlertMail(
+    to: string,
+    title: string,
+    body: string,
+  ): Promise<boolean>;
 }

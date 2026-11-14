@@ -50,8 +50,10 @@ import { MfaResetUseCase } from "./Domain/Mfa/UseCase/MfaResetUseCase.js";
 import { MfaSignInUseCase } from "./Domain/Mfa/UseCase/MfaSignInUseCase.js";
 import { TrustedDeviceUseCase } from "./Domain/Mfa/UseCase/TrustedDeviceUseCase.js";
 import { UserMfaUseCase } from "./Domain/Mfa/UseCase/UserMfaUseCase.js";
+import { ServiceAlertPolicyService } from "./Domain/MicroService/Service/ServiceAlertPolicyService.js";
 import { MicroServiceManagementUseCase } from "./Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
 import { MicroServiceQueryUseCase } from "./Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
+import { ServiceAlerts } from "./Domain/MicroService/UseCase/ServiceAlerts.js";
 import { NotificationDispatchUseCase } from "./Domain/Notification/UseCase/NotificationDispatchUseCase.js";
 import { PermissionUseCase } from "./Domain/Permission/UseCase/PermissionUseCase.js";
 import { RoleManagementUseCase } from "./Domain/Role/UseCase/RoleManagementUseCase.js";
@@ -79,6 +81,7 @@ import { BugAssignmentNotifier } from "./Infrastructure/Notification/BugAssignme
 import { NotificationAccessTokenIssuer } from "./Infrastructure/Notification/NotificationAccessTokenIssuer.js";
 import { NotificationClientInstance } from "./Infrastructure/Notification/NotificationClient.js";
 import { ScheduledChangeNotifier } from "./Infrastructure/Notification/ScheduledChangeNotifier.js";
+import { ServiceAlertNotifier } from "./Infrastructure/Notification/ServiceAlertNotifier.js";
 import {
   followBugSyncInterval,
   followHealthCheckInterval,
@@ -356,6 +359,16 @@ MicroServiceRepositoriesInstance.control.setHealthCollector(
 );
 ConfigEventPublisherInstance.addListener(
   followHealthCheckInterval(HealthCheckCollectorInstance),
+);
+// A mail when a service stops answering, then when it answers again; the
+// addresses and the number of failed checks follow the configuration screen
+const ServiceAlertsInstance = new ServiceAlerts(
+  new ServiceAlertPolicyService(ConfigurationRepositoryInstance, JetLogger),
+  new ServiceAlertNotifier(MailServiceInstance, JetLogger),
+  JetLogger,
+);
+HealthCheckCollectorInstance.addCheckListener((check) =>
+  ServiceAlertsInstance.onHealthCheck(check),
 );
 
 // Bugs synchronization with GitHub, started by the background jobs at the
