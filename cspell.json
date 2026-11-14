@@ -61,7 +61,8 @@
     "isready",
     "psql",
     "PGOPTIONS",
-    "loadtest"
+    "loadtest",
+    "percpu"
   ],
   "ignorePaths": [
     "node_modules/**",

@@ -35,6 +35,7 @@ function jobsReading(configured: Promise<ResponseModel<Configuration>>) {
     bugSchedule: { getSyncIntervalMs: vi.fn(async () => 60 * MINUTE_MS) },
     bugSyncTask: { setIntervalMs: vi.fn(), start: vi.fn() },
     scheduledChanges: { applyDue: vi.fn(async () => 0) },
+    resourceSampler: { start: vi.fn() },
   };
   jobs.bugLifecycle.purgeExpiredRejectedBugs.mockResolvedValue();
   return jobs;

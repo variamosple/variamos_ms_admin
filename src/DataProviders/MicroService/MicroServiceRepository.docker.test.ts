@@ -115,3 +115,62 @@ describe("MicroServiceRepositoryImpl when Docker does not answer", () => {
     await expect(repository.discoverServiceDefinitions()).resolves.toEqual([]);
   });
 });
+
+describe("MicroServiceRepositoryImpl container resources (EV-86 lot 2)", () => {
+  const resources = {
+    cpuPercent: 3.5,
+    memoryUsedBytes: 150_000_000,
+    memoryLimitBytes: 4_000_000_000,
+    sampledAt: new Date("2026-11-14T10:00:00Z"),
+  };
+  const stopped = {
+    ...monitored,
+    Id: "id-ms_auth-old",
+    Names: ["/ms_auth_old"],
+    State: "exited",
+  };
+
+  const repositoryWith = (containers: unknown[]) => {
+    const repository = new MicroServiceRepositoryImpl({
+      docker: { socketPath: "/nonexistent/docker.sock" },
+      statistics: {
+        uptimeCounts: vi.fn().mockResolvedValue(new Map()),
+        lastStatuses: vi.fn().mockResolvedValue(new Map()),
+      } as unknown as HealthLogStatistics,
+      // Values for any id: only a running container may show them
+      resources: { resourcesOf: () => resources },
+    });
+    (
+      repository as unknown as {
+        dockerConnection: { listContainers: () => Promise<unknown[]> };
+      }
+    ).dockerConnection.listContainers = () => Promise.resolve(containers);
+    vi.spyOn(MicroServiceHealthLogModel, "findOne").mockResolvedValue(null);
+    return repository;
+  };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("gives the CPU and memory of a running container only, in the list and the detail", async () => {
+    const repository = repositoryWith([monitored, stopped]);
+
+    const list = await repository.queryMicroServices(
+      new RequestModel("tx", new MicroServiceFilter()),
+    );
+    const detail = await repository.queryByName(
+      new RequestModel("tx", "ms_auth"),
+    );
+
+    for (const containers of [
+      list.data?.[0]?.containers,
+      detail.data?.containers,
+    ]) {
+      expect(containers?.map((c) => c.resources)).toEqual([
+        resources,
+        undefined,
+      ]);
+    }
+  });
+});

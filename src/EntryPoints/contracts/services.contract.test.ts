@@ -92,6 +92,15 @@ const microServiceSchema = z.looseObject({
       status: z.string(),
       created: isoText,
       labels: z.record(z.string(), z.string()),
+      // Running containers only, once sampled (EV-86 lot 2)
+      resources: z.optional(
+        z.looseObject({
+          cpuPercent: z.nullable(z.number()),
+          memoryUsedBytes: z.number(),
+          memoryLimitBytes: z.number(),
+          sampledAt: isoText,
+        }),
+      ),
     }),
   ),
   uptimeSummary: z.optional(
@@ -226,6 +235,12 @@ const checkedService = () =>
         status: "Up 1 hour",
         created: NOW,
         labels: { "com.docker.compose.service": "variamos_ms_admin" },
+        resources: {
+          cpuPercent: 2.5,
+          memoryUsedBytes: 150_000_000,
+          memoryLimitBytes: 4_000_000_000,
+          sampledAt: NOW,
+        },
       },
     ],
     uptimeSummary: {

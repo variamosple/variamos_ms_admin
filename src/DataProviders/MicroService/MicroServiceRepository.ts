@@ -22,6 +22,7 @@ import {
   uptimeWindow,
 } from "#src/Domain/MicroService/Service/UptimeSummary.js";
 import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
+import type { IContainerResources } from "./ContainerResourceSampler.js";
 import {
   belongsTo,
   containerInfoOf,
@@ -49,6 +50,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
   private dockerConnection: Docker;
   private readonly statistics: HealthLogStatistics;
   private readonly recentUptimes: RecentResults<MicroServiceUptimeSummary[]>;
+  private readonly resources: IContainerResources | undefined;
   /** The services of the last listing that worked, for a Docker outage. */
   private lastDefinitions: ServiceDefinition[] = [];
 
@@ -56,7 +58,10 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
     docker: Docker.DockerOptions;
     statistics?: HealthLogStatistics;
     uptimeMaxAgeMs?: number;
+    /** CPU and memory of the running containers (EV-86 lot 2). */
+    resources?: IContainerResources;
   }) {
+    this.resources = config.resources;
     this.dockerConnection = new Docker(config.docker);
     this.statistics =
       config.statistics ?? new HealthLogStatistics(VARIAMOS_ORM, DB_SCHEMA);
@@ -147,9 +152,7 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
 
       const services = await Promise.all(
         discoveredDefs.map(async (def) => {
-          const containerInfos = containers
-            .filter((c) => belongsTo(c, def))
-            .map(containerInfoOf);
+          const containerInfos = this.containerInfosOf(containers, def);
 
           const latestHealthLog = await MicroServiceHealthLogModel.findOne({
             where: { serviceName: def.name },
@@ -233,32 +236,8 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
         );
       }
 
-      const matchedContainers = containers.filter((c) => {
-        const labels = c.Labels || {};
-        if (labels["variamos.service.name"] === def.name) return true;
-        if (labels["com.docker.compose.service"] === def.containerNamePattern)
-          return true;
-        return c.Names.some((n) => {
-          const cleanN = n.replace(/^\//, "").toLowerCase();
-          return (
-            cleanN === def.name.toLowerCase() ||
-            cleanN.includes(def.name.toLowerCase().replace(/_/g, "-")) ||
-            (def.containerNamePattern &&
-              cleanN.includes(def.containerNamePattern.toLowerCase()))
-          );
-        });
-      });
-
-      const containerInfos: ContainerInstanceInfo[] = matchedContainers.map(
-        (c) => ({
-          id: c.Id,
-          name: c.Names[0]?.replace(/^\//, "") ?? c.Id,
-          state: c.State,
-          status: c.Status,
-          created: new Date(c.Created * 1000),
-          labels: c.Labels,
-        }),
-      );
+      // Same matching and fields as the list
+      const containerInfos = this.containerInfosOf(containers, def);
 
       const latestHealthLog = await MicroServiceHealthLogModel.findOne({
         where: { serviceName: def.name },
@@ -353,6 +332,16 @@ export class MicroServiceRepositoryImpl implements IMicroServiceRepository {
    * and kept UPTIME_MAX_AGE_MS: every screen open in that time reads the same
    * computation (EV-92).
    */
+  private containerInfosOf(
+    containers: Docker.ContainerInfo[],
+    def: ServiceDefinition,
+  ): ContainerInstanceInfo[] {
+    const resourcesOf = (id: string) => this.resources?.resourcesOf(id);
+    return containers
+      .filter((c) => belongsTo(c, def))
+      .map((c) => containerInfoOf(c, resourcesOf));
+  }
+
   /** The containers, or null when Docker does not answer. */
   private async listContainersOrNull(): Promise<Docker.ContainerInfo[] | null> {
     try {

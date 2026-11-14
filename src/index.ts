@@ -11,6 +11,7 @@ import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import {
   AccessJournalInstance,
   ActivityJournalInstance,
+  ContainerResourceSamplerInstance,
   SecretConfigurationValueInstance,
 } from "./CompositionRepositories.js";
 import {
@@ -107,6 +108,7 @@ const server = app.listen(EnvVars.Port, async () => {
     bugSchedule: productionBugSchedule,
     bugSyncTask: BugSyncTask,
     scheduledChanges: productionScheduledConfigurationChangeUseCase,
+    resourceSampler: ContainerResourceSamplerInstance,
   });
 });
 

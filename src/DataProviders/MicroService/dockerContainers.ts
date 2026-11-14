@@ -1,5 +1,8 @@
 import type Docker from "dockerode";
-import type { ContainerInstanceInfo } from "#src/Domain/MicroService/Entity/MicroServiceDetailed.js";
+import type {
+  ContainerInstanceInfo,
+  ContainerResources,
+} from "#src/Domain/MicroService/Entity/MicroServiceDetailed.js";
 import type { ServiceDefinition } from "#src/Domain/MicroService/Entity/ServiceDefinition.js";
 
 /**
@@ -94,13 +97,19 @@ export function belongsTo(
   });
 }
 
+/** A container as the screen shows it; resources only while it runs. */
 export const containerInfoOf = (
   c: Docker.ContainerInfo,
-): ContainerInstanceInfo => ({
-  id: c.Id,
-  name: c.Names[0]?.replace(/^\//, "") ?? c.Id,
-  state: c.State,
-  status: c.Status,
-  created: new Date(c.Created * 1000),
-  labels: c.Labels,
-});
+  resourcesOf: (id: string) => ContainerResources | undefined = () => undefined,
+): ContainerInstanceInfo => {
+  const resources = c.State === "running" ? resourcesOf(c.Id) : undefined;
+  return {
+    id: c.Id,
+    name: c.Names[0]?.replace(/^\//, "") ?? c.Id,
+    state: c.State,
+    status: c.Status,
+    created: new Date(c.Created * 1000),
+    labels: c.Labels,
+    ...(resources ? { resources } : {}),
+  };
+};
