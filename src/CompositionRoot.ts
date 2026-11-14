@@ -22,6 +22,7 @@ import {
 } from "./CompositionRepositories.js";
 import { AccessHierarchyRepositoryImpl } from "./DataProviders/AccessControl/AccessHierarchyRepository.js";
 import { JournalReaderRepositoryImpl } from "./DataProviders/Activity/JournalReaderRepository.js";
+import { FileBackupStatusReader } from "./DataProviders/Backup/FileBackupStatusReader.js";
 import { ScheduledConfigurationChangeRepositoryImpl } from "./DataProviders/Configuration/ScheduledConfigurationChangeRepository.js";
 import { TrustedDeviceRepositoryImpl } from "./DataProviders/Mfa/TrustedDeviceRepository.js";
 import { UserMfaRepositoryImpl } from "./DataProviders/Mfa/UserMfaRepository.js";
@@ -29,6 +30,7 @@ import { NotificationRecipientDirectory } from "./DataProviders/Notification/Not
 import { UserPreferencesRepositoryImpl } from "./DataProviders/User/UserPreferencesRepository.js";
 import { AccessHierarchyUseCase } from "./Domain/AccessControl/AccessHierarchyUseCase.js";
 import { JournalQueryUseCase } from "./Domain/Activity/JournalQueryUseCase.js";
+import { BackupAlerts } from "./Domain/Backup/UseCase/BackupAlerts.js";
 import { bugSyncIntervalMsOf } from "./Domain/Bug/Entity/BugSchedule.js";
 import {
   BugScheduleService,
@@ -371,6 +373,17 @@ HealthCheckCollectorInstance.addCheckListener((check) =>
   ServiceAlertsInstance.onHealthCheck(check),
 );
 
+// A mail when the nightly database backup goes wrong, to the same addresses;
+// off without the status file written by the server
+export const BackupAlertsInstance = EnvVars.BACKUP.STATUS_FILE
+  ? new BackupAlerts(
+      new FileBackupStatusReader(EnvVars.BACKUP.STATUS_FILE, JetLogger),
+      new ServiceAlertPolicyService(ConfigurationRepositoryInstance, JetLogger),
+      new ServiceAlertNotifier(MailServiceInstance, JetLogger),
+      JetLogger,
+    )
+  : null;
+
 // Bugs synchronization with GitHub, started by the background jobs at the
 // configured interval; a change on the configuration screen moves it at once
 export const BugSyncTask = new RepeatingTask(
@@ -433,4 +446,5 @@ export const productionRouterDependencies: BaseRouterDependencies = {
   accessJournal: WatchedAccessJournal,
   journalQuery: productionJournalQueryUseCase,
   checkDatabase,
+  backups: BackupAlertsInstance,
 };

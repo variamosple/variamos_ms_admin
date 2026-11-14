@@ -7,6 +7,7 @@ import {
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { HEALTH_CHECK_INTERVAL_KEY } from "#src/Domain/MicroService/Entity/HealthCheckInterval.js";
 import {
+  BACKUP_CHECK_EVERY_MS,
   type BackgroundJobs,
   followBugSyncInterval,
   followHealthCheckInterval,
@@ -36,6 +37,7 @@ function jobsReading(configured: Promise<ResponseModel<Configuration>>) {
     bugSyncTask: { setIntervalMs: vi.fn(), start: vi.fn() },
     scheduledChanges: { applyDue: vi.fn(async () => 0) },
     resourceSampler: { start: vi.fn() },
+    backupAlerts: null as { check(): Promise<void> } | null,
   };
   jobs.bugLifecycle.purgeExpiredRejectedBugs.mockResolvedValue();
   return jobs;
@@ -116,6 +118,20 @@ describe("background jobs", () => {
     await vi.advanceTimersByTimeAsync(SCHEDULED_CHANGES_EVERY_MS);
     await vi.advanceTimersByTimeAsync(SCHEDULED_CHANGES_EVERY_MS);
     expect(jobs.scheduledChanges.applyDue).toHaveBeenCalledTimes(3);
+  });
+
+  it("checks the backup at start-up, then every hour, when it has a status file (EV-86)", async () => {
+    const jobs = jobsReading(
+      Promise.resolve(new ResponseModel<Configuration>("t")),
+    );
+    const check = vi.fn(async () => undefined);
+    jobs.backupAlerts = { check };
+
+    await startBackgroundJobs(jobs);
+    expect(check).toHaveBeenCalledOnce();
+
+    await vi.advanceTimersByTimeAsync(BACKUP_CHECK_EVERY_MS);
+    expect(check).toHaveBeenCalledTimes(2);
   });
 
   it("follows a change of the bugs sync interval only", () => {

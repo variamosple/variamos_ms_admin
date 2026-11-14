@@ -19,6 +19,7 @@ import {
   SecretConfigurationValueInstance,
 } from "./CompositionRepositories.js";
 import {
+  BackupAlertsInstance,
   BugSyncTask,
   HealthCheckCollectorInstance,
   productionBugLifecycleUseCase,
@@ -124,6 +125,7 @@ const server = app.listen(EnvVars.Port, async () => {
     bugSyncTask: BugSyncTask,
     scheduledChanges: productionScheduledConfigurationChangeUseCase,
     resourceSampler: ContainerResourceSamplerInstance,
+    backupAlerts: BackupAlertsInstance,
   });
 });
 
