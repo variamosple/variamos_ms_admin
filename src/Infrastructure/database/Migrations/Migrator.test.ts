@@ -478,6 +478,7 @@ describe("createMigrator", () => {
       "0022-health-check-interval-key",
       "0023-health-check-interval-category",
       "0024-service-alert-keys",
+      "0025-visit-history",
     ]);
   });
 });
