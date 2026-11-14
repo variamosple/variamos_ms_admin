@@ -24,6 +24,7 @@ import { scheduledConfigurationChanges } from "./0019-scheduled-configuration-ch
 import { retiredUserPreferences } from "./0020-user-preferences.js";
 import { userDisplayPreferences } from "./0021-user-display-preferences.js";
 import { healthCheckIntervalKey } from "./0022-health-check-interval-key.js";
+import { healthCheckIntervalCategory } from "./0023-health-check-interval-category.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 
 // Applied in order at start-up, each one once; append new migrations here
@@ -50,6 +51,7 @@ export const ADMIN_MIGRATIONS: SchemaMigration[] = [
   retiredUserPreferences,
   userDisplayPreferences,
   healthCheckIntervalKey,
+  healthCheckIntervalCategory,
 ];
 
 // The schema is shared with other services: a name of our own
