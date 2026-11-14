@@ -4,6 +4,19 @@ import type {
   MicroServiceUptimeSummary,
 } from "./MicroServiceHealth.js";
 
+/**
+ * What a running container uses, sampled every 30 s. cpuPercent follows the
+ * convention of `docker stats`: 100 is one full core. Null until two samples
+ * of the container exist.
+ */
+export interface ContainerResources {
+  cpuPercent: number | null;
+  memoryUsedBytes: number;
+  /** The container's memory limit, or the machine's memory without one. */
+  memoryLimitBytes: number;
+  sampledAt: Date;
+}
+
 export interface ContainerInstanceInfo {
   id: string;
   name: string;
@@ -11,6 +24,8 @@ export interface ContainerInstanceInfo {
   status: string;
   created: Date;
   labels: Labels;
+  /** Absent for a stopped container, or before its first sample. */
+  resources?: ContainerResources;
 }
 
 /** A service with its health, containers and uptime. */

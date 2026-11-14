@@ -29,6 +29,8 @@ export interface BackgroundJobs {
   bugSchedule: Pick<IBugScheduleProvider, "getSyncIntervalMs">;
   bugSyncTask: Pick<RepeatingTask, "setIntervalMs" | "start">;
   scheduledChanges: Pick<ScheduledConfigurationChangeUseCase, "applyDue">;
+  /** Reads the CPU and memory of the containers (EV-86 lot 2). */
+  resourceSampler: { start(): void };
 }
 
 /** Applies a change of the health check interval at once (T-18 lot 4b). */
@@ -67,7 +69,8 @@ async function applyConfiguredInterval(jobs: BackgroundJobs): Promise<void> {
 }
 
 /**
- * Starts the health checks, purges the expired rejected bugs, then syncs the
+ * Starts the health checks and the sampling of the containers' CPU and
+ * memory, purges the expired rejected bugs, then syncs the
  * bugs at the configured interval (15 minutes by default) and purges them
  * every 24 hours. Called once the server listens; a failed run is logged and
  * the next one still happens.
@@ -76,6 +79,7 @@ export async function startBackgroundJobs(jobs: BackgroundJobs): Promise<void> {
   try {
     await applyConfiguredInterval(jobs);
     jobs.collector.start();
+    jobs.resourceSampler.start();
     await jobs.bugLifecycle.purgeExpiredRejectedBugs();
   } catch (e) {
     logger.err(`Failed to start background tasks: ${errorMessage(e)}`);

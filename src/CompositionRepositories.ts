@@ -1,3 +1,4 @@
+import Docker from "dockerode";
 import EnvVars from "#src/common/EnvVars.js";
 import logger from "#src/common/logger.js";
 import { SecurityAlertRecipientRepository } from "./DataProviders/AccessControl/SecurityAlertRecipientRepository.js";
@@ -12,6 +13,7 @@ import { ConfigurationRepositoryImpl } from "./DataProviders/Configuration/Confi
 import { SecretConfigurationValue } from "./DataProviders/Configuration/SecretConfigurationValue.js";
 import { CountriesRepositoryImpl } from "./DataProviders/Countries/CountriesRepository.js";
 import { MetricsRepositoryImpl } from "./DataProviders/Metrics/MetricsRepository.js";
+import { ContainerResourceSampler } from "./DataProviders/MicroService/ContainerResourceSampler.js";
 import { dockerOptionsOf } from "./DataProviders/MicroService/dockerOptions.js";
 import { HealthLogStatistics } from "./DataProviders/MicroService/HealthLogStatistics.js";
 import { MicroServiceConfigRepositoryImpl } from "./DataProviders/MicroService/MicroServiceConfigRepository.js";
@@ -76,10 +78,17 @@ const DOCKER_OPTIONS = dockerOptionsOf({
 });
 
 // One repository per subject of the monitoring
+// CPU and memory of the running monitored containers, read every 30 s by
+// the background jobs (EV-86 lot 2)
+export const ContainerResourceSamplerInstance = new ContainerResourceSampler(
+  new Docker(DOCKER_OPTIONS),
+);
+
 export const MicroServiceRepositoriesInstance = {
   services: new MicroServiceRepositoryImpl({
     docker: DOCKER_OPTIONS,
     statistics: HealthLogStatisticsInstance,
+    resources: ContainerResourceSamplerInstance,
   }),
   control: new MicroServiceControlRepositoryImpl({
     docker: DOCKER_OPTIONS,
