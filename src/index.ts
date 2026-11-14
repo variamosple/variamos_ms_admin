@@ -5,6 +5,10 @@ import {
   initKeyStore,
   validateRolesAndPermissions,
 } from "@variamosple/variamos-security";
+import {
+  checkOriginList,
+  isAllowedOrigin,
+} from "#src/common/allowedOrigins.js";
 import EnvVars from "#src/common/EnvVars.js";
 import { missingRequiredSecrets } from "#src/common/requiredSecrets.js";
 import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
@@ -47,6 +51,17 @@ if (missingSecrets.length > 0) {
   logger.err(
     `[CONFIG] Missing in production, the server does not start: ${missingSecrets.join(", ")}`,
   );
+  process.exit(1);
+}
+
+// Without an exact list, the former patterns are read; an empty pattern would
+// allow every origin with the session cookie (EV-75)
+const originList = checkOriginList(process.env, EnvVars.NodeEnv);
+for (const warning of originList.warnings) logger.warn(`[CONFIG] ${warning}`);
+if (originList.errors.length > 0) {
+  for (const error of originList.errors) {
+    logger.err(`[CONFIG] ${error}, the server does not start`);
+  }
   process.exit(1);
 }
 
@@ -113,7 +128,7 @@ const server = app.listen(EnvVars.Port, async () => {
 });
 
 attachContainerLogsWebSocket(server, {
-  allowedOrigins: EnvVars.CORS.AllowedOriginsPatterns,
+  isAllowedOrigin,
   checkAccess: (token) =>
     validateRolesAndPermissions(token, [CONTAINER_LOGS_PERMISSION]),
   watchLogs: (request) =>

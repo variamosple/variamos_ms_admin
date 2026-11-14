@@ -5,21 +5,24 @@ import { WebSocket } from "ws";
 import logger from "#src/common/logger.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import {
+  acceptsSocketOrigin,
   attachContainerLogsWebSocket,
   type ContainerLogsDependencies,
-  isAllowedOrigin,
 } from "./ContainerLogsWebSocket.js";
 
-const ALLOWED = [/^https:\/\/app\.variamos\.com$/];
+const ALLOWED = (origin: string): boolean =>
+  origin === "https://app.variamos.com";
 
-describe("isAllowedOrigin", () => {
+describe("acceptsSocketOrigin", () => {
   it("allows a listed origin and refuses another", () => {
-    expect(isAllowedOrigin("https://app.variamos.com", ALLOWED)).toBe(true);
-    expect(isAllowedOrigin("https://evil.example.com", ALLOWED)).toBe(false);
+    expect(acceptsSocketOrigin("https://app.variamos.com", ALLOWED)).toBe(true);
+    expect(acceptsSocketOrigin("https://evil.example.com", ALLOWED)).toBe(
+      false,
+    );
   });
 
   it("allows a client without Origin, which still needs the permission", () => {
-    expect(isAllowedOrigin(undefined, ALLOWED)).toBe(true);
+    expect(acceptsSocketOrigin(undefined, ALLOWED)).toBe(true);
   });
 });
 
@@ -34,7 +37,7 @@ describe("container logs WebSocket", () => {
 
   const start = async (overrides: Partial<ContainerLogsDependencies> = {}) => {
     deps = {
-      allowedOrigins: ALLOWED,
+      isAllowedOrigin: ALLOWED,
       checkAccess: vi.fn().mockResolvedValue({ data: {} }),
       watchLogs: vi.fn().mockImplementation(async () => {
         const stream = new PassThrough();

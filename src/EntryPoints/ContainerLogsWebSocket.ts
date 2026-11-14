@@ -20,8 +20,8 @@ interface ContainerLogsAccess {
 }
 
 export interface ContainerLogsDependencies {
-  /** Browser origins allowed to open the socket (the CORS patterns). */
-  allowedOrigins: readonly RegExp[];
+  /** Whether a browser origin may open the socket (the CORS list). */
+  isAllowedOrigin: (origin: string) => boolean;
   /** Checks the session token and the logs permission. */
   checkAccess: (token: string) => Promise<ContainerLogsAccess>;
   watchLogs: (
@@ -35,12 +35,12 @@ export interface ContainerLogsDependencies {
  * tool) is not exposed to cross-site WebSocket hijacking and still needs the
  * permission.
  */
-export function isAllowedOrigin(
+export function acceptsSocketOrigin(
   origin: string | undefined,
-  allowedOrigins: readonly RegExp[],
+  isAllowedOrigin: (origin: string) => boolean,
 ): boolean {
   if (!origin) return true;
-  return allowedOrigins.some((pattern) => pattern.test(origin));
+  return isAllowedOrigin(origin);
 }
 
 function serviceIdOf(message: RawData): string | null {
@@ -96,7 +96,7 @@ export function attachContainerLogsWebSocket(
   const webSocketServer = new WebSocketServer({
     server,
     verifyClient: (info: { origin?: string }) =>
-      isAllowedOrigin(info.origin, deps.allowedOrigins),
+      acceptsSocketOrigin(info.origin, deps.isAllowedOrigin),
   });
 
   webSocketServer.on("connection", (ws: WebSocket, req: IncomingMessage) => {

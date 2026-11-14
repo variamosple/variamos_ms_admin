@@ -1,5 +1,6 @@
 import { createJwt, type SessionUser } from "@variamosple/variamos-security";
 import type { CookieOptions, Request, Response } from "express";
+import { isAllowedOrigin } from "#src/common/allowedOrigins.js";
 import { describeError } from "#src/common/describeError.js";
 import EnvVars from "#src/common/EnvVars.js";
 import logger from "#src/common/logger.js";
@@ -12,9 +13,6 @@ export const MFA_PENDING_COOKIE = "mfaPending";
 
 /** Holds the token of a browser where the code is not asked (lot 6). */
 export const MFA_TRUSTED_COOKIE = "mfaTrustedDevice";
-
-const isAllowedOrigin = (origin: string): boolean =>
-  EnvVars.CORS.AllowedOriginsPatterns.some((pattern) => pattern.test(origin));
 
 // A page to go back to after sign-in: a web address of an allowed site.
 // A javascript: or data: address has the origin "null"; given to the
