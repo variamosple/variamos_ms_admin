@@ -6,6 +6,7 @@ import { Permission } from "#src/Domain/Permission/Entity/Permission.js";
 import { PERMISSION_NAME_PATTERN } from "./0014-permission-name-format.js";
 import { versionedFunctions } from "./0015-versioned-functions.js";
 import { usageMetrics } from "./0018-usage-metrics.js";
+import { visitHistory } from "./0025-visit-history.js";
 import type { MigrationContext } from "./MigrationContext.js";
 
 const DIR = import.meta.dirname;
@@ -56,6 +57,7 @@ describe("migration rules", () => {
   it.each([
     ["0015", versionedFunctions],
     ["0018", usageMetrics],
+    ["0025", visitHistory],
   ])(
     "writes the functions of %s only into a plain schema name",
     async (_name, migration) => {
@@ -72,11 +74,12 @@ describe("migration rules", () => {
     },
   );
 
-  it.each(["0015-versioned-functions.ts", "0018-usage-metrics.ts"])(
-    "names no schema of its own in the functions of %s",
-    (file) => {
-      const code = readFileSync(join(DIR, file), "utf8");
-      expect(code).not.toContain("variamos.");
-    },
-  );
+  it.each([
+    "0015-versioned-functions.ts",
+    "0018-usage-metrics.ts",
+    "0025-visit-history.ts",
+  ])("names no schema of its own in the functions of %s", (file) => {
+    const code = readFileSync(join(DIR, file), "utf8");
+    expect(code).not.toContain("variamos.");
+  });
 });

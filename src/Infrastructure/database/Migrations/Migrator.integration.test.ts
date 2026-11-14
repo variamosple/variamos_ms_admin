@@ -37,6 +37,7 @@ import { USAGE_METRICS_FUNCTIONS } from "./0018-usage-metrics.js";
 import { SCHEDULED_CHANGES_TABLE } from "./0019-scheduled-configuration-changes.js";
 import { retiredUserPreferences } from "./0020-user-preferences.js";
 import { USER_DISPLAY_PREFERENCES_TABLE } from "./0021-user-display-preferences.js";
+import { VISIT_HISTORY_FUNCTIONS } from "./0025-visit-history.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 import {
   ADMIN_MIGRATIONS,
@@ -658,6 +659,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
       [
         ...METRICS_FUNCTIONS,
         ...USAGE_METRICS_FUNCTIONS,
+        ...VISIT_HISTORY_FUNCTIONS,
         // A second one, with a period (0018)
         "get_top_visited_pages_metrics",
         "insert_user_role",
@@ -982,6 +984,88 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
       const empty = await read("t07_fresh");
       expect(empty.map((c) => c.id)).toEqual(ids);
       expect(empty.every((c) => c.data === null)).toBe(true);
+    });
+  });
+
+  describe("visits kept only in the summary (EV-90, pgAgent job until May 2025)", () => {
+    const S = "t25_history";
+    const chartOf = async (call: string) => {
+      const [row] = await sequelize.query<{ char_data: { data: unknown } }>(
+        `SELECT char_data FROM "${S}".${call}`,
+        { type: QueryTypes.SELECT },
+      );
+      return row?.char_data.data;
+    };
+    const period = "('2025-05-01', '2025-05-31')";
+
+    beforeAll(async () => {
+      await createSchema(S);
+      // The job deleted each summed day from page_visit: the 15th is in both,
+      // as on the night it ran, and must be counted once, from page_visit
+      await sequelize.query(`
+        CREATE TABLE "${S}".page_visit ("page_id" varchar(48), "user_id" text NOT NULL,
+          "visit_date" date NOT NULL, "country_code" varchar(2));
+        CREATE TABLE "${S}".visits_summary ("page_id" text NOT NULL,
+          "unique_visits" bigint NOT NULL, "visits" bigint NOT NULL, "visits_date" date NOT NULL);
+        INSERT INTO "${S}".visits_summary VALUES
+          ('home', 2, 5, '2025-04-30'), ('home', 2, 3, '2025-05-12'),
+          ('list', 1, 4, '2025-05-12'), ('home', 9, 9, '2025-05-15');
+        INSERT INTO "${S}".page_visit VALUES
+          ('home', 'u1', '2025-05-15', 'CO'), ('home', 'u1', '2025-05-15', 'CO'),
+          ('list', 'u2', '2025-05-16', 'FR');
+      `);
+      await migrate(S);
+    });
+
+    it("adds the summed days before the first recorded visit, without counting a day twice", async () => {
+      expect(await chartOf(`get_daily_visits_metrics${period}`)).toEqual([
+        { page: "home", count: 3, date: "2025-05-12" },
+        { page: "list", count: 4, date: "2025-05-12" },
+        { page: "home", count: 2, date: "2025-05-15" },
+        { page: "list", count: 1, date: "2025-05-16" },
+      ]);
+      expect(await chartOf(`get_daily_unique_visits_metrics${period}`)).toEqual(
+        [
+          { page: "home", count: 2, date: "2025-05-12" },
+          { page: "list", count: 1, date: "2025-05-12" },
+          { page: "home", count: 1, date: "2025-05-15" },
+          { page: "list", count: 1, date: "2025-05-16" },
+        ],
+      );
+      expect(
+        await chartOf("get_monthly_visits_metrics('2025-04-01', '2025-05-31')"),
+      ).toEqual([
+        { page: "home", count: 5, date: "2025-04" },
+        { page: "home", count: 5, date: "2025-05" },
+        { page: "list", count: 5, date: "2025-05" },
+      ]);
+      expect(await chartOf(`get_top_visited_pages_metrics${period}`)).toEqual([
+        { page: "home", count: 5 },
+        { page: "list", count: 5 },
+      ]);
+    });
+
+    it("matches a direct count of both tables over the whole history (MA-EU-01)", async () => {
+      const [direct] = await sequelize.query<{ total: string }>(
+        `SELECT (SELECT count(*) FROM "${S}".page_visit)
+              + (SELECT coalesce(sum(visits), 0) FROM "${S}".visits_summary
+                 WHERE visits_date < (SELECT min(visit_date) FROM "${S}".page_visit)) AS total`,
+        { type: QueryTypes.SELECT },
+      );
+      const monthly = (await chartOf(
+        "get_monthly_visits_metrics('2000-01-01', '2100-01-01')",
+      )) as { count: number }[];
+      expect(monthly.reduce((sum, row) => sum + row.count, 0)).toBe(
+        Number(direct?.total),
+      );
+    });
+
+    it("reads the summary alone when no visit is recorded yet", async () => {
+      await sequelize.query(`TRUNCATE "${S}".page_visit`);
+      expect(await chartOf(`get_top_visited_pages_metrics${period}`)).toEqual([
+        { page: "home", count: 12 },
+        { page: "list", count: 4 },
+      ]);
     });
   });
 });
