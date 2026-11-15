@@ -1,4 +1,6 @@
 import type { Nullable } from "#src/Domain/Core/Entity/Nullable.js";
+import { DomainError } from "#src/Domain/Core/Error/DomainError.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { Permission } from "#src/Domain/Permission/Entity/Permission.js";
 
 export class Role {
@@ -15,7 +17,8 @@ export class Role {
     permissions?: Permission[],
   ) {
     if (!name || !Role.ROLE_NAME_REGEX.test(name)) {
-      throw new Error(
+      throw new DomainError(
+        DomainErrorCodes.INVALID_INPUT,
         "Role name must start with an uppercase letter, followed by lowercase words separated by single spaces (e.g. 'Test role').",
       );
     }

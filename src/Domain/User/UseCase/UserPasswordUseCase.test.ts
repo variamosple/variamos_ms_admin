@@ -5,7 +5,7 @@ import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
-import type { User } from "#src/Domain/User/Entity/User.js";
+import { User } from "#src/Domain/User/Entity/User.js";
 import type { IUserPasswordRepository } from "#src/Domain/User/IUserPasswordRepository.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 import type { IUserSignInRepository } from "#src/Domain/User/IUserSignInRepository.js";
@@ -31,7 +31,7 @@ describe("UserPasswordUseCase", () => {
     adminHomeUri: "http://localhost:3000",
   };
 
-  const mockUser = {
+  const mockUser = new User({
     id: "user-123",
     isEnabled: true,
     isDeleted: false,
@@ -43,7 +43,7 @@ describe("UserPasswordUseCase", () => {
     countryCode: null,
     countryName: null,
     createdAt: new Date(),
-  } as User;
+  });
 
   beforeEach(() => {
     logger = mock<ILogger>();

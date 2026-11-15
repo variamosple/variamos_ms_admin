@@ -1,7 +1,7 @@
 import { assert } from "vitest";
 import { type MockProxy, mock } from "vitest-mock-extended";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
-import type { User } from "../Entity/User.js";
+import { User } from "../Entity/User.js";
 import type { IUserPasswordRepository } from "../IUserPasswordRepository.js";
 import type { IUserRepository } from "../IUserRepository.js";
 import type { IUserSignInRepository } from "../IUserSignInRepository.js";
@@ -22,7 +22,7 @@ describe("PasswordResetTokenService", () => {
     service = new PasswordResetTokenService(mockUserRepository, logger);
   });
 
-  const mockUser = {
+  const mockUser = new User({
     id: "user-123",
     isEnabled: true,
     isDeleted: false,
@@ -34,7 +34,7 @@ describe("PasswordResetTokenService", () => {
     countryCode: null,
     countryName: null,
     createdAt: new Date(),
-  } as User;
+  });
 
   it("should generate a token and save its hash in the database successfully", async () => {
     mockUserRepository.savePasswordResetToken.mockResolvedValue(undefined);

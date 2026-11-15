@@ -15,7 +15,7 @@ import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 import { BaseRepository } from "../BaseRepository.js";
 import { CountryModel } from "../Countries/Country.js";
 import { type UserAttributes, UserModel } from "./User.js";
-import { accountOf, enrichUserRolesAndPermissions } from "./userRows.js";
+import { accountOf, withRolesAndPermissions } from "./userRows.js";
 
 /** The accounts: lists, reading, state and personal information. */
 export class UserRepositoryImpl
@@ -119,9 +119,7 @@ export class UserRepositoryImpl
       }
 
       // The state goes with the user: the domain decides (AccountAccess)
-      response.data = accountOf(dbUser);
-
-      await enrichUserRolesAndPermissions(response.data);
+      response.data = await withRolesAndPermissions(accountOf(dbUser));
     } catch (error) {
       logger.err("Error in findSessionUser:");
       logger.err(error);

@@ -17,14 +17,15 @@ export function accountOf(dbUser: UserModel): User {
     .build();
 }
 
-export async function enrichUserRolesAndPermissions(user: User) {
+/** The account with the roles it holds and the permissions they give. */
+export async function withRolesAndPermissions(user: User): Promise<User> {
   if (!user?.id) {
-    return;
+    return user;
   }
 
   const replacements = { userId: user.id };
 
-  user.roles = await VARIAMOS_ORM.query<RoleModel>(
+  const roles = await VARIAMOS_ORM.query<RoleModel>(
     `
       SELECT r.name
       FROM ${DB_SCHEMA}.role r
@@ -37,7 +38,7 @@ export async function enrichUserRolesAndPermissions(user: User) {
     },
   ).then((res) => res.map(({ name }) => name));
 
-  user.permissions = await VARIAMOS_ORM.query<PermissionModel>(
+  const permissions = await VARIAMOS_ORM.query<PermissionModel>(
     `
       SELECT p.name
       FROM ${DB_SCHEMA}.user_role ur
@@ -50,4 +51,6 @@ export async function enrichUserRolesAndPermissions(user: User) {
       replacements,
     },
   ).then((res) => res.map(({ name }) => name));
+
+  return user.withAccess(roles, permissions);
 }

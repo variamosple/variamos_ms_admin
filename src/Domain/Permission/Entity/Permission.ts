@@ -1,20 +1,13 @@
 import type { Nullable } from "#src/Domain/Core/Entity/Nullable.js";
+import { PermissionName } from "./PermissionName.js";
 
 export class Permission {
   public readonly id: Nullable<number>;
   public readonly name: string;
 
-  private static readonly PERMISSION_NAME_REGEX =
-    /^(?:[a-z0-9-]+::)?[a-z0-9-]+::[a-z0-9-]+$/;
-
   public constructor(id: Nullable<number>, name: string) {
-    if (!name || !Permission.PERMISSION_NAME_REGEX.test(name)) {
-      throw new Error(
-        "Permission name must follow the 'resource::action' or 'scope::resource::action' format (e.g. 'admin::roles::read').",
-      );
-    }
     this.id = id;
-    this.name = name.trim();
+    this.name = new PermissionName(name).getValue();
   }
 
   public static builder(): PermissionBuilder {
