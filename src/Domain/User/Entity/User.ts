@@ -20,18 +20,18 @@ export interface UserFields {
 }
 
 export class User {
-  public id: Nullable<string>;
-  public user: string;
-  public name: string;
-  public email: string;
-  public countryCode: Nullable<string>;
-  public countryName: Nullable<string>;
-  public isEnabled: boolean;
-  public isDeleted: boolean;
-  public createdAt: Date;
-  public lastLogin?: Date;
-  public roles?: string[];
-  public permissions?: string[];
+  public readonly id: Nullable<string>;
+  public readonly user: string;
+  public readonly name: string;
+  public readonly email: string;
+  public readonly countryCode: Nullable<string>;
+  public readonly countryName: Nullable<string>;
+  public readonly isEnabled: boolean;
+  public readonly isDeleted: boolean;
+  public readonly createdAt: Date;
+  public readonly lastLogin?: Date;
+  public readonly roles?: string[];
+  public readonly permissions?: string[];
 
   public constructor(fields: UserFields) {
     const {
@@ -68,6 +68,11 @@ export class User {
     this.lastLogin = lastLogin;
     this.roles = roles;
     this.permissions = permissions;
+  }
+
+  /** The same account, with the roles and permissions it holds. */
+  public withAccess(roles: string[], permissions: string[]): User {
+    return new User({ ...this, roles, permissions });
   }
 
   public static builder(): UserBuilder {
@@ -121,8 +126,10 @@ class UserBuilder {
     return this;
   }
 
+  // Refused here already, not only at build(): the builder never holds a
+  // malformed address (EV-24)
   public setEmail(email: string): this {
-    this.email = email;
+    this.email = email ? new Email(email).getValue() : email;
     return this;
   }
 

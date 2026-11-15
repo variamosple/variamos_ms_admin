@@ -1,3 +1,5 @@
+import { DomainError } from "#src/Domain/Core/Error/DomainError.js";
+import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { Role } from "./Role.js";
 
 describe("Role Entity - Unit Tests", () => {
@@ -25,5 +27,12 @@ describe("Role Entity - Unit Tests", () => {
     expect(() => new Role(1, "Super Admin")).toThrow(expectedError);
     expect(() => new Role(1, "Test  role")).toThrow(expectedError);
     expect(() => new Role(1, "Test role ")).toThrow(expectedError);
+  });
+
+  it("refuses an invalid name with a typed error (EV-24)", () => {
+    expect(() => new Role(1, "admin")).toThrow(
+      expect.objectContaining({ code: DomainErrorCodes.INVALID_INPUT }),
+    );
+    expect(() => new Role(1, "admin")).toThrow(DomainError);
   });
 });

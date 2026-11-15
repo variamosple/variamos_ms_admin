@@ -12,7 +12,7 @@ import type {
 import type { IPasswordHasher } from "#src/Domain/User/Service/IPasswordHasher.js";
 import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 import { UserModel } from "./User.js";
-import { accountOf, enrichUserRolesAndPermissions } from "./userRows.js";
+import { accountOf, withRolesAndPermissions } from "./userRows.js";
 
 /** Sign-up and sign-in, with a password or with Google. */
 export class UserSignInRepositoryImpl implements IUserSignInRepository {
@@ -130,8 +130,7 @@ export class UserSignInRepositoryImpl implements IUserSignInRepository {
         { where: { id: user.id } },
       );
     }
-    await enrichUserRolesAndPermissions(user);
-    return user;
+    return withRolesAndPermissions(user);
   }
 
   public async findOrCreateUser(

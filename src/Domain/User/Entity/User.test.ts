@@ -1,3 +1,5 @@
+import { DomainError } from "#src/Domain/Core/Error/DomainError.js";
+import { Email } from "./Email.js";
 import { User } from "./User.js";
 
 describe("User Entity & Builder - Unit Tests", () => {
@@ -83,15 +85,58 @@ describe("User Entity & Builder - Unit Tests", () => {
   });
 
   test("should validate email format in constructor", () => {
-    const builder = User.builder()
-      .setId("user-123")
-      .setUser("testuser")
-      .setName("Test User")
-      .setEmail("invalid-email")
+    const fields = {
+      id: "user-123",
+      user: "testuser",
+      name: "Test User",
+      email: "invalid-email",
+      countryCode: null,
+      countryName: null,
+      isEnabled: true,
+      isDeleted: false,
+      createdAt: new Date(),
+    };
+
+    expect(() => new User(fields)).toThrow("Invalid email format.");
+  });
+
+  test("refuses a malformed address as soon as it is set (EV-24)", () => {
+    expect(() => User.builder().setEmail("not-an-address")).toThrow(
+      DomainError,
+    );
+  });
+
+  test("keeps the address the builder normalized", () => {
+    const user = User.builder()
+      .setUser("ana")
+      .setName("Ana")
+      .setEmail("  Ana@Example.com ")
       .setIsEnabled(true)
       .setIsDeleted(false)
-      .setCreatedAt(new Date());
+      .setCreatedAt(new Date())
+      .build();
 
-    expect(() => builder.build()).toThrow("Invalid email format.");
+    expect(user.email).toBe(new Email("  Ana@Example.com ").getValue());
+  });
+
+  test("gives the roles and permissions on a new account, not the read one", () => {
+    const user = User.builder()
+      .setId("u1")
+      .setUser("ana")
+      .setName("Ana")
+      .setEmail("ana@example.com")
+      .setIsEnabled(true)
+      .setIsDeleted(false)
+      .setCreatedAt(new Date())
+      .build();
+
+    const withAccess = user.withAccess(["Admin"], ["admin::roles::read"]);
+
+    expect(withAccess).not.toBe(user);
+    expect(withAccess).toBeInstanceOf(User);
+    expect(withAccess.roles).toEqual(["Admin"]);
+    expect(withAccess.permissions).toEqual(["admin::roles::read"]);
+    expect(withAccess.email).toBe("ana@example.com");
+    expect(user.roles).toBeUndefined();
   });
 });
