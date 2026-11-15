@@ -1,7 +1,4 @@
-import {
-  hasPermissions,
-  validateSession,
-} from "@variamosple/variamos-security";
+import { hasPermissions } from "@variamosple/variamos-security";
 import {
   type Request,
   type RequestHandler,
@@ -9,7 +6,6 @@ import {
   Router,
 } from "express";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
-import logger from "#src/common/logger.js";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import { BugFilter } from "#src/Domain/Bug/Entity/BugFilter.js";
 import {
@@ -35,6 +31,7 @@ import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
 import { queryText } from "./queryText.js";
 import { checkedBody, validBody } from "./requestBody.js";
+import { sessionAccountIdOf } from "./sessionAccount.js";
 
 /** A list of account ids, each a non-empty string. */
 const isAccountIdList = (value: unknown): value is string[] =>
@@ -239,27 +236,6 @@ const queryCategories =
     }
   };
 
-/**
- * The account of the reporter: the signed-in user, else the one a session
- * token names; undefined for a visitor without a session.
- */
-async function reporterIdOf(req: Request): Promise<string | undefined> {
-  if (req.user) return req.user.id;
-  const token =
-    queryText(req.cookies?.authToken) ||
-    req.headers.authorization?.split(" ")[1];
-  if (!token) return undefined;
-  try {
-    const session = await validateSession(token);
-    // createJwt writes the account id in sub, and only there
-    return session?.data?.sub || undefined;
-  } catch (e) {
-    logger.err("POST /bugs: Error during session validation:");
-    logger.err(e);
-    return undefined;
-  }
-}
-
 const createBug =
   (bugSubmissionUseCase: BugSubmissionUseCase): RequestHandler =>
   async (req: Request, res: Response) => {
@@ -273,7 +249,8 @@ const createBug =
       githubRepo,
       reporterEmail,
     } = checkedBody(bugCreateBody, req);
-    const adminId = await reporterIdOf(req);
+    // The reporter: the signed-in user, else the one a session token names
+    const adminId = await sessionAccountIdOf(req, "POST /bugs");
 
     // Without any session (user or guest), a bug can be reported but no
     // file can be attached.
