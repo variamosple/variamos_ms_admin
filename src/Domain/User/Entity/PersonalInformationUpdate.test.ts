@@ -1,3 +1,4 @@
+import { DomainError } from "#src/Domain/Core/Error/DomainError.js";
 import { PersonalInformationUpdate } from "./PersonalInformationUpdate.js";
 
 describe("PersonalInformationUpdate Entity - Unit Tests", () => {
@@ -21,5 +22,15 @@ describe("PersonalInformationUpdate Entity - Unit Tests", () => {
 
     const updateFromBuildMethod = builder.build();
     expect(updateFromBuildMethod.getUserId()).toBe("user-456");
+  });
+
+  it("keeps no country for a blank one, and refuses a code that is not two letters (EV-47)", () => {
+    expect(new PersonalInformationUpdate("u", "").getCountryCode()).toBeNull();
+    expect(new PersonalInformationUpdate("u", " fr ").getCountryCode()).toBe(
+      "FR",
+    );
+    expect(() => new PersonalInformationUpdate("u", "FRA")).toThrow(
+      DomainError,
+    );
   });
 });

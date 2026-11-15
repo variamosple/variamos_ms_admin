@@ -1,12 +1,14 @@
 import type { Nullable } from "#src/Domain/Core/Entity/Nullable.js";
+import { CountryCode } from "#src/Domain/Countries/Entity/CountryCode.js";
 
 export class PersonalInformationUpdate {
   private userId: string;
   private countryCode: Nullable<string>;
 
+  // A blank country is none; any other must be a two-letter code (EV-47)
   public constructor(userId: string, countryCode: Nullable<string>) {
     this.userId = userId;
-    this.countryCode = countryCode;
+    this.countryCode = CountryCode.optional(countryCode);
   }
 
   public getUserId(): string {

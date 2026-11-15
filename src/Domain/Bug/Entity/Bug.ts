@@ -1,5 +1,6 @@
 import { DomainError } from "#src/Domain/Core/Error/DomainError.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { Email } from "#src/Domain/User/Entity/Email.js";
 import type { BugAttachment } from "./BugAttachment.js";
 import {
   BUG_COMPONENTS,
@@ -7,6 +8,7 @@ import {
   isBugComponent,
 } from "./BugComponent.js";
 import { BugPriority, type BugPriorityValue } from "./BugPriority.js";
+import { isBugStatus } from "./BugStatus.js";
 
 export interface BugUserRef {
   id: string;
@@ -184,6 +186,16 @@ class BugBuilder {
         DomainErrorCodes.INVALID_INPUT,
         `Bug component must be one of: ${BUG_COMPONENTS.join(", ")}.`,
       );
+    }
+    // A status outside the list, or a malformed address, is refused (EV-47)
+    if (this.status !== undefined && !isBugStatus(this.status)) {
+      throw new DomainError(
+        DomainErrorCodes.INVALID_INPUT,
+        `Unknown bug status: ${this.status.slice(0, 40)}.`,
+      );
+    }
+    if (this.reporterEmail) {
+      this.reporterEmail = new Email(this.reporterEmail).getValue();
     }
     return new Bug(this);
   }

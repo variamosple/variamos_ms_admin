@@ -139,4 +139,23 @@ describe("User Entity & Builder - Unit Tests", () => {
     expect(withAccess.email).toBe("ana@example.com");
     expect(user.roles).toBeUndefined();
   });
+
+  test("keeps a two-letter country, and refuses another code (EV-47)", () => {
+    const fields = {
+      id: "u1",
+      user: "ana",
+      name: "Ana",
+      email: "ana@example.com",
+      countryName: null,
+      isEnabled: true,
+      isDeleted: false,
+      createdAt: new Date(),
+    };
+
+    expect(new User({ ...fields, countryCode: "co" }).countryCode).toBe("CO");
+    expect(new User({ ...fields, countryCode: null }).countryCode).toBeNull();
+    expect(() => new User({ ...fields, countryCode: "COL" })).toThrow(
+      DomainError,
+    );
+  });
 });

@@ -1,9 +1,7 @@
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { CountryCode } from "#src/Domain/Countries/Entity/CountryCode.js";
 import type { IAccountCountryRepository } from "../Repository/IAccountCountryRepository.js";
-
-/** An ISO 3166-1 alpha-2 code, as the countries table holds them. */
-const COUNTRY_CODE = /^[A-Z]{2}$/;
 
 /**
  * A country by default for an account without one (EV-90): the browser
@@ -20,13 +18,13 @@ export class AccountCountryUseCase {
     countryCode: string,
   ): Promise<ResponseModel<{ saved: boolean }>> {
     const response = new ResponseModel<{ saved: boolean }>(transactionId);
-    const code = countryCode.trim().toUpperCase();
-    if (!COUNTRY_CODE.test(code)) {
+    if (!CountryCode.isValid(countryCode)) {
       return response.withError(
         DomainErrorCodes.INVALID_INPUT,
         "The country code must be two letters.",
       );
     }
+    const code = new CountryCode(countryCode).getValue();
     return response.withResponse({
       saved: await this.countries.setIfMissing(userId, code),
     });

@@ -851,4 +851,48 @@ describe("BugSubmissionUseCase", () => {
       );
     });
   });
+
+  it("refuses a guest's malformed address before anything is stored (EV-47)", async () => {
+    const res = await useCase.createBug(
+      new RequestModel("tx-1", {
+        title: "Crash",
+        description: "On save",
+        priority: "high" as const,
+        category: "Editor",
+        reporterEmail: "guest-at-test",
+      }),
+    );
+
+    expect(res.errorCode).toBe("INVALID_INPUT");
+    expect(res.message).toBe("Invalid email format.");
+    expect(mockBugRepository.createBug).not.toHaveBeenCalled();
+  });
+
+  it("does not take a malformed address for a closed account (EV-47)", async () => {
+    mockUserRepository.findSessionUser.mockResolvedValue(
+      new ResponseModel<User>("tx-1").withResponse(
+        User.builder()
+          .setId("admin-123")
+          .setEmail("closed@test.com")
+          .setIsEnabled(false)
+          .setIsDeleted(false)
+          .build(),
+      ),
+    );
+
+    const res = await useCase.createBug(
+      new RequestModel("tx-1", {
+        title: "Title",
+        description: "Desc",
+        category: "Editor",
+        createdById: "admin-123",
+        reporterEmail: "not-an-address",
+        priority: "medium" as const,
+      }),
+    );
+
+    expect(res.errorCode).toBe("INVALID_INPUT");
+    expect(res.message).toBe("Reporter email could not be resolved.");
+    expect(mockBugRepository.createBug).not.toHaveBeenCalled();
+  });
 });
