@@ -24,6 +24,8 @@
     "bigserial",
     "nextval",
     "regclass",
+    "ISODOW",
+    "Kiritimati",
     "pkey",
     "fkey",
     "tablename",

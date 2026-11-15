@@ -22,14 +22,19 @@ export function createMetricsRouter(
       const transactionId = "getMetrics";
       const startDate = queryText(req.query.startDate);
       const endDate = queryText(req.query.endDate);
+      const timeZone = queryText(req.query.timeZone);
 
       try {
-        // Without a period, the last 30 days; half of one is refused
+        // Without a period, the last 30 days in UTC; half of one is refused
         const request = new RequestModel<MetricsPeriod | undefined>(
           transactionId,
           startDate === undefined && endDate === undefined
             ? undefined
-            : { startDate: startDate ?? "", endDate: endDate ?? "" },
+            : {
+                startDate: startDate ?? "",
+                endDate: endDate ?? "",
+                ...(timeZone === undefined ? {} : { timeZone }),
+              },
         );
         const response = await metricsQueryUseCase.getMetrics(request);
 

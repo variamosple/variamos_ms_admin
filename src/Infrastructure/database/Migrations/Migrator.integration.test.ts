@@ -39,6 +39,7 @@ import { retiredUserPreferences } from "./0020-user-preferences.js";
 import { USER_DISPLAY_PREFERENCES_TABLE } from "./0021-user-display-preferences.js";
 import { VISIT_HISTORY_FUNCTIONS } from "./0025-visit-history.js";
 import { USAGE_OVERVIEW_FUNCTIONS } from "./0026-usage-overview.js";
+import { SIGN_INS_BY_HOUR_FUNCTIONS } from "./0028-sign-ins-by-hour.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 import {
   ADMIN_MIGRATIONS,
@@ -667,8 +668,11 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         ...USAGE_METRICS_FUNCTIONS,
         ...VISIT_HISTORY_FUNCTIONS,
         ...USAGE_OVERVIEW_FUNCTIONS,
+        ...SIGN_INS_BY_HOUR_FUNCTIONS,
         // A second one, with a period (0018, 0026)
         "get_top_visited_pages_metrics",
+        "get_metrics",
+        // A third one, with the reader's time zone (0028)
         "get_metrics",
         "insert_user_role",
       ]
@@ -991,6 +995,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         "top_visited_pages",
         "top_languages",
         "sign_ins",
+        "sign_ins_by_hour",
         "new_accounts",
         "models_by_type",
         "yearly_visits",
@@ -1312,7 +1317,89 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         `SELECT "${S}".get_metrics${week} AS data`,
         { type: QueryTypes.SELECT },
       );
-      expect(row?.data).toHaveLength(10);
+      expect(row?.data).toHaveLength(11);
+    });
+
+    // Sign-ins of the week: Wednesday 2 at 10:00 UTC (password), Saturday 5
+    // at 10:00 UTC (Google); a failure and a second factor that do not count
+    const gridOf = async (from: string, to: string, zone: string) => {
+      const [row] = await sequelize.query<{
+        char_data: {
+          title: string;
+          chartType: string;
+          data: { day: number; hour: number; count: number }[] | null;
+        };
+      }>(
+        `SELECT char_data FROM "${S}".get_sign_ins_by_hour_metrics('${from}', '${to}', ${zone})`,
+        { type: QueryTypes.SELECT },
+      );
+      const cells = row?.char_data.data;
+      return {
+        title: row?.char_data.title,
+        chartType: row?.char_data.chartType,
+        cells: cells?.length ?? null,
+        filled: cells?.filter((c) => c.count > 0) ?? null,
+      };
+    };
+    const weekInUtc = [
+      { day: 3, hour: 10, count: 1 },
+      { day: 6, hour: 10, count: 1 },
+    ];
+
+    it("counts the successful sign-ins by day of the week and hour, in the reader's zone (0028)", async () => {
+      expect(await gridOf("2026-09-01", "2026-09-07", "'UTC'")).toEqual({
+        title: "Sign-ins by day and hour (UTC)",
+        chartType: "heatmap",
+        cells: 168,
+        filled: weekInUtc,
+      });
+      const bogota = await gridOf(
+        "2026-09-01",
+        "2026-09-07",
+        "'America/Bogota'",
+      );
+      expect(bogota.filled).toEqual([
+        { day: 3, hour: 5, count: 1 },
+        { day: 6, hour: 5, count: 1 },
+      ]);
+      // A day of the period runs from midnight in the reader's zone: at
+      // UTC+14, Saturday 10:00 UTC is already Sunday 6, out of the period
+      const kiritimati = "'Pacific/Kiritimati'";
+      expect(
+        await gridOf("2026-09-01", "2026-09-05", kiritimati),
+      ).toMatchObject({
+        title: "Sign-ins by day and hour (Pacific/Kiritimati)",
+        filled: [{ day: 4, hour: 0, count: 1 }],
+      });
+    });
+
+    it("falls back to UTC for an unknown zone, and draws nothing without a sign-in (0028)", async () => {
+      for (const zone of ["'Mars/Olympus'", "NULL"]) {
+        expect(await gridOf("2026-09-01", "2026-09-07", zone)).toMatchObject({
+          title: "Sign-ins by day and hour (UTC)",
+          filled: weekInUtc,
+        });
+      }
+      expect(await gridOf("2026-10-01", "2026-10-07", "'UTC'")).toMatchObject({
+        cells: null,
+        filled: null,
+      });
+    });
+
+    it("gives the grid with every chart, in the zone asked or in UTC (0028)", async () => {
+      const titleOf = async (call: string) => {
+        const [row] = await sequelize.query<{
+          data: { id: string; title: string }[];
+        }>(`SELECT "${S}".${call} AS data`, { type: QueryTypes.SELECT });
+        return row?.data.find((c) => c.id === "sign_ins_by_hour")?.title;
+      };
+      const paris = "('2026-09-01', '2026-09-07', 'Europe/Paris')";
+      expect(await titleOf(`get_metrics${paris}`)).toBe(
+        "Sign-ins by day and hour (Europe/Paris)",
+      );
+      expect(await titleOf(`get_metrics${week}`)).toBe(
+        "Sign-ins by day and hour (UTC)",
+      );
     });
 
     it("ranks pages and languages for the bars of the page", async () => {

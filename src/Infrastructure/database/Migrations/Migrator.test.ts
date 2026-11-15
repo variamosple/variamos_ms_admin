@@ -481,6 +481,7 @@ describe("createMigrator", () => {
       "0025-visit-history",
       "0026-usage-overview",
       "0027-account-creation-day",
+      "0028-sign-ins-by-hour",
     ]);
   });
 });

@@ -23,6 +23,21 @@ const periodError = (start: string, end: string): string | null => {
   return null;
 };
 
+// A zone name as a browser gives it ("America/Bogota", "UTC"). An offset
+// ("+05:00") is refused: PostgreSQL reads its sign the other way round.
+const ZONE_NAME = /^[A-Za-z][A-Za-z0-9_+\-/]{0,63}$/;
+
+const isTimeZone = (zone: string): boolean => {
+  if (!ZONE_NAME.test(zone)) return false;
+  try {
+    return Boolean(
+      Intl.DateTimeFormat("en", { timeZone: zone }).resolvedOptions().timeZone,
+    );
+  } catch {
+    return false;
+  }
+};
+
 export class MetricsQueryUseCase {
   public constructor(private readonly metricsRepository: IMetricsRepository) {}
 
@@ -30,7 +45,12 @@ export class MetricsQueryUseCase {
     request: RequestModel<MetricsPeriod | undefined>,
   ): Promise<ResponseModel<Metric[]>> {
     const period = request.data;
-    const error = period && periodError(period.startDate, period.endDate);
+    const error =
+      period &&
+      (periodError(period.startDate, period.endDate) ??
+        (period.timeZone === undefined || isTimeZone(period.timeZone)
+          ? null
+          : "timeZone must be a time zone name, such as America/Bogota."));
     if (error) {
       return new ResponseModel<Metric[]>(
         request.transactionId,

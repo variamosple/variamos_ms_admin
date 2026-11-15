@@ -9,6 +9,7 @@ import { usageMetrics } from "./0018-usage-metrics.js";
 import { visitHistory } from "./0025-visit-history.js";
 import { usageOverview } from "./0026-usage-overview.js";
 import { accountCreationDay } from "./0027-account-creation-day.js";
+import { signInsByHour } from "./0028-sign-ins-by-hour.js";
 import type { MigrationContext } from "./MigrationContext.js";
 
 const DIR = import.meta.dirname;
@@ -62,6 +63,7 @@ describe("migration rules", () => {
     ["0025", visitHistory],
     ["0026", usageOverview],
     ["0027", accountCreationDay],
+    ["0028", signInsByHour],
   ])(
     "writes the functions of %s only into a plain schema name",
     async (_name, migration) => {
@@ -84,6 +86,7 @@ describe("migration rules", () => {
     "0025-visit-history.ts",
     "0026-usage-overview.ts",
     "0027-account-creation-day.ts",
+    "0028-sign-ins-by-hour.ts",
   ])("names no schema of its own in the functions of %s", (file) => {
     const code = readFileSync(join(DIR, file), "utf8");
     expect(code).not.toContain("variamos.");
