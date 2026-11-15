@@ -3,10 +3,14 @@ import type { ResponseModel } from "../Core/Entity/ResponseModel.js";
 import type { PersonalInformationUpdate } from "./Entity/PersonalInformationUpdate.js";
 import type { User } from "./Entity/User.js";
 import type { UserFilter } from "./Entity/UserFilter.js";
+import type { UserListItem } from "./Entity/UserListItem.js";
 
 /** The accounts: lists, reading, state and personal information. */
 export interface IUserRepository {
-  queryUsers(request: RequestModel<UserFilter>): Promise<ResponseModel<User[]>>;
+  /** The list of accounts, read as stored: a row is never refused (EV-29). */
+  queryUsers(
+    request: RequestModel<UserFilter>,
+  ): Promise<ResponseModel<UserListItem[]>>;
   /**
    * The user with its state, roles and permissions. Whether the account may
    * still hold a session is decided by the domain (AccountAccess).

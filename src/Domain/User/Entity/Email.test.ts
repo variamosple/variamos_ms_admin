@@ -6,6 +6,14 @@ describe("Email Value Object", () => {
     expect(email.getValue()).toBe("test@example.com");
   });
 
+  it("says whether an address would be accepted, without throwing", () => {
+    expect(Email.isValid(" TEST@example.com ")).toBe(true);
+    expect(Email.isValid("invalid@example")).toBe(false);
+    expect(Email.isValid("")).toBe(false);
+    expect(Email.isValid(null)).toBe(false);
+    expect(Email.isValid(undefined)).toBe(false);
+  });
+
   it("should throw an error for invalid email formats", () => {
     expect(() => new Email("")).toThrow("Invalid email format.");
     expect(() => new Email("invalid-email")).toThrow("Invalid email format.");

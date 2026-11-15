@@ -21,6 +21,10 @@ import type {
 import { Permission } from "#src/Domain/Permission/Entity/Permission.js";
 import { Role } from "#src/Domain/Role/Entity/Role.js";
 import { User } from "#src/Domain/User/Entity/User.js";
+import {
+  type UserListItem,
+  userListItemOf,
+} from "#src/Domain/User/Entity/UserListItem.js";
 import { UserRole } from "#src/Domain/User/Entity/UserRole.js";
 import type { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
 import type { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
@@ -65,6 +69,13 @@ const userSchema = z.looseObject({
   isDeleted: z.boolean(),
   createdAt: isoDate,
   lastLogin: z.optional(z.nullable(isoDate)),
+});
+// A row of the list, read as stored (EV-29): its address flagged when it
+// is not well formed, no made-up creation date
+const userListItemSchema = z.looseObject({
+  ...userSchema.shape,
+  createdAt: z.nullable(isoDate),
+  emailValid: z.boolean(),
 });
 const recoveryLinkSchema = z.looseObject({ recoveryUrl: z.string() });
 const accountMfaStatusSchema = z.looseObject({ enabled: z.boolean() });
@@ -158,15 +169,31 @@ describe("Account routes keep the shape VariaMosAdmin reads", () => {
 
   it("GET /v1/users", async () => {
     queries.queryList.mockResolvedValue(
-      new ResponseModel<User[]>("tx", {
-        totalCount: 2,
-      }).withResponse([fullUser(), newUser()]),
+      new ResponseModel<UserListItem[]>("tx", {
+        totalCount: 3,
+      }).withResponse([
+        userListItemOf(fullUser()),
+        userListItemOf(newUser()),
+        // Stored before the address was checked
+        userListItemOf({
+          id: "user-3",
+          user: "old",
+          name: null,
+          email: "not an address",
+          isEnabled: true,
+          isDeleted: false,
+          createdAt: null,
+        }),
+      ]),
     );
 
     const res = await request(app).get("/v1/users");
 
     expect(res.status).toBe(200);
-    expectContract(envelope(z.array(userSchema)), res.body);
+    expectContract(envelope(z.array(userListItemSchema)), res.body);
+    expect(
+      res.body.data.map((row: { emailValid: boolean }) => row.emailValid),
+    ).toEqual([true, true, false]);
   });
 
   it("GET /v1/users/:id", async () => {

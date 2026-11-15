@@ -16,8 +16,19 @@ export class Email {
     return local.length > 0 && domain.slice(1, -1).includes(".");
   }
 
+  /** The address as stored once cleaned: trimmed and in lower case. */
+  private static clean(value: string | null | undefined): string {
+    return (value || "").trim().toLowerCase();
+  }
+
+  /** Whether an address would be accepted, without throwing. */
+  public static isValid(value: string | null | undefined): boolean {
+    const cleaned = Email.clean(value);
+    return cleaned !== "" && Email.isWellFormed(cleaned);
+  }
+
   public constructor(value: string) {
-    const cleaned = (value || "").trim().toLowerCase();
+    const cleaned = Email.clean(value);
     if (!cleaned || !Email.isWellFormed(cleaned)) {
       throw new DomainError(
         DomainErrorCodes.INVALID_INPUT,

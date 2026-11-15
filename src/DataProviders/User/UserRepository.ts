@@ -6,6 +6,10 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { PersonalInformationUpdate } from "#src/Domain/User/Entity/PersonalInformationUpdate.js";
 import { User } from "#src/Domain/User/Entity/User.js";
 import { UserFilter } from "#src/Domain/User/Entity/UserFilter.js";
+import {
+  type UserListItem,
+  userListItemOf,
+} from "#src/Domain/User/Entity/UserListItem.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 import { BaseRepository } from "../BaseRepository.js";
@@ -20,8 +24,8 @@ export class UserRepositoryImpl
 {
   public async queryUsers(
     request: RequestModel<UserFilter>,
-  ): Promise<ResponseModel<User[]>> {
-    const response = new ResponseModel<User[]>(request.transactionId);
+  ): Promise<ResponseModel<UserListItem[]>> {
+    const response = new ResponseModel<UserListItem[]>(request.transactionId);
 
     try {
       const { data: filter = new UserFilter() } = request;
@@ -64,29 +68,17 @@ export class UserRepositoryImpl
           [filter.sortBy, `${filter.sortOrder.toUpperCase()} NULLS LAST`],
           ["id", "ASC"],
         ],
-      }).then((res) =>
-        res.map(
-          ({
-            id,
-            user,
-            name,
-            email,
-            isEnabled,
-            isDeleted,
-            createdAt,
-            lastLogin,
-          }) =>
-            User.builder()
-              .setId(id)
-              .setUser(user)
-              .setName(name)
-              .setEmail(email)
-              .setIsEnabled(isEnabled ?? true)
-              .setIsDeleted(isDeleted ?? false)
-              .setCreatedAt(createdAt ?? new Date())
-              .setLastLogin(lastLogin)
-              .build(),
-        ),
+      }).then((rows) =>
+        rows.map((row) => {
+          const item = userListItemOf(row);
+          // The id only: an address is personal data
+          if (!item.emailValid) {
+            logger.warn(
+              `[users] account ${String(item.id)} has an e-mail address that is not well formed`,
+            );
+          }
+          return item;
+        }),
       );
     } catch (error) {
       logger.err("Error in getUsers:");

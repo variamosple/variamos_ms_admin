@@ -4,6 +4,7 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { refuseClosedAccount } from "#src/Domain/User/Entity/AccountAccess.js";
 import { User } from "#src/Domain/User/Entity/User.js";
 import type { UserFilter } from "#src/Domain/User/Entity/UserFilter.js";
+import type { UserListItem } from "#src/Domain/User/Entity/UserListItem.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 
 export class UserQueryUseCase {
@@ -11,7 +12,7 @@ export class UserQueryUseCase {
 
   public async queryList(
     request: RequestModel<UserFilter>,
-  ): Promise<ResponseModel<User[]>> {
+  ): Promise<ResponseModel<UserListItem[]>> {
     return await this.userRepository.queryUsers(request);
   }
 

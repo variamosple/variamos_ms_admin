@@ -4,6 +4,10 @@ import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { User } from "#src/Domain/User/Entity/User.js";
 import { UserFilter } from "#src/Domain/User/Entity/UserFilter.js";
+import {
+  type UserListItem,
+  userListItemOf,
+} from "#src/Domain/User/Entity/UserListItem.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 import { UserQueryUseCase } from "./UserQueryUseCase.js";
 
@@ -32,15 +36,23 @@ describe("UserQueryUseCase", () => {
         id: "1",
         user: "testuser",
       });
-      const mockResponse = new ResponseModel<User[]>("tx-1").withResponse([
-        mockUser,
-      ]);
+      const item = userListItemOf({
+        id: "1",
+        user: "testuser",
+        name: "Test",
+        email: "test@example.com",
+        isEnabled: true,
+        isDeleted: false,
+      });
+      const mockResponse = new ResponseModel<UserListItem[]>(
+        "tx-1",
+      ).withResponse([item]);
       mockUserRepository.queryUsers.mockResolvedValue(mockResponse);
 
       const req = new RequestModel<UserFilter>("tx-1", mockFilter);
       const res = await useCase.queryList(req);
 
-      expect(res.data).toEqual([mockUser]);
+      expect(res.data).toEqual([item]);
       expect(mockUserRepository.queryUsers).toHaveBeenCalledWith(req);
     });
   });
