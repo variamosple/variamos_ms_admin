@@ -63,6 +63,21 @@ export const configurationUpdateBody = z.object({
   value: configurationValue.optional(),
 });
 
+// A setting created from the screen (EV-18 lot C.3); the entity checks the
+// key and that the value has the type
+export const configurationCreateBody = z.object({
+  key: optionalText(100),
+  value: configurationValue.optional(),
+  type: z.enum(["boolean", "string", "number", "array", "object"]).optional(),
+  category: z.enum(["general", "security", "notification", "env"]).optional(),
+  isSecret: z.boolean().optional(),
+  environmentScope: z
+    .enum(["all", "production", "development", "test"])
+    .optional(),
+  targetServices: z.array(z.string().trim().min(1).max(50)).max(20).optional(),
+  description: optionalText(LONG_TEXT_MAX),
+});
+
 // A change planned for later (EV-115 lot B): an instant with its offset
 export const scheduledChangeBody = z.object({
   key: optionalText(100),

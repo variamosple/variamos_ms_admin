@@ -431,6 +431,89 @@ describe("ConfigurationRouter Integration Tests", () => {
     });
   });
 
+  describe("POST /v1/configurations (EV-18 lot C.3)", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("answers 201 with the new setting, the admin service by default", async () => {
+      const create = vi
+        .spyOn(mockUseCase, "createConfiguration")
+        .mockResolvedValue(
+          new ResponseModel<Configuration>("createConfiguration").withResponse(
+            Configuration.builder()
+              .setKey(new ConfigurationKey("general.motd"))
+              .setValue("Hello")
+              .setType("string")
+              .setCategory("general")
+              .setTargetServices(["variamos_ms_admin"])
+              .build(),
+          ),
+        );
+
+      const response = await supertest(app).post("/v1/configurations").send({
+        key: "general.motd",
+        value: "Hello",
+        type: "string",
+        category: "general",
+      });
+
+      expect(response.status).toBe(HttpStatusCodes.CREATED);
+      expect(response.body.data.key).toBe("general.motd");
+      expect(create.mock.calls[0]?.[0].data).toMatchObject({
+        isSecret: false,
+        environmentScope: "all",
+        targetServices: ["variamos_ms_admin"],
+      });
+    });
+
+    it("answers 409 for a key already taken", async () => {
+      vi.spyOn(mockUseCase, "createConfiguration").mockResolvedValue(
+        new ResponseModel<Configuration>("createConfiguration").withError(
+          DomainErrorCodes.DUPLICATE_ENTITY,
+          "Configuration with key 'general.motd' already exists.",
+        ),
+      );
+
+      const response = await supertest(app)
+        .post("/v1/configurations")
+        .send({
+          key: "general.motd",
+          value: "Hello",
+          type: "string",
+          category: "general",
+          targetServices: ["variamos_ms_notifications"],
+        });
+
+      expect(response.status).toBe(HttpStatusCodes.CONFLICT);
+      expect(response.body.message).toContain("already exists");
+    });
+
+    it("answers 400 for a type the screen does not know", async () => {
+      const create = vi.spyOn(mockUseCase, "createConfiguration");
+
+      const response = await supertest(app)
+        .post("/v1/configurations")
+        .send({ key: "general.motd", value: "Hello", type: "date" });
+
+      expect(response.status).toBe(HttpStatusCodes.BAD_REQUEST);
+      expect(create).not.toHaveBeenCalled();
+    });
+
+    it("answers 500 when the use case throws", async () => {
+      vi.spyOn(logger, "err").mockImplementation(() => logger);
+      vi.spyOn(mockUseCase, "createConfiguration").mockRejectedValue(
+        new Error("boom"),
+      );
+
+      const response = await supertest(app)
+        .post("/v1/configurations")
+        .send({ key: "general.motd", value: "Hello" });
+
+      expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
+    });
+  });
+
   describe("GET /v1/configurations error handling", () => {
     it("should return 500 INTERNAL_SERVER_ERROR when UseCase throws exception on query", async () => {
       const loggerSpy = vi.spyOn(logger, "err").mockImplementation(() => {});

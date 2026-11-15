@@ -163,6 +163,69 @@ export class ConfigurationRepositoryImpl
     return response;
   }
 
+  async createConfiguration(
+    request: RequestModel<Configuration>,
+  ): Promise<ResponseModel<Configuration>> {
+    const response = new ResponseModel<Configuration>(request.transactionId);
+
+    try {
+      const configuration = request.data;
+      if (!configuration) {
+        return response.withError(
+          DomainErrorCodes.INVALID_INPUT,
+          "Configuration data is required.",
+        );
+      }
+      const key = configuration.key.getValue();
+
+      // A secret is never written in clear (T-13)
+      if (configuration.isSecret && !this.secrets.canEncrypt()) {
+        return response.withError(
+          DomainErrorCodes.UNAVAILABLE,
+          "Secret configurations cannot be created: no encryption key is configured.",
+        );
+      }
+
+      // The key is unique: an existing one is never overwritten
+      const [model, created] = await ConfigurationModel.findOrCreate({
+        where: { key },
+        defaults: {
+          key,
+          value: configuration.isSecret
+            ? this.secrets.encrypt(key, configuration.value)
+            : configuration.value,
+          type: configuration.type,
+          category: configuration.category,
+          requiresMfa: configuration.requiresMfa,
+          isSecret: configuration.isSecret,
+          environmentScope: configuration.environmentScope,
+          isReadOnly: configuration.isReadOnly,
+          targetServices: configuration.targetServices,
+          description: configuration.description,
+          updatedBy: configuration.updatedBy,
+        },
+      });
+
+      if (!created) {
+        return response.withError(
+          DomainErrorCodes.DUPLICATE_ENTITY,
+          `Configuration with key '${key}' already exists.`,
+        );
+      }
+
+      response.data = this.mapToDomain(model);
+    } catch (error) {
+      logger.err("Error in createConfiguration:");
+      logger.err(error);
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
+    }
+
+    return response;
+  }
+
   /** The value in clear; the mask when a secret cannot be decrypted. */
   private clearValueOf(model: ConfigurationModel): ConfigurationValue {
     if (!model.isSecret) return model.value;

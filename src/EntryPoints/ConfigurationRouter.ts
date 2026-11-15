@@ -1,5 +1,6 @@
 import { hasPermissions } from "@variamosple/variamos-security";
-import { type Request, Router } from "express";
+import { type Request, type Response, Router } from "express";
+import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import {
   announcementOf,
   type ConfigurationAnnouncement,
@@ -14,13 +15,19 @@ import type { ConfigurationUseCase } from "#src/Domain/Configuration/UseCase/Con
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import type { Menu } from "#src/Domain/Menu/Entity/Menu.js";
-import { configurationUpdateBody } from "./adminRequestBodies.js";
+import {
+  configurationCreateBody,
+  configurationUpdateBody,
+} from "./adminRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
 import { queryText } from "./queryText.js";
 import { checkedBody, validBody } from "./requestBody.js";
 
 export const CONFIGURATION_V1_ROUTE = "/v1/configurations";
+
+/** The service a new setting targets when the form names none. */
+const DEFAULT_TARGET_SERVICE = "variamos_ms_admin";
 
 type ConfigurationValueDto =
   | string
@@ -76,6 +83,54 @@ const toConfigurationResponse = (
   createdAt: config.createdAt,
   updatedAt: config.updatedAt,
 });
+
+/** POST /v1/configurations: a new setting, 201 with it (EV-18 lot C.3). */
+const createConfigurationHandler =
+  (configurationUseCase: ConfigurationUseCase) =>
+  async (req: Request, res: Response): Promise<void> => {
+    const transactionId = "createConfiguration";
+    const body = checkedBody(configurationCreateBody, req);
+
+    try {
+      const useCaseResponse = await configurationUseCase.createConfiguration(
+        new RequestModel(transactionId, {
+          key: body.key,
+          value: body.value,
+          type: body.type,
+          category: body.category,
+          isSecret: body.isSecret ?? false,
+          environmentScope: body.environmentScope ?? "all",
+          // The service that reads it until another one does
+          targetServices: body.targetServices?.length
+            ? body.targetServices
+            : [DEFAULT_TARGET_SERVICE],
+          description: body.description,
+          operatorId: req.user?.id || "system",
+        }),
+      );
+
+      const response = new ResponseModel<ConfigurationResponseDto>(
+        useCaseResponse.transactionId,
+        {
+          errorCode: useCaseResponse.errorCode,
+          message: useCaseResponse.message,
+        },
+      );
+      if (useCaseResponse.data) {
+        response.data = toConfigurationResponse(useCaseResponse.data);
+      }
+
+      res
+        .status(
+          response.errorCode
+            ? mapDomainErrorToHttpStatus(response.errorCode)
+            : HttpStatusCodes.CREATED,
+        )
+        .json(response);
+    } catch (error) {
+      sendError(res, error, transactionId);
+    }
+  };
 
 /** What every page may know before signing in (EV-87 lot 2). */
 interface PublicSettingsDto {
@@ -303,6 +358,14 @@ export function createConfigurationRouter(
         sendError(res, error, transactionId);
       }
     },
+  );
+
+  // Create a configuration option (EV-18 lot C.3)
+  configurationV1Router.post(
+    "/",
+    hasPermissions(["configurations::create"]),
+    validBody(configurationCreateBody, "createConfiguration"),
+    createConfigurationHandler(configurationUseCase),
   );
 
   // Update a configuration option

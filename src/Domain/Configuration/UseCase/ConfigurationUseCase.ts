@@ -6,9 +6,11 @@ import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import { refusalOfConfigurationValue } from "../Entity/AppliedConfigurationKeys.js";
-import type {
+import {
   Configuration,
-  ConfigurationValue,
+  ConfigurationKey,
+  type ConfigurationValue,
+  type EnvironmentScope,
 } from "../Entity/Configuration.js";
 import { SITE_NAME_KEY, siteNameOf } from "../Entity/SiteName.js";
 import type { IConfigEventPublisher } from "../Event/IConfigEventPublisher.js";
@@ -21,6 +23,20 @@ export interface UpdateConfigurationRequest {
   key: string;
   // Missing when the body has none: updateValue refuses it
   value: ConfigurationValue | undefined;
+  operatorId: string;
+}
+
+/** A setting created from the screen (EV-18 lot C.3). */
+export interface CreateConfigurationRequest {
+  key: string | undefined;
+  // Missing when the body has none: the use case refuses it
+  value: ConfigurationValue | undefined;
+  type: Configuration["type"] | undefined;
+  category: Configuration["category"] | undefined;
+  isSecret: boolean;
+  environmentScope: EnvironmentScope;
+  targetServices: string[];
+  description?: string;
   operatorId: string;
 }
 
@@ -96,6 +112,108 @@ export class ConfigurationUseCase {
         }),
       () => change ?? {},
     );
+  }
+
+  /**
+   * Adds a setting (EV-18 lot C.3). It is never read-only nor MFA-protected:
+   * those flags protect what a deployment relies on, set by a migration.
+   */
+  public async createConfiguration(
+    request: RequestModel<CreateConfigurationRequest>,
+  ): Promise<ResponseModel<Configuration>> {
+    // Display value: a secret is kept as its mask, never in clear (T-13)
+    let created: ActivityValues | undefined;
+    return await withJournal(
+      this.journal,
+      {
+        actorId: request.data?.operatorId,
+        action: "configuration.create",
+        entityType: "configuration",
+        entityId: request.data?.key,
+        transactionId: request.transactionId,
+      },
+      () =>
+        this.applyCreate(request, (value) => {
+          created = { value };
+        }),
+      () => (created ? { after: created } : {}),
+    );
+  }
+
+  private async applyCreate(
+    request: RequestModel<CreateConfigurationRequest>,
+    onCreate: (value: ConfigurationValue) => void,
+  ): Promise<ResponseModel<Configuration>> {
+    const transactionId = request.transactionId;
+    const response = new ResponseModel<Configuration>(transactionId);
+    const data = request.data;
+
+    if (!data) {
+      return response.withError(
+        DomainErrorCodes.INVALID_INPUT,
+        "Request data is required.",
+      );
+    }
+    if (data.value === undefined) {
+      return response.withError(
+        DomainErrorCodes.INVALID_INPUT,
+        "A configuration needs a value.",
+      );
+    }
+    const { type, category } = data;
+    if (!type || !category) {
+      return response.withError(
+        DomainErrorCodes.INVALID_INPUT,
+        "A configuration needs a type and a category.",
+      );
+    }
+
+    // The entity checks the key, the type, the category and the services
+    let configuration: Configuration;
+    try {
+      configuration = new Configuration({
+        key: new ConfigurationKey(data.key ?? ""),
+        value: data.value,
+        type,
+        category,
+        requiresMfa: false,
+        isSecret: data.isSecret,
+        environmentScope: data.environmentScope,
+        isReadOnly: false,
+        targetServices: data.targetServices,
+        description: data.description,
+        updatedBy: data.operatorId,
+      });
+    } catch (e) {
+      return response.withError(
+        DomainErrorCodes.INVALID_INPUT,
+        errorMessage(e),
+      );
+    }
+
+    // A key the code reads takes only the values it accepts (EV-18)
+    const refusal = refusalOfConfigurationValue(
+      configuration.key.getValue(),
+      configuration.value,
+    );
+    if (refusal) {
+      return response.withError(DomainErrorCodes.INVALID_INPUT, refusal);
+    }
+
+    const createResponse =
+      await this.configurationRepository.createConfiguration(
+        new RequestModel(transactionId, configuration),
+      );
+
+    if (!createResponse.errorCode && createResponse.data) {
+      onCreate(createResponse.data.getDisplayValue());
+      if (createResponse.data.key.getValue() === SITE_NAME_KEY) {
+        this.cachedSiteName = undefined;
+      }
+      await this.configEventPublisher.publishConfigUpdated(createResponse.data);
+    }
+
+    return createResponse;
   }
 
   private async applyUpdate(

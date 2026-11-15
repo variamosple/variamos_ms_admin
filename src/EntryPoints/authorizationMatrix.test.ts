@@ -43,6 +43,7 @@ const GUARDED: Record<string, string> = {
   "POST /auth/mfa/disable": "my-account::update",
   "DELETE /auth/mfa/trusted-devices": "my-account::update",
   "GET /v1/configurations": "configurations::query",
+  "POST /v1/configurations": "configurations::create",
   "PUT /v1/configurations/:key": "configurations::update",
   "GET /v1/configurations/scheduled-changes": "configurations::query",
   "POST /v1/configurations/scheduled-changes": "configurations::update",
