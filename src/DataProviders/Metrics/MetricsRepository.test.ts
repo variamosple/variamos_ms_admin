@@ -64,6 +64,31 @@ describe("MetricsRepositoryImpl.getMetrics", () => {
     expect(query.mock.calls[1]?.[0]).toContain("get_metrics()");
   });
 
+  it("gives the reader's zone for the hours of the sign-ins grid", async () => {
+    const query = vi
+      .spyOn(VARIAMOS_ORM, "query")
+      .mockResolvedValue(definitionsWith(1) as never);
+
+    await new MetricsRepositoryImpl().getMetrics(
+      new RequestModel("t", {
+        startDate: "2026-09-01",
+        endDate: "2026-09-30",
+        timeZone: "America/Bogota",
+      }),
+    );
+
+    expect(query.mock.calls[0]?.[0]).toContain(
+      "get_metrics(:startDate, :endDate, :timeZone)",
+    );
+    expect(query.mock.calls[0]?.[1]).toMatchObject({
+      replacements: {
+        startDate: "2026-09-01",
+        endDate: "2026-09-30",
+        timeZone: "America/Bogota",
+      },
+    });
+  });
+
   it("answers a system error when the database cannot be read", async () => {
     vi.spyOn(VARIAMOS_ORM, "query").mockRejectedValue(new Error("down"));
 

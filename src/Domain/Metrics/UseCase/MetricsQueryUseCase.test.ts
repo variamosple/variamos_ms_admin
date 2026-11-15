@@ -52,6 +52,45 @@ describe("MetricsQueryUseCase - Unit Tests", () => {
       expect(mockMetricsRepository.getMetrics).toHaveBeenCalledWith(req);
     });
 
+    test.each(["America/Bogota", "UTC", "Asia/Calcutta", "Etc/GMT+5"])(
+      "reads the charts in the zone %s",
+      async (timeZone) => {
+        mockMetricsRepository.getMetrics.mockResolvedValue(
+          new ResponseModel<Metric[]>("tx-z").withResponse([]),
+        );
+        const req = new RequestModel("tx-z", {
+          startDate: "2026-09-01",
+          endDate: "2026-09-30",
+          timeZone,
+        });
+
+        const res = await useCase.getMetrics(req);
+
+        expect(res.errorCode).toBeUndefined();
+        expect(mockMetricsRepository.getMetrics).toHaveBeenCalledWith(req);
+      },
+    );
+
+    test.each([
+      "Mars/Olympus",
+      "+05:00",
+      "",
+      "America/Bogota'; DROP TABLE x; --",
+      `Europe/${"x".repeat(70)}`,
+    ])("refuses the zone %j without reading the database", async (timeZone) => {
+      const res = await useCase.getMetrics(
+        new RequestModel("tx-z", {
+          startDate: "2026-09-01",
+          endDate: "2026-09-30",
+          timeZone,
+        }),
+      );
+
+      expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+      expect(res.message).toContain("timeZone");
+      expect(mockMetricsRepository.getMetrics).not.toHaveBeenCalled();
+    });
+
     test.each([
       [{ startDate: "2026-09-01", endDate: "" }, "required"],
       [{ startDate: "2026-09-01", endDate: "soon" }, "must be dates"],

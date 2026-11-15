@@ -11,8 +11,8 @@ import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 import { BaseRepository } from "../BaseRepository.js";
 
 // Keyed by the ids that get_metrics() gives the dashboard, which sends them
-// back to filter a chart; the functions come from migrations 0015, 0018 and
-// 0026
+// back to filter a chart; the functions come from migrations 0015, 0018,
+// 0026 and 0028
 const METRICS_FUNCTIONS = new Map<string, string>([
   ["overview", `${DB_SCHEMA}.get_overview_metrics(:startDate, :endDate)`],
   [
@@ -24,6 +24,12 @@ const METRICS_FUNCTIONS = new Map<string, string>([
     `${DB_SCHEMA}.get_activity_over_time_metrics(:startDate, :endDate)`,
   ],
   ["sign_ins", `${DB_SCHEMA}.get_sign_ins_metrics(:startDate, :endDate)`],
+  // Alone, the grid gives UTC hours; the page reads it in its own zone
+  // through get_metrics
+  [
+    "sign_ins_by_hour",
+    `${DB_SCHEMA}.get_sign_ins_by_hour_metrics(:startDate, :endDate, 'UTC')`,
+  ],
   [
     "new_accounts",
     `${DB_SCHEMA}.get_new_accounts_metrics(:startDate, :endDate)`,
@@ -62,6 +68,30 @@ const METRICS_FUNCTIONS = new Map<string, string>([
   ["models_by_type", `${DB_SCHEMA}.get_models_by_type_metrics()`],
 ]);
 
+// The call of get_metrics: the last 30 days without a period, and the hours
+// of the sign-ins grid in UTC without a time zone
+const metricsCallOf = (
+  period: MetricsPeriod | undefined,
+): { sql: string; replacements: Record<string, string> } => {
+  if (!period) {
+    return {
+      sql: `SELECT ${DB_SCHEMA}.get_metrics() AS data`,
+      replacements: {},
+    };
+  }
+  const { startDate, endDate, timeZone } = period;
+  if (!timeZone) {
+    return {
+      sql: `SELECT ${DB_SCHEMA}.get_metrics(:startDate, :endDate) AS data`,
+      replacements: { startDate, endDate },
+    };
+  }
+  return {
+    sql: `SELECT ${DB_SCHEMA}.get_metrics(:startDate, :endDate, :timeZone) AS data`,
+    replacements: { startDate, endDate, timeZone },
+  };
+};
+
 // A metric as the database functions give it, in the "data" column
 interface MetricRow {
   id: string;
@@ -88,17 +118,11 @@ export class MetricsRepositoryImpl
     const period = request.data;
 
     try {
-      response.data = await VARIAMOS_ORM.query<{ data?: MetricRow[] }>(
-        period
-          ? `SELECT ${DB_SCHEMA}.get_metrics(:startDate, :endDate) AS data`
-          : `SELECT ${DB_SCHEMA}.get_metrics() AS data`,
-        {
-          type: QueryTypes.SELECT,
-          replacements: period
-            ? { startDate: period.startDate, endDate: period.endDate }
-            : {},
-        },
-      ).then(([resObj]) => {
+      const { sql, replacements } = metricsCallOf(period);
+      response.data = await VARIAMOS_ORM.query<{ data?: MetricRow[] }>(sql, {
+        type: QueryTypes.SELECT,
+        replacements,
+      }).then(([resObj]) => {
         if (!resObj?.data) return [];
         return resObj.data.map(
           ({ id, title, chartType, defaultFilter, filters, labelKey, data }) =>

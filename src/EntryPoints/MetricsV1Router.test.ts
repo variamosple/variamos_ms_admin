@@ -101,6 +101,26 @@ describe("MetricsV1Router Integration Tests", () => {
       expect(getMetrics.mock.calls[1]?.[0]).toMatchObject({
         data: { startDate: "2026-09-01", endDate: "" },
       });
+      expect(getMetrics.mock.calls[0]?.[0].data).not.toHaveProperty("timeZone");
+    });
+
+    it("passes the reader's time zone with the period", async () => {
+      const getMetrics = MetricsQueryUseCase.prototype.getMetrics as Mock;
+      getMetrics.mockResolvedValue(
+        new ResponseModel("getMetrics").withResponse([]),
+      );
+
+      await supertest(app).get(
+        "/v1/metrics?startDate=2026-09-01&endDate=2026-09-30&timeZone=America%2FBogota",
+      );
+
+      expect(getMetrics.mock.calls[0]?.[0]).toMatchObject({
+        data: {
+          startDate: "2026-09-01",
+          endDate: "2026-09-30",
+          timeZone: "America/Bogota",
+        },
+      });
     });
 
     it("should return 500 when MetricsQueryUseCase throws an exception", async () => {
