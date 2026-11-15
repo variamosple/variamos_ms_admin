@@ -1297,6 +1297,24 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
       ]);
     });
 
+    it("reads the creation of an account from a timestamp as from a date (0027)", async () => {
+      await sequelize.query(`ALTER TABLE "${S}"."user"
+        ALTER COLUMN "created_at" TYPE timestamptz USING "created_at"::timestamptz`);
+      const accounts = (await chartOf(`get_new_accounts_metrics${week}`)) as {
+        count: number;
+        date: string;
+      }[];
+      expect(accounts.filter((r) => r.count > 0).map((r) => r.date)).toEqual([
+        "2026-09-05",
+        "2026-09-06",
+      ]);
+      const [row] = await sequelize.query<{ data: { id: string }[] }>(
+        `SELECT "${S}".get_metrics${week} AS data`,
+        { type: QueryTypes.SELECT },
+      );
+      expect(row?.data).toHaveLength(10);
+    });
+
     it("ranks pages and languages for the bars of the page", async () => {
       const [row] = await sequelize.query<{ char_data: { chartType: string } }>(
         `SELECT char_data FROM "${S}".get_top_visited_pages_metrics${week}`,
