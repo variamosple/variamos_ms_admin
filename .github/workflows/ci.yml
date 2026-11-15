@@ -114,8 +114,7 @@ jobs:
       uses: actions/cache@v6
       with:
         path: ~/.sonar/cache
-        key: sonar-${{ runner.os }}-${{ github.run_id }}
-        restore-keys: sonar-${{ runner.os }}-
+        key: sonar-${{ runner.os }}-scanner
 
     # The organization's token is not given to Dependabot pull requests
     - name: Analyze with SonarCloud, coverage included
