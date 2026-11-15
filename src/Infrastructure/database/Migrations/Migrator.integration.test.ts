@@ -632,12 +632,59 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
     ).toEqual([
       { name: "bugs::query" },
       { name: "Old Name" },
-      // Added by 0012, which finds the permission tables here
+      // Added by 0012 and 0029, which find the permission tables here
       { name: "laboratory::access" },
+      { name: "configurations::create" },
     ]);
     await expect(insertPermission("t14_legacy", "new name")).rejects.toThrow(
       PERMISSION_NAME_CHECK,
     );
+  });
+
+  it("gives the create permission to every role that may update a setting (0029)", async () => {
+    await createSchema("t29_create");
+    await createPermissionTables("t29_create", [
+      "configurations::update",
+      "configurations::query",
+    ]);
+    // Role 1 updates, role 2 only reads, role 3 already has both
+    await sequelize.query(
+      `INSERT INTO "t29_create"."role" ("name")
+       VALUES ('Administrator'), ('Reader'), ('Operator')`,
+    );
+    await sequelize.query(
+      `INSERT INTO "t29_create"."permission" ("name") VALUES ('configurations::create')`,
+    );
+    await sequelize.query(
+      `INSERT INTO "t29_create"."role_permission" ("role_id", "permission_id")
+       VALUES (1, 1), (2, 2), (3, 1), (3, 3)`,
+    );
+
+    await migrate("t29_create");
+    // A second run grants nothing more
+    await migrate("t29_create");
+
+    expect(
+      await sequelize.query(
+        `SELECT rp."role_id", count(*)::int AS "count"
+           FROM "t29_create"."role_permission" rp
+           JOIN "t29_create"."permission" p ON p."id" = rp."permission_id"
+          WHERE p."name" = 'configurations::create'
+          GROUP BY rp."role_id" ORDER BY rp."role_id"`,
+        { type: QueryTypes.SELECT },
+      ),
+    ).toEqual([
+      { role_id: 1, count: 1 },
+      { role_id: 3, count: 1 },
+    ]);
+    // The one created by hand is kept, not doubled
+    expect(
+      await sequelize.query(
+        `SELECT count(*)::int AS "count" FROM "t29_create"."permission"
+          WHERE "name" = 'configurations::create'`,
+        { type: QueryTypes.SELECT },
+      ),
+    ).toEqual([{ count: 1 }]);
   });
 
   it("gives a new account its default roles, and every statistics function (EV-90)", async () => {

@@ -28,4 +28,9 @@ export interface IConfigurationRepository {
   updateConfiguration(
     request: RequestModel<UpdateConfigurationDto>,
   ): Promise<ResponseModel<Configuration>>;
+
+  /** Adds a setting; DUPLICATE_ENTITY when its key is taken (EV-18 lot C.3). */
+  createConfiguration(
+    request: RequestModel<Configuration>,
+  ): Promise<ResponseModel<Configuration>>;
 }
