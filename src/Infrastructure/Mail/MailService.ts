@@ -1,6 +1,5 @@
 /* cspell:disable */
 import nodemailer from "nodemailer";
-import EnvVars from "#src/common/EnvVars.js";
 import logger from "#src/common/logger.js";
 import { maskEmail } from "#src/common/maskEmail.js";
 import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
@@ -65,23 +64,35 @@ ${content}            <hr style="border: 0; border-top: 1px solid #e9ecef; margi
     `;
 }
 
+/** How the mails leave (EV-05), read by the composition root. */
+export interface MailSettings {
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+  from: string;
+  /** Outside production, a mail without SMTP credentials is only logged. */
+  production: boolean;
+}
+
 export class MailServiceImpl implements IMailService {
-  private transporter = nodemailer.createTransport({
-    host: EnvVars.SMTP.HOST,
-    port: EnvVars.SMTP.PORT,
-    secure: EnvVars.SMTP.PORT === 465, // true for port 465 (SSL), false for other ports (TLS/STARTTLS)
-    // Never in clear text: a server that does not offer STARTTLS is refused
-    // rather than sent the credentials and the reset links (EV-75 lot 3)
-    requireTLS: true,
-    tls: { minVersion: "TLSv1.2" },
-    auth:
-      EnvVars.SMTP.USER && EnvVars.SMTP.PASSWORD
-        ? {
-            user: EnvVars.SMTP.USER,
-            pass: EnvVars.SMTP.PASSWORD,
-          }
-        : undefined,
-  });
+  private readonly transporter;
+
+  public constructor(private readonly settings: MailSettings) {
+    this.transporter = nodemailer.createTransport({
+      host: settings.host,
+      port: settings.port,
+      secure: settings.port === 465, // true for port 465 (SSL), false for other ports (TLS/STARTTLS)
+      // Never in clear text: a server that does not offer STARTTLS is refused
+      // rather than sent the credentials and the reset links (EV-75 lot 3)
+      requireTLS: true,
+      tls: { minVersion: "TLSv1.2" },
+      auth:
+        settings.user && settings.password
+          ? { user: settings.user, pass: settings.password }
+          : undefined,
+    });
+  }
 
   /**
    * Sends an email in text or HTML format
@@ -94,8 +105,8 @@ export class MailServiceImpl implements IMailService {
     try {
       // If in development/testing mode and no SMTP credentials are provided, simulate the email sending
       if (
-        EnvVars.NodeEnv !== "production" &&
-        (!EnvVars.SMTP.USER || !EnvVars.SMTP.PASSWORD)
+        !this.settings.production &&
+        (!this.settings.user || !this.settings.password)
       ) {
         // The content is never logged: it may hold a password reset link
         logger.info(
@@ -105,7 +116,7 @@ export class MailServiceImpl implements IMailService {
       }
 
       const info = await this.transporter.sendMail({
-        from: EnvVars.SMTP.FROM,
+        from: this.settings.from,
         to,
         subject,
         html,
@@ -249,5 +260,3 @@ export class MailServiceImpl implements IMailService {
     return await this.sendMail(to, subject, html);
   }
 }
-
-export const MailServiceInstance = new MailServiceImpl();

@@ -1,6 +1,5 @@
 import { createJwt, type SessionUser } from "@variamosple/variamos-security";
 import type { Request, RequestHandler, Response, Router } from "express";
-import EnvVars from "#src/common/EnvVars.js";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import type { KnownAccount } from "#src/Domain/Activity/AccessEntry.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
@@ -17,12 +16,8 @@ import {
   signInMfaBody,
 } from "./authRequestBodies.js";
 import {
-  getCookieOptions,
-  getRedirectUrl,
   MFA_PENDING_COOKIE,
   MFA_TRUSTED_COOKIE,
-  mfaPendingCookieOptions,
-  mfaTrustedCookieOptions,
   trustedDeviceToken,
 } from "./authWeb.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
@@ -69,7 +64,7 @@ const refuseMfaCode = (
     userId: pendingUserId,
   });
   if (checked.errorCode !== DomainErrorCodes.INVALID_INPUT) {
-    res.clearCookie(MFA_PENDING_COOKIE, getCookieOptions({ maxAge: false }));
+    res.clearCookie(MFA_PENDING_COOKIE, ctx.cookieOptions({ maxAge: false }));
   }
   res.status(mapDomainErrorToHttpStatus(checked.errorCode)).json(checked);
 };
@@ -82,7 +77,7 @@ const trustDevice = async (ctx: AuthContext, res: Response, userId: string) => {
     res.cookie(
       MFA_TRUSTED_COOKIE,
       trusted.token,
-      mfaTrustedCookieOptions(trusted.maxAgeMs),
+      ctx.mfaTrustedCookieOptions(trusted.maxAgeMs),
     );
   }
 };
@@ -199,7 +194,11 @@ const signInWithPassword =
         userId: sessionUser.id,
       });
       if (pendingToken) {
-        res.cookie(MFA_PENDING_COOKIE, pendingToken, mfaPendingCookieOptions());
+        res.cookie(
+          MFA_PENDING_COOKIE,
+          pendingToken,
+          ctx.mfaPendingCookieOptions(),
+        );
         response.data = {
           mfaRequired: true,
           trustedDeviceDays: await mfaSignIn.trustedDeviceDays(),
@@ -229,7 +228,7 @@ const signInMfa =
     if (!body) return;
     const { code, rememberDevice } = body;
     const clearPending = () =>
-      res.clearCookie(MFA_PENDING_COOKIE, getCookieOptions({ maxAge: false }));
+      res.clearCookie(MFA_PENDING_COOKIE, ctx.cookieOptions({ maxAge: false }));
 
     if (!isCodeShaped(code)) {
       res
@@ -310,19 +309,17 @@ const signInAsGuest =
         permissions,
       };
 
-      const redirect = getRedirectUrl(transactionId, req, res);
+      const redirect = ctx.redirectUrl(transactionId, req, res);
       const token = await createJwt(
         sessionUser,
-        redirect?.hostname || EnvVars.CookieProps.Options.domain,
+        redirect?.hostname || ctx.web.cookie.domain,
       );
 
-      res.cookie("authToken", token, getCookieOptions());
+      res.cookie("authToken", token, ctx.cookieOptions());
 
       response.data = {
         id: id || "",
-        redirect: redirect
-          ? redirect.toString()
-          : `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`,
+        redirect: redirect ? redirect.toString() : `${ctx.web.homeRedirectUri}`,
       };
 
       res.status(200).json(response);

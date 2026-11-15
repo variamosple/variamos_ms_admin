@@ -8,7 +8,6 @@ import {
 } from "@variamosple/variamos-security";
 import type { RequestHandler, Response, Router } from "express";
 import { describeError } from "#src/common/describeError.js";
-import EnvVars from "#src/common/EnvVars.js";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import logger from "#src/common/logger.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
@@ -16,11 +15,7 @@ import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { AUTH_ROUTE, type AuthContext, sessionUserOf } from "./authContext.js";
 import { redirectBody } from "./authRequestBodies.js";
-import {
-  getCookieOptions,
-  getRedirectUrl,
-  isAllowedRedirect,
-} from "./authWeb.js";
+import { isAllowedRedirect } from "./authWeb.js";
 import { readBody } from "./requestBody.js";
 
 /**
@@ -93,7 +88,7 @@ const sessionInfo =
         return;
       }
       if (!isSessionExpired(user?.exp)) {
-        const redirect = getRedirectUrl("getSessionInfo", req, res);
+        const redirect = ctx.redirectUrl("getSessionInfo", req, res);
 
         res.status(200).json(
           response.withResponse({
@@ -105,10 +100,7 @@ const sessionInfo =
       }
 
       // An expired token is refreshed until the cookie's own age
-      if (
-        !user?.iat ||
-        Date.now() > user.iat * 1000 + EnvVars.CookieProps.Options.maxAge
-      ) {
+      if (!user?.iat || Date.now() > user.iat * 1000 + ctx.web.cookie.maxAge) {
         sessionExpired(res, response);
         return;
       }
@@ -125,10 +117,10 @@ const sessionInfo =
       const host = audienceHostOf(user.aud);
       const token = await createJwt(sessionUser, host);
 
-      const redirect = getRedirectUrl("getSessionInfo", req, res);
+      const redirect = ctx.redirectUrl("getSessionInfo", req, res);
 
       res
-        .cookie("authToken", token, getCookieOptions())
+        .cookie("authToken", token, ctx.cookieOptions())
         .status(200)
         .json(
           response.withResponse({
@@ -151,9 +143,9 @@ const sessionInfo =
   };
 
 const logout =
-  (_ctx: AuthContext): RequestHandler =>
+  (ctx: AuthContext): RequestHandler =>
   (_, res) => {
-    const cookieOptions = getCookieOptions({
+    const cookieOptions = ctx.cookieOptions({
       maxAge: false,
     });
 
@@ -162,7 +154,7 @@ const logout =
   };
 
 const setRedirect =
-  (_ctx: AuthContext): RequestHandler =>
+  (ctx: AuthContext): RequestHandler =>
   (request, res) => {
     const response = new ResponseModel<void>("setRedirect");
     const body = readBody(redirectBody, request, res, "setRedirect");
@@ -186,7 +178,7 @@ const setRedirect =
     }
 
     if (isAllowed) {
-      res.cookie("redirectTo", url, getCookieOptions({ sameSite: "none" }));
+      res.cookie("redirectTo", url, ctx.cookieOptions({ sameSite: "none" }));
     }
 
     res.status(200).json(response);

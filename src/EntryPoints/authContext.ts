@@ -6,7 +6,7 @@ import type { UserAuthUseCase } from "#src/Domain/User/UseCase/UserAuthUseCase.j
 import type { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
 import type { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
 import type { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
-import type { AuthWeb } from "./authWeb.js";
+import type { AuthWeb, AuthWebSettings } from "./authWeb.js";
 
 export const AUTH_ROUTE = "/auth";
 
@@ -18,6 +18,8 @@ export interface AuthRouterDependencies {
   userQueryUseCase: UserQueryUseCase;
   mfaSignIn: MfaSignInUseCase;
   accessJournal: IAccessJournal;
+  /** Cookie options and pages of VariaMosAdmin, read once at start. */
+  web: AuthWebSettings;
 }
 
 /** What every authentication route is given. */

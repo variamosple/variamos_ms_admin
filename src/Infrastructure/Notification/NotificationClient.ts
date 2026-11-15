@@ -1,5 +1,4 @@
 import axios from "axios";
-import EnvVars from "#src/common/EnvVars.js";
 import logger from "#src/common/logger.js";
 import type {
   INotificationDispatcher,
@@ -7,9 +6,23 @@ import type {
 } from "#src/Domain/Notification/INotificationDispatcher.js";
 import { httpFailure } from "#src/Infrastructure/Http/httpFailure.js";
 
+/** Where the notification service is, and the token it expects (EV-05). */
+export interface NotificationClientSettings {
+  serviceUrl: string;
+  internalToken: string;
+}
+
 export class NotificationClient implements INotificationDispatcher {
-  private readonly baseUrl = EnvVars.NOTIFICATION.SERVICE_URL;
-  private readonly internalToken = EnvVars.NOTIFICATION.INTERNAL_TOKEN;
+  private readonly baseUrl: string;
+  private readonly internalToken: string;
+
+  public constructor({
+    serviceUrl,
+    internalToken,
+  }: NotificationClientSettings) {
+    this.baseUrl = serviceUrl;
+    this.internalToken = internalToken;
+  }
 
   public async dispatchNotification(
     payload: NotificationPayload,
@@ -31,5 +44,3 @@ export class NotificationClient implements INotificationDispatcher {
     }
   }
 }
-
-export const NotificationClientInstance = new NotificationClient();

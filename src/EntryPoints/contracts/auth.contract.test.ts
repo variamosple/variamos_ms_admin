@@ -54,9 +54,13 @@ import type { UserAuthUseCase } from "#src/Domain/User/UseCase/UserAuthUseCase.j
 import type { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
 import type { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
 import type { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
+import { webSettingsFromEnv } from "#src/webSettings.js";
 import { AUTH_ROUTE, createAuthRouter } from "../AuthRouter.js";
 import { MFA_PENDING_COOKIE } from "../authWeb.js";
 import { createMfaRouter, MFA_ROUTE } from "../MfaRouter.js";
+
+// The settings of the test environment; a test may change one of them
+const web = webSettingsFromEnv().auth;
 
 /*
  * Response contract of the sign-in and own-account routes (EV-98, step 1):
@@ -184,6 +188,7 @@ app.use(
     userQueryUseCase: queries,
     mfaSignIn,
     accessJournal: mock<IAccessJournal>(),
+    web,
   }),
 );
 

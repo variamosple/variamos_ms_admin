@@ -15,6 +15,7 @@ import { mock, mockDeep } from "vitest-mock-extended";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { AccountLockoutPolicy } from "#src/Domain/User/Entity/AccountLockoutPolicy.js";
 import { AccountLockout } from "#src/Domain/User/Service/AccountLockoutService.js";
+import { webSettingsFromEnv } from "#src/webSettings.js";
 import { createBaseRouter } from "./index.js";
 import type { AccessGuard } from "./requireAccess.js";
 
@@ -201,6 +202,7 @@ function buildRouter(accessGuard: AccessGuard) {
       journalQuery: mock(),
       checkDatabase: mock(),
       backups: mock(),
+      settings: webSettingsFromEnv(),
     });
   } finally {
     proto.use = original;

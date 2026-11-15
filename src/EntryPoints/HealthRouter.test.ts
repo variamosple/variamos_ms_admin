@@ -10,7 +10,10 @@ describe("HealthRouter - Black-Box Contract & Resilience Tests", () => {
   const buildApp = () => {
     const app = express();
     app.use(express.json());
-    app.use(HEALTH_ROUTE, createHealthRouter(authenticate));
+    app.use(
+      HEALTH_ROUTE,
+      createHealthRouter(authenticate, () => "1.2.3"),
+    );
     return app;
   };
 

@@ -1,6 +1,10 @@
 import Docker from "dockerode";
 import EnvVars from "#src/common/EnvVars.js";
 import logger from "#src/common/logger.js";
+import {
+  MailServiceInstance,
+  NotificationClientInstance,
+} from "./CompositionAdapters.js";
 import { SecurityAlertRecipientRepository } from "./DataProviders/AccessControl/SecurityAlertRecipientRepository.js";
 import { AccessJournalRepositoryImpl } from "./DataProviders/Activity/AccessJournalRepository.js";
 import { ActivityJournalRepositoryImpl } from "./DataProviders/Activity/ActivityJournalRepository.js";
@@ -40,9 +44,7 @@ import { AccountPasswordService } from "./Domain/User/Service/AccountPasswordSer
 import { PasswordHashingCostService } from "./Domain/User/Service/PasswordHashingCostService.js";
 import type { UserRepositories } from "./Domain/User/UserRepositories.js";
 import { JetLogger } from "./Infrastructure/Logging/JetLogger.js";
-import { MailServiceInstance } from "./Infrastructure/Mail/MailService.js";
 import { ConfigEventPublisherImpl } from "./Infrastructure/Messaging/ConfigEventPublisher.js";
-import { NotificationClientInstance } from "./Infrastructure/Notification/NotificationClient.js";
 import { SecurityAlertNotifier } from "./Infrastructure/Notification/SecurityAlertNotifier.js";
 import {
   AesGcmSecretCipher,

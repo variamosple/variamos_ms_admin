@@ -31,7 +31,11 @@ import type { UserAuthUseCase } from "#src/Domain/User/UseCase/UserAuthUseCase.j
 import type { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
 import type { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
 import type { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
+import { webSettingsFromEnv } from "#src/webSettings.js";
 import { AUTH_ROUTE, createAuthRouter } from "./AuthRouter.js";
+
+// The settings of the test environment; a test may change one of them
+const web = webSettingsFromEnv().auth;
 
 const auth = mock<UserAuthUseCase>();
 const password = mock<UserPasswordUseCase>();
@@ -50,6 +54,7 @@ app.use(
     userQueryUseCase: mock<UserQueryUseCase>(),
     mfaSignIn: mfa,
     accessJournal: mock<IAccessJournal>(),
+    web,
   }),
 );
 

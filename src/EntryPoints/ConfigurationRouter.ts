@@ -1,6 +1,5 @@
 import { hasPermissions } from "@variamosple/variamos-security";
 import { type Request, Router } from "express";
-import EnvVars from "#src/common/EnvVars.js";
 import {
   announcementOf,
   type ConfigurationAnnouncement,
@@ -245,12 +244,13 @@ const menuFor = (referer: string, isDevelopment: boolean): Menu => {
 
 export function createConfigurationRouter(
   configurationUseCase: ConfigurationUseCase,
+  isDevelopment: () => boolean,
 ): Router {
   const configurationV1Router = Router();
 
   configurationV1Router.get("/menu", (req: Request, res) => {
     const response = new ResponseModel<Menu>("getMenu");
-    const menu = menuFor(req.headers.referer || "", EnvVars.IsDevelopment);
+    const menu = menuFor(req.headers.referer || "", isDevelopment());
     res.status(200).json(response.withResponse(menu));
   });
 
