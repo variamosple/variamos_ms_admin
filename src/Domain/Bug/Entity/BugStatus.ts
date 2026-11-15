@@ -26,7 +26,11 @@ const BUG_STATUSES = [
   "purged",
 ] as const;
 
-type BugStatus = (typeof BUG_STATUSES)[number];
+export type BugStatus = (typeof BUG_STATUSES)[number];
+
+/** Whether a stored or requested value is a status of a bug (EV-47). */
+export const isBugStatus = (value: string): value is BugStatus =>
+  isOneOf(BUG_STATUSES, value);
 
 export const IN_PROGRESS_LABEL = "in progress";
 

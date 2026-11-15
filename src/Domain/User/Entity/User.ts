@@ -1,6 +1,7 @@
 import type { Nullable } from "#src/Domain/Core/Entity/Nullable.js";
 import { DomainError } from "#src/Domain/Core/Error/DomainError.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
+import { CountryCode } from "#src/Domain/Countries/Entity/CountryCode.js";
 import { Email } from "./Email.js";
 
 /** What an account is made of. */
@@ -60,7 +61,7 @@ export class User {
     this.name = name;
     this.user = user;
     this.email = validatedEmail;
-    this.countryCode = countryCode;
+    this.countryCode = CountryCode.optional(countryCode);
     this.countryName = countryName;
     this.isEnabled = isEnabled;
     this.isDeleted = isDeleted;

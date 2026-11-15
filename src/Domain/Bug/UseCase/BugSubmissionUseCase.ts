@@ -26,6 +26,7 @@ import type { IIssueTrackerService } from "#src/Domain/Core/Service/IIssueTracke
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IStorageService } from "#src/Domain/Core/Service/IStorageService.js";
 import { refuseClosedAccount } from "#src/Domain/User/Entity/AccountAccess.js";
+import { Email } from "#src/Domain/User/Entity/Email.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 import { ALLOWED_CATEGORIES } from "./BugQueryUseCase.js";
 
@@ -184,6 +185,8 @@ export class BugSubmissionUseCase {
         .setDescription(data.description)
         .setPriority(data.priority)
         .setComponent(data.component)
+        // A guest's own address; an account's comes from the account
+        .setReporterEmail(data.createdById ? undefined : data.reporterEmail)
         .build();
     } catch (error) {
       return errorMessage(error);
@@ -222,9 +225,12 @@ export class BugSubmissionUseCase {
       DomainErrorCodes.INVALID_INPUT,
     );
     const email = userResponse.data?.email;
-    return email
-      ? { email, createdById: data.createdById }
-      : { email: data.reporterEmail };
+    if (email) return { email, createdById: data.createdById };
+    // A closed account reports as a guest: its address was not checked
+    // with the guest's, and a malformed one would not be read back (EV-47)
+    return {
+      email: Email.isValid(data.reporterEmail) ? data.reporterEmail : undefined,
+    };
   }
 
   // The stored file is removed when the bug is not recorded

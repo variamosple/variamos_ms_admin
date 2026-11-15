@@ -1,3 +1,4 @@
+import { DomainError } from "#src/Domain/Core/Error/DomainError.js";
 import { Bug } from "./Bug.js";
 
 describe("Bug Entity", () => {
@@ -80,6 +81,42 @@ describe("Bug Entity", () => {
       const bug = Bug.builder().build();
 
       expect(bug.creatorName).toBe("Guest");
+    });
+  });
+
+  describe("status and reporter address (EV-47)", () => {
+    it.each([
+      "pending",
+      "open",
+      "in_progress",
+      "resolved",
+      "closed",
+      "rejected",
+      "purged",
+    ])("accepts the status %s", (status) => {
+      expect(Bug.builder().setStatus(status).build().status).toBe(status);
+    });
+
+    it("refuses a status outside the list", () => {
+      expect(() => Bug.builder().setStatus("done").build()).toThrow(
+        DomainError,
+      );
+      expect(() => Bug.builder().setStatus("Open").build()).toThrow(
+        "Unknown bug status: Open.",
+      );
+    });
+
+    it("refuses a malformed reporter address and keeps a clean one", () => {
+      expect(() =>
+        Bug.builder().setReporterEmail("not an address").build(),
+      ).toThrow(DomainError);
+      expect(
+        Bug.builder().setReporterEmail(" Guest@Test.com ").build()
+          .reporterEmail,
+      ).toBe("guest@test.com");
+      expect(
+        Bug.builder().setReporterEmail(undefined).build().reporterEmail,
+      ).toBeUndefined();
     });
   });
 });
