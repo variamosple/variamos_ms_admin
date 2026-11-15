@@ -82,7 +82,11 @@ const noMfaSignIn = {
 
 import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
+import { webSettingsFromEnv } from "#src/webSettings.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
+
+// The settings of the test environment; a test may change one of them
+const web = webSettingsFromEnv().auth;
 
 // Google posts the same random value as a cookie of our domain and in the
 // body; the callback refuses a sign-in without it (EV-70 lot 5)
@@ -226,6 +230,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         userQueryUseCase: mockUserQueryUseCase,
         mfaSignIn: noMfaSignIn,
         accessJournal,
+        web,
       }),
     );
   });
@@ -1999,23 +2004,15 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     let originalHomeRedirectUri: string | undefined;
 
     beforeAll(() => {
-      originalHomeRedirectUri = EnvVars.Auth.APP.HOME_REDIRECT_URI;
+      originalHomeRedirectUri = web.homeRedirectUri;
     });
 
     afterAll(() => {
-      Object.defineProperty(EnvVars.Auth.APP, "HOME_REDIRECT_URI", {
-        value: originalHomeRedirectUri,
-        configurable: true,
-        writable: true,
-      });
+      web.homeRedirectUri = originalHomeRedirectUri;
     });
 
-    it("should handle fallback HOME_URL when EnvVars.Auth.APP.HOME_REDIRECT_URI is empty (Line 42)", async () => {
-      Object.defineProperty(EnvVars.Auth.APP, "HOME_REDIRECT_URI", {
-        value: "",
-        configurable: true,
-        writable: true,
-      });
+    it("should handle fallback HOME_URL when web.homeRedirectUri is empty (Line 42)", async () => {
+      web.homeRedirectUri = "";
 
       const mockUserAuthUseCase = mock<UserAuthUseCase>();
       const mockUserPasswordUseCase = mock<UserPasswordUseCase>();
@@ -2034,6 +2031,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
           userQueryUseCase: mockUserQueryUseCase,
           mfaSignIn: noMfaSignIn,
           accessJournal,
+          web,
         }),
       );
 
@@ -2125,11 +2123,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return secure false cookie when sameSite is not none (Line 109)", async () => {
-      const originalSecure = EnvVars.CookieProps.Options.secure;
-      Object.defineProperty(EnvVars.CookieProps.Options, "secure", {
-        value: false,
-        configurable: true,
-      });
+      const originalSecure = web.cookie.secure;
+      web.cookie.secure = false;
 
       const mockUser = User.builder()
         .setId("user-123")
@@ -2153,10 +2148,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       expect(authCookie).toBeDefined();
       expect(authCookie?.includes("Secure")).toBe(false);
 
-      Object.defineProperty(EnvVars.CookieProps.Options, "secure", {
-        value: originalSecure,
-        configurable: true,
-      });
+      web.cookie.secure = originalSecure;
     });
 
     it("should return early when validationResponse has errorCode (Line 130)", async () => {
@@ -2176,7 +2168,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("should handle refresh boundary at exactly refreshLimit (Line 160)", async () => {
       const mockToken = "valid-token";
-      const maxAge = EnvVars.CookieProps.Options.maxAge;
+      const maxAge = web.cookie.maxAge;
       const now = Date.now();
       const userIat = Math.floor((now - maxAge) / 1000);
       const mockUserPayload = {
@@ -2628,9 +2620,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .send({ guestId: "abc" });
 
       expect(response.status).toBe(HttpStatusCodes.OK);
-      expect(response.body.data.redirect).toBe(
-        EnvVars.Auth.APP.HOME_REDIRECT_URI,
-      );
+      expect(response.body.data.redirect).toBe(web.homeRedirectUri);
     });
 
     it("should call logger.err with true flag when guest sign-in throws (Line 577)", async () => {
@@ -2843,11 +2833,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         configurable: true,
       });
 
-      Object.defineProperty(EnvVars.Auth.APP, "HOME_REDIRECT_URI", {
-        value: "http://my-home-domain.com",
-        configurable: true,
-        writable: true,
-      });
+      web.homeRedirectUri = "http://my-home-domain.com";
 
       const mockUserAuthUseCase = mock<UserAuthUseCase>();
       const mockUserPasswordUseCase = mock<UserPasswordUseCase>();
@@ -2866,6 +2852,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
           userQueryUseCase: mockUserQueryUseCase,
           mfaSignIn: noMfaSignIn,
           accessJournal,
+          web,
         }),
       );
 
@@ -2953,6 +2940,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         userQueryUseCase: mock<UserQueryUseCase>(),
         mfaSignIn: noMfaSignIn,
         accessJournal,
+        web,
       });
 
       const calls = vi.mocked(hasPermissions).mock.calls;
@@ -2980,6 +2968,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
           userQueryUseCase: mockUserQueryUseCase,
           mfaSignIn: noMfaSignIn,
           accessJournal,
+          web,
         }),
       );
 

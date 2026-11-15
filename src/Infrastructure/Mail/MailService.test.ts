@@ -1,30 +1,25 @@
 import nodemailer from "nodemailer";
-import EnvVars from "#src/common/EnvVars.js";
 import logger from "#src/common/logger.js";
 import { describeDuration, MailServiceImpl } from "./MailService.js";
 
+// No SMTP credentials outside production: the mail is only simulated
+const settings = {
+  host: "smtp.example.com",
+  port: 587,
+  user: "",
+  password: "",
+  from: '"VariaMos" <noreply@example.com>',
+  production: false,
+};
+
 describe("MailServiceImpl logging", () => {
-  const originalSmtp = { ...EnvVars.SMTP };
-
-  beforeEach(() => {
-    // No SMTP credentials outside production: the mail is only simulated
-    Object.defineProperty(EnvVars, "SMTP", {
-      value: { ...originalSmtp, USER: "", PASSWORD: "" },
-      configurable: true,
-    });
-  });
-
   afterEach(() => {
-    Object.defineProperty(EnvVars, "SMTP", {
-      value: originalSmtp,
-      configurable: true,
-    });
     vi.restoreAllMocks();
   });
 
   it("logs a simulated mail without its content or full address", async () => {
     const infoSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
-    const service = new MailServiceImpl();
+    const service = new MailServiceImpl(settings);
 
     const sent = await service.sendMail(
       "alice@example.com",
@@ -47,7 +42,7 @@ describe("MailServiceImpl messages", () => {
   });
 
   it("frames the reset link with the VariaMos logo and signature", async () => {
-    const service = new MailServiceImpl();
+    const service = new MailServiceImpl(settings);
     const send = vi.spyOn(service, "sendMail").mockResolvedValue(true);
 
     await service.sendPasswordResetMail(
@@ -66,7 +61,7 @@ describe("MailServiceImpl messages", () => {
   });
 
   it("tells the owner that their second factor was turned off", async () => {
-    const service = new MailServiceImpl();
+    const service = new MailServiceImpl(settings);
     const send = vi.spyOn(service, "sendMail").mockResolvedValue(true);
 
     await expect(service.sendMfaResetMail("bea@example.com")).resolves.toBe(
@@ -81,7 +76,7 @@ describe("MailServiceImpl messages", () => {
   });
 
   it("points the owner of an address to sign-in and recovery", async () => {
-    const service = new MailServiceImpl();
+    const service = new MailServiceImpl(settings);
     const send = vi.spyOn(service, "sendMail").mockResolvedValue(true);
 
     await service.sendExistingAccountMail(
@@ -97,7 +92,7 @@ describe("MailServiceImpl messages", () => {
   });
 
   it("sends a security alert whose text is never read as markup", async () => {
-    const service = new MailServiceImpl();
+    const service = new MailServiceImpl(settings);
     const send = vi.spyOn(service, "sendMail").mockResolvedValue(true);
 
     await service.sendSecurityAlertMail(
@@ -114,7 +109,7 @@ describe("MailServiceImpl messages", () => {
   });
 
   it("sends a service alert that names the key holding the address", async () => {
-    const service = new MailServiceImpl();
+    const service = new MailServiceImpl(settings);
     const send = vi.spyOn(service, "sendMail").mockResolvedValue(true);
 
     await service.sendServiceAlertMail(
@@ -141,7 +136,7 @@ describe("MailServiceImpl transport", () => {
   it("refuses to send in clear text or below TLS 1.2", () => {
     const createTransport = vi.spyOn(nodemailer, "createTransport");
 
-    new MailServiceImpl();
+    new MailServiceImpl(settings);
 
     expect(createTransport).toHaveBeenCalledWith(
       expect.objectContaining({

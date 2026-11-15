@@ -22,8 +22,12 @@ import type { UserAuthUseCase } from "#src/Domain/User/UseCase/UserAuthUseCase.j
 import type { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
 import type { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
 import type { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
+import { webSettingsFromEnv } from "#src/webSettings.js";
 import { AUTH_ROUTE, createAuthRouter } from "./AuthRouter.js";
 import { MFA_PENDING_COOKIE, MFA_TRUSTED_COOKIE } from "./authWeb.js";
+
+// The settings of the test environment; a test may change one of them
+const web = webSettingsFromEnv().auth;
 
 // Google posts the same random value as a cookie of our domain and in the
 // body; the callback refuses a sign-in without it (EV-70 lot 5)
@@ -149,6 +153,7 @@ function setUp(mfaEnabled: boolean, trustedDeviceDays = 14) {
       userQueryUseCase: query,
       mfaSignIn,
       accessJournal,
+      web,
     }),
   );
   return { app, query, repository, devices };

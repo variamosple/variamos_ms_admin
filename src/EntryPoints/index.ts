@@ -1,7 +1,6 @@
 // User Flow Use Cases
 import { isAuthenticated } from "@variamosple/variamos-security";
 import { type RequestHandler, Router } from "express";
-import EnvVars from "#src/common/EnvVars.js";
 import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
 import type { JournalQueryUseCase } from "#src/Domain/Activity/JournalQueryUseCase.js";
 import type { BugAssignmentUseCase } from "#src/Domain/Bug/UseCase/BugAssignmentUseCase.js";
@@ -100,6 +99,7 @@ import { createUserMfaRouter, USER_MFA_V1_ROUTE } from "./UserMfaV1Router.js";
 import { createUserRolesRouter } from "./UserRolesV1Router.js";
 import { createUsersRouter, USERS_V1_ROUTE } from "./UsersV1Router.js";
 import { createVisitsRouter, VISITS_V1_ROUTE } from "./VisitsV1Router.js";
+import type { WebSettings } from "./WebSettings.js";
 
 interface UserFlowUseCases {
   auth: UserAuthUseCase;
@@ -145,6 +145,8 @@ interface NotificationFlow {
 
 /** What the routers need, built by the composition (T-18 lot 4a). */
 export interface BaseRouterDependencies {
+  /** What the routes read from the configuration (EV-05). */
+  settings: WebSettings;
   users: UserFlowUseCases;
   bugs: BugFlowUseCases;
   microServices: MicroServiceFlowUseCases;
@@ -191,6 +193,26 @@ const createRolesTreeRouter = (
     accessGuard,
   );
 
+// Sign-in, session and account, with the settings of the session cookie
+const createSignInRouter = ({
+  users,
+  mfa,
+  accessJournal,
+  settings,
+}: Pick<
+  BaseRouterDependencies,
+  "users" | "mfa" | "accessJournal" | "settings"
+>) =>
+  createAuthRouter({
+    userAuthUseCase: users.auth,
+    userPasswordUseCase: users.password,
+    userManagementUseCase: users.management,
+    userQueryUseCase: users.query,
+    mfaSignIn: mfa.signIn,
+    accessJournal,
+    web: settings.auth,
+  });
+
 export function createBaseRouter({
   users: usersUseCases,
   bugs: bugUseCases,
@@ -211,18 +233,20 @@ export function createBaseRouter({
   journalQuery,
   checkDatabase,
   backups,
+  settings,
 }: BaseRouterDependencies): Router {
   const baseRouter = Router();
 
-  const authRouter = createAuthRouter({
-    userAuthUseCase: usersUseCases.auth,
-    userPasswordUseCase: usersUseCases.password,
-    userManagementUseCase: usersUseCases.management,
-    userQueryUseCase: usersUseCases.query,
-    mfaSignIn: mfa.signIn,
+  const authRouter = createSignInRouter({
+    users: usersUseCases,
+    mfa,
     accessJournal,
+    settings,
   });
-  const configurationV1Router = createConfigurationRouter(configurationUseCase);
+  const configurationV1Router = createConfigurationRouter(
+    configurationUseCase,
+    settings.isDevelopment,
+  );
   const usersV1Router = createAccountsRouter(usersUseCases, accessGuard);
   const rolesV1Router = createRolesTreeRouter(rolesUseCases, accessGuard);
   const permissionsV1Router = createPermissionsRouter(permissionsUseCase);
@@ -289,23 +313,19 @@ export function createBaseRouter({
     createActivityLogsRouter(journalQuery),
   );
   baseRouter.use(ACCESS_LOGS_V1_ROUTE, createAccessLogsRouter(journalQuery));
-  baseRouter.use("/health", createHealthRouter(checkDatabase));
+  baseRouter.use(
+    "/health",
+    createHealthRouter(checkDatabase, settings.packageVersion),
+  );
 
-  baseRouter.get("/version", sendVersion);
+  baseRouter.get("/version", versionOf(settings.version));
 
   return baseRouter;
 }
 
 // The name and version of the service
-const sendVersion: RequestHandler = (_, res) => {
-  try {
-    const data = {
-      message: "variamos_ms_admin",
-      version: EnvVars.VERSION,
-    };
-
-    res.status(200).json(data);
-  } catch (error) {
-    res.status(400).send(JSON.stringify(error));
-  }
-};
+const versionOf =
+  (version: string): RequestHandler =>
+  (_, res) => {
+    res.status(200).json({ message: "variamos_ms_admin", version });
+  };

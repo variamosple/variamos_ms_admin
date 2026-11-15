@@ -2,7 +2,6 @@ import { createJwt, type SessionUser } from "@variamosple/variamos-security";
 import type { CookieOptions, Request, Response } from "express";
 import { isAllowedOrigin } from "#src/common/allowedOrigins.js";
 import { describeError } from "#src/common/describeError.js";
-import EnvVars from "#src/common/EnvVars.js";
 import logger from "#src/common/logger.js";
 import { MFA_SIGN_IN_TTL_MS } from "#src/Domain/Mfa/Service/PendingMfaSignIns.js";
 import { queryText } from "./queryText.js";
@@ -20,27 +19,32 @@ export const isAllowedRedirect = (redirect: URL): boolean =>
   (redirect.protocol === "http:" || redirect.protocol === "https:") &&
   isAllowedOrigin(redirect.origin);
 
-export const getRedirectUrl = (
-  transactionId: string,
-  req: Request,
-  res: Response,
-  remove = true,
-): URL | undefined => {
-  const redirectUrl = queryText(req.cookies.redirectTo);
+/**
+ * What the authentication routes read from the configuration (EV-05): the
+ * options of the session cookie, the pages of VariaMosAdmin they send the
+ * browser to, and the Google client. Built once by the composition root;
+ * the helpers read it at each call.
+ */
+export interface AuthWebSettings {
+  cookie: {
+    domain: string;
+    path: string;
+    httpOnly: boolean;
+    secure: boolean;
+    /** Lifetime of the session cookie, in milliseconds. */
+    maxAge: number;
+  };
+  loginRedirectUri: string | undefined;
+  homeRedirectUri: string | undefined;
+  googleClientId: string | undefined;
+}
 
-  if (!redirectUrl) {
-    return undefined;
-  }
-
-  if (remove) {
-    res.clearCookie(
-      "redirectTo",
-      getCookieOptions({ sameSite: "none", maxAge: false }),
-    );
-  }
-
-  return getUrl(transactionId, redirectUrl);
-};
+export interface CookieOptionsInput {
+  domain?: string;
+  httpOnly?: boolean;
+  sameSite?: "strict" | "lax" | "none";
+  maxAge?: boolean;
+}
 
 const getUrl = (transactionId: string, url?: string): URL | undefined => {
   if (!url) {
@@ -61,52 +65,60 @@ const getUrl = (transactionId: string, url?: string): URL | undefined => {
   return undefined;
 };
 
-export interface CookieOptionsInput {
-  domain?: string;
-  httpOnly?: boolean;
-  sameSite?: "strict" | "lax" | "none";
-  maxAge?: boolean;
-}
-
-export const getCookieOptions = (
-  options: CookieOptionsInput = {},
-): CookieOptions => {
-  const domain = options.domain ?? EnvVars.CookieProps.Options.domain;
-  const httpOnly = options.httpOnly ?? EnvVars.CookieProps.Options.httpOnly;
-  const sameSite = options.sameSite ?? "strict";
-  const maxAge = options.maxAge ?? true;
-
-  const cookieOptions: CookieOptions = {
-    domain,
-    path: EnvVars.CookieProps.Options.path,
-    sameSite,
-    httpOnly,
-    secure: sameSite === "none" ? true : EnvVars.CookieProps.Options.secure,
-    maxAge: maxAge ? EnvVars.CookieProps.Options.maxAge : undefined,
-  };
-
-  return cookieOptions;
-};
-
-export const mfaPendingCookieOptions = (): CookieOptions => ({
-  ...getCookieOptions({ maxAge: false }),
-  maxAge: MFA_SIGN_IN_TTL_MS,
-});
-
-// Google posts its callback from its own site: only SameSite=None comes
-// back with it. The token alone opens nothing, it only spares the code
-// after a right password or Google credential.
-export const mfaTrustedCookieOptions = (maxAgeMs: number): CookieOptions => ({
-  ...getCookieOptions({ sameSite: "none", maxAge: false }),
-  maxAge: maxAgeMs,
-});
-
 export const trustedDeviceToken = (req: Request): string | undefined => {
   return queryText(req.cookies?.[MFA_TRUSTED_COOKIE]);
 };
 
 /** The helpers given to the routes when the router is created. */
-export function createAuthWeb() {
+export function createAuthWeb(web: AuthWebSettings) {
+  const cookieOptions = (options: CookieOptionsInput = {}): CookieOptions => {
+    const sameSite = options.sameSite ?? "strict";
+    return {
+      domain: options.domain ?? web.cookie.domain,
+      path: web.cookie.path,
+      sameSite,
+      httpOnly: options.httpOnly ?? web.cookie.httpOnly,
+      secure: sameSite === "none" ? true : web.cookie.secure,
+      maxAge: (options.maxAge ?? true) ? web.cookie.maxAge : undefined,
+    };
+  };
+
+  const mfaPendingCookieOptions = (): CookieOptions => ({
+    ...cookieOptions({ maxAge: false }),
+    maxAge: MFA_SIGN_IN_TTL_MS,
+  });
+
+  // Google posts its callback from its own site: only SameSite=None comes
+  // back with it. The token alone opens nothing, it only spares the code
+  // after a right password or Google credential.
+  const mfaTrustedCookieOptions = (maxAgeMs: number): CookieOptions => ({
+    ...cookieOptions({ sameSite: "none", maxAge: false }),
+    maxAge: maxAgeMs,
+  });
+
+  /** The page to go back to, kept in a cookie before sign-in. */
+  const redirectUrl = (
+    transactionId: string,
+    req: Request,
+    res: Response,
+    remove = true,
+  ): URL | undefined => {
+    const redirect = queryText(req.cookies.redirectTo);
+
+    if (!redirect) {
+      return undefined;
+    }
+
+    if (remove) {
+      res.clearCookie(
+        "redirectTo",
+        cookieOptions({ sameSite: "none", maxAge: false }),
+      );
+    }
+
+    return getUrl(transactionId, redirect);
+  };
+
   /** Creates the session cookie; gives the address to go to. */
   const openSession = async (
     transactionId: string,
@@ -114,23 +126,28 @@ export function createAuthWeb() {
     res: Response,
     sessionUser: SessionUser,
   ): Promise<string> => {
-    const redirect = getRedirectUrl(transactionId, req, res);
+    const redirect = redirectUrl(transactionId, req, res);
 
     const token = await createJwt(
       sessionUser,
-      redirect?.hostname || EnvVars.CookieProps.Options.domain,
+      redirect?.hostname || web.cookie.domain,
     );
 
     // The token stays in the cookie: never in an address, which ends up in
     // the history, the server logs and the Referer header (EV-75)
-    res.cookie("authToken", token, getCookieOptions());
+    res.cookie("authToken", token, cookieOptions());
 
-    return redirect
-      ? redirect.toString()
-      : `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`;
+    return redirect ? redirect.toString() : `${web.homeRedirectUri}`;
   };
 
-  return { openSession };
+  return {
+    web,
+    cookieOptions,
+    mfaPendingCookieOptions,
+    mfaTrustedCookieOptions,
+    redirectUrl,
+    openSession,
+  };
 }
 
 /** What the routes use from createAuthWeb. */

@@ -55,6 +55,17 @@ module.exports = {
       to: { path: "^node_modules/jet-logger/" },
     },
     {
+      name: "configuration-is-read-at-the-root",
+      comment:
+        "Routers and adapters receive their settings from the composition root (src/*.ts) and never read EnvVars themselves (EV-05): a test gives them its own settings instead of changing process.env. VariamosORM still reads it, as it connects when it is first imported.",
+      severity: "error",
+      from: {
+        path: "^src/(EntryPoints|Infrastructure|DataProviders)",
+        pathNot: `${TESTS}|^src/Infrastructure/VariamosORM\\.ts$`,
+      },
+      to: { path: "^src/common/EnvVars\\.ts$" },
+    },
+    {
       name: "no-circular-dependencies",
       comment: "Forbidden circular dependencies that can corrupt execution.",
       severity: "error",

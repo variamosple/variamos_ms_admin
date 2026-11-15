@@ -308,7 +308,7 @@ app.use(
 );
 app.use(
   CONFIGURATION_V1_ROUTE,
-  createConfigurationRouter(configurationUseCase),
+  createConfigurationRouter(configurationUseCase, () => false),
 );
 
 describe("Service and configuration routes keep the shape VariaMosAdmin reads", () => {

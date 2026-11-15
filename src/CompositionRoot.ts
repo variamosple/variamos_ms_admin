@@ -3,6 +3,10 @@ import EnvVars from "#src/common/EnvVars.js";
 import logger from "#src/common/logger.js";
 import { MAX_ATTACHMENT_SIZE_BYTES } from "#src/Domain/Core/File/AllowedFileType.js";
 import {
+  MailServiceInstance,
+  NotificationClientInstance,
+} from "./CompositionAdapters.js";
+import {
   AccountPasswordServiceInstance,
   BugRepositoriesInstance,
   ConfigEventPublisherInstance,
@@ -80,10 +84,8 @@ import { GitHubIssuesServiceInstance } from "./Infrastructure/GitHub/GitHubIssue
 import { GitHubTokenResolver } from "./Infrastructure/GitHub/GitHubTokenResolver.js";
 import { HealthCheckCollector } from "./Infrastructure/Health/HealthCheckCollector.js";
 import { JetLogger } from "./Infrastructure/Logging/JetLogger.js";
-import { MailServiceInstance } from "./Infrastructure/Mail/MailService.js";
 import { BugAssignmentNotifier } from "./Infrastructure/Notification/BugAssignmentNotifier.js";
 import { NotificationAccessTokenIssuer } from "./Infrastructure/Notification/NotificationAccessTokenIssuer.js";
-import { NotificationClientInstance } from "./Infrastructure/Notification/NotificationClient.js";
 import { ScheduledChangeNotifier } from "./Infrastructure/Notification/ScheduledChangeNotifier.js";
 import { ServiceAlertNotifier } from "./Infrastructure/Notification/ServiceAlertNotifier.js";
 import {
@@ -97,6 +99,7 @@ import {
 } from "./Infrastructure/Security/AesGcmSecretCipher.js";
 import { DiskStorageServiceInstance } from "./Infrastructure/Storage/DiskStorageService.js";
 import VARIAMOS_ORM, { DB_SCHEMA } from "./Infrastructure/VariamosORM.js";
+import { webSettingsFromEnv } from "./webSettings.js";
 
 // Read-only pages of both journals (T-24 lot 3)
 const productionJournalQueryUseCase = new JournalQueryUseCase(
@@ -452,4 +455,5 @@ export const productionRouterDependencies: BaseRouterDependencies = {
   journalQuery: productionJournalQueryUseCase,
   checkDatabase,
   backups: BackupAlertsInstance,
+  settings: webSettingsFromEnv(),
 };

@@ -5,8 +5,8 @@ import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { NotificationRecipientDirectory } from "#src/DataProviders/Notification/NotificationRecipientDirectory.js";
 import { RoleModel } from "#src/DataProviders/Role/Role.js";
 import { UserModel } from "#src/DataProviders/User/User.js";
+import type { INotificationDispatcher } from "#src/Domain/Notification/INotificationDispatcher.js";
 import { NotificationDispatchUseCase } from "#src/Domain/Notification/UseCase/NotificationDispatchUseCase.js";
-import { NotificationClientInstance } from "#src/Infrastructure/Notification/NotificationClient.js";
 import { createAdminNotificationsRouter } from "./AdminNotificationsRouter.js";
 
 const activityJournal = { record: vi.fn().mockResolvedValue(undefined) };
@@ -37,12 +37,11 @@ vi.mock("#src/DataProviders/Role/Role.js", () => ({
   },
 }));
 
-// Mock Notification Client
-vi.mock("#src/Infrastructure/Notification/NotificationClient.js", () => ({
-  NotificationClientInstance: {
-    dispatchNotification: vi.fn(),
-  },
-}));
+// Stands for the client of the notification service
+const NotificationClientInstance = {
+  dispatchNotification:
+    vi.fn<INotificationDispatcher["dispatchNotification"]>(),
+};
 
 describe("AdminNotificationsRouter Integration Tests", () => {
   let app: express.Application;

@@ -44,6 +44,8 @@ describe("ConfigurationRouter Integration Tests", () => {
   let mockUseCase: ConfigurationUseCase;
   let mockRepo: IConfigurationRepository;
   let mockPublisher: IConfigEventPublisher;
+  // Whether the menu points to the local sites, given to the router
+  let development = false;
 
   beforeAll(() => {
     app = express();
@@ -55,7 +57,11 @@ describe("ConfigurationRouter Integration Tests", () => {
       mockPublisher,
       activityJournal,
     );
-    app.use("/v1/configurations", createConfigurationRouter(mockUseCase));
+    development = false;
+    app.use(
+      "/v1/configurations",
+      createConfigurationRouter(mockUseCase, () => development),
+    );
   });
 
   describe("GET /v1/configurations/menu", () => {
@@ -104,7 +110,7 @@ describe("ConfigurationRouter Integration Tests", () => {
     });
 
     it("should rewrite URLs to localhost in development environment", async () => {
-      vi.stubEnv("NODE_ENV", "development");
+      development = true;
 
       const response = await supertest(app).get("/v1/configurations/menu");
 
@@ -119,7 +125,7 @@ describe("ConfigurationRouter Integration Tests", () => {
     });
 
     it("should rewrite Admin location and options location when referer has /variamos_admin/ in non-development env", async () => {
-      vi.stubEnv("NODE_ENV", "test");
+      development = false;
 
       const response = await supertest(app)
         .get("/v1/configurations/menu")
@@ -152,7 +158,7 @@ describe("ConfigurationRouter Integration Tests", () => {
       ["Languages", "https://app.variamos.com/variamos_languages/"],
       ["no referer", undefined],
     ])("opens My account in the admin from %s", async (_from, referer) => {
-      vi.stubEnv("NODE_ENV", "test");
+      development = false;
 
       expect(await myAccountFrom(referer)).toBe(
         "https://app.variamos.com/variamos_admin/#/my-account",
@@ -160,7 +166,7 @@ describe("ConfigurationRouter Integration Tests", () => {
     });
 
     it("points My account to the local admin in development", async () => {
-      vi.stubEnv("NODE_ENV", "development");
+      development = true;
 
       expect(await myAccountFrom("http://localhost:3000/")).toBe(
         "http://localhost:3000/variamos_admin/#/my-account",

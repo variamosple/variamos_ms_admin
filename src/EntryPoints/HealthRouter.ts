@@ -1,13 +1,15 @@
 import os from "node:os";
 import { Router } from "express";
-import EnvVars from "#src/common/EnvVars.js";
 
 export const HEALTH_ROUTE = "/health";
 
 /** Resolves when the database answers; the router bounds it to 1.5 s. */
 export type DatabaseCheck = () => Promise<void>;
 
-export function createHealthRouter(checkDatabase: DatabaseCheck): Router {
+export function createHealthRouter(
+  checkDatabase: DatabaseCheck,
+  version: () => string,
+): Router {
   const router = Router();
 
   router.get("/", async (_req, res) => {
@@ -49,7 +51,7 @@ export function createHealthRouter(checkDatabase: DatabaseCheck): Router {
     res.status(overallStatus === "UP" ? 200 : 503).json({
       status: overallStatus,
       serviceName: "variamos_ms_admin",
-      version: EnvVars.PackageVersion,
+      version: version(),
       uptimeSeconds: Math.floor(process.uptime()),
       timestamp: new Date().toISOString(),
       responseTimeMs: Date.now() - startTime,

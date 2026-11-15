@@ -2,7 +2,6 @@ import { createJwt } from "@variamosple/variamos-security";
 import type { Request, RequestHandler, Response, Router } from "express";
 import { OAuth2Client } from "google-auth-library";
 import { describeError } from "#src/common/describeError.js";
-import EnvVars from "#src/common/EnvVars.js";
 import logger from "#src/common/logger.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import type { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -16,13 +15,7 @@ import type { User } from "#src/Domain/User/Entity/User.js";
 import { recordAccess } from "./accessJournal.js";
 import { type AuthContext, sessionUserOf } from "./authContext.js";
 import { googleCallbackBody } from "./authRequestBodies.js";
-import {
-  getCookieOptions,
-  getRedirectUrl,
-  MFA_PENDING_COOKIE,
-  mfaPendingCookieOptions,
-  trustedDeviceToken,
-} from "./authWeb.js";
+import { MFA_PENDING_COOKIE, trustedDeviceToken } from "./authWeb.js";
 import { readBody } from "./requestBody.js";
 
 /**
@@ -41,13 +34,17 @@ const hasMatchingGoogleCsrfToken = (
   );
 };
 
-const validateGoogleCode = async (token: string): Promise<GoogleProfile> => {
+const validateGoogleCode = async (
+  token: string,
+  clientId: string | undefined,
+): Promise<GoogleProfile> => {
   try {
-    const client = new OAuth2Client(EnvVars.Auth.GOOGLE.CLIENT_ID);
+    const client = new OAuth2Client(clientId);
 
+    // The token must have been issued for this application
     const ticket = await client.verifyIdToken({
       idToken: token,
-      audience: EnvVars.Auth.GOOGLE.CLIENT_ID, // Specify the CLIENT_ID of the app that accesses the backend
+      audience: clientId,
     });
 
     const payload = ticket.getPayload();
@@ -96,7 +93,7 @@ const refuseGoogleSignIn = async (
     userId: account?.id,
   });
   const reason = inactive ? "account-inactive" : "sign-in-failed";
-  res.redirect(302, `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?reason=${reason}`);
+  res.redirect(302, `${ctx.web.loginRedirectUri}?reason=${reason}`);
 };
 
 // An error after the checks: recorded once, back to the login page
@@ -109,10 +106,7 @@ const failGoogleSignIn = (ctx: AuthContext, req: Request, res: Response) => {
       reason: "sign_in_failed",
     });
   }
-  res.redirect(
-    302,
-    `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?reason=sign-in-failed`,
-  );
+  res.redirect(302, `${ctx.web.loginRedirectUri}?reason=sign-in-failed`);
 };
 
 // The login page asks the code of the second factor
@@ -122,11 +116,11 @@ const askGoogleMfaCode = async (
   pendingToken: string,
 ) => {
   const { mfaSignIn } = ctx;
-  res.cookie(MFA_PENDING_COOKIE, pendingToken, mfaPendingCookieOptions());
+  res.cookie(MFA_PENDING_COOKIE, pendingToken, ctx.mfaPendingCookieOptions());
   const days = await mfaSignIn.trustedDeviceDays();
   res.redirect(
     302,
-    `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?mfa=required&trustedDeviceDays=${days}`,
+    `${ctx.web.loginRedirectUri}?mfa=required&trustedDeviceDays=${days}`,
   );
 };
 
@@ -148,14 +142,14 @@ const googleCallback =
         outcome: "failed",
         reason: "google_csrf_mismatch",
       });
-      res.redirect(
-        302,
-        `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?reason=sign-in-failed`,
-      );
+      res.redirect(302, `${ctx.web.loginRedirectUri}?reason=sign-in-failed`);
       return;
     }
     try {
-      const profile = await validateGoogleCode(credential);
+      const profile = await validateGoogleCode(
+        credential,
+        ctx.web.googleClientId,
+      );
 
       const request = new RequestModel<GoogleProfile>(transactionId, profile);
       const response = await userAuthUseCase.signInWithGoogle(request);
@@ -176,10 +170,7 @@ const googleCallback =
           outcome: "failed",
           reason: "sign_in_failed",
         });
-        res.redirect(
-          302,
-          `${EnvVars.Auth.APP.LOGIN_REDIRECT_URI}?reason=sign-in-failed`,
-        );
+        res.redirect(302, `${ctx.web.loginRedirectUri}?reason=sign-in-failed`);
         return;
       }
 
@@ -200,15 +191,15 @@ const googleCallback =
         return;
       }
 
-      const redirect = getRedirectUrl(transactionId, req, res, false);
+      const redirect = ctx.redirectUrl(transactionId, req, res, false);
       const token = await createJwt(
         sessionUser,
-        redirect?.hostname || EnvVars.CookieProps.Options.domain,
+        redirect?.hostname || ctx.web.cookie.domain,
       );
 
-      res.cookie("authToken", token, getCookieOptions());
+      res.cookie("authToken", token, ctx.cookieOptions());
 
-      res.redirect(302, `${EnvVars.Auth.APP.HOME_REDIRECT_URI}`);
+      res.redirect(302, `${ctx.web.homeRedirectUri}`);
     } catch (err) {
       logger.err(describeError(err));
       failGoogleSignIn(ctx, req, res);
