@@ -30,6 +30,7 @@ import type { RoleManagementUseCase } from "#src/Domain/Role/UseCase/RoleManagem
 import type { RolePermissionUseCase } from "#src/Domain/Role/UseCase/RolePermissionUseCase.js";
 import type { RoleQueryUseCase } from "#src/Domain/Role/UseCase/RoleQueryUseCase.js";
 import type { AccountLockout } from "#src/Domain/User/Service/AccountLockoutService.js";
+import type { AccountCountryUseCase } from "#src/Domain/User/UseCase/AccountCountryUseCase.js";
 import type { UserAuthUseCase } from "#src/Domain/User/UseCase/UserAuthUseCase.js";
 import type { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
 import type { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
@@ -72,6 +73,10 @@ import {
   MICRO_SERVICES_V1_ROUTE,
 } from "./MicroServicesV1Router.js";
 import {
+  createMyAccountCountryRouter,
+  MY_ACCOUNT_COUNTRY_ROUTE,
+} from "./MyAccountCountryRouter.js";
+import {
   createMyAccountPreferencesRouter,
   MY_ACCOUNT_PREFERENCES_ROUTE,
 } from "./MyAccountPreferencesRouter.js";
@@ -103,6 +108,7 @@ interface UserFlowUseCases {
   query: UserQueryUseCase;
   role: UserRoleUseCase;
   preferences: UserPreferencesUseCase;
+  country: AccountCountryUseCase;
 }
 
 interface BugFlowUseCases {
@@ -252,6 +258,10 @@ export function createBaseRouter({
   baseRouter.use(
     MY_ACCOUNT_PREFERENCES_ROUTE,
     createMyAccountPreferencesRouter(usersUseCases.preferences),
+  );
+  baseRouter.use(
+    MY_ACCOUNT_COUNTRY_ROUTE,
+    createMyAccountCountryRouter(usersUseCases.country),
   );
   baseRouter.use(AUTH_ROUTE, authRouter);
   baseRouter.use(

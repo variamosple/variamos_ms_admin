@@ -34,6 +34,11 @@ export const personalInformationBody = z.object({
   countryCode: z.string().max(16).nullable().optional(),
 });
 
+// The country of the browser's time zone, for an account without one (EV-90)
+export const defaultCountryBody = z.object({
+  countryCode: text(16),
+});
+
 // An IANA time zone, or null for the browser's (EV-115 lot C)
 export const preferencesBody = z.object({
   timeZone: z.string().max(TIME_ZONE_MAX).nullable(),

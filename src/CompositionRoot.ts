@@ -27,6 +27,7 @@ import { ScheduledConfigurationChangeRepositoryImpl } from "./DataProviders/Conf
 import { TrustedDeviceRepositoryImpl } from "./DataProviders/Mfa/TrustedDeviceRepository.js";
 import { UserMfaRepositoryImpl } from "./DataProviders/Mfa/UserMfaRepository.js";
 import { NotificationRecipientDirectory } from "./DataProviders/Notification/NotificationRecipientDirectory.js";
+import { AccountCountryRepositoryImpl } from "./DataProviders/User/AccountCountryRepository.js";
 import { UserPreferencesRepositoryImpl } from "./DataProviders/User/UserPreferencesRepository.js";
 import { AccessHierarchyUseCase } from "./Domain/AccessControl/AccessHierarchyUseCase.js";
 import { JournalQueryUseCase } from "./Domain/Activity/JournalQueryUseCase.js";
@@ -66,6 +67,7 @@ import {
   AccountLockoutPolicyService,
 } from "./Domain/User/Service/AccountLockoutService.js";
 import { PasswordPolicyService } from "./Domain/User/Service/PasswordPolicyService.js";
+import { AccountCountryUseCase } from "./Domain/User/UseCase/AccountCountryUseCase.js";
 import { UserAuthUseCase } from "./Domain/User/UseCase/UserAuthUseCase.js";
 import { UserManagementUseCase } from "./Domain/User/UseCase/UserManagementUseCase.js";
 import { UserPasswordUseCase } from "./Domain/User/UseCase/UserPasswordUseCase.js";
@@ -405,6 +407,9 @@ export const productionRouterDependencies: BaseRouterDependencies = {
     role: productionUserRoleUseCase,
     preferences: new UserPreferencesUseCase(
       new UserPreferencesRepositoryImpl(VARIAMOS_ORM, DB_SCHEMA),
+    ),
+    country: new AccountCountryUseCase(
+      new AccountCountryRepositoryImpl(VARIAMOS_ORM, DB_SCHEMA),
     ),
   },
   bugs: {

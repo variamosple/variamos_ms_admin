@@ -34,6 +34,7 @@ const GUARDED: Record<string, string> = {
   "PUT /auth/my-account/information": "my-account::update",
   "GET /auth/my-account/preferences": "my-account::query",
   "PUT /auth/my-account/preferences": "my-account::update",
+  "PUT /auth/my-account/default-country": "my-account::update",
   "PUT /auth/password-update": "my-account::update",
   "GET /auth/mfa": "my-account::query",
   "POST /auth/mfa/enrollment": "my-account::update",
