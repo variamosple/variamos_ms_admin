@@ -20,7 +20,8 @@ export async function purgeJournals(journals: IJournalPurge[]): Promise<void> {
 
 /**
  * Applies the retention of the journals at start-up, then once a day
- * (T-24): one year for the activity, six months for the access.
+ * (T-24): one year for the activity, six months for the access and for the
+ * account of a visit.
  */
 export function startJournalPurge(
   journals: IJournalPurge[],

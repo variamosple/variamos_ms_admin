@@ -31,6 +31,7 @@ import { UserRepositoryImpl } from "./DataProviders/User/UserRepository.js";
 import { UserRoleRepositoryImpl } from "./DataProviders/User/UserRoleRepository.js";
 import { UserSignInRepositoryImpl } from "./DataProviders/User/UserSignInRepository.js";
 import { VisitRepositoryImpl } from "./DataProviders/Visit/VisitRepository.js";
+import { VisitRetentionRepositoryImpl } from "./DataProviders/Visit/VisitRetentionRepository.js";
 import { TOP_PERMISSION } from "./Domain/AccessControl/AccessHierarchyUseCase.js";
 import { SecurityAlertPolicyService } from "./Domain/Activity/SecurityAlertPolicyService.js";
 import {
@@ -146,6 +147,11 @@ export const ActivityJournalInstance = new ActivityJournalRepositoryImpl(
 );
 // Sign-ins, locks and refused requests (T-24): table admin_access_logs
 export const AccessJournalInstance = new AccessJournalRepositoryImpl(
+  VARIAMOS_ORM,
+  DB_SCHEMA,
+);
+// Visits past six months: made anonymous in page_visit, deleted from user_visit
+export const VisitRetentionInstance = new VisitRetentionRepositoryImpl(
   VARIAMOS_ORM,
   DB_SCHEMA,
 );
