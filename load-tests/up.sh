@@ -5,15 +5,20 @@
 # /health, and the admin image. Every value here is a throwaway made for this
 # test; no production file is read.
 # Usage: up.sh <admin image> <keys dir> <VariaMosAdmin dir>
+# CPUSET (optional, e.g. CPUSET=0,1) puts the database and the admin on these
+# processors only, shared by both: CPUSET=0,1 is the size of the production
+# server, which has 2 vCPU. Run k6 on the other processors.
 set -euo pipefail
 IMAGE=${1:?admin image}
 KEYS=${2:?directory holding jwtRS256.key and jwtRS256.key.pub}
 FRONT=${3:?VariaMosAdmin checkout, for tests/db}
 NET=ev92-net
 DB_PASSWORD=loadtest-only
+PINNED=()
+if [ -n "${CPUSET:-}" ]; then PINNED=(--cpuset-cpus "$CPUSET"); fi
 
 docker network create --internal $NET >/dev/null
-docker run -d --rm --name ev92-pg --network $NET \
+docker run -d --rm --name ev92-pg --network $NET "${PINNED[@]}" \
   -e POSTGRES_USER=variamos_admin -e POSTGRES_PASSWORD=$DB_PASSWORD -e POSTGRES_DB=VariamosDB \
   postgres:14-alpine >/dev/null
 until docker exec ev92-pg pg_isready -q -U variamos_admin -d VariamosDB; do sleep 1; done
@@ -36,7 +41,7 @@ for name in $SERVICES; do
     busybox:1.36 sh -c 'mkdir -p /www && echo "{\"status\":\"UP\"}" > /www/health && httpd -f -p 8080 -h /www' >/dev/null
 done
 
-docker run -d --rm --name ev92-admin --network $NET \
+docker run -d --rm --name ev92-admin --network $NET "${PINNED[@]}" \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$KEYS/jwtRS256.key:/keys/jwtRS256.key:ro" \
   -v "$KEYS/jwtRS256.key.pub:/keys/jwtRS256.key.pub:ro" \

@@ -32,22 +32,36 @@ monitors only those labelled `variamos.service.monitored=true`.
 
 ## Load model
 
-One k6 iteration is one administrator session: sign in, session information,
-list of users, list of microservices (with their uptime), list of bugs,
-metrics dashboard, one chart of daily visits, sign out. Between two actions,
-the user reads for 1 to 3 s.
+A virtual user is one administrator. It signs in, then goes round the
+screens: session information, list of users, list of microservices (with
+their uptime), list of bugs, statistics page over 30 days in a time zone, as
+the interface asks for it. Between two actions, the user reads for 1 to 3 s.
 
-"200 concurrent users" is read as 200 such sessions at once, not 200
+`SIGN_IN` chooses when it signs in:
+
+- `once` (default): at its first round, and again only if the session has
+  expired. An administrator signs in once, then works; with a bcrypt cost of
+  12, signing in at each round would measure the password hash more than the
+  screens.
+- `each`: sign in, the screens, sign out, at each round, as the campaign of
+  2026-11-03 did.
+
+"200 concurrent users" is read as 200 such administrators at once, not 200
 simultaneous requests. Each virtual user sends its own address in
 `X-Forwarded-For` (in 198.18.0.0/15, reserved for benchmarks), as the proxy
 does for each administrator in production. Without it, the limits per address
 see a single client: the sign-in limit answers `429` once 100 sign-ins are in
-flight, and the campaign measures refusals. The ramp holds 50, then 100 sessions for 3 min each,
-then 200 sessions for 15 min (`HOLD`, shorter for a trial run).
+flight, and the campaign measures refusals.
+
+The ramp holds a quarter, then a half of `PEAK` (default 200) for 3 min each,
+then `PEAK` for 15 min (`HOLD`, shorter for a trial run).
 
 Thresholds, per action: average under 2,000 ms, 95th percentile under
 3,000 ms; under 1 % of failed requests overall. A threshold that fails makes
-k6 exit with a non-zero code.
+k6 exit with a non-zero code. `ABORT_P95` (in ms) also stops the run as soon
+as the 95th percentile of all requests goes above it, or 5 % of the requests
+fail: for a short run on a shared server. `EMAIL` then gives one test account
+to all the virtual users, with its own password.
 
 ## Run a campaign
 
@@ -65,14 +79,17 @@ openssl rsa -in /tmp/load-keys/jwtRS256.key -pubout -out /tmp/load-keys/jwtRS256
 chmod 644 /tmp/load-keys/*
 PASSWORD="Lt-$(openssl rand -hex 8)!A1"
 
-# 3. The environment, then the data (after the migrations)
-bash load-tests/up.sh variamos-admin:load /tmp/load-keys ../VariaMosAdmin
+# 3. The environment, then the data (after the migrations). CPUSET=0,1 puts
+#    the database and the admin on two processors, the size of the production
+#    server (k6 then runs on others, 4-7 below); cost=12 is the bcrypt cost
+#    of production (EV-46).
+CPUSET=0,1 bash load-tests/up.sh variamos-admin:load /tmp/load-keys ../VariaMosAdmin
 docker exec -i ev92-pg psql -q -U variamos_admin -d VariamosDB \
-  -v password="$PASSWORD" < load-tests/seed.sql
+  -v password="$PASSWORD" -v cost=12 < load-tests/seed.sql
 
 # 4. The campaign (about 26 min), and the resources beside it
 mkdir -p load-results && chmod 777 load-results
-docker run -d --name ev92-k6 --network ev92-net \
+docker run -d --name ev92-k6 --network ev92-net --cpuset-cpus 4-7 \
   -v "$PWD/load-tests:/scripts:ro" -v "$PWD/load-results:/results" \
   grafana/k6:1.3.0 run --summary-export=/results/summary.json \
   -e BASE_URL=http://ev92-admin:4000 -e PASSWORD="$PASSWORD" /scripts/admin-sessions.js
