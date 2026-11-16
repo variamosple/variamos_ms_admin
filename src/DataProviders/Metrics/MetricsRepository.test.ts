@@ -22,26 +22,58 @@ const definitionsWith = (visits: number) => [
   },
 ];
 
-/** The dashboard metrics are read from the database at each request. */
+/**
+ * The dashboard metrics are read from the database, kept a minute for the
+ * same period and time zone (EV-92).
+ */
 describe("MetricsRepositoryImpl.getMetrics", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("reads nothing when built, then today's figures at each request", async () => {
+  it("reads nothing when built, the same figures for a minute, then today's", async () => {
     const query = vi
       .spyOn(VARIAMOS_ORM, "query")
       .mockResolvedValueOnce(definitionsWith(3) as never)
       .mockResolvedValueOnce(definitionsWith(5) as never);
-
-    const repository = new MetricsRepositoryImpl();
+    let now = 1_000_000;
+    const repository = new MetricsRepositoryImpl({ now: () => now });
     expect(query).not.toHaveBeenCalled();
 
     const first = await repository.getMetrics(new RequestModel("t"));
-    const second = await repository.getMetrics(new RequestModel("t"));
+    now += 59_999;
+    const kept = await repository.getMetrics(new RequestModel("t"));
+    now += 1;
+    const again = await repository.getMetrics(new RequestModel("t"));
 
     expect(first.data?.[0]?.getData()).toEqual({ visits: 3 });
-    expect(second.data?.[0]?.getData()).toEqual({ visits: 5 });
+    expect(kept.data?.[0]?.getData()).toEqual({ visits: 3 });
+    expect(again.data?.[0]?.getData()).toEqual({ visits: 5 });
+    expect(query).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps each period and time zone apart", async () => {
+    const query = vi
+      .spyOn(VARIAMOS_ORM, "query")
+      .mockResolvedValue(definitionsWith(1) as never);
+    const repository = new MetricsRepositoryImpl();
+    const period = { startDate: "2026-09-01", endDate: "2026-09-30" };
+
+    await repository.getMetrics(new RequestModel("t", period));
+    await repository.getMetrics(
+      new RequestModel("t", { ...period, timeZone: "UTC" }),
+    );
+    await repository.getMetrics(
+      new RequestModel("t", { ...period, timeZone: "America/Bogota" }),
+    );
+    await repository.getMetrics(
+      new RequestModel("t", { ...period, endDate: "2026-09-29" }),
+    );
+    await repository.getMetrics(
+      new RequestModel("t", { ...period, timeZone: "UTC" }),
+    );
+
+    expect(query).toHaveBeenCalledTimes(4);
   });
 
   it("reads every chart over the period asked, the last 30 days without one", async () => {
@@ -89,14 +121,17 @@ describe("MetricsRepositoryImpl.getMetrics", () => {
     });
   });
 
-  it("answers a system error when the database cannot be read", async () => {
-    vi.spyOn(VARIAMOS_ORM, "query").mockRejectedValue(new Error("down"));
+  it("answers a system error when the database cannot be read, and reads it again next time", async () => {
+    vi.spyOn(VARIAMOS_ORM, "query")
+      .mockRejectedValueOnce(new Error("down"))
+      .mockResolvedValueOnce(definitionsWith(2) as never);
+    const repository = new MetricsRepositoryImpl();
 
-    const response = await new MetricsRepositoryImpl().getMetrics(
-      new RequestModel("t"),
-    );
+    const failed = await repository.getMetrics(new RequestModel("t"));
+    const next = await repository.getMetrics(new RequestModel("t"));
 
-    expect(response.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
+    expect(failed.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
+    expect(next.data?.[0]?.getData()).toEqual({ visits: 2 });
   });
 });
 

@@ -52,6 +52,7 @@ import {
   SERVICE_ALERT_ROWS,
   serviceAlertKeys,
 } from "./0024-service-alert-keys.js";
+import { VISIT_DAY_INDEX, visitDayIndex } from "./0031-visit-day-index.js";
 import {
   ADMIN_MIGRATIONS,
   createMigrator,
@@ -306,6 +307,32 @@ describe("bug issue unique index migration", () => {
   });
 });
 
+// Checked on PostgreSQL by Migrator.integration.test.ts
+describe("visit day index migration", () => {
+  it("indexes the day of the visits when the schema holds them, and removes it when reverted", async () => {
+    // Not fakeSequelize: it takes any to_regclass for a probe of its own
+    const query = vi.fn().mockResolvedValue([]);
+    const sequelize = { query } as unknown as Sequelize;
+    const params = {
+      name: visitDayIndex.name,
+      context: { sequelize, schema: "custom" },
+    };
+
+    await visitDayIndex.up(params);
+    await visitDayIndex.down?.(params);
+    const statements = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(statements[0]).toContain(`IF to_regclass('"custom".page_visit')`);
+    expect(statements[0]).toContain(
+      `CREATE INDEX IF NOT EXISTS "${VISIT_DAY_INDEX}"`,
+    );
+    expect(statements[0]).toContain('ON "custom".page_visit (visit_date)');
+    expect(statements[1]).toBe(
+      `DROP INDEX IF EXISTS "custom"."${VISIT_DAY_INDEX}"`,
+    );
+  });
+});
+
 describe("health check interval key migration", () => {
   it("adds the key the collector follows, with its 30 s default", () => {
     expect(HEALTH_CHECK_INTERVAL_ROWS.map(({ key }) => key)).toEqual([
@@ -484,6 +511,7 @@ describe("createMigrator", () => {
       "0028-sign-ins-by-hour",
       "0029-configuration-create-permission",
       "0030-visits-by-hour",
+      "0031-visit-day-index",
     ]);
   });
 });
