@@ -47,6 +47,52 @@ describe("BcryptPasswordHasher", () => {
     expect(costOf(String(compare.mock.calls[1]?.[1]))).toBe(5);
   });
 
+  describe("refusal time after the cost went up (EV-46)", () => {
+    // The work of a comparison, counted in comparisons at the lowest cost
+    const workOf = (compare: { mock: { calls: unknown[][] } }) =>
+      compare.mock.calls.reduce<number>(
+        (total, call) => total + 2 ** (costOf(String(call[1])) - 4),
+        0,
+      );
+
+    it("does for a wrong password on an older hash the work of an unknown address", async () => {
+      const older = await bcrypt.hash("Password-1", 4);
+      const hasher = new BcryptPasswordHasher({ getCost: async () => 6 });
+      const compare = vi.spyOn(bcrypt, "compare");
+
+      expect(await hasher.verify("Password-1", null)).toBe(false);
+      const unknown = workOf(compare);
+      compare.mockClear();
+      expect(await hasher.verify("Password-2", older)).toBe(false);
+
+      expect(unknown).toBe(4);
+      expect(workOf(compare)).toBe(unknown);
+    });
+
+    it("adds no work to a right password, nor to a hash at the current cost", async () => {
+      const older = await bcrypt.hash("Password-1", 4);
+      const current = await bcrypt.hash("Password-1", 6);
+      const hasher = new BcryptPasswordHasher({ getCost: async () => 6 });
+      const compare = vi.spyOn(bcrypt, "compare");
+
+      expect(await hasher.verify("Password-1", older)).toBe(true);
+      expect(await hasher.verify("Password-2", current)).toBe(false);
+
+      expect(compare).toHaveBeenCalledTimes(2);
+    });
+
+    it("leaves a hash above the current cost, and a text that is not a hash", async () => {
+      const higher = await bcrypt.hash("Password-1", 5);
+      const hasher = new BcryptPasswordHasher({ getCost: async () => 4 });
+      const compare = vi.spyOn(bcrypt, "compare");
+
+      expect(await hasher.verify("Password-2", higher)).toBe(false);
+      expect(await hasher.verify("Password-2", "not-a-hash")).toBe(false);
+
+      expect(compare).toHaveBeenCalledTimes(2);
+    });
+  });
+
   it("hashes the stand-in value once per cost", async () => {
     const hasher = new BcryptPasswordHasher({ getCost: async () => 4 });
     const hash = vi.spyOn(bcrypt, "hash");
