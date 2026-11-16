@@ -17,6 +17,7 @@ import {
   ActivityJournalInstance,
   ContainerResourceSamplerInstance,
   SecretConfigurationValueInstance,
+  VisitRetentionInstance,
 } from "./CompositionRepositories.js";
 import {
   BackupAlertsInstance,
@@ -80,7 +81,11 @@ try {
   const applied = await runMigrations(VARIAMOS_ORM, DB_SCHEMA);
   logger.info(`[MIGRATION] ${applied.length} migration(s) applied`);
   // Retention of the journals (T-24), on tables the migrations made
-  startJournalPurge([ActivityJournalInstance, AccessJournalInstance]);
+  startJournalPurge([
+    ActivityJournalInstance,
+    AccessJournalInstance,
+    VisitRetentionInstance,
+  ]);
 } catch (e) {
   logger.err(
     `[MIGRATION] Failed, the server does not start: ${errorMessage(e)}`,

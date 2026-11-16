@@ -33,6 +33,7 @@ import { signInsByHour } from "./0028-sign-ins-by-hour.js";
 import { configurationCreatePermission } from "./0029-configuration-create-permission.js";
 import { visitsByHour } from "./0030-visits-by-hour.js";
 import { visitDayIndex } from "./0031-visit-day-index.js";
+import { anonymousVisitsMigration } from "./0032-anonymous-visits.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 
 // Applied in order at start-up, each one once; append new migrations here
@@ -68,6 +69,7 @@ export const ADMIN_MIGRATIONS: SchemaMigration[] = [
   configurationCreatePermission,
   visitsByHour,
   visitDayIndex,
+  anonymousVisitsMigration,
 ];
 
 // The schema is shared with other services: a name of our own

@@ -512,6 +512,7 @@ describe("createMigrator", () => {
       "0029-configuration-create-permission",
       "0030-visits-by-hour",
       "0031-visit-day-index",
+      "0032-anonymous-visits",
     ]);
   });
 });

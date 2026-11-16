@@ -1494,6 +1494,40 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
       expect(index?.indexdef).toContain("(visit_date)");
     });
 
+    it("keeps a visit without its account, out of the active accounts (0032)", async () => {
+      const [column] = await sequelize.query<{ is_nullable: string }>(
+        `SELECT is_nullable FROM information_schema.columns
+          WHERE table_schema = '${S}' AND table_name = 'page_visit'
+            AND column_name = 'user_id'`,
+        { type: QueryTypes.SELECT },
+      );
+      expect(column?.is_nullable).toBe("YES");
+      const activity = async () => {
+        const [row] = await sequelize.query<{
+          anonymous: string;
+          rows: string;
+        }>(
+          `SELECT count(*) FILTER (WHERE activity_user IS NULL) AS anonymous,
+                  count(*) AS rows
+             FROM "${S}".metrics_user_activity('2026-08-25', '2026-08-31')`,
+          { type: QueryTypes.SELECT },
+        );
+        return row;
+      };
+      const before = await activity();
+      await sequelize.query(
+        `INSERT INTO "${S}".page_visit ("page_id", "user_id", "visit_date")
+         VALUES ('home', NULL, '2026-08-29')`,
+      );
+      try {
+        expect(await activity()).toEqual({ ...before, anonymous: "0" });
+      } finally {
+        await sequelize.query(
+          `DELETE FROM "${S}".page_visit WHERE "user_id" IS NULL`,
+        );
+      }
+    });
+
     it("records a new visit at the quarter-hour that holds it, without the code naming it (0030)", async () => {
       const [row] = await sequelize.query<{
         on_step: boolean;
