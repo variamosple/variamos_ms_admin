@@ -12,7 +12,7 @@ import { BaseRepository } from "../BaseRepository.js";
 
 // Keyed by the ids that get_metrics() gives the dashboard, which sends them
 // back to filter a chart; the functions come from migrations 0015, 0018,
-// 0026 and 0028
+// 0026, 0028 and 0030
 const METRICS_FUNCTIONS = new Map<string, string>([
   ["overview", `${DB_SCHEMA}.get_overview_metrics(:startDate, :endDate)`],
   [
@@ -24,11 +24,15 @@ const METRICS_FUNCTIONS = new Map<string, string>([
     `${DB_SCHEMA}.get_activity_over_time_metrics(:startDate, :endDate)`,
   ],
   ["sign_ins", `${DB_SCHEMA}.get_sign_ins_metrics(:startDate, :endDate)`],
-  // Alone, the grid gives UTC hours; the page reads it in its own zone
+  // Alone, a grid gives UTC hours; the page reads it in its own zone
   // through get_metrics
   [
     "sign_ins_by_hour",
     `${DB_SCHEMA}.get_sign_ins_by_hour_metrics(:startDate, :endDate, 'UTC')`,
+  ],
+  [
+    "visits_by_hour",
+    `${DB_SCHEMA}.get_visits_by_hour_metrics(:startDate, :endDate, 'UTC')`,
   ],
   [
     "new_accounts",

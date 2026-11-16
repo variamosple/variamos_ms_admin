@@ -31,6 +31,7 @@ import { usageOverview } from "./0026-usage-overview.js";
 import { accountCreationDay } from "./0027-account-creation-day.js";
 import { signInsByHour } from "./0028-sign-ins-by-hour.js";
 import { configurationCreatePermission } from "./0029-configuration-create-permission.js";
+import { visitsByHour } from "./0030-visits-by-hour.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 
 // Applied in order at start-up, each one once; append new migrations here
@@ -64,6 +65,7 @@ export const ADMIN_MIGRATIONS: SchemaMigration[] = [
   accountCreationDay,
   signInsByHour,
   configurationCreatePermission,
+  visitsByHour,
 ];
 
 // The schema is shared with other services: a name of our own

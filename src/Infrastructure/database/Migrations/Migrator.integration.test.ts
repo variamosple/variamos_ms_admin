@@ -40,6 +40,10 @@ import { USER_DISPLAY_PREFERENCES_TABLE } from "./0021-user-display-preferences.
 import { VISIT_HISTORY_FUNCTIONS } from "./0025-visit-history.js";
 import { USAGE_OVERVIEW_FUNCTIONS } from "./0026-usage-overview.js";
 import { SIGN_INS_BY_HOUR_FUNCTIONS } from "./0028-sign-ins-by-hour.js";
+import {
+  VISIT_INSTANT_STEP_SECONDS,
+  VISITS_BY_HOUR_FUNCTIONS,
+} from "./0030-visits-by-hour.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 import {
   ADMIN_MIGRATIONS,
@@ -716,6 +720,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         ...VISIT_HISTORY_FUNCTIONS,
         ...USAGE_OVERVIEW_FUNCTIONS,
         ...SIGN_INS_BY_HOUR_FUNCTIONS,
+        ...VISITS_BY_HOUR_FUNCTIONS,
         // A second one, with a period (0018, 0026)
         "get_top_visited_pages_metrics",
         "get_metrics",
@@ -1046,6 +1051,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         "new_accounts",
         "models_by_type",
         "yearly_visits",
+        "visits_by_hour",
       ];
 
       expect((await read(S)).map((c) => c.id)).toEqual(ids);
@@ -1364,12 +1370,17 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         `SELECT "${S}".get_metrics${week} AS data`,
         { type: QueryTypes.SELECT },
       );
-      expect(row?.data).toHaveLength(11);
+      expect(row?.data).toHaveLength(12);
     });
 
     // Sign-ins of the week: Wednesday 2 at 10:00 UTC (password), Saturday 5
     // at 10:00 UTC (Google); a failure and a second factor that do not count
-    const gridOf = async (from: string, to: string, zone: string) => {
+    const gridOf = async (
+      from: string,
+      to: string,
+      zone: string,
+      counted: "sign_ins" | "visits" = "sign_ins",
+    ) => {
       const [row] = await sequelize.query<{
         char_data: {
           title: string;
@@ -1377,7 +1388,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
           data: { day: number; hour: number; count: number }[] | null;
         };
       }>(
-        `SELECT char_data FROM "${S}".get_sign_ins_by_hour_metrics('${from}', '${to}', ${zone})`,
+        `SELECT char_data FROM "${S}".get_${counted}_by_hour_metrics('${from}', '${to}', ${zone})`,
         { type: QueryTypes.SELECT },
       );
       const cells = row?.char_data.data;
@@ -1446,6 +1457,103 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
       );
       expect(await titleOf(`get_metrics${week}`)).toBe(
         "Sign-ins by day and hour (UTC)",
+      );
+    });
+
+    // The visits inserted before the migration have no instant (0030)
+    it("keeps no instant for the visits recorded before, and draws nothing from them (0030)", async () => {
+      const [row] = await sequelize.query<{ without: string; total: string }>(
+        `SELECT count(*) FILTER (WHERE visited_at IS NULL) AS without, count(*) AS total
+           FROM "${S}".page_visit`,
+        { type: QueryTypes.SELECT },
+      );
+      expect(row).toEqual({ without: "5", total: "5" });
+      expect(
+        await gridOf("2026-09-01", "2026-09-07", "'UTC'", "visits"),
+      ).toEqual({
+        title: "Visits by day and hour (UTC), not recorded yet",
+        chartType: "heatmap",
+        cells: null,
+        filled: null,
+      });
+      const [index] = await sequelize.query<{ indexdef: string }>(
+        `SELECT indexdef FROM pg_indexes
+          WHERE schemaname = '${S}' AND indexname = 'page_visit_visited_at_idx'`,
+        { type: QueryTypes.SELECT },
+      );
+      expect(index?.indexdef).toContain("WHERE (visited_at IS NOT NULL)");
+    });
+
+    it("records a new visit at the quarter-hour that holds it, without the code naming it (0030)", async () => {
+      const [row] = await sequelize.query<{
+        on_step: boolean;
+        within_step: boolean;
+      }>(
+        `WITH probe AS (
+           INSERT INTO "${S}".page_visit ("page_id", "user_id", "visit_date")
+           VALUES ('probe', 'u9', current_date) RETURNING visited_at)
+         SELECT extract(epoch FROM visited_at)::BIGINT % ${VISIT_INSTANT_STEP_SECONDS} = 0 AS on_step,
+                visited_at <= now()
+                  AND now() - visited_at < make_interval(secs => ${VISIT_INSTANT_STEP_SECONDS}) AS within_step
+           FROM probe`,
+        { type: QueryTypes.SELECT },
+      );
+      expect(row).toEqual({ on_step: true, within_step: true });
+      await sequelize.query(
+        `DELETE FROM "${S}".page_visit WHERE "page_id" = 'probe'`,
+      );
+    });
+
+    // Wednesday 2 at 10:00 and 10:15 UTC, Saturday 5 at 23:45 UTC
+    it("counts the visits by day of the week and hour, in the reader's zone (0030)", async () => {
+      await sequelize.query(`
+        INSERT INTO "${S}".page_visit ("page_id", "user_id", "visit_date", "visited_at") VALUES
+          ('home', 'u1', '2026-09-02', '2026-09-02T10:00:00Z'),
+          ('list', 'u2', '2026-09-02', '2026-09-02T10:15:00Z'),
+          ('home', 'u2', '2026-09-05', '2026-09-05T23:45:00Z')
+      `);
+      expect(
+        await gridOf("2026-09-01", "2026-09-07", "'UTC'", "visits"),
+      ).toEqual({
+        title: "Visits by day and hour (UTC), recorded since 2026-09-02",
+        chartType: "heatmap",
+        cells: 168,
+        filled: [
+          { day: 3, hour: 10, count: 2 },
+          { day: 6, hour: 23, count: 1 },
+        ],
+      });
+      // A zone half an hour from UTC keeps both quarters in one hour, and
+      // takes Saturday 23:45 UTC into Sunday
+      expect(
+        await gridOf("2026-09-02", "2026-09-07", "'Asia/Kolkata'", "visits"),
+      ).toMatchObject({
+        title: "Visits by day and hour (Asia/Kolkata)",
+        filled: [
+          { day: 3, hour: 15, count: 2 },
+          { day: 7, hour: 5, count: 1 },
+        ],
+      });
+      expect(
+        await gridOf("2026-09-01", "2026-09-07", "'Mars/Olympus'", "visits"),
+      ).toMatchObject({
+        title: "Visits by day and hour (UTC), recorded since 2026-09-02",
+      });
+      const [row] = await sequelize.query<{
+        data: { id: string; title: string }[];
+      }>(
+        `SELECT "${S}".get_metrics('2026-09-01', '2026-09-07', 'America/Bogota') AS data`,
+        { type: QueryTypes.SELECT },
+      );
+      const ids = row?.data.map((c) => c.id) ?? [];
+      // Last, beside the visits by country
+      expect(ids.slice(-2)).toEqual(["yearly_visits", "visits_by_hour"]);
+      expect(row?.data.find((c) => c.id === "visits_by_hour")?.title).toBe(
+        "Visits by day and hour (America/Bogota), recorded since 2026-09-02",
+      );
+      // The charts after this one count the visits of the setup alone
+      await sequelize.query(
+        `DELETE FROM "${S}".page_visit WHERE visited_at IS NOT NULL`,
       );
     });
 
