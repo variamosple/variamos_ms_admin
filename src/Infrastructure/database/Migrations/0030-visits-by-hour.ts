@@ -28,7 +28,7 @@ import {
 
 export const VISITS_BY_HOUR_FUNCTIONS = ["get_visits_by_hour_metrics"] as const;
 
-export const VISITED_AT_COLUMN = "visited_at";
+const VISITED_AT_COLUMN = "visited_at";
 
 // No more than this from the time of the insert
 export const VISIT_INSTANT_STEP_SECONDS = 900;
