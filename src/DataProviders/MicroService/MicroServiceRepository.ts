@@ -22,6 +22,7 @@ import {
   uptimeWindow,
 } from "#src/Domain/MicroService/Service/UptimeSummary.js";
 import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
+import { RecentResults } from "../RecentResults.js";
 import type { IContainerResources } from "./ContainerResourceSampler.js";
 import {
   belongsTo,
@@ -30,7 +31,6 @@ import {
 } from "./dockerContainers.js";
 import { HealthLogStatistics } from "./HealthLogStatistics.js";
 import { MicroServiceHealthLogModel } from "./MicroServiceHealthLogModel.js";
-import { RecentResults } from "./RecentResults.js";
 
 /**
  * Age at which an uptime summary is computed again. A service is checked

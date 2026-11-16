@@ -68,7 +68,9 @@
     "psql",
     "PGOPTIONS",
     "loadtest",
-    "percpu"
+    "percpu",
+    "cpuset",
+    "cpus"
   ],
   "ignorePaths": [
     "node_modules/**",

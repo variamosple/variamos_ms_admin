@@ -9,6 +9,23 @@ import type { MetricsPeriod } from "#src/Domain/Metrics/Entity/MetricsPeriod.js"
 import type { IMetricsRepository } from "#src/Domain/Metrics/Repository/IMetricsRepository.js";
 import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 import { BaseRepository } from "../BaseRepository.js";
+import { RecentResults } from "../RecentResults.js";
+
+/**
+ * Age at which the statistics page is computed again. Measured on 2026-11-16
+ * (EV-92), on two processors as the production server: its twelve charts
+ * take about 380 ms of PostgreSQL; computed at each opening, they held the
+ * twenty connections of the pool from 50 sessions on, and every other screen
+ * waited behind them. Kept a minute, the page costs one computation a minute
+ * for each period and time zone asked.
+ */
+const METRICS_MAX_AGE_MS = 60_000;
+
+/**
+ * Periods and zones kept at once: the caller chooses them, they must not fill
+ * the memory. A page is a few tens of kilobytes.
+ */
+const METRICS_MAX_ENTRIES = 50;
 
 // Keyed by the ids that get_metrics() gives the dashboard, which sends them
 // back to filter a chart; the functions come from migrations 0015, 0018,
@@ -111,9 +128,21 @@ export class MetricsRepositoryImpl
   extends BaseRepository
   implements IMetricsRepository
 {
+  private readonly recentPages: RecentResults<MetricRow[]>;
+
+  public constructor(config: { maxAgeMs?: number; now?: () => number } = {}) {
+    super();
+    this.recentPages = new RecentResults(
+      config.maxAgeMs ?? METRICS_MAX_AGE_MS,
+      config.now ?? Date.now,
+      METRICS_MAX_ENTRIES,
+    );
+  }
+
   /**
-   * Reads the metric definitions and their data at each call, so that the
-   * dashboard shows today's figures, not those of the last restart.
+   * Reads the metric definitions and their data from the database, kept
+   * METRICS_MAX_AGE_MS for the same period and time zone: the dashboard
+   * shows the figures of the last minute, not those of the last restart.
    */
   public async getMetrics(
     request: RequestModel<MetricsPeriod | undefined>,
@@ -123,24 +152,26 @@ export class MetricsRepositoryImpl
 
     try {
       const { sql, replacements } = metricsCallOf(period);
-      response.data = await VARIAMOS_ORM.query<{ data?: MetricRow[] }>(sql, {
-        type: QueryTypes.SELECT,
-        replacements,
-      }).then(([resObj]) => {
-        if (!resObj?.data) return [];
-        return resObj.data.map(
-          ({ id, title, chartType, defaultFilter, filters, labelKey, data }) =>
-            Metric.builder()
-              .setId(id)
-              .setTitle(title)
-              .setChartType(chartType)
-              .setDefaultFilter(defaultFilter)
-              .setFilters(filters)
-              .setLabelKey(labelKey)
-              .setData(data)
-              .build(),
-        );
-      });
+      // The same call gives the same key: the SQL names the arguments given
+      const key = JSON.stringify([sql, replacements]);
+      const rows = await this.recentPages.get(key, () =>
+        VARIAMOS_ORM.query<{ data?: MetricRow[] }>(sql, {
+          type: QueryTypes.SELECT,
+          replacements,
+        }).then(([resObj]) => resObj?.data ?? []),
+      );
+      response.data = rows.map(
+        ({ id, title, chartType, defaultFilter, filters, labelKey, data }) =>
+          Metric.builder()
+            .setId(id)
+            .setTitle(title)
+            .setChartType(chartType)
+            .setDefaultFilter(defaultFilter)
+            .setFilters(filters)
+            .setLabelKey(labelKey)
+            .setData(data)
+            .build(),
+      );
     } catch (error) {
       logger.err("Error in getMetrics:");
       logger.err(error);

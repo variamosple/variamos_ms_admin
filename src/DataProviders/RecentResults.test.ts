@@ -76,4 +76,21 @@ describe("RecentResults", () => {
 
     expect(compute).toHaveBeenCalledTimes(2);
   });
+
+  it("makes room for a new key by forgetting the oldest one, once full", async () => {
+    const bounded = new RecentResults<string>(30_000, () => now, 2);
+    const computeA = vi.fn().mockResolvedValue("a");
+    const computeB = vi.fn().mockResolvedValue("b");
+    await bounded.get("a", computeA);
+    now += 1;
+    await bounded.get("b", computeB);
+    now += 1;
+    await bounded.get("c", vi.fn().mockResolvedValue("c"));
+
+    await bounded.get("b", computeB);
+    await bounded.get("a", computeA);
+
+    expect(computeB).toHaveBeenCalledTimes(1);
+    expect(computeA).toHaveBeenCalledTimes(2);
+  });
 });

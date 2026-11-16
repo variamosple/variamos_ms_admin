@@ -8,6 +8,13 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 BEGIN;
 
+-- psql -v cost=12 sets the bcrypt cost first, as security.bcrypt_salt_rounds
+-- is set in production (from 10 to 14); without it, the cost of the schema
+\if :{?cost}
+UPDATE configurations SET value = to_jsonb(:'cost'::int)
+ WHERE key = 'security.bcrypt_salt_rounds';
+\endif
+
 -- 200 administrators, one per virtual user of admin-sessions.js. One hash for
 -- all of them, at the cost the configuration gives (no rehash at sign-in).
 WITH hash AS (
@@ -83,13 +90,16 @@ INSERT INTO bug_status_logs (action, comment, bug_id, operator_id)
 SELECT 'status_change', 'Synthetic change ' || k, id, 'load-admin-001'
   FROM bugs, generate_series(1, 3) AS k WHERE title LIKE 'Load bug %';
 
--- One year of page visits, about 300 a day, for the metrics dashboard
-INSERT INTO page_visit (page_id, organization, user_id, visit_date, country_code)
+-- One year of page visits, about 300 a day, for the metrics dashboard. Each
+-- has a quarter-hour of its day (visited_at, migration 0030): without one,
+-- the default would give them all the quarter-hour of this seed.
+INSERT INTO page_visit (page_id, organization, user_id, visit_date, country_code, visited_at)
 SELECT (ARRAY['home', 'languages', 'models', 'projects', 'admin', 'docs'])[1 + n % 6],
        'NO_DATA',
        'load-user-' || (1 + n % 3000),
        current_date - (n % 365),
-       (ARRAY['CO', 'FR', 'US', 'ES', 'MX', 'BR', 'CA', 'DE'])[1 + n % 8]
+       (ARRAY['CO', 'FR', 'US', 'ES', 'MX', 'BR', 'CA', 'DE'])[1 + n % 8],
+       (current_date - (n % 365)) + (n * 7 % 96) * interval '15 minutes'
   FROM generate_series(1, 110000) AS n;
 
 -- The charts read these summaries, not page_visit: filled here from the

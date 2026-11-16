@@ -44,6 +44,7 @@ import {
   VISIT_INSTANT_STEP_SECONDS,
   VISITS_BY_HOUR_FUNCTIONS,
 } from "./0030-visits-by-hour.js";
+import { VISIT_DAY_INDEX } from "./0031-visit-day-index.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 import {
   ADMIN_MIGRATIONS,
@@ -1482,6 +1483,15 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         { type: QueryTypes.SELECT },
       );
       expect(index?.indexdef).toContain("WHERE (visited_at IS NOT NULL)");
+    });
+
+    it("reads the visits of a period by their day (0031)", async () => {
+      const [index] = await sequelize.query<{ indexdef: string }>(
+        `SELECT indexdef FROM pg_indexes
+          WHERE schemaname = '${S}' AND indexname = :name`,
+        { replacements: { name: VISIT_DAY_INDEX }, type: QueryTypes.SELECT },
+      );
+      expect(index?.indexdef).toContain("(visit_date)");
     });
 
     it("records a new visit at the quarter-hour that holds it, without the code naming it (0030)", async () => {
