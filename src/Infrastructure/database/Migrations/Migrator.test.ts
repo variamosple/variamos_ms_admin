@@ -483,6 +483,7 @@ describe("createMigrator", () => {
       "0027-account-creation-day",
       "0028-sign-ins-by-hour",
       "0029-configuration-create-permission",
+      "0030-visits-by-hour",
     ]);
   });
 });
