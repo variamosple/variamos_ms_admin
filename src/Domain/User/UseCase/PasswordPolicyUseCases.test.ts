@@ -71,7 +71,7 @@ describe("configured password policy in the use cases", () => {
       { accounts: users, passwords: users },
       activityJournal,
       mock<ILogger>(),
-      strict,
+      { passwordPolicy: strict },
     );
 
     const res = await useCase.updatePassword(

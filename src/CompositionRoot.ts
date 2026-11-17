@@ -18,6 +18,7 @@ import {
   PermissionRepositoryInstance,
   RolePermissionRepositoryInstance,
   RoleRepositoryInstance,
+  SessionRegistryInstance,
   UserRepositoriesInstance,
   UserRoleRepositoryInstance,
   VisitRepositoryInstance,
@@ -157,13 +158,17 @@ const productionUserPasswordUseCase = new UserPasswordUseCase({
   journal: WatchedActivityJournal,
   logger: JetLogger,
   passwordPolicy: PasswordPolicyServiceInstance,
+  sessions: SessionRegistryInstance,
 });
 
 const productionUserManagementUseCase = new UserManagementUseCase(
   UserRepositoriesInstance,
   WatchedActivityJournal,
   JetLogger,
-  PasswordPolicyServiceInstance,
+  {
+    passwordPolicy: PasswordPolicyServiceInstance,
+    sessions: SessionRegistryInstance,
+  },
 );
 
 // Two-factor authentication (SPC-2026-10-17-001); off without a valid key
@@ -451,6 +456,7 @@ export const productionRouterDependencies: BaseRouterDependencies = {
   upload: productionUpload,
   accessGuard: productionAccessHierarchyUseCase,
   accountLockout: AccountLockoutInstance,
+  sessions: SessionRegistryInstance,
   accessJournal: WatchedAccessJournal,
   journalQuery: productionJournalQueryUseCase,
   checkDatabase,

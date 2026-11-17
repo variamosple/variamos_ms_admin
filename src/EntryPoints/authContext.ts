@@ -7,6 +7,7 @@ import type { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagem
 import type { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
 import type { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
 import type { AuthWeb, AuthWebSettings } from "./authWeb.js";
+import type { SessionGate } from "./sessionGate.js";
 
 export const AUTH_ROUTE = "/auth";
 
@@ -18,6 +19,8 @@ export interface AuthRouterDependencies {
   userQueryUseCase: UserQueryUseCase;
   mfaSignIn: MfaSignInUseCase;
   accessJournal: IAccessJournal;
+  /** The sessions opened at sign-in, and why one can no longer be used. */
+  sessions: SessionGate;
   /** Cookie options and pages of VariaMosAdmin, read once at start. */
   web: AuthWebSettings;
 }

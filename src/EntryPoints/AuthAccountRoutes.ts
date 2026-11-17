@@ -127,6 +127,9 @@ const updatePassword =
       const response = await userManagementUseCase.updatePassword(
         new RequestModel(transactionId, passwordUpdate),
       );
+      // Every session of the account ended with the old password; this
+      // browser keeps one (EV-74 lot 2)
+      if (!response.errorCode) await ctx.startSession(res, user.id);
 
       const status = mapDomainErrorToHttpStatus(response.errorCode);
       res.status(status).json(response);

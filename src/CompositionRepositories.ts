@@ -26,6 +26,7 @@ import { MicroServiceRepositoryImpl } from "./DataProviders/MicroService/MicroSe
 import { PermissionRepositoryImpl } from "./DataProviders/Permission/PermissionRepository.js";
 import { RolePermissionRepositoryImpl } from "./DataProviders/Role/RolePermissionRepository.js";
 import { RoleRepositoryImpl } from "./DataProviders/Role/RoleRepository.js";
+import { SessionRepositoryImpl } from "./DataProviders/Session/SessionRepository.js";
 import { UserPasswordRepositoryImpl } from "./DataProviders/User/UserPasswordRepository.js";
 import { UserRepositoryImpl } from "./DataProviders/User/UserRepository.js";
 import { UserRoleRepositoryImpl } from "./DataProviders/User/UserRoleRepository.js";
@@ -41,6 +42,7 @@ import {
 } from "./Domain/Activity/SecurityAlerts.js";
 import type { BugRepositories } from "./Domain/Bug/Repository/BugRepositories.js";
 import type { MicroServiceRepositories } from "./Domain/MicroService/Repository/MicroServiceRepositories.js";
+import { SessionRegistry } from "./Domain/Session/UseCase/SessionRegistry.js";
 import { AccountPasswordService } from "./Domain/User/Service/AccountPasswordService.js";
 import { PasswordHashingCostService } from "./Domain/User/Service/PasswordHashingCostService.js";
 import type { UserRepositories } from "./Domain/User/UserRepositories.js";
@@ -154,6 +156,18 @@ export const AccessJournalInstance = new AccessJournalRepositoryImpl(
 export const VisitRetentionInstance = new VisitRetentionRepositoryImpl(
   VARIAMOS_ORM,
   DB_SCHEMA,
+);
+// Sessions opened at sign-in (EV-74 lot 2): table admin_sessions; rows past
+// 31 days are deleted with the journals
+export const SessionRepositoryInstance = new SessionRepositoryImpl(
+  VARIAMOS_ORM,
+  DB_SCHEMA,
+);
+// security.session.* keys, read again every 30 seconds
+export const SessionRegistryInstance = new SessionRegistry(
+  SessionRepositoryInstance,
+  ConfigurationRepositoryInstance,
+  JetLogger,
 );
 // Security alerts (T-24, EV-88 lot D): both journals are watched; alerts go
 // to the accounts holding the top permission, in the app and by mail

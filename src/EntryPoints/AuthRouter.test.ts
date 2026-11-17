@@ -84,6 +84,7 @@ import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
 import type { IActivityJournal } from "#src/Domain/Activity/IActivityJournal.js";
 import { webSettingsFromEnv } from "#src/webSettings.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
+import { openSessions } from "./openSessions.testing.js";
 
 // The settings of the test environment; a test may change one of them
 const web = webSettingsFromEnv().auth;
@@ -245,6 +246,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         userQueryUseCase: mockUserQueryUseCase,
         mfaSignIn: noMfaSignIn,
         accessJournal,
+        sessions: openSessions(),
         web,
       }),
     );
@@ -2050,6 +2052,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
           userQueryUseCase: mockUserQueryUseCase,
           mfaSignIn: noMfaSignIn,
           accessJournal,
+          sessions: openSessions(),
           web,
         }),
       );
@@ -2871,6 +2874,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
           userQueryUseCase: mockUserQueryUseCase,
           mfaSignIn: noMfaSignIn,
           accessJournal,
+          sessions: openSessions(),
           web,
         }),
       );
@@ -2959,6 +2963,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         userQueryUseCase: mock<UserQueryUseCase>(),
         mfaSignIn: noMfaSignIn,
         accessJournal,
+        sessions: openSessions(),
         web,
       });
 
@@ -2987,6 +2992,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
           userQueryUseCase: mockUserQueryUseCase,
           mfaSignIn: noMfaSignIn,
           accessJournal,
+          sessions: openSessions(),
           web,
         }),
       );

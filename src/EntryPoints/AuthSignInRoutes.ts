@@ -316,6 +316,7 @@ const signInAsGuest =
       );
 
       res.cookie("authToken", token, ctx.cookieOptions());
+      await ctx.startSession(res, sessionUser.id);
 
       response.data = {
         id: id || "",

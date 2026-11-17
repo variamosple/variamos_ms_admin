@@ -513,6 +513,7 @@ describe("createMigrator", () => {
       "0030-visits-by-hour",
       "0031-visit-day-index",
       "0032-anonymous-visits",
+      "0033-admin-sessions",
     ]);
   });
 });

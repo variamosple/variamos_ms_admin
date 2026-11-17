@@ -13,7 +13,10 @@ export { AUTH_ROUTE } from "./authContext.js";
  * here, from the settings the composition root gives (EV-05).
  */
 export function createAuthRouter(dependencies: AuthRouterDependencies): Router {
-  const ctx = { ...dependencies, ...createAuthWeb(dependencies.web) };
+  const ctx = {
+    ...dependencies,
+    ...createAuthWeb(dependencies.web, dependencies.sessions),
+  };
   const authRouter = Router();
   addSessionRoutes(authRouter, ctx);
   addSignInRoutes(authRouter, ctx);

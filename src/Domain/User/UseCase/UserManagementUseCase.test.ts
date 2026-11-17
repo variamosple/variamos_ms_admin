@@ -1,8 +1,10 @@
+import type { Mock } from "vitest";
 import { type MockProxy, mock } from "vitest-mock-extended";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
+import type { ISessionRevoker } from "#src/Domain/Session/Repository/ISessionRepository.js";
 import { PasswordUpdate } from "#src/Domain/User/Entity/PasswordUpdate.js";
 import { PersonalInformationUpdate } from "#src/Domain/User/Entity/PersonalInformationUpdate.js";
 import type { IUserPasswordRepository } from "#src/Domain/User/IUserPasswordRepository.js";
@@ -148,6 +150,93 @@ describe("UserManagementUseCase", () => {
       const res = await useCase.updatePassword(req);
 
       expect(res.errorCode).toBe(DomainErrorCodes.INVALID_INPUT);
+    });
+  });
+
+  // EV-74 lot 2: a closed account or a changed password ends its sessions
+  describe("sessions of the account", () => {
+    let sessions: { revokeAllOf: Mock<ISessionRevoker["revokeAllOf"]> };
+    let withSessions: UserManagementUseCase;
+    const ok = () => new ResponseModel<void>("tx-1");
+    const refused = () =>
+      new ResponseModel<void>("tx-1").withError(
+        DomainErrorCodes.ENTITY_NOT_FOUND,
+        "No such account",
+      );
+
+    beforeEach(() => {
+      sessions = {
+        revokeAllOf: vi
+          .fn<ISessionRevoker["revokeAllOf"]>()
+          .mockResolvedValue(1),
+      };
+      withSessions = new UserManagementUseCase(
+        { accounts: mockUserRepository, passwords: mockUserRepository },
+        activityJournal,
+        logger,
+        { sessions },
+      );
+    });
+
+    it("ends them when the account is disabled or deleted", async () => {
+      mockUserRepository.disableUser.mockResolvedValue(ok());
+      mockUserRepository.deleteUser.mockResolvedValue(ok());
+
+      await withSessions.disable(new RequestModel("tx-1", "user-1"));
+      await withSessions.delete(new RequestModel("tx-1", "user-2"));
+
+      expect(sessions.revokeAllOf.mock.calls).toEqual([["user-1"], ["user-2"]]);
+    });
+
+    it("leaves them when the change is refused, or the account enabled", async () => {
+      mockUserRepository.disableUser.mockResolvedValue(refused());
+      mockUserRepository.deleteUser.mockResolvedValue(refused());
+      mockUserRepository.enableUser.mockResolvedValue(ok());
+
+      await withSessions.disable(new RequestModel("tx-1", "user-1"));
+      await withSessions.delete(new RequestModel("tx-1", "user-1"));
+      await withSessions.enable(new RequestModel("tx-1", "user-1"));
+      await withSessions.disable(new RequestModel<string>("tx-1"));
+
+      expect(sessions.revokeAllOf).not.toHaveBeenCalled();
+    });
+
+    it("ends them when the password changes, and not when it is refused", async () => {
+      const update = new RequestModel(
+        "tx-1",
+        new PasswordUpdate(
+          "user-1",
+          "OldPass123!",
+          "NewPass123!",
+          "NewPass123!",
+        ),
+      );
+      mockUserRepository.updateUserPassword
+        .mockResolvedValueOnce(refused())
+        .mockResolvedValueOnce(ok());
+
+      expect(
+        (await withSessions.updatePassword(update)).errorCode,
+      ).toBeDefined();
+      expect(sessions.revokeAllOf).not.toHaveBeenCalled();
+      expect(
+        (await withSessions.updatePassword(update)).errorCode,
+      ).toBeUndefined();
+      expect(sessions.revokeAllOf).toHaveBeenCalledWith("user-1");
+    });
+
+    it("keeps the change when the sessions cannot be ended, and logs it", async () => {
+      sessions.revokeAllOf.mockRejectedValue(new Error("database down"));
+      mockUserRepository.disableUser.mockResolvedValue(ok());
+
+      const res = await withSessions.disable(
+        new RequestModel("tx-1", "user-1"),
+      );
+
+      expect(res.errorCode).toBeUndefined();
+      expect(logger.err).toHaveBeenCalledWith(
+        expect.stringContaining("could not be ended"),
+      );
     });
   });
 });

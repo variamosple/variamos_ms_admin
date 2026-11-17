@@ -7,6 +7,10 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
+import {
+  type ISessionRevoker,
+  NO_SESSION_REVOKER,
+} from "#src/Domain/Session/Repository/ISessionRepository.js";
 import type { PasswordPolicy } from "#src/Domain/User/Entity/PasswordPolicy.js";
 import type { PasswordResetOutcome } from "#src/Domain/User/IUserPasswordRepository.js";
 import {
@@ -39,6 +43,8 @@ export interface UserPasswordUseCaseDependencies {
   journal: IActivityJournal;
   logger: ILogger;
   passwordPolicy?: IPasswordPolicyProvider;
+  /** Ends the sessions of an account whose password is reset (EV-74 lot 2). */
+  sessions?: ISessionRevoker;
 }
 
 export class UserPasswordUseCase {
@@ -53,6 +59,7 @@ export class UserPasswordUseCase {
   private readonly journal: IActivityJournal;
   private readonly logger: ILogger;
   private readonly passwordPolicy: IPasswordPolicyProvider;
+  private readonly sessions: ISessionRevoker;
 
   public constructor(dependencies: UserPasswordUseCaseDependencies) {
     const {
@@ -62,6 +69,7 @@ export class UserPasswordUseCase {
       journal,
       logger,
       passwordPolicy = DEFAULT_PASSWORD_POLICY_PROVIDER,
+      sessions = NO_SESSION_REVOKER,
     } = dependencies;
     this.repositories = repositories;
     this.mailService = mailService;
@@ -69,6 +77,7 @@ export class UserPasswordUseCase {
     this.journal = journal;
     this.logger = logger;
     this.passwordPolicy = passwordPolicy;
+    this.sessions = sessions;
     this.tokenService = new PasswordResetTokenService(
       repositories.passwords,
       logger,
@@ -269,6 +278,7 @@ export class UserPasswordUseCase {
         );
       }
 
+      await this.endSessionsOfTokenOwner(tokenHash);
       return response;
     } catch (error) {
       this.logger.err("Error resetting password:");
@@ -276,6 +286,23 @@ export class UserPasswordUseCase {
       return response.withErrorPromise(
         DomainErrorCodes.SYSTEM_ERROR,
         "Error resetting password",
+      );
+    }
+  }
+
+  /**
+   * Ends every session of the account whose password was just reset: whoever
+   * held one with the old password loses it (EV-74 lot 2). The password is
+   * changed: a failure here is logged, not reported as a failed reset.
+   */
+  private async endSessionsOfTokenOwner(tokenHash: string): Promise<void> {
+    try {
+      const consumed =
+        await this.repositories.passwords.getPasswordResetToken(tokenHash);
+      if (consumed) await this.sessions.revokeAllOf(consumed.userId);
+    } catch (error) {
+      this.logger.err(
+        `The sessions of a reset account could not be ended: ${errorMessage(error)}`,
       );
     }
   }

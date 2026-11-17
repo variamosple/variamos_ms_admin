@@ -45,6 +45,7 @@ import {
   VISITS_BY_HOUR_FUNCTIONS,
 } from "./0030-visits-by-hour.js";
 import { VISIT_DAY_INDEX } from "./0031-visit-day-index.js";
+import { SESSION_TABLE } from "./0033-admin-sessions.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 import {
   ADMIN_MIGRATIONS,
@@ -170,6 +171,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         GOOGLE_IDENTITY_TABLE,
         SCHEDULED_CHANGES_TABLE,
         USER_DISPLAY_PREFERENCES_TABLE,
+        SESSION_TABLE,
       ].sort((a, b) => a.localeCompare(b)),
     );
   });
@@ -280,6 +282,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         GOOGLE_IDENTITY_TABLE,
         SCHEDULED_CHANGES_TABLE,
         USER_DISPLAY_PREFERENCES_TABLE,
+        SESSION_TABLE,
       ]),
     ).toEqual(before);
     expect(await columnsOf("t07_prod", "bugs")).toEqual(
@@ -313,6 +316,8 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
       { key: "security.lockout.max_attempts", value: 10 },
       { key: "security.mfa.trusted_device_days", value: 14 },
       { key: "security.password.min_length", value: 12 },
+      { key: "security.session.idle_minutes", value: 60 },
+      { key: "security.session.max_hours", value: 12 },
     ]);
   });
 

@@ -17,6 +17,7 @@ import { AccountLockoutPolicy } from "#src/Domain/User/Entity/AccountLockoutPoli
 import { AccountLockout } from "#src/Domain/User/Service/AccountLockoutService.js";
 import { webSettingsFromEnv } from "#src/webSettings.js";
 import { createBaseRouter } from "./index.js";
+import { openSessions } from "./openSessions.testing.js";
 import type { AccessGuard } from "./requireAccess.js";
 
 /*
@@ -188,6 +189,7 @@ function buildRouter(accessGuard: AccessGuard) {
       roles: mockDeep(),
       mfa: mockDeep(),
       notifications: mockDeep(),
+      sessions: openSessions(),
       metrics: mock(),
       permissions: mock(),
       visits: mock(),

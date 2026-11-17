@@ -17,6 +17,7 @@ import {
   ActivityJournalInstance,
   ContainerResourceSamplerInstance,
   SecretConfigurationValueInstance,
+  SessionRepositoryInstance,
   VisitRetentionInstance,
 } from "./CompositionRepositories.js";
 import {
@@ -85,6 +86,7 @@ try {
     ActivityJournalInstance,
     AccessJournalInstance,
     VisitRetentionInstance,
+    SessionRepositoryInstance,
   ]);
 } catch (e) {
   logger.err(

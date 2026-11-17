@@ -95,6 +95,8 @@ import {
   createScheduledConfigurationChangeRouter,
   SCHEDULED_CHANGES_V1_ROUTE,
 } from "./ScheduledConfigurationChangeRouter.js";
+import type { SessionGate } from "./sessionGate.js";
+import { refuseEndedSessions } from "./sessionGuard.js";
 import { createUserMfaRouter, USER_MFA_V1_ROUTE } from "./UserMfaV1Router.js";
 import { createUserRolesRouter } from "./UserRolesV1Router.js";
 import { createUsersRouter, USERS_V1_ROUTE } from "./UsersV1Router.js";
@@ -162,6 +164,8 @@ export interface BaseRouterDependencies {
   upload: MulterUpload;
   accessGuard: AccessGuard;
   accountLockout: AccountLockout;
+  /** The sessions opened at sign-in (EV-74 lot 2). */
+  sessions: SessionGate;
   accessJournal: IAccessJournal;
   journalQuery: JournalQueryUseCase;
   checkDatabase: DatabaseCheck;
@@ -198,10 +202,11 @@ const createSignInRouter = ({
   users,
   mfa,
   accessJournal,
+  sessions,
   settings,
 }: Pick<
   BaseRouterDependencies,
-  "users" | "mfa" | "accessJournal" | "settings"
+  "users" | "mfa" | "accessJournal" | "sessions" | "settings"
 >) =>
   createAuthRouter({
     userAuthUseCase: users.auth,
@@ -210,8 +215,30 @@ const createSignInRouter = ({
     userQueryUseCase: users.query,
     mfaSignIn: mfa.signIn,
     accessJournal,
+    sessions,
     web: settings.auth,
   });
+
+/**
+ * What runs before every route: the journal of refusals first, so that it
+ * sees those of every router and limit (T-24); then the rate limits; then
+ * the refusal of a token whose session ended (EV-74 lot 2).
+ */
+const applyRequestGuards = (
+  router: Router,
+  {
+    accessJournal,
+    accountLockout,
+    sessions,
+  }: Pick<
+    BaseRouterDependencies,
+    "accessJournal" | "accountLockout" | "sessions"
+  >,
+) => {
+  router.use(recordRefusals(accessJournal));
+  applyRateLimits(router, accountLockout, accessJournal);
+  router.use(refuseEndedSessions(sessions));
+};
 
 export function createBaseRouter({
   users: usersUseCases,
@@ -229,6 +256,7 @@ export function createBaseRouter({
   upload,
   accessGuard,
   accountLockout,
+  sessions,
   accessJournal,
   journalQuery,
   checkDatabase,
@@ -241,6 +269,7 @@ export function createBaseRouter({
     users: usersUseCases,
     mfa,
     accessJournal,
+    sessions,
     settings,
   });
   const configurationV1Router = createConfigurationRouter(
@@ -275,9 +304,7 @@ export function createBaseRouter({
     isAuthenticated,
   );
 
-  // First, so that it sees the refusals of every router and limit (T-24)
-  baseRouter.use(recordRefusals(accessJournal));
-  applyRateLimits(baseRouter, accountLockout, accessJournal);
+  applyRequestGuards(baseRouter, { accessJournal, accountLockout, sessions });
   baseRouter.use(MFA_ROUTE, createMfaRouter(mfa.user, mfa.trustedDevices));
   baseRouter.use(
     MY_ACCOUNT_PREFERENCES_ROUTE,

@@ -10,6 +10,7 @@
     "build.ts",
     "src/**/*.test.ts",
     "src/**/*.spec.ts",
+    "src/**/*.testing.ts",
     "vitest.setup.ts",
     "vitest.config.ts"
   ]

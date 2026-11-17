@@ -198,6 +198,7 @@ const googleCallback =
       );
 
       res.cookie("authToken", token, ctx.cookieOptions());
+      await ctx.startSession(res, sessionUser.id);
 
       res.redirect(302, `${ctx.web.homeRedirectUri}`);
     } catch (err) {

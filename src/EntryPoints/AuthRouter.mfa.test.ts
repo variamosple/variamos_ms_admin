@@ -25,6 +25,7 @@ import type { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase
 import { webSettingsFromEnv } from "#src/webSettings.js";
 import { AUTH_ROUTE, createAuthRouter } from "./AuthRouter.js";
 import { MFA_PENDING_COOKIE, MFA_TRUSTED_COOKIE } from "./authWeb.js";
+import { openSessions } from "./openSessions.testing.js";
 
 // The settings of the test environment; a test may change one of them
 const web = webSettingsFromEnv().auth;
@@ -153,6 +154,7 @@ function setUp(mfaEnabled: boolean, trustedDeviceDays = 14) {
       userQueryUseCase: query,
       mfaSignIn,
       accessJournal,
+      sessions: openSessions(),
       web,
     }),
   );

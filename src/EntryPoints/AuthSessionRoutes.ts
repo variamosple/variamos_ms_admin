@@ -2,11 +2,12 @@ import {
   createJwt,
   getToken,
   isSessionExpired,
+  type SessionInfo,
   type SessionUser,
   sessionInfoToSessionUser,
   validateToken,
 } from "@variamosple/variamos-security";
-import type { RequestHandler, Response, Router } from "express";
+import type { Request, RequestHandler, Response, Router } from "express";
 import { describeError } from "#src/common/describeError.js";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import logger from "#src/common/logger.js";
@@ -15,7 +16,11 @@ import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { AUTH_ROUTE, type AuthContext, sessionUserOf } from "./authContext.js";
 import { redirectBody } from "./authRequestBodies.js";
-import { isAllowedRedirect } from "./authWeb.js";
+import {
+  isAllowedRedirect,
+  SESSION_ID_COOKIE,
+  sessionIdOf,
+} from "./authWeb.js";
 import { readBody } from "./requestBody.js";
 
 /**
@@ -41,12 +46,17 @@ export const audienceHostOf = (aud: unknown): string | undefined => {
   );
 };
 
-// The answer to a session that cannot be refreshed: sign in again
+// The answer to a session that cannot be refreshed: sign in again. Its
+// cookies are removed, so that the browser stops sending them
 const sessionExpired = (
+  ctx: AuthContext,
   res: Response,
   response: ResponseModel<SessionInfoResponse>,
 ) => {
+  const cookieOptions = ctx.cookieOptions({ maxAge: false });
   res
+    .clearCookie("authToken", cookieOptions)
+    .clearCookie(SESSION_ID_COOKIE, cookieOptions)
     .status(HttpStatusCodes.UNAUTHORIZED)
     .json(
       response.withError(
@@ -73,6 +83,51 @@ const reloadSessionUser = async (
   return sessionUserOf(refreshedUser.data);
 };
 
+/**
+ * Gives a new token to an expired one whose session is open, until the
+ * cookie's own age, with the account read again.
+ */
+const refreshSession = async (
+  ctx: AuthContext,
+  req: Request,
+  res: Response,
+  user: SessionInfo,
+): Promise<void> => {
+  const response = new ResponseModel<SessionInfoResponse>("getSessionInfo");
+  // An expired token is refreshed until the cookie's own age
+  if (!user.iat || Date.now() > user.iat * 1000 + ctx.web.cookie.maxAge) {
+    sessionExpired(ctx, res, response);
+    return;
+  }
+
+  const sessionUser = await reloadSessionUser(ctx, user.sub, user.roles);
+  if (!sessionUser) {
+    sessionExpired(ctx, res, response);
+    return;
+  }
+  // A token issued before the registry gets its session now: nobody is
+  // signed out by the deployment
+  if (!sessionIdOf(req)) await ctx.startSession(res, sessionUser.id);
+  // A token issued between #183 and its revert holds the audience
+  // ["variamos-platform", host], which vms_projects (Python
+  // variamos-security 0.0.2) cannot read: the refreshed token holds the
+  // host alone again
+  const host = audienceHostOf(user.aud);
+  const token = await createJwt(sessionUser, host);
+
+  const redirect = ctx.redirectUrl("getSessionInfo", req, res);
+
+  res
+    .cookie("authToken", token, ctx.cookieOptions())
+    .status(200)
+    .json(
+      response.withResponse({
+        user: sessionUser,
+        redirect: redirect?.toString(),
+      }),
+    );
+};
+
 const sessionInfo =
   (ctx: AuthContext): RequestHandler =>
   async (req, res) => {
@@ -87,7 +142,17 @@ const sessionInfo =
         res.status(validationResponse.errorCode).json(validationResponse);
         return;
       }
-      if (!isSessionExpired(user?.exp)) {
+      // Signed out, revoked, idle or too old: the token alone is not enough
+      // (EV-74 lot 2)
+      const issuedAtMs = (user?.iat ?? 0) * 1000;
+      if (
+        !user?.sub ||
+        (await ctx.sessions.check(sessionIdOf(req), user.sub, issuedAtMs))
+      ) {
+        sessionExpired(ctx, res, response);
+        return;
+      }
+      if (!isSessionExpired(user.exp)) {
         const redirect = ctx.redirectUrl("getSessionInfo", req, res);
 
         res.status(200).json(
@@ -99,35 +164,7 @@ const sessionInfo =
         return;
       }
 
-      // An expired token is refreshed until the cookie's own age
-      if (!user?.iat || Date.now() > user.iat * 1000 + ctx.web.cookie.maxAge) {
-        sessionExpired(res, response);
-        return;
-      }
-
-      const sessionUser = await reloadSessionUser(ctx, user.sub, user.roles);
-      if (!sessionUser) {
-        sessionExpired(res, response);
-        return;
-      }
-      // A token issued between #183 and its revert holds the audience
-      // ["variamos-platform", host], which vms_projects (Python
-      // variamos-security 0.0.2) cannot read: the refreshed token holds the
-      // host alone again
-      const host = audienceHostOf(user.aud);
-      const token = await createJwt(sessionUser, host);
-
-      const redirect = ctx.redirectUrl("getSessionInfo", req, res);
-
-      res
-        .cookie("authToken", token, ctx.cookieOptions())
-        .status(200)
-        .json(
-          response.withResponse({
-            user: sessionUser,
-            redirect: redirect?.toString(),
-          }),
-        );
+      await refreshSession(ctx, req, res, user);
     } catch (error) {
       logger.err("Error verifying JWT:");
       logger.err(error);
@@ -142,14 +179,23 @@ const sessionInfo =
     }
   };
 
+// The session ends in the registry too: a copy of the token no longer
+// opens the administration (EV-74 lot 2)
 const logout =
   (ctx: AuthContext): RequestHandler =>
-  (_, res) => {
+  async (req, res) => {
     const cookieOptions = ctx.cookieOptions({
       maxAge: false,
     });
 
+    try {
+      await ctx.sessions.revoke(sessionIdOf(req));
+    } catch (error) {
+      logger.err("logout: the session could not be revoked");
+      logger.err(describeError(error));
+    }
     res.clearCookie("authToken", cookieOptions);
+    res.clearCookie(SESSION_ID_COOKIE, cookieOptions);
     res.status(200).json(new ResponseModel<void>("logout"));
   };
 
