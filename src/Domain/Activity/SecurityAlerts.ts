@@ -3,11 +3,14 @@ import type { AccessEntry } from "./AccessEntry.js";
 import type { ActivityEntry } from "./ActivityEntry.js";
 import type { IAccessJournal } from "./IAccessJournal.js";
 import type { IActivityJournal } from "./IActivityJournal.js";
-import type { SecurityAlertPolicy } from "./SecurityAlertPolicy.js";
+import type {
+  NewDeviceScope,
+  SecurityAlertPolicy,
+} from "./SecurityAlertPolicy.js";
 import type { ISecurityAlertPolicyProvider } from "./SecurityAlertPolicyService.js";
 
 export interface SecurityAlert {
-  rule: "failed-sign-ins" | "mass-operations" | "off-hours-sign-in";
+  rule: "failed-sign-ins" | "mass-operations";
   /** What the alert is about: "account:<id>", "address:<ip>" or "administrator:<id>". */
   target: string;
   title: string;
@@ -47,12 +50,19 @@ const describeTarget = (target: string) => {
 };
 
 /** What the security alerts read, send and record. */
+/** Looks at a completed sign-in for a new device (NewDeviceAlerts). */
+export interface INewDeviceWatcher {
+  observe(entry: AccessEntry, scope: NewDeviceScope, at: number): Promise<void>;
+}
+
 export interface SecurityAlertDetectorDependencies {
   policyProvider: ISecurityAlertPolicyProvider;
   recipients: ISecurityAlertRecipients;
   notifier: ISecurityAlertNotifier;
   journal: IActivityJournal;
   logger: ILogger;
+  /** Completed sign-ins from a new device mail the account itself. */
+  newDevices?: INewDeviceWatcher;
   now?: () => number;
 }
 
@@ -71,6 +81,7 @@ export class SecurityAlertDetector {
   private readonly notifier: ISecurityAlertNotifier;
   private readonly journal: IActivityJournal;
   private readonly logger: ILogger;
+  private readonly newDevices: INewDeviceWatcher | undefined;
   private readonly now: () => number;
 
   public constructor(dependencies: SecurityAlertDetectorDependencies) {
@@ -80,6 +91,7 @@ export class SecurityAlertDetector {
       notifier,
       journal,
       logger,
+      newDevices,
       now = Date.now,
     } = dependencies;
     this.policyProvider = policyProvider;
@@ -87,6 +99,7 @@ export class SecurityAlertDetector {
     this.notifier = notifier;
     this.journal = journal;
     this.logger = logger;
+    this.newDevices = newDevices;
     this.now = now;
   }
 
@@ -121,18 +134,8 @@ export class SecurityAlertDetector {
             );
           }
         }
-      } else if (entry.userId && policy.isOffHours(new Date(at))) {
-        const target = `account:${entry.userId}`;
-        await this.raise(
-          {
-            rule: "off-hours-sign-in",
-            target,
-            title: "Sign-in outside working hours",
-            body: `${describeTarget(target)} signed in at ${new Date(at).toISOString()}, outside the configured working hours.`,
-          },
-          policy.cooldownMs,
-          at,
-        );
+      } else if (entry.device) {
+        await this.newDevices?.observe(entry, policy.newDeviceScope, at);
       }
     } catch (error) {
       this.logger.err(error);

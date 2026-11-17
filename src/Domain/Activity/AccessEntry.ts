@@ -17,6 +17,17 @@ export interface AccessEntry {
   method: string | null;
   path: string | null;
   statusCode: number | null;
+  /**
+   * The browser of a completed sign-in, for the new-device alert; never
+   * written to the journal.
+   */
+  device?: SignInDevice;
+}
+
+/** The random identifier kept by a browser, and how it names itself. */
+interface SignInDevice {
+  id: string;
+  userAgent: string | null;
 }
 
 /** An account found from the e-mail of a sign-in. */

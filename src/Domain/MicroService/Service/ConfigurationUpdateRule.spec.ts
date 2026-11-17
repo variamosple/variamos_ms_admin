@@ -81,8 +81,8 @@ describe("refuseConfigurationUpdate on a key the code reads", () => {
     });
     expect(
       refuseConfigurationUpdate(
-        "security.alerts.timezone",
-        "Mars/Olympus",
+        "security.alerts.new_device.scope",
+        "admins",
         null,
       ),
     ).not.toBeNull();
@@ -90,7 +90,11 @@ describe("refuseConfigurationUpdate on a key the code reads", () => {
       refuseConfigurationUpdate("security.bcrypt_salt_rounds", "12", number),
     ).toBeNull();
     expect(
-      refuseConfigurationUpdate("security.alerts.timezone", "UTC", null),
+      refuseConfigurationUpdate(
+        "security.alerts.new_device.scope",
+        "everyone",
+        null,
+      ),
     ).toBeNull();
   });
 });

@@ -288,10 +288,10 @@ const configuration = (
     .setCreatedAt(NOW)
     .setUpdatedAt(NOW)
     .build();
-// Each form of "accepts": bounds and unit, a format, a text alone, none
+// Each form of "accepts": bounds and unit, a text alone, none
 const configurations = () => [
   configuration(BUG_SYNC_INTERVAL_KEY, 15, "number"),
-  configuration(SECURITY_ALERT_KEYS.timeZone, "America/Bogota", "string"),
+  configuration(SECURITY_ALERT_KEYS.newDeviceScope, "administrators", "string"),
   configuration(SITE_NAME_KEY, "VariaMos", "string"),
   configuration("general.unread_by_any_code", "x", "string"),
 ];

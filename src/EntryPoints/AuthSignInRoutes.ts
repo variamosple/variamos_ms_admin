@@ -9,7 +9,11 @@ import { Credentials } from "#src/Domain/User/Entity/Credentials.js";
 import type { SingInResponse } from "#src/Domain/User/Entity/SingInResponse.js";
 import type { User } from "#src/Domain/User/Entity/User.js";
 import { recordAccess } from "./accessJournal.js";
-import { type AuthContext, sessionUserOf } from "./authContext.js";
+import {
+  type AuthContext,
+  recordSignInStep,
+  sessionUserOf,
+} from "./authContext.js";
 import {
   guestSignInBody,
   signInBody,
@@ -119,6 +123,7 @@ const finishMfaSignIn = async (
     outcome: "success",
     reason: null,
     userId,
+    deviceId: ctx.knownDevice(req, res),
   });
   if (rememberDevice) await trustDevice(ctx, res, userId);
   response.data = {
@@ -188,11 +193,10 @@ const signInWithPassword =
         sessionUser.id,
         trustedDeviceToken(req),
       );
-      recordAccess(accessJournal, req, res, {
+      recordSignInStep(ctx, req, res, {
         event: "sign-in",
-        outcome: "success",
-        reason: pendingToken ? "mfa_required" : null,
         userId: sessionUser.id,
+        pendingToken,
       });
       if (pendingToken) {
         res.cookie(

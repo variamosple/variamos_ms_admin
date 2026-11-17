@@ -3,7 +3,10 @@ import nodemailer from "nodemailer";
 import logger from "#src/common/logger.js";
 import { maskEmail } from "#src/common/maskEmail.js";
 import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
-import type { IMailService } from "#src/Domain/Mail/IMailService.js";
+import type {
+  IMailService,
+  NewDeviceSignIn,
+} from "#src/Domain/Mail/IMailService.js";
 
 /** "1 hour", "2 hours" or "30 minutes", for the reset e-mail. */
 export function describeDuration(ms: number): string {
@@ -232,6 +235,28 @@ export class MailServiceImpl implements IMailService {
             </p>
             <p style="font-size: 15px; line-height: 1.6; color: #495057;">
               The details are in the activity journal of the <strong>VariaMos</strong> administration. You receive this alert because your account can manage permissions.
+            </p>
+
+`);
+    return await this.sendMail(to, subject, html);
+  }
+
+  /**
+   * Tells the owner that their account signed in from a device and an
+   * address it had not used
+   */
+  public async sendNewDeviceMail(
+    to: string,
+    signIn: NewDeviceSignIn,
+  ): Promise<boolean> {
+    const subject = "VariaMos - New sign-in to your account";
+    const html = renderMail(`
+            <h2 style="color: #212529; font-size: 20px; margin-top: 0; font-weight: 600;">New sign-in to your account</h2>
+            <p style="font-size: 15px; line-height: 1.6; color: #495057;">
+              Your <strong>VariaMos</strong> account signed in on ${escapeHtml(signIn.when)}, from ${escapeHtml(signIn.browser)}, address ${escapeHtml(signIn.ip)}. This browser and this address had not been used on your account.
+            </p>
+            <p style="font-size: 15px; line-height: 1.6; color: #495057;">
+              If it was you, there is nothing to do. If it was not, change your password now from your account page, and tell an administrator.
             </p>
 
 `);

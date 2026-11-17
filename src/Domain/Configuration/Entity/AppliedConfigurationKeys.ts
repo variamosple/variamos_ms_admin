@@ -1,6 +1,6 @@
 import {
-  isAcceptedOffHours,
-  isKnownTimeZone,
+  isNewDeviceScope,
+  NEW_DEVICE_SCOPES,
   SECURITY_ALERT_BOUNDS,
   SECURITY_ALERT_KEYS,
 } from "#src/Domain/Activity/SecurityAlertPolicy.js";
@@ -160,22 +160,13 @@ const APPLIED_CONFIGURATION_RULES: ReadonlyMap<string, ConfigurationRule> =
       wholeNumber(SECURITY_ALERT_BOUNDS.windowMinutes, "minutes"),
     ],
     [
-      SECURITY_ALERT_KEYS.offHours,
+      SECURITY_ALERT_KEYS.newDeviceScope,
       {
-        accepts: isAcceptedOffHours,
+        accepts: isNewDeviceScope,
         accepted: {
-          text: 'a span such as "20:00-07:00", or nothing to turn it off',
-          format: "timeSpan",
-        },
-      },
-    ],
-    [
-      SECURITY_ALERT_KEYS.timeZone,
-      {
-        accepts: isKnownTimeZone,
-        accepted: {
-          text: 'a time zone name such as "America/Bogota"',
-          format: "timeZone",
+          text: "one of ".concat(
+            NEW_DEVICE_SCOPES.map((scope) => JSON.stringify(scope)).join(", "),
+          ),
         },
       },
     ],

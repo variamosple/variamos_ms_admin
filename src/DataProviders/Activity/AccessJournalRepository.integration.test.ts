@@ -62,8 +62,10 @@ describe.skipIf(!url)("Access journal on PostgreSQL (T-24)", () => {
     await sequelize?.close();
   });
 
-  it("records an entry with its values", async () => {
-    await journal.record(entry());
+  it("records an entry with its values, never its browser", async () => {
+    await journal.record(
+      entry({ device: { id: "device-1", userAgent: "Firefox/133.0" } }),
+    );
     await journal.record(
       entry({
         event: "access.refused",
@@ -140,6 +142,29 @@ describe.skipIf(!url)("Access journal on PostgreSQL (T-24)", () => {
     );
 
     expect(await activity.purgeExpired()).toBe(1);
+  });
+
+  it("counts the completed sign-ins of an account from an address", async () => {
+    await sequelize.query(
+      `INSERT INTO ${TABLE} ("occurred_at", "event", "outcome", "reason", "user_id", "ip")
+       VALUES (now() - interval '1 day', 'sign-in', 'success', NULL, 'user-7', '198.51.100.1'),
+              (now() - interval '2 days', 'sign-in.google', 'success', NULL, 'user-7', '198.51.100.1'),
+              (now() - interval '3 days', 'sign-in.mfa', 'success', NULL, 'user-7', '198.51.100.1'),
+              (now() - interval '1 day', 'sign-in', 'success', 'mfa_required', 'user-7', '198.51.100.1'),
+              (now() - interval '1 day', 'sign-in', 'failed', NULL, 'user-7', '198.51.100.1'),
+              (now() - interval '1 day', 'access.refused', 'success', NULL, 'user-7', '198.51.100.1'),
+              (now() - interval '1 day', 'sign-in', 'success', NULL, 'user-8', '198.51.100.1'),
+              (now() - interval '1 day', 'sign-in', 'success', NULL, 'user-7', '198.51.100.2'),
+              (now() - interval '100 days', 'sign-in', 'success', NULL, 'user-7', '198.51.100.1')`,
+    );
+    const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+
+    expect(
+      await journal.completedSignInsFrom("user-7", "198.51.100.1", since),
+    ).toBe(3);
+    expect(
+      await journal.completedSignInsFrom("user-7", "192.0.2.9", since),
+    ).toBe(0);
   });
 
   it("never throws when the entry cannot be written or read", async () => {

@@ -1,3 +1,12 @@
+/** A sign-in from a device and an address the account had not used. */
+export interface NewDeviceSignIn {
+  /** Date and time, in UTC. */
+  when: string;
+  /** A short name such as "Firefox on Linux". */
+  browser: string;
+  ip: string;
+}
+
 export interface IMailService {
   sendPasswordResetMail(
     to: string,
@@ -21,6 +30,8 @@ export interface IMailService {
     title: string,
     body: string,
   ): Promise<boolean>;
+  /** Tells the owner that their account signed in from a new device. */
+  sendNewDeviceMail(to: string, signIn: NewDeviceSignIn): Promise<boolean>;
   /** Tells an address of the monitoring alerts that a service is down or back. */
   sendServiceAlertMail(
     to: string,
