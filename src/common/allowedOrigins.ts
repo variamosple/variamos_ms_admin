@@ -7,9 +7,9 @@ import { NodeEnvs } from "#src/common/misc.js";
  * logs socket share this one list.
  *
  * CORS_ALLOWED_ORIGINS holds exact origins, compared after normalization.
- * Until it is set, the former CORS_ALLOWED_ORIGINS_PATTERNS (regular
- * expressions) is still read as before, so that a deployment never cuts the
- * interfaces off.
+ * Without it, no origin is allowed, and production does not start. The former
+ * CORS_ALLOWED_ORIGINS_PATTERNS (regular expressions) is no longer read since
+ * 2026-11-17.
  */
 
 /** The origin of an http(s) address; null for anything else, "null" included. */
@@ -42,12 +42,8 @@ const isPlainOrigin = (entry: string): boolean =>
 export const isAllowedOrigin = (origin: string): boolean => {
   const normalized = originOf(origin);
   if (normalized === null) return false;
-  const exact = EnvVars.CORS.AllowedOrigins;
-  if (exact.length > 0) {
-    return exact.some((entry) => originOf(entry) === normalized);
-  }
-  return EnvVars.CORS.AllowedOriginsPatterns.some((pattern) =>
-    pattern.test(origin),
+  return EnvVars.CORS.AllowedOrigins.some(
+    (entry) => originOf(entry) === normalized,
   );
 };
 
@@ -58,8 +54,8 @@ export interface OriginListCheck {
 }
 
 /**
- * Checks the two variables at startup. Neither the origins nor the patterns
- * are written in the messages, only their position.
+ * Checks the list at startup. The origins are never written in the messages,
+ * only their position.
  */
 export const checkOriginList = (
   env: NodeJS.ProcessEnv,
@@ -77,24 +73,24 @@ export const checkOriginList = (
         "(scheme://host[:port], without path or default port)",
     );
   }
-  if (exact.length > 0 || nodeEnv !== NodeEnvs.Production.valueOf()) {
-    return { errors, warnings };
-  }
-
-  const patterns = (env.CORS_ALLOWED_ORIGINS_PATTERNS ?? "").split(",");
-  const blank = patterns
-    .map((pattern, index) => (pattern.trim() === "" ? index + 1 : 0))
-    .filter((position) => position > 0);
-  if (blank.length > 0) {
-    errors.push(
-      "CORS_ALLOWED_ORIGINS is not set and CORS_ALLOWED_ORIGINS_PATTERNS " +
-        `has an empty pattern (position ${blank.join(", ")}), which allows every origin`,
-    );
-  } else {
+  if (env.CORS_ALLOWED_ORIGINS_PATTERNS !== undefined) {
     warnings.push(
-      "CORS_ALLOWED_ORIGINS is not set: the former " +
-        "CORS_ALLOWED_ORIGINS_PATTERNS is used; set the exact origins instead",
+      "CORS_ALLOWED_ORIGINS_PATTERNS is no longer read: " +
+        (exact.length > 0
+          ? "remove it"
+          : "set the exact origins in CORS_ALLOWED_ORIGINS"),
     );
+  }
+  if (exact.length === 0) {
+    if (nodeEnv === NodeEnvs.Production.valueOf()) {
+      errors.push(
+        "CORS_ALLOWED_ORIGINS is not set: no interface could call the API",
+      );
+    } else {
+      warnings.push(
+        "CORS_ALLOWED_ORIGINS is not set: no browser origin may call the API",
+      );
+    }
   }
   return { errors, warnings };
 };
