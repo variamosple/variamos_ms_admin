@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   checkOriginList,
   entriesOf,
@@ -66,6 +66,21 @@ describe("isAllowedOrigin with the exact list", () => {
     useList(["https://app.variamos.com", "null"]);
 
     expect(isAllowedOrigin("null")).toBe(false);
+  });
+});
+
+describe("isAllowedOrigin with AUTH_LOCAL_DEV_ORIGINS", () => {
+  it("adds the listed local origins until their end date", () => {
+    useList(["https://app.variamos.com"]);
+    vi.stubEnv("AUTH_LOCAL_DEV_ORIGINS", "http://localhost:3000");
+    vi.stubEnv("AUTH_LOCAL_DEV_UNTIL", "2999-12-31");
+
+    expect(isAllowedOrigin("http://localhost:3000")).toBe(true);
+    expect(isAllowedOrigin("http://localhost:3001")).toBe(false);
+    expect(isAllowedOrigin("https://app.variamos.com")).toBe(true);
+
+    vi.stubEnv("AUTH_LOCAL_DEV_UNTIL", "2026-01-31");
+    expect(isAllowedOrigin("http://localhost:3000")).toBe(false);
   });
 });
 

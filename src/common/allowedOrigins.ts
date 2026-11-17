@@ -1,4 +1,5 @@
 import EnvVars from "#src/common/EnvVars.js";
+import { isLocalDevOrigin } from "#src/common/localDevOrigins.js";
 import { NodeEnvs } from "#src/common/misc.js";
 
 /*
@@ -37,13 +38,16 @@ const isPlainOrigin = (entry: string): boolean =>
 
 /**
  * Whether a browser origin may call the API with the session cookie. The
- * origin "null" (sandboxed frame, data: page) is never allowed.
+ * origin "null" (sandboxed frame, data: page) is never allowed. The local
+ * origins of AUTH_LOCAL_DEV_ORIGINS are allowed until their end date.
  */
 export const isAllowedOrigin = (origin: string): boolean => {
   const normalized = originOf(origin);
   if (normalized === null) return false;
-  return EnvVars.CORS.AllowedOrigins.some(
-    (entry) => originOf(entry) === normalized,
+  return (
+    EnvVars.CORS.AllowedOrigins.some(
+      (entry) => originOf(entry) === normalized,
+    ) || isLocalDevOrigin(normalized)
   );
 };
 

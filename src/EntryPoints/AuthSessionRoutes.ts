@@ -9,22 +9,25 @@ import {
 import type { RequestHandler, Response, Router } from "express";
 import { describeError } from "#src/common/describeError.js";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
+import { isLocalDevOrigin } from "#src/common/localDevOrigins.js";
 import logger from "#src/common/logger.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { AUTH_ROUTE, type AuthContext, sessionUserOf } from "./authContext.js";
 import { redirectBody } from "./authRequestBodies.js";
-import { isAllowedRedirect } from "./authWeb.js";
+import { isAllowedRedirect, withLocalDevToken } from "./authWeb.js";
 import { readBody } from "./requestBody.js";
 
 /**
  * Body of GET /auth/session-info: an HTTP shape, not a domain entity. The
- * token never appears in it: it stays in the httpOnly cookie, out of reach of
- * the page's scripts (EV-117).
+ * token stays in the httpOnly cookie, out of reach of the page's scripts
+ * (EV-117); only a local interface allowed by AUTH_LOCAL_DEV_ORIGINS receives
+ * the refreshed one here, for a while, since it cannot read that cookie.
  */
 interface SessionInfoResponse {
   user: SessionUser | null;
+  authToken?: string;
   redirect?: string;
 }
 
@@ -88,7 +91,10 @@ const sessionInfo =
         return;
       }
       if (!isSessionExpired(user?.exp)) {
-        const redirect = ctx.redirectUrl("getSessionInfo", req, res);
+        const redirect = withLocalDevToken(
+          ctx.redirectUrl("getSessionInfo", req, res),
+          authToken,
+        );
 
         res.status(200).json(
           response.withResponse({
@@ -117,7 +123,12 @@ const sessionInfo =
       const host = audienceHostOf(user.aud);
       const token = await createJwt(sessionUser, host);
 
-      const redirect = ctx.redirectUrl("getSessionInfo", req, res);
+      const redirect = withLocalDevToken(
+        ctx.redirectUrl("getSessionInfo", req, res),
+        token,
+      );
+      const origin = req.headers.origin;
+      const localDev = origin !== undefined && isLocalDevOrigin(origin);
 
       res
         .cookie("authToken", token, ctx.cookieOptions())
@@ -125,6 +136,7 @@ const sessionInfo =
         .json(
           response.withResponse({
             user: sessionUser,
+            authToken: localDev ? token : undefined,
             redirect: redirect?.toString(),
           }),
         );
