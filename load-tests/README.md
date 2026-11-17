@@ -62,6 +62,9 @@ k6 exit with a non-zero code. `ABORT_P95` (in ms) also stops the run as soon
 as the 95th percentile of all requests goes above it, or 5 % of the requests
 fail: for a short run on a shared server. `EMAIL` then gives one test account
 to all the virtual users, with its own password.
+`SKIP` leaves screens out (`SKIP=users`): the test account of a real server
+holds only the read permissions of the screens it opens, never
+`users::query`, so that it reads no personal data.
 
 ## Run a campaign
 
