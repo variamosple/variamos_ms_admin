@@ -5,9 +5,21 @@ import { describeError } from "#src/common/describeError.js";
 import logger from "#src/common/logger.js";
 import { MFA_SIGN_IN_TTL_MS } from "#src/Domain/Mfa/Service/PendingMfaSignIns.js";
 import { queryText } from "./queryText.js";
+import type { SessionGate } from "./sessionGate.js";
 
 /** Holds the opaque token of a sign-in waiting for the second factor. */
 export const MFA_PENDING_COOKIE = "mfaPending";
+
+/**
+ * Holds the identifier of the session opened at sign-in (EV-74 lot 2). It is
+ * 256 random bits and the registry keeps its hash only: signing it would add
+ * nothing, and would make COOKIE_SECRET required.
+ */
+export const SESSION_ID_COOKIE = "adminSession";
+
+/** The session identifier a request carries. */
+export const sessionIdOf = (req: Request): string | undefined =>
+  queryText(req.cookies?.[SESSION_ID_COOKIE]);
 
 /** Holds the token of a browser where the code is not asked (lot 6). */
 export const MFA_TRUSTED_COOKIE = "mfaTrustedDevice";
@@ -70,7 +82,7 @@ export const trustedDeviceToken = (req: Request): string | undefined => {
 };
 
 /** The helpers given to the routes when the router is created. */
-export function createAuthWeb(web: AuthWebSettings) {
+export function createAuthWeb(web: AuthWebSettings, sessions: SessionGate) {
   const cookieOptions = (options: CookieOptionsInput = {}): CookieOptions => {
     const sameSite = options.sameSite ?? "strict";
     return {
@@ -119,7 +131,17 @@ export function createAuthWeb(web: AuthWebSettings) {
     return getUrl(transactionId, redirect);
   };
 
-  /** Creates the session cookie; gives the address to go to. */
+  /**
+   * Registers a session for the account and puts its identifier in a second
+   * cookie, beside the token (EV-74 lot 2). The token alone no longer opens
+   * the administration, nor is it refreshed.
+   */
+  const startSession = async (res: Response, userId: string) => {
+    const id = await sessions.open(userId);
+    res.cookie(SESSION_ID_COOKIE, id, cookieOptions());
+  };
+
+  /** Creates the session cookies; gives the address to go to. */
   const openSession = async (
     transactionId: string,
     req: Request,
@@ -136,6 +158,7 @@ export function createAuthWeb(web: AuthWebSettings) {
     // The token stays in the cookie: never in an address, which ends up in
     // the history, the server logs and the Referer header (EV-75)
     res.cookie("authToken", token, cookieOptions());
+    await startSession(res, sessionUser.id);
 
     return redirect ? redirect.toString() : `${web.homeRedirectUri}`;
   };
@@ -146,6 +169,7 @@ export function createAuthWeb(web: AuthWebSettings) {
     mfaPendingCookieOptions,
     mfaTrustedCookieOptions,
     redirectUrl,
+    startSession,
     openSession,
   };
 }

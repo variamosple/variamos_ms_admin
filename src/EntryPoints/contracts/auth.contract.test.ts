@@ -58,6 +58,7 @@ import { webSettingsFromEnv } from "#src/webSettings.js";
 import { AUTH_ROUTE, createAuthRouter } from "../AuthRouter.js";
 import { MFA_PENDING_COOKIE } from "../authWeb.js";
 import { createMfaRouter, MFA_ROUTE } from "../MfaRouter.js";
+import { openSessions } from "../openSessions.testing.js";
 
 // The settings of the test environment; a test may change one of them
 const web = webSettingsFromEnv().auth;
@@ -188,6 +189,7 @@ app.use(
     userQueryUseCase: queries,
     mfaSignIn,
     accessJournal: mock<IAccessJournal>(),
+    sessions: openSessions(),
     web,
   }),
 );

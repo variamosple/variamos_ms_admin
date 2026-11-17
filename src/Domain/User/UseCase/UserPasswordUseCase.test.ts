@@ -5,6 +5,7 @@ import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
 import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import type { IMailService } from "#src/Domain/Mail/IMailService.js";
+import type { ISessionRevoker } from "#src/Domain/Session/Repository/ISessionRepository.js";
 import { User } from "#src/Domain/User/Entity/User.js";
 import type { IUserPasswordRepository } from "#src/Domain/User/IUserPasswordRepository.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
@@ -639,6 +640,89 @@ describe("UserPasswordUseCase", () => {
       expect(res.message).toBe(
         "New password cannot be the same as the old password.",
       );
+    });
+  });
+
+  // EV-74 lot 2: whoever held a session with the old password loses it
+  describe("resetPassword, sessions of the account", () => {
+    const reset = () =>
+      new RequestModel("tx-1", {
+        token: "token-123",
+        password: "NewPassword123!",
+      });
+    const withSessions = (sessions: ISessionRevoker) =>
+      new UserPasswordUseCase({
+        repositories: {
+          accounts: mockUserRepository,
+          passwords: mockUserRepository,
+        },
+        mailService: mockMailService,
+        config: mockConfig,
+        journal: activityJournal,
+        logger,
+        sessions,
+      });
+
+    beforeEach(() => {
+      mockUserRepository.getPasswordResetToken.mockResolvedValue({
+        userId: "user-123",
+        expiresAt: new Date(Date.now() + 60_000),
+        usedAt: null,
+        isUserActive: true,
+      });
+    });
+
+    it("ends every session of the account once the password is reset", async () => {
+      const sessions = { revokeAllOf: vi.fn().mockResolvedValue(2) };
+      mockUserRepository.resetPasswordWithToken.mockResolvedValue("reset");
+
+      const res = await withSessions(sessions).resetPassword(reset());
+
+      expect(res.errorCode).toBeUndefined();
+      expect(sessions.revokeAllOf).toHaveBeenCalledWith("user-123");
+    });
+
+    it("ends no session when the reset is refused", async () => {
+      const sessions = { revokeAllOf: vi.fn() };
+      mockUserRepository.resetPasswordWithToken.mockResolvedValue(
+        "same_password",
+      );
+
+      await withSessions(sessions).resetPassword(reset());
+
+      expect(sessions.revokeAllOf).not.toHaveBeenCalled();
+    });
+
+    it("keeps the reset when the sessions cannot be ended, and logs it", async () => {
+      const sessions = {
+        revokeAllOf: vi.fn().mockRejectedValue(new Error("database down")),
+      };
+      mockUserRepository.resetPasswordWithToken.mockResolvedValue("reset");
+
+      const res = await withSessions(sessions).resetPassword(reset());
+
+      expect(res.errorCode).toBeUndefined();
+      expect(logger.err).toHaveBeenCalledWith(
+        expect.stringContaining("could not be ended"),
+      );
+    });
+
+    it("ends no session when the token can no longer be read", async () => {
+      const sessions = { revokeAllOf: vi.fn() };
+      mockUserRepository.getPasswordResetToken
+        .mockResolvedValueOnce({
+          userId: "user-123",
+          expiresAt: new Date(Date.now() + 60_000),
+          usedAt: null,
+          isUserActive: true,
+        })
+        .mockResolvedValueOnce(null);
+      mockUserRepository.resetPasswordWithToken.mockResolvedValue("reset");
+
+      const res = await withSessions(sessions).resetPassword(reset());
+
+      expect(res.errorCode).toBeUndefined();
+      expect(sessions.revokeAllOf).not.toHaveBeenCalled();
     });
   });
 });
