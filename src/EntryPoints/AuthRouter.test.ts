@@ -1280,6 +1280,135 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
   });
 
+  // Temporary sign-in of a local interface on production (2026-11-17)
+  describe("local interfaces of AUTH_LOCAL_DEV_ORIGINS", () => {
+    const LOCAL = "http://localhost:3000";
+
+    const allowLocalDev = (until: string) => {
+      vi.stubEnv("AUTH_LOCAL_DEV_ORIGINS", `${LOCAL},http://127.0.0.1:3000`);
+      vi.stubEnv("AUTH_LOCAL_DEV_UNTIL", until);
+    };
+
+    const validSession = (exp: number) => {
+      const payload = {
+        sub: "user-123",
+        exp,
+        iat: Math.floor(Date.now() / 1000),
+        roles: ["admin"],
+      } as SessionInfo;
+      vi.mocked(getToken).mockReturnValue("current-token");
+      vi.mocked(validateToken).mockResolvedValue(
+        new SecurityResponseModel<SessionInfo>("getSessionInfo").withResponse(
+          payload,
+        ),
+      );
+      vi.mocked(sessionInfoToSessionUser).mockReturnValue({
+        id: "user-123",
+        name: "John Doe",
+        user: "john",
+        email: "john@example.com",
+      });
+    };
+
+    const refreshedSession = () => {
+      validSession(1000);
+      vi.mocked(isSessionExpired).mockReturnValue(true);
+      (UserQueryUseCase.prototype.sessionUser as Mock).mockResolvedValue(
+        new ResponseModel("getSessionInfo").withResponse(
+          User.builder().setId("user-123").setName("John Doe").build(),
+        ),
+      );
+      vi.mocked(createJwt).mockResolvedValue("refreshed-token");
+    };
+
+    it("gives the current token in the address back to a listed local page", async () => {
+      allowLocalDev("2999-12-31");
+      validSession(9999999999);
+      vi.mocked(isSessionExpired).mockReturnValue(false);
+
+      const response = await supertest(app)
+        .get("/auth/session-info")
+        .set("Cookie", [`redirectTo=${LOCAL}/dashboard`]);
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+      const body = response.body as {
+        data: { redirect?: string; authToken?: string };
+      };
+      expect(body.data.redirect).toBe(
+        `${LOCAL}/dashboard?authToken=current-token`,
+      );
+      expect(body.data.authToken).toBeUndefined();
+    });
+
+    it("gives a refreshed token in the body and the address to a listed local page", async () => {
+      allowLocalDev("2999-12-31");
+      refreshedSession();
+
+      const response = await supertest(app)
+        .get("/auth/session-info")
+        .set("Origin", LOCAL)
+        .set("Cookie", [`redirectTo=${LOCAL}/dashboard`]);
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+      const body = response.body as {
+        data: { redirect?: string; authToken?: string };
+      };
+      expect(body.data.authToken).toBe("refreshed-token");
+      expect(body.data.redirect).toBe(
+        `${LOCAL}/dashboard?authToken=refreshed-token`,
+      );
+    });
+
+    it("gives the token to a guest sent back to a listed local page", async () => {
+      allowLocalDev("2999-12-31");
+      vi.mocked(createJwt).mockResolvedValue("guest-jwt-token");
+      (UserAuthUseCase.prototype.getGuestData as Mock).mockResolvedValue(
+        new ResponseModel("signInAsGuest").withResponse(
+          User.builder().setId("guest-123").setName("Guest").build(),
+        ),
+      );
+
+      const response = await supertest(app)
+        .post("/auth/guest/sign-in")
+        .set("Cookie", ["redirectTo=http://127.0.0.1:3000/"])
+        .send({ guestId: "guest-123" });
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+      const body = response.body as { data: { redirect: string } };
+      expect(body.data.redirect).toBe(
+        "http://127.0.0.1:3000/?authToken=guest-jwt-token",
+      );
+    });
+
+    it("gives nothing to a local page that is not listed", async () => {
+      allowLocalDev("2999-12-31");
+      refreshedSession();
+
+      const response = await supertest(app)
+        .get("/auth/session-info")
+        .set("Origin", "http://localhost:4000")
+        .set("Cookie", ["redirectTo=http://localhost:4000/dashboard"]);
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(JSON.stringify(response.body)).not.toContain("refreshed-token");
+    });
+
+    it("stops once the end date is past, without a restart", async () => {
+      allowLocalDev("2026-01-31");
+      refreshedSession();
+
+      const response = await supertest(app)
+        .get("/auth/session-info")
+        .set("Origin", LOCAL)
+        .set("Cookie", [`redirectTo=${LOCAL}/dashboard`]);
+
+      expect(response.status).toBe(HttpStatusCodes.OK);
+      expect(JSON.stringify(response.body)).not.toContain("refreshed-token");
+      const body = response.body as { data: { redirect?: string } };
+      expect(body.data.redirect).toBeUndefined();
+    });
+  });
+
   describe("GET /auth/my-account", () => {
     it("should return 200 on successful fetch", async () => {
       const mockUser = User.builder()

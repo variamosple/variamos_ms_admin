@@ -33,6 +33,16 @@ export default {
       .map((origin) => origin.trim())
       .filter((origin) => origin !== ""),
   },
+  // Temporary sign-in of a local interface on production (2026-11-17): read
+  // on each access, so that the end date applies without a restart
+  LocalDev: {
+    get Origins(): string {
+      return process.env.AUTH_LOCAL_DEV_ORIGINS ?? "";
+    },
+    get Until(): string {
+      return process.env.AUTH_LOCAL_DEV_UNTIL ?? "";
+    },
+  },
   CookieProps: {
     Secret: process.env.COOKIE_SECRET ?? "",
     Options: {

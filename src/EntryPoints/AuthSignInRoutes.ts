@@ -19,6 +19,7 @@ import {
   MFA_PENDING_COOKIE,
   MFA_TRUSTED_COOKIE,
   trustedDeviceToken,
+  withLocalDevToken,
 } from "./authWeb.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
@@ -316,6 +317,7 @@ const signInAsGuest =
       );
 
       res.cookie("authToken", token, ctx.cookieOptions());
+      withLocalDevToken(redirect, token);
 
       response.data = {
         id: id || "",

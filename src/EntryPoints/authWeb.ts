@@ -2,6 +2,7 @@ import { createJwt, type SessionUser } from "@variamosple/variamos-security";
 import type { CookieOptions, Request, Response } from "express";
 import { isAllowedOrigin } from "#src/common/allowedOrigins.js";
 import { describeError } from "#src/common/describeError.js";
+import { isLocalDevOrigin } from "#src/common/localDevOrigins.js";
 import logger from "#src/common/logger.js";
 import { MFA_SIGN_IN_TTL_MS } from "#src/Domain/Mfa/Service/PendingMfaSignIns.js";
 import { queryText } from "./queryText.js";
@@ -63,6 +64,21 @@ const getUrl = (transactionId: string, url?: string): URL | undefined => {
   }
 
   return undefined;
+};
+
+/**
+ * The address to go back to, with the session token when it is the page of a
+ * local interface allowed by AUTH_LOCAL_DEV_ORIGINS: that page cannot read the
+ * cookie of app.variamos.com. Temporary (2026-11-17).
+ */
+export const withLocalDevToken = (
+  redirect: URL | undefined,
+  token: string,
+): URL | undefined => {
+  if (redirect && isLocalDevOrigin(redirect.origin)) {
+    redirect.searchParams.set("authToken", token);
+  }
+  return redirect;
 };
 
 export const trustedDeviceToken = (req: Request): string | undefined => {
@@ -134,8 +150,10 @@ export function createAuthWeb(web: AuthWebSettings) {
     );
 
     // The token stays in the cookie: never in an address, which ends up in
-    // the history, the server logs and the Referer header (EV-75)
+    // the history, the server logs and the Referer header (EV-75), except
+    // for a local interface, for a while (withLocalDevToken)
     res.cookie("authToken", token, cookieOptions());
+    withLocalDevToken(redirect, token);
 
     return redirect ? redirect.toString() : `${web.homeRedirectUri}`;
   };
