@@ -55,7 +55,7 @@ docker run -d --rm --name ev92-admin --network $NET "${PINNED[@]}" \
   -e DB_PASSWORD=$DB_PASSWORD -e DB_DATABASE=VariamosDB -e DB_SCHEMA=variamos -e DB_SSL=false \
   -e VARIAMOS_PRIVATE_KEY_PATH=/keys/jwtRS256.key -e VARIAMOS_PUBLIC_KEY_PATH=/keys/jwtRS256.key.pub \
   -e COOKIE_SECRET=loadtest-only-cookie-secret -e COOKIE_PATH=/ -e COOKIE_EXP_IN_MS=1200000 \
-  -e SECURE_COOKIE=false -e CORS_ALLOWED_ORIGINS_PATTERNS=http://localhost:3000 \
+  -e SECURE_COOKIE=false -e CORS_ALLOWED_ORIGINS=http://localhost:3000 \
   -e DOCKER_SOCKET_PATH=/var/run/docker.sock \
   -e GITHUB_MANAGED_REPOS=loadtest/repo-1,loadtest/repo-2,loadtest/repo-3 \
   -e NOTIFICATION_SERVICE_URL=http://ev92-notifications-absent:3005 \

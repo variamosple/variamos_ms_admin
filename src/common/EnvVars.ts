@@ -27,15 +27,11 @@ export default {
     SCHEMA: process.env.DB_SCHEMA ?? "variamos",
   },
   CORS: {
-    // Exact origins (EV-75); once set, the patterns below are no longer read
+    // Exact origins (EV-75)
     AllowedOrigins: (process.env.CORS_ALLOWED_ORIGINS ?? "")
       .split(",")
       .map((origin) => origin.trim())
       .filter((origin) => origin !== ""),
-    // Former regular expressions, read only without CORS_ALLOWED_ORIGINS
-    AllowedOriginsPatterns: (process.env.CORS_ALLOWED_ORIGINS_PATTERNS ?? "")
-      .split(",")
-      .map((pattern) => new RegExp(pattern)),
   },
   CookieProps: {
     Secret: process.env.COOKIE_SECRET ?? "",

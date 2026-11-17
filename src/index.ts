@@ -56,8 +56,8 @@ if (missingSecrets.length > 0) {
   process.exit(1);
 }
 
-// Without an exact list, the former patterns are read; an empty pattern would
-// allow every origin with the session cookie (EV-75)
+// The exact origins allowed with the session cookie: production does not
+// start without them (EV-75)
 const originList = checkOriginList(process.env, EnvVars.NodeEnv);
 for (const warning of originList.warnings) logger.warn(`[CONFIG] ${warning}`);
 if (originList.errors.length > 0) {

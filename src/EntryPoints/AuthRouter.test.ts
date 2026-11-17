@@ -1,4 +1,4 @@
-import type { Mock } from "vitest";
+import { type Mock, onTestFinished } from "vitest";
 
 // Mock google-auth-library as a standard class to bypass Vitest restoreMocks: true
 vi.mock("google-auth-library", () => {
@@ -174,6 +174,21 @@ function parseCookies(response: supertest.Response): string[] {
   }
   return Array.isArray(rawCookies) ? rawCookies : [rawCookies];
 }
+
+// Allows these origins for one test only (EV-75: the list is exact)
+const allowOrigins = (origins: string[]) => {
+  const original = EnvVars.CORS.AllowedOrigins;
+  Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+    value: origins,
+    configurable: true,
+  });
+  onTestFinished(() => {
+    Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+      value: original,
+      configurable: true,
+    });
+  });
+};
 
 describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
   let app: express.Application;
@@ -365,9 +380,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("should handle external allowed redirect origin and set secure SameSite none cookie", async () => {
       // Mock AllowedOrigins to authorize allowed-origin.com
-      const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: [/^https?:\/\/allowed-origin\.com$/],
+      const originalOrigins = EnvVars.CORS.AllowedOrigins;
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: ["http://allowed-origin.com", "https://allowed-origin.com"],
         configurable: true,
       });
 
@@ -413,8 +428,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       ).toBe(true);
 
       // Restore AllowedOrigins
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: originalPatterns,
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: originalOrigins,
         configurable: true,
       });
     });
@@ -554,6 +569,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should handle local redirect origin and not set SameSite none or append token", async () => {
+      // The page to go back to is on the local interface
+      allowOrigins(["http://localhost:3000"]);
       const mockToken = "valid-token";
       const mockUserPayload = {
         sub: "user-123",
@@ -712,9 +729,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("keeps a refreshed token in the cookie, never in the body, even for a page of another site (EV-117)", async () => {
-      const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: [/^https?:\/\/allowed-origin\.com$/],
+      const originalOrigins = EnvVars.CORS.AllowedOrigins;
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: ["http://allowed-origin.com", "https://allowed-origin.com"],
         configurable: true,
       });
 
@@ -767,8 +784,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         "new-refreshed-jwt-token",
       );
 
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: originalPatterns,
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: originalOrigins,
         configurable: true,
       });
     });
@@ -784,9 +801,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       });
 
       const refreshAs = async (aud: string | string[]) => {
-        const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
-        Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-          value: [/^https?:\/\/allowed-origin\.com$/],
+        const originalOrigins = EnvVars.CORS.AllowedOrigins;
+        Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+          value: ["http://allowed-origin.com", "https://allowed-origin.com"],
           configurable: true,
         });
         try {
@@ -817,8 +834,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
             .set("Origin", "http://allowed-origin.com")
             .set("Cookie", ["redirectTo=http://allowed-origin.com/dashboard"]);
         } finally {
-          Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-            value: originalPatterns,
+          Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+            value: originalOrigins,
             configurable: true,
           });
         }
@@ -994,9 +1011,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should redirect to external allowed redirect origin on successful sign in", async () => {
-      const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: [/^https?:\/\/allowed-origin\.com$/],
+      const originalOrigins = EnvVars.CORS.AllowedOrigins;
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: ["http://allowed-origin.com", "https://allowed-origin.com"],
         configurable: true,
       });
 
@@ -1022,8 +1039,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       const body = response.body as { data: { redirect: string } };
       expect(body.data.redirect).toBe("http://allowed-origin.com/dashboard");
 
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: originalPatterns,
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: originalOrigins,
         configurable: true,
       });
     });
@@ -1228,9 +1245,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should handle external allowed redirect origin on guest sign in", async () => {
-      const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: [/^https?:\/\/allowed-origin\.com$/],
+      const originalOrigins = EnvVars.CORS.AllowedOrigins;
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: ["http://allowed-origin.com", "https://allowed-origin.com"],
         configurable: true,
       });
 
@@ -1256,8 +1273,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       const body = response.body as { data: { redirect: string } };
       expect(body.data.redirect).toBe("http://allowed-origin.com/dashboard");
 
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: originalPatterns,
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: originalOrigins,
         configurable: true,
       });
     });
@@ -1651,9 +1668,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should handle external allowed redirect origin and append token to redirect location", async () => {
-      const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: [/^https?:\/\/allowed-origin\.com$/],
+      const originalOrigins = EnvVars.CORS.AllowedOrigins;
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: ["http://allowed-origin.com", "https://allowed-origin.com"],
         configurable: true,
       });
 
@@ -1688,8 +1705,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       // Ensure redirectTo is NOT cleared since remove=false
       expect(cookies.some((c) => c.includes("redirectTo=;"))).toBe(false);
 
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: originalPatterns,
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: originalOrigins,
         configurable: true,
       });
     });
@@ -1912,9 +1929,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
   describe("POST /auth/redirects", () => {
     it("should return 200 and set redirect cookie if valid allowed origin", async () => {
-      const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: [/^https?:\/\/allowed-origin\.com$/],
+      const originalOrigins = EnvVars.CORS.AllowedOrigins;
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: ["http://allowed-origin.com", "https://allowed-origin.com"],
         configurable: true,
       });
 
@@ -1925,15 +1942,15 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(response.headers["set-cookie"]).toBeDefined();
 
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: originalPatterns,
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: originalOrigins,
         configurable: true,
       });
     });
 
     it("should return 200 but ignore cookie set if disallowed origin", async () => {
-      const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
+      const originalOrigins = EnvVars.CORS.AllowedOrigins;
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
         value: [],
         configurable: true,
       });
@@ -1945,8 +1962,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       expect(response.status).toBe(HttpStatusCodes.OK);
       expect(response.headers["set-cookie"]).toBeUndefined();
 
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: originalPatterns,
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: originalOrigins,
         configurable: true,
       });
     });
@@ -1980,10 +1997,10 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       expect(response.headers["set-cookie"]).toBeUndefined();
     });
 
-    it("does not keep a non-web address even when every origin is allowed", async () => {
-      const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: [/.*/],
+    it("does not keep a non-web address even when the list names the origin null", async () => {
+      const originalOrigins = EnvVars.CORS.AllowedOrigins;
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: ["null"],
         configurable: true,
       });
 
@@ -1993,8 +2010,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       expect(response.headers["set-cookie"]).toBeUndefined();
 
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: originalPatterns,
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: originalOrigins,
         configurable: true,
       });
     });
@@ -2012,6 +2029,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should handle fallback HOME_URL when web.homeRedirectUri is empty (Line 42)", async () => {
+      // The page to go back to is on the local interface
+      allowOrigins(["http://localhost:3000"]);
       web.homeRedirectUri = "";
 
       const mockUserAuthUseCase = mock<UserAuthUseCase>();
@@ -2237,9 +2256,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return undefined authToken when mixed local/external aud and origin are provided (Line 218)", async () => {
-      const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: [/^https?:\/\/allowed-origin\.com$/],
+      const originalOrigins = EnvVars.CORS.AllowedOrigins;
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: ["http://allowed-origin.com", "https://allowed-origin.com"],
         configurable: true,
       });
 
@@ -2303,8 +2322,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       expect(responseB.status).toBe(HttpStatusCodes.OK);
       expect(responseB.body.data.authToken).toBeUndefined();
 
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: originalPatterns,
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: originalOrigins,
         configurable: true,
       });
     });
@@ -2662,9 +2681,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should call getCookieOptions with sameSite none in /redirects (Line 610)", async () => {
-      const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: [/^https?:\/\/allowed-origin\.com$/],
+      const originalOrigins = EnvVars.CORS.AllowedOrigins;
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: ["http://allowed-origin.com", "https://allowed-origin.com"],
         configurable: true,
       });
 
@@ -2680,8 +2699,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         ),
       ).toBe(true);
 
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: originalPatterns,
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: originalOrigins,
         configurable: true,
       });
     });
@@ -2827,9 +2846,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should compile HOME_URL_HOST_REGEX using the hostname (Line 43)", async () => {
-      const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: [/^https?:\/\/my-home-domain\.com$/],
+      const originalOrigins = EnvVars.CORS.AllowedOrigins;
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: ["http://my-home-domain.com", "https://my-home-domain.com"],
         configurable: true,
       });
 
@@ -2876,8 +2895,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         "http://my-home-domain.com/dashboard",
       );
 
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: originalPatterns,
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: originalOrigins,
         configurable: true,
       });
     });
@@ -2982,9 +3001,12 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       vi.mocked(createJwt).mockResolvedValue("jwt-token");
       mockUserAuthUseCase.signIn.mockResolvedValue(expectedResponse);
 
-      const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: [/^https?:\/\/localhost\.external\.com$/],
+      const originalOrigins = EnvVars.CORS.AllowedOrigins;
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: [
+          "http://localhost.external.com",
+          "https://localhost.external.com",
+        ],
         configurable: true,
       });
 
@@ -2998,16 +3020,16 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         "http://localhost.external.com/dashboard",
       );
 
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: originalPatterns,
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: originalOrigins,
         configurable: true,
       });
     });
 
     it("keeps an https address of an allowed site as the redirect", async () => {
-      const originalPatterns = EnvVars.CORS.AllowedOriginsPatterns;
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: [/^https:\/\/allowed-origin\.com$/],
+      const originalOrigins = EnvVars.CORS.AllowedOrigins;
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: ["https://allowed-origin.com"],
         configurable: true,
       });
 
@@ -3022,8 +3044,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         "redirectTo=https://allowed-origin.com/#/users",
       );
 
-      Object.defineProperty(EnvVars.CORS, "AllowedOriginsPatterns", {
-        value: originalPatterns,
+      Object.defineProperty(EnvVars.CORS, "AllowedOrigins", {
+        value: originalOrigins,
         configurable: true,
       });
     });
