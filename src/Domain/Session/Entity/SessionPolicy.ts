@@ -2,7 +2,7 @@ const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
 
 /** Accepted bounds of the configured values; outside them, the default. */
-export const SESSION_POLICY_BOUNDS = {
+const SESSION_POLICY_BOUNDS = {
   idleMinutes: { min: 5, max: 1440 },
   maxHours: { min: 1, max: 720 },
 } as const;

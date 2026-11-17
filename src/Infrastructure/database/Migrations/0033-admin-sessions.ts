@@ -11,7 +11,7 @@ export const SESSION_TABLE = "admin_sessions";
 // Values as of 2026-11-17 (EV-74 lot 2, EV-87 lot 4): usual durations, a
 // little lenient, decided by the project lead. A migration never changes
 // once applied, so they are written here rather than read from the code
-export const SESSION_POLICY_ROWS = [
+const SESSION_POLICY_ROWS = [
   {
     key: "security.session.idle_minutes",
     value: 60,
