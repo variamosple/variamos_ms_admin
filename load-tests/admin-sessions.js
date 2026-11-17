@@ -23,6 +23,9 @@
 //   k6 run -e BASE_URL=http://localhost:4000 -e PASSWORD=... admin-sessions.js
 // EMAIL gives one account to all the virtual users instead: a test account
 // made for a short run on a real server, with its own throwaway password.
+// SKIP leaves screens out, separated by commas ("users"): the test account of
+// a real server holds only the permissions of the screens it opens, and never
+// users::query, so that it reads no personal data.
 import { check, sleep } from "k6";
 import http from "k6/http";
 
@@ -35,6 +38,7 @@ const PEAK = Number(__ENV.PEAK || 200);
 // HOLD shortens the plateau for a trial run ("1m"); the campaign keeps 15 min
 const HOLD = __ENV.HOLD || "15m";
 const ABORT_P95 = Number(__ENV.ABORT_P95 || 0);
+const SKIP = (__ENV.SKIP || "").split(",").filter(Boolean);
 
 if (!PASSWORD) {
   throw new Error("PASSWORD is required: the one given to seed.sql or EMAIL");
@@ -43,16 +47,37 @@ if (SIGN_IN !== "once" && SIGN_IN !== "each") {
   throw new Error(`SIGN_IN is "once" or "each", not "${SIGN_IN}"`);
 }
 
+const SCREENS = [
+  ["session-info", () => "/auth/session-info"],
+  ["users", () => "/v1/users?pageNumber=1&pageSize=10"],
+  ["micro-services", () => "/v1/micro-services"],
+  ["bugs", () => "/bugs?pageNumber=1&pageSize=20"],
+  // As the dashboard asks: the last 30 days, in the time zone of the reader
+  [
+    "metrics",
+    () => {
+      const day = (d) => d.toISOString().slice(0, 10);
+      const end = new Date();
+      const start = new Date(end.getTime() - 30 * 24 * 3600 * 1000);
+      return `/v1/metrics?startDate=${day(start)}&endDate=${day(end)}&timeZone=America%2FBogota`;
+    },
+  ],
+].filter(([action]) => !SKIP.includes(action));
+// The session information stays: every screen asks for it first
+const SKIPPABLE = ["users", "micro-services", "bugs", "metrics"];
+const unknown = SKIP.filter((action) => !SKIPPABLE.includes(action));
+if (unknown.length > 0) {
+  throw new Error(
+    `SKIP takes ${SKIPPABLE.join(", ")}, not "${unknown.join(",")}"`,
+  );
+}
+
 // MA-NF-06: under 2 s on average and under 3 s at the 95th percentile, for
 // each action; under 1 % of failed requests (proposed in EV-92). Signing out
 // happens only when each round signs in.
 const ACTIONS = [
   "sign-in",
-  "session-info",
-  "users",
-  "micro-services",
-  "bugs",
-  "metrics",
+  ...SCREENS.map(([action]) => action),
   ...(SIGN_IN === "each" ? ["sign-out"] : []),
 ];
 const thresholds = { http_req_failed: ["rate<0.01"] };
@@ -160,20 +185,8 @@ export default function session() {
     if (!signedIn) return;
   }
 
-  const day = (d) => d.toISOString().slice(0, 10);
-  const end = new Date();
-  const start = new Date(end.getTime() - 30 * 24 * 3600 * 1000);
-  const period = `startDate=${day(start)}&endDate=${day(end)}`;
-  const screens = [
-    ["session-info", "/auth/session-info"],
-    ["users", "/v1/users?pageNumber=1&pageSize=10"],
-    ["micro-services", "/v1/micro-services"],
-    ["bugs", "/bugs?pageNumber=1&pageSize=20"],
-    // As the dashboard asks: a period, in the time zone of the reader
-    ["metrics", `/v1/metrics?${period}&timeZone=America%2FBogota`],
-  ];
-  for (const [action, path] of screens) {
-    get(action, path);
+  for (const [action, path] of SCREENS) {
+    get(action, path());
     think();
     if (!signedIn) return;
   }
