@@ -17,6 +17,7 @@ import {
   AccessJournalInstance,
   ActivityJournalInstance,
   ContainerResourceSamplerInstance,
+  KnownDeviceInstance,
   SecretConfigurationValueInstance,
   VisitRetentionInstance,
 } from "./CompositionRepositories.js";
@@ -96,6 +97,7 @@ try {
     ActivityJournalInstance,
     AccessJournalInstance,
     VisitRetentionInstance,
+    KnownDeviceInstance,
   ]);
 } catch (e) {
   logger.err(

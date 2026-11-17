@@ -5,6 +5,8 @@ import { actorOf } from "./actor.js";
 
 type AccessEvent = Pick<AccessEntry, "event" | "outcome" | "reason"> & {
   userId?: string | null;
+  /** The identifier the browser keeps, for a completed sign-in. */
+  deviceId?: string;
 };
 
 /** The path without its query string, which may carry a token. */
@@ -25,9 +27,14 @@ export function recordAccess(
   event: AccessEvent,
 ): void {
   res.locals.accessRecorded = true;
+  const { deviceId, ...recorded } = event;
+  const device = deviceId
+    ? { id: deviceId, userAgent: req.get("user-agent")?.slice(0, 512) ?? null }
+    : undefined;
   res.once("finish", () => {
     void journal.record({
-      ...event,
+      ...recorded,
+      device,
       // A success whose answer failed afterwards (a 500) is no success
       outcome: res.statusCode >= 400 ? "failed" : event.outcome,
       userId: event.userId ?? null,

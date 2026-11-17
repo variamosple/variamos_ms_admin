@@ -24,7 +24,11 @@ import type { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordU
 import type { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
 import { webSettingsFromEnv } from "#src/webSettings.js";
 import { AUTH_ROUTE, createAuthRouter } from "./AuthRouter.js";
-import { MFA_PENDING_COOKIE, MFA_TRUSTED_COOKIE } from "./authWeb.js";
+import {
+  KNOWN_DEVICE_COOKIE,
+  MFA_PENDING_COOKIE,
+  MFA_TRUSTED_COOKIE,
+} from "./authWeb.js";
 
 // The settings of the test environment; a test may change one of them
 const web = webSettingsFromEnv().auth;
@@ -504,5 +508,96 @@ describe("browsers where the code is not asked (lot 6)", () => {
 
     expect(response.headers.location).not.toContain("mfa=required");
     expect(cookieNamed(response, "authToken")).toBeDefined();
+  });
+});
+
+describe("identifier of the browser, for the new-device alert (EV-88)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(createJwt).mockResolvedValue("session-jwt");
+  });
+
+  const deviceCookieOf = (response: supertest.Response) =>
+    cookieNamed(response, KNOWN_DEVICE_COOKIE);
+  const deviceIdOf = (cookie: string) =>
+    cookie.split(";")[0]?.split("=")[1] as string;
+  const recordedDevice = (event: string) =>
+    accessJournal.record.mock.calls
+      .map(([entry]) => entry)
+      .find((entry) => entry.event === event && entry.outcome === "success")
+      ?.device;
+
+  it("gives the browser an identifier at a completed sign-in, kept a year", async () => {
+    const { app } = setUp(false);
+
+    const response = await signIn(app).set("User-Agent", "Firefox/133.0");
+
+    const cookie = deviceCookieOf(response) as string;
+    expect(cookie).toContain("HttpOnly");
+    expect(cookie).toContain("Secure");
+    expect(cookie).toContain("SameSite=None");
+    expect(cookie).toContain(`Max-Age=${365 * 24 * 60 * 60}`);
+    expect(deviceIdOf(cookie)).toMatch(/^[\w-]{43}$/);
+    await vi.waitFor(() =>
+      expect(recordedDevice("sign-in")).toEqual({
+        id: deviceIdOf(cookie),
+        userAgent: "Firefox/133.0",
+      }),
+    );
+  });
+
+  it("keeps the identifier the browser has, and replaces a malformed one", async () => {
+    const { app } = setUp(false);
+    const kept = "a".repeat(43);
+
+    const again = await signIn(app).set(
+      "Cookie",
+      `${KNOWN_DEVICE_COOKIE}=${kept}`,
+    );
+    const malformed = await signIn(app).set(
+      "Cookie",
+      `${KNOWN_DEVICE_COOKIE}=short`,
+    );
+
+    expect(deviceCookieOf(again)).toBeUndefined();
+    await vi.waitFor(() => expect(recordedDevice("sign-in")?.id).toBe(kept));
+    expect(deviceIdOf(deviceCookieOf(malformed) as string)).not.toBe("short");
+  });
+
+  it("waits for the code before naming the browser", async () => {
+    const { app } = setUp(true);
+    const first = await signIn(app);
+
+    expect(deviceCookieOf(first)).toBeUndefined();
+    const response = await supertest(app)
+      .post("/auth/sign-in/mfa")
+      .set("Cookie", pendingCookieOf(first))
+      .send({ code: RIGHT_CODE })
+      .expect(200);
+
+    const cookie = deviceCookieOf(response) as string;
+    await vi.waitFor(() =>
+      expect(recordedDevice("sign-in.mfa")?.id).toBe(deviceIdOf(cookie)),
+    );
+    expect(recordedDevice("sign-in")).toBeUndefined();
+  });
+
+  it("names the browser of a Google sign-in, once the code is not needed", async () => {
+    const google = (mfa: boolean) =>
+      supertest(setUp(mfa).app)
+        .post("/auth/google/callback")
+        .set("Cookie", [googleCsrfCookie])
+        .send({ credential: "google-token", g_csrf_token: GOOGLE_CSRF });
+
+    const withoutCode = await google(false);
+    const withCode = await google(true);
+
+    expect(deviceCookieOf(withoutCode)).toBeDefined();
+    expect(deviceCookieOf(withCode)).toBeUndefined();
+    await vi.waitFor(() =>
+      expect(recordedDevice("sign-in.google")?.id).toBe(
+        deviceIdOf(deviceCookieOf(withoutCode) as string),
+      ),
+    );
   });
 });

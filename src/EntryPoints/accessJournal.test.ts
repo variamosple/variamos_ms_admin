@@ -56,6 +56,34 @@ describe("access journal of the routes (T-24)", () => {
     );
   });
 
+  it("passes the browser of a completed sign-in, its name cut to 512 characters", async () => {
+    const app = express();
+    app.use((req, res) => {
+      recordAccess(journal, req, res, {
+        event: "sign-in",
+        outcome: "success",
+        reason: null,
+        userId: "user-9",
+        deviceId: "device-1",
+      });
+      res.sendStatus(200);
+    });
+
+    await supertest(app)
+      .post("/auth/sign-in")
+      .set("User-Agent", "x".repeat(600));
+
+    await vi.waitFor(() =>
+      expect(journal.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: "user-9",
+          device: { id: "device-1", userAgent: "x".repeat(512) },
+        }),
+      ),
+    );
+    expect(journal.record.mock.calls[0]?.[0]).not.toHaveProperty("deviceId");
+  });
+
   it.each([200, 302, 400, 404, 500])(
     "records nothing for a %i answer",
     async (status) => {

@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { createJwt, type SessionUser } from "@variamosple/variamos-security";
 import type { CookieOptions, Request, Response } from "express";
 import { isAllowedOrigin } from "#src/common/allowedOrigins.js";
@@ -12,6 +13,12 @@ export const MFA_PENDING_COOKIE = "mfaPending";
 
 /** Holds the token of a browser where the code is not asked (lot 6). */
 export const MFA_TRUSTED_COOKIE = "mfaTrustedDevice";
+
+/** Holds the random identifier of a browser, for the new-device alert. */
+export const KNOWN_DEVICE_COOKIE = "knownDevice";
+
+const KNOWN_DEVICE_DAYS = 365;
+const DEVICE_ID = /^[\w-]{43}$/;
 
 // A page to go back to after sign-in: a web address of an allowed site.
 // A javascript: or data: address has the origin "null"; given to the
@@ -112,6 +119,22 @@ export function createAuthWeb(web: AuthWebSettings) {
     maxAge: maxAgeMs,
   });
 
+  /**
+   * The identifier of this browser, created at its first completed sign-in
+   * and kept a year. SameSite=None: Google posts its callback from its own
+   * site, and a Strict cookie would not come back with it.
+   */
+  const knownDevice = (req: Request, res: Response): string => {
+    const kept = queryText(req.cookies?.[KNOWN_DEVICE_COOKIE]);
+    if (kept && DEVICE_ID.test(kept)) return kept;
+    const created = randomBytes(32).toString("base64url");
+    res.cookie(KNOWN_DEVICE_COOKIE, created, {
+      ...cookieOptions({ sameSite: "none", maxAge: false, httpOnly: true }),
+      maxAge: KNOWN_DEVICE_DAYS * 24 * 60 * 60 * 1000,
+    });
+    return created;
+  };
+
   /** The page to go back to, kept in a cookie before sign-in. */
   const redirectUrl = (
     transactionId: string,
@@ -165,6 +188,7 @@ export function createAuthWeb(web: AuthWebSettings) {
     mfaTrustedCookieOptions,
     redirectUrl,
     openSession,
+    knownDevice,
   };
 }
 

@@ -13,7 +13,11 @@ import {
 } from "#src/Domain/User/Entity/GoogleIdentity.js";
 import type { User } from "#src/Domain/User/Entity/User.js";
 import { recordAccess } from "./accessJournal.js";
-import { type AuthContext, sessionUserOf } from "./authContext.js";
+import {
+  type AuthContext,
+  recordSignInStep,
+  sessionUserOf,
+} from "./authContext.js";
 import { googleCallbackBody } from "./authRequestBodies.js";
 import { MFA_PENDING_COOKIE, trustedDeviceToken } from "./authWeb.js";
 import { readBody } from "./requestBody.js";
@@ -180,11 +184,10 @@ const googleCallback =
         sessionUser.id,
         trustedDeviceToken(req),
       );
-      recordAccess(accessJournal, req, res, {
+      recordSignInStep(ctx, req, res, {
         event: "sign-in.google",
-        outcome: "success",
-        reason: pendingToken ? "mfa_required" : null,
         userId: sessionUser.id,
+        pendingToken,
       });
       if (pendingToken) {
         await askGoogleMfaCode(ctx, res, pendingToken);

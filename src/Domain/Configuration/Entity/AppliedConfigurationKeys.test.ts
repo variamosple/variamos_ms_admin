@@ -23,8 +23,7 @@ describe("isConfigurationApplied", () => {
     "security.alerts.mass_operations.max_operations",
     "security.alerts.mass_operations.window_minutes",
     "security.alerts.cooldown_minutes",
-    "security.alerts.off_hours",
-    "security.alerts.timezone",
+    "security.alerts.new_device.scope",
     "bugs.sync_interval_minutes",
     "bugs.rejected_retention_days",
     "general.site_name",
@@ -87,19 +86,15 @@ describe("refusalOfConfigurationValue", () => {
     );
   });
 
-  it("accepts an off-hours span or nothing, and a known time zone", () => {
-    const offHours = "security.alerts.off_hours";
-    const timeZone = "security.alerts.timezone";
+  it("accepts the three scopes of the new-device alert only", () => {
+    const scope = "security.alerts.new_device.scope";
 
-    expect(refusalOfConfigurationValue(offHours, "")).toBeNull();
-    expect(refusalOfConfigurationValue(offHours, "20:00-07:00")).toBeNull();
-    expect(refusalOfConfigurationValue(offHours, "20:00-20:00")).not.toBeNull();
-    expect(refusalOfConfigurationValue(offHours, "8pm-7am")).not.toBeNull();
-    expect(refusalOfConfigurationValue(timeZone, "America/Bogota")).toBeNull();
-    expect(refusalOfConfigurationValue(timeZone, "")).not.toBeNull();
-    expect(
-      refusalOfConfigurationValue(timeZone, "Mars/Olympus"),
-    ).not.toBeNull();
+    for (const value of ["off", "administrators", "everyone"]) {
+      expect(refusalOfConfigurationValue(scope, value)).toBeNull();
+    }
+    expect(refusalOfConfigurationValue(scope, "admins")).toBe(
+      `Configuration '${scope}' expects one of "off", "administrators", "everyone".`,
+    );
   });
 
   it("accepts a site name the browser tabs can show (EV-87 lot 2)", () => {
@@ -134,19 +129,16 @@ describe("refusalOfConfigurationValue", () => {
 });
 
 describe("acceptedValuesOf", () => {
-  it("gives the bounds of a number, the format of a text, or a sentence", () => {
+  it("gives the bounds of a number or a sentence", () => {
     expect(acceptedValuesOf("bugs.sync_interval_minutes")).toEqual({
       text: "a whole number of minutes from 5 to 1440",
       min: 5,
       max: 1440,
       unit: "minutes",
     });
-    expect(acceptedValuesOf("security.alerts.timezone")?.format).toBe(
-      "timeZone",
-    );
-    expect(acceptedValuesOf("security.alerts.off_hours")?.format).toBe(
-      "timeSpan",
-    );
+    expect(acceptedValuesOf("security.alerts.new_device.scope")).toEqual({
+      text: 'one of "off", "administrators", "everyone"',
+    });
     expect(acceptedValuesOf("security.password.require_numbers")).toEqual({
       text: "true or false",
     });

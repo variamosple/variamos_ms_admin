@@ -6,6 +6,7 @@ import type {
 } from "#src/Domain/Activity/AccessEntry.js";
 import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
 import type { IJournalPurge } from "#src/Domain/Activity/IJournalPurge.js";
+import type { IAddressHistory } from "#src/Domain/Activity/NewDeviceAlerts.js";
 import { errorName } from "#src/Domain/Core/Error/errorMessage.js";
 import { accountRefusalOf } from "#src/Domain/User/Entity/AccountAccess.js";
 import { rowCountOf } from "../queryResults.js";
@@ -18,7 +19,7 @@ const RETENTION = "6 months";
  * is logged and never fails the request.
  */
 export class AccessJournalRepositoryImpl
-  implements IAccessJournal, IJournalPurge
+  implements IAccessJournal, IAddressHistory, IJournalPurge
 {
   public readonly journal = "access";
 
@@ -36,10 +37,16 @@ export class AccessJournalRepositoryImpl
          VALUES (:event, :outcome, :reason, :userId, :ip, :method, :path,
             :statusCode)`,
         {
+          // Listed one by one: the device of the entry is never written
           replacements: {
-            ...entry,
+            event: entry.event,
+            outcome: entry.outcome,
+            reason: entry.reason,
+            userId: entry.userId,
             ip: entry.ip?.slice(0, 64) ?? null,
+            method: entry.method,
             path: entry.path?.slice(0, 255) ?? null,
+            statusCode: entry.statusCode,
           },
         },
       );
@@ -74,6 +81,31 @@ export class AccessJournalRepositoryImpl
       logger.err(`[ACCESS] account lookup failed: ${errorName(error)}`);
       return null;
     }
+  }
+
+  /**
+   * Completed sign-ins of the account from the address since that date: a
+   * correct password still waiting for the second factor does not count.
+   */
+  public async completedSignInsFrom(
+    userId: string,
+    ip: string,
+    since: Date,
+  ): Promise<number> {
+    const [row] = await this.sequelize.query<{ count: number }>(
+      `SELECT count(*)::int AS "count"
+         FROM "${this.schema}"."admin_access_logs"
+        WHERE "user_id" = :userId AND "ip" = :ip
+          AND "event" IN ('sign-in', 'sign-in.mfa', 'sign-in.google')
+          AND "outcome" = 'success'
+          AND "reason" IS DISTINCT FROM 'mfa_required'
+          AND "occurred_at" >= :since`,
+      {
+        replacements: { userId, ip: ip.slice(0, 64), since },
+        type: QueryTypes.SELECT,
+      },
+    );
+    return row?.count ?? 0;
   }
 
   public async purgeExpired(): Promise<number> {

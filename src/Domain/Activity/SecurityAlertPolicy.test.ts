@@ -35,54 +35,22 @@ describe("SecurityAlertPolicy", () => {
     expect(policy.cooldownMs).toBe(SecurityAlertPolicy.DEFAULT.cooldownMs);
   });
 
-  it("leaves the off-hours alert off by default and for a malformed span", () => {
-    const at = new Date("2026-10-26T03:00:00Z");
+  it("mails the administrators about a new device by default", () => {
+    expect(SecurityAlertPolicy.DEFAULT.newDeviceScope).toBe("administrators");
+  });
 
-    expect(SecurityAlertPolicy.DEFAULT.isOffHours(at)).toBe(false);
-    for (const offHours of ["", "8-18", "25:00-07:00", "20:00-20:00", 20]) {
+  it("reads each scope of the new-device alert, the default otherwise", () => {
+    for (const scope of ["off", "administrators", "everyone"]) {
       expect(
-        SecurityAlertPolicy.fromConfiguration({ offHours }).isOffHours(at),
-      ).toBe(false);
+        SecurityAlertPolicy.fromConfiguration({ newDeviceScope: scope })
+          .newDeviceScope,
+      ).toBe(scope);
     }
-  });
-
-  it("checks a span within the day", () => {
-    const policy = SecurityAlertPolicy.fromConfiguration({
-      offHours: "12:00-14:00",
-    });
-
-    expect(policy.isOffHours(new Date("2026-10-26T11:59:00Z"))).toBe(false);
-    expect(policy.isOffHours(new Date("2026-10-26T12:00:00Z"))).toBe(true);
-    expect(policy.isOffHours(new Date("2026-10-26T14:00:00Z"))).toBe(false);
-  });
-
-  it("checks a span past midnight", () => {
-    const policy = SecurityAlertPolicy.fromConfiguration({
-      offHours: "20:00-07:00",
-    });
-
-    expect(policy.isOffHours(new Date("2026-10-26T21:00:00Z"))).toBe(true);
-    expect(policy.isOffHours(new Date("2026-10-26T06:59:00Z"))).toBe(true);
-    expect(policy.isOffHours(new Date("2026-10-26T07:00:00Z"))).toBe(false);
-    expect(policy.isOffHours(new Date("2026-10-26T19:59:00Z"))).toBe(false);
-  });
-
-  it("reads the span in the configured time zone, UTC when it is unknown", () => {
-    // 03:00 UTC is 22:00 the day before in Bogota (UTC-5)
-    const at = new Date("2026-10-26T03:00:00Z");
-    const span = "21:00-23:00";
-
-    expect(
-      SecurityAlertPolicy.fromConfiguration({
-        offHours: span,
-        timeZone: "America/Bogota",
-      }).isOffHours(at),
-    ).toBe(true);
-    expect(
-      SecurityAlertPolicy.fromConfiguration({
-        offHours: span,
-        timeZone: "Not/AZone",
-      }).isOffHours(at),
-    ).toBe(false);
+    for (const scope of ["", "admins", "EVERYONE", 1, null]) {
+      expect(
+        SecurityAlertPolicy.fromConfiguration({ newDeviceScope: scope })
+          .newDeviceScope,
+      ).toBe("administrators");
+    }
   });
 });

@@ -45,6 +45,7 @@ import {
   VISITS_BY_HOUR_FUNCTIONS,
 } from "./0030-visits-by-hour.js";
 import { VISIT_DAY_INDEX } from "./0031-visit-day-index.js";
+import { KNOWN_DEVICES_TABLE } from "./0033-known-devices.js";
 import type { SchemaMigration } from "./MigrationContext.js";
 import {
   ADMIN_MIGRATIONS,
@@ -170,6 +171,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         GOOGLE_IDENTITY_TABLE,
         SCHEDULED_CHANGES_TABLE,
         USER_DISPLAY_PREFERENCES_TABLE,
+        KNOWN_DEVICES_TABLE,
       ].sort((a, b) => a.localeCompare(b)),
     );
   });
@@ -280,6 +282,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
         GOOGLE_IDENTITY_TABLE,
         SCHEDULED_CHANGES_TABLE,
         USER_DISPLAY_PREFERENCES_TABLE,
+        KNOWN_DEVICES_TABLE,
       ]),
     ).toEqual(before);
     expect(await columnsOf("t07_prod", "bugs")).toEqual(
@@ -307,8 +310,7 @@ describe.skipIf(!url)("Schema migrations on PostgreSQL", () => {
       { key: "security.alerts.failed_sign_ins.window_minutes", value: 15 },
       { key: "security.alerts.mass_operations.max_operations", value: 20 },
       { key: "security.alerts.mass_operations.window_minutes", value: 10 },
-      { key: "security.alerts.off_hours", value: "" },
-      { key: "security.alerts.timezone", value: "UTC" },
+      { key: "security.alerts.new_device.scope", value: "administrators" },
       { key: "security.lockout.duration_minutes", value: 15 },
       { key: "security.lockout.max_attempts", value: 10 },
       { key: "security.mfa.trusted_device_days", value: 14 },

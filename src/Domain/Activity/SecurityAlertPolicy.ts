@@ -6,9 +6,21 @@ export const SECURITY_ALERT_KEYS = {
   massOperationsMax: "security.alerts.mass_operations.max_operations",
   massOperationsWindowMinutes: "security.alerts.mass_operations.window_minutes",
   cooldownMinutes: "security.alerts.cooldown_minutes",
-  offHours: "security.alerts.off_hours",
-  timeZone: "security.alerts.timezone",
+  newDeviceScope: "security.alerts.new_device.scope",
 } as const;
+
+/**
+ * Whose sign-in from a new device and a new address mails the account
+ * itself: nobody, the administrators (default), or every account. Devices
+ * are remembered for every account whatever the scope.
+ */
+export const NEW_DEVICE_SCOPES = ["off", "administrators", "everyone"] as const;
+export type NewDeviceScope = (typeof NEW_DEVICE_SCOPES)[number];
+
+const SCOPES: ReadonlySet<unknown> = new Set(NEW_DEVICE_SCOPES);
+
+export const isNewDeviceScope = (value: unknown): value is NewDeviceScope =>
+  SCOPES.has(value);
 
 /** Accepted bounds of the configured numbers; outside them, the default. */
 export const SECURITY_ALERT_BOUNDS = {
@@ -22,60 +34,27 @@ interface Threshold {
   windowMs: number;
 }
 
-/** A span of the day in minutes; it wraps past midnight when start > end. */
-export interface OffHours {
-  startMinute: number;
-  endMinute: number;
-  timeZone: string;
-}
-
-const HOURS_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)-([01]\d|2[0-3]):([0-5]\d)$/;
-
-const parseOffHours = (value: unknown, timeZone: string): OffHours | null => {
-  const match = typeof value === "string" ? HOURS_PATTERN.exec(value) : null;
-  if (!match) return null;
-  // The pattern has the four groups, so none of them is undefined
-  const startMinute = Number(match[1]) * 60 + Number(match[2]);
-  const endMinute = Number(match[3]) * 60 + Number(match[4]);
-  return startMinute === endMinute
-    ? null
-    : { startMinute, endMinute, timeZone };
-};
-
-export const isKnownTimeZone = (value: unknown): value is string => {
-  if (typeof value !== "string" || value === "") return false;
-  try {
-    new Intl.DateTimeFormat("en", { timeZone: value });
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-/** Empty (the rule is off) or a span such as "20:00-07:00". */
-export const isAcceptedOffHours = (value: unknown): boolean =>
-  value === "" || parseOffHours(value, "UTC") !== null;
-
 /**
  * Security alerts (EV-88 lot D, T-24): repeated failed sign-ins on an
  * account or an address, many administration operations by one account,
- * and sign-ins outside working hours. An alert on the same rule and target
- * is sent once per cooldown. The values come from the security.alerts.*
- * keys; the off-hours rule stays off until a span is set.
+ * and a sign-in from a new device and a new address (mailed to the account
+ * itself). An alert on the same rule and target is sent once per cooldown.
+ * The values come from the security.alerts.* keys. The off-hours rule was
+ * removed on 2026-11-17: a fixed span raised alerts on ordinary sign-ins.
  */
 export class SecurityAlertPolicy {
   public static readonly DEFAULT = new SecurityAlertPolicy(
     { max: 10, windowMs: 15 * MINUTE_MS },
     { max: 20, windowMs: 10 * MINUTE_MS },
     60 * MINUTE_MS,
-    null,
+    "administrators",
   );
 
   private constructor(
     public readonly failedSignIns: Threshold,
     public readonly massOperations: Threshold,
     public readonly cooldownMs: number,
-    public readonly offHours: OffHours | null,
+    public readonly newDeviceScope: NewDeviceScope,
   ) {}
 
   /** An invalid or out-of-bounds value takes the default. */
@@ -85,8 +64,7 @@ export class SecurityAlertPolicy {
     massOperationsMax?: unknown;
     massOperationsWindowMinutes?: unknown;
     cooldownMinutes?: unknown;
-    offHours?: unknown;
-    timeZone?: unknown;
+    newDeviceScope?: unknown;
   }): SecurityAlertPolicy {
     const bounded = (
       value: unknown,
@@ -130,28 +108,9 @@ export class SecurityAlertPolicy {
         ),
       },
       minutes(values.cooldownMinutes, defaults.cooldownMs),
-      parseOffHours(
-        values.offHours,
-        isKnownTimeZone(values.timeZone) ? values.timeZone : "UTC",
-      ),
+      isNewDeviceScope(values.newDeviceScope)
+        ? values.newDeviceScope
+        : defaults.newDeviceScope,
     );
-  }
-
-  /** Whether the instant falls in the off-hours span of its time zone. */
-  public isOffHours(at: Date): boolean {
-    if (!this.offHours) return false;
-    const { startMinute, endMinute, timeZone } = this.offHours;
-    const parts = new Intl.DateTimeFormat("en-GB", {
-      timeZone,
-      hour: "2-digit",
-      minute: "2-digit",
-      hourCycle: "h23",
-    }).formatToParts(at);
-    const part = (type: string) =>
-      Number(parts.find((p) => p.type === type)?.value);
-    const minute = part("hour") * 60 + part("minute");
-    return startMinute < endMinute
-      ? minute >= startMinute && minute < endMinute
-      : minute >= startMinute || minute < endMinute;
   }
 }

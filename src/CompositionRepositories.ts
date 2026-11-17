@@ -8,6 +8,7 @@ import {
 import { SecurityAlertRecipientRepository } from "./DataProviders/AccessControl/SecurityAlertRecipientRepository.js";
 import { AccessJournalRepositoryImpl } from "./DataProviders/Activity/AccessJournalRepository.js";
 import { ActivityJournalRepositoryImpl } from "./DataProviders/Activity/ActivityJournalRepository.js";
+import { KnownDeviceRepositoryImpl } from "./DataProviders/Activity/KnownDeviceRepository.js";
 import { BugAssigneeRepositoryImpl } from "./DataProviders/Bug/BugAssigneeRepository.js";
 import { BugAttachmentRepositoryImpl } from "./DataProviders/Bug/BugAttachmentRepository.js";
 import { BugNoteRepositoryImpl } from "./DataProviders/Bug/BugNoteRepository.js";
@@ -33,6 +34,7 @@ import { UserSignInRepositoryImpl } from "./DataProviders/User/UserSignInReposit
 import { VisitRepositoryImpl } from "./DataProviders/Visit/VisitRepository.js";
 import { VisitRetentionRepositoryImpl } from "./DataProviders/Visit/VisitRetentionRepository.js";
 import { TOP_PERMISSION } from "./Domain/AccessControl/AccessHierarchyUseCase.js";
+import { NewDeviceAlerts } from "./Domain/Activity/NewDeviceAlerts.js";
 import { SecurityAlertPolicyService } from "./Domain/Activity/SecurityAlertPolicyService.js";
 import {
   SecurityAlertDetector,
@@ -155,14 +157,23 @@ export const VisitRetentionInstance = new VisitRetentionRepositoryImpl(
   VARIAMOS_ORM,
   DB_SCHEMA,
 );
+// Browsers seen on each account (EV-88, 2026-11-17): table admin_known_devices
+export const KnownDeviceInstance = new KnownDeviceRepositoryImpl(
+  VARIAMOS_ORM,
+  DB_SCHEMA,
+);
+const SecurityAlertRecipients = new SecurityAlertRecipientRepository(
+  TOP_PERMISSION,
+);
 // Security alerts (T-24, EV-88 lot D): both journals are watched; alerts go
-// to the accounts holding the top permission, in the app and by mail
+// to the accounts holding the top permission, in the app and by mail; a
+// sign-in from a new browser and a new address mails the account itself
 const SecurityAlertDetectorInstance = new SecurityAlertDetector({
   policyProvider: new SecurityAlertPolicyService(
     ConfigurationRepositoryInstance,
     JetLogger,
   ),
-  recipients: new SecurityAlertRecipientRepository(TOP_PERMISSION),
+  recipients: SecurityAlertRecipients,
   notifier: new SecurityAlertNotifier(
     NotificationClientInstance,
     MailServiceInstance,
@@ -170,6 +181,14 @@ const SecurityAlertDetectorInstance = new SecurityAlertDetector({
   ),
   journal: ActivityJournalInstance,
   logger: JetLogger,
+  newDevices: new NewDeviceAlerts({
+    devices: KnownDeviceInstance,
+    addresses: AccessJournalInstance,
+    emails: KnownDeviceInstance,
+    administrators: SecurityAlertRecipients,
+    mailService: MailServiceInstance,
+    journal: ActivityJournalInstance,
+  }),
 });
 export const WatchedActivityJournal = watchedActivityJournal(
   ActivityJournalInstance,

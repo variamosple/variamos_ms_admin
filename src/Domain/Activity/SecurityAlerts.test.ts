@@ -6,6 +6,7 @@ import type { IAccessJournal } from "./IAccessJournal.js";
 import type { IActivityJournal } from "./IActivityJournal.js";
 import { SecurityAlertPolicy } from "./SecurityAlertPolicy.js";
 import {
+  type INewDeviceWatcher,
   type ISecurityAlertNotifier,
   type ISecurityAlertRecipients,
   SecurityAlertDetector,
@@ -41,7 +42,10 @@ const operation = (overrides: Partial<ActivityEntry> = {}): ActivityEntry => ({
   ...overrides,
 });
 
-function setup(policy = SecurityAlertPolicy.DEFAULT) {
+function setup(
+  policy = SecurityAlertPolicy.DEFAULT,
+  newDevices?: INewDeviceWatcher,
+) {
   let now = Date.parse("2026-10-26T10:00:00Z");
   const recipients = mock<ISecurityAlertRecipients>();
   recipients.list.mockResolvedValue(RECIPIENTS);
@@ -54,6 +58,7 @@ function setup(policy = SecurityAlertPolicy.DEFAULT) {
     notifier,
     journal,
     logger,
+    newDevices,
     now: () => now,
   });
   const advance = (ms: number) => {
@@ -131,32 +136,57 @@ describe("SecurityAlertDetector, failed sign-ins", () => {
   });
 });
 
-describe("SecurityAlertDetector, off-hours sign-ins", () => {
-  it("raises an alert for a sign-in in the span, none outside it", async () => {
-    const { detector, rules, advance } = setup(
-      SecurityAlertPolicy.fromConfiguration({ offHours: "08:00-09:00" }),
+describe("SecurityAlertDetector, new devices", () => {
+  it("hands a completed sign-in with its device to the new-device alert, with the scope", async () => {
+    const observe = vi.fn().mockResolvedValue(undefined);
+    const { detector, notifier } = setup(
+      SecurityAlertPolicy.fromConfiguration({ newDeviceScope: "everyone" }),
+      { observe },
     );
-    const success = failedSignIn({ outcome: "success", reason: null });
+    const signIn = failedSignIn({
+      outcome: "success",
+      reason: null,
+      device: { id: "device-1", userAgent: null },
+    });
 
-    await detector.observeAccess(success);
-    expect(rules()).toHaveLength(0);
+    await detector.observeAccess(signIn);
 
-    advance(-90 * MINUTE_MS);
-    await detector.observeAccess(success);
-    expect(rules().map(({ rule, target }) => [rule, target])).toEqual([
-      ["off-hours-sign-in", "account:user-1"],
-    ]);
+    expect(observe).toHaveBeenCalledWith(
+      signIn,
+      "everyone",
+      expect.any(Number),
+    );
+    expect(notifier.notify).not.toHaveBeenCalled();
   });
 
-  it("stays off while no span is set", async () => {
-    const { detector, notifier, advance } = setup();
+  it("does not look at a sign-in without a device, nor a failed one", async () => {
+    const observe = vi.fn().mockResolvedValue(undefined);
+    const { detector } = setup(undefined, { observe });
 
-    advance(-8 * 60 * MINUTE_MS);
     await detector.observeAccess(
-      failedSignIn({ outcome: "success", reason: null }),
+      failedSignIn({ outcome: "success", reason: "mfa_required" }),
+    );
+    await detector.observeAccess(
+      failedSignIn({ device: { id: "device-1", userAgent: null } }),
     );
 
-    expect(notifier.notify).not.toHaveBeenCalled();
+    expect(observe).not.toHaveBeenCalled();
+  });
+
+  it("logs a failure of the new-device alert, without throwing", async () => {
+    const observe = vi.fn().mockRejectedValue(new Error("down"));
+    const { detector, logger } = setup(undefined, { observe });
+
+    await expect(
+      detector.observeAccess(
+        failedSignIn({
+          outcome: "success",
+          reason: null,
+          device: { id: "device-1", userAgent: null },
+        }),
+      ),
+    ).resolves.toBeUndefined();
+    expect(logger.err).toHaveBeenCalledWith(new Error("down"));
   });
 });
 

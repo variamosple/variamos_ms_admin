@@ -54,6 +54,10 @@ import {
 } from "./0024-service-alert-keys.js";
 import { VISIT_DAY_INDEX, visitDayIndex } from "./0031-visit-day-index.js";
 import {
+  NEW_DEVICE_SCOPE_ROW,
+  RETIRED_OFF_HOURS_KEYS,
+} from "./0033-known-devices.js";
+import {
   ADMIN_MIGRATIONS,
   createMigrator,
   waitForDatabase,
@@ -183,20 +187,26 @@ describe("account lockout keys migration", () => {
 });
 
 describe("security alert keys migration", () => {
-  it("adds every key the code reads, with its defaults", () => {
+  it("adds every key the code reads, with its defaults, with 0033", () => {
+    // 0033 removed the off-hours keys of 0010 and added the new-device scope
+    const rows = [
+      ...SECURITY_ALERT_ROWS.filter(
+        ({ key }) =>
+          !(RETIRED_OFF_HOURS_KEYS as readonly string[]).includes(key),
+      ),
+      NEW_DEVICE_SCOPE_ROW,
+    ];
     const policy = SecurityAlertPolicy.fromConfiguration(
       Object.fromEntries(
         Object.entries(SECURITY_ALERT_KEYS).map(([name, key]) => [
           name,
-          SECURITY_ALERT_ROWS.find((row) => row.key === key)?.value,
+          rows.find((row) => row.key === key)?.value,
         ]),
       ),
     );
 
     expect(
-      SECURITY_ALERT_ROWS.map(({ key }) => key).sort((a, b) =>
-        a.localeCompare(b),
-      ),
+      rows.map(({ key }) => key).sort((a, b) => a.localeCompare(b)),
     ).toEqual(
       Object.values(SECURITY_ALERT_KEYS).sort((a, b) => a.localeCompare(b)),
     );
@@ -513,6 +523,7 @@ describe("createMigrator", () => {
       "0030-visits-by-hour",
       "0031-visit-day-index",
       "0032-anonymous-visits",
+      "0033-known-devices",
     ]);
   });
 });

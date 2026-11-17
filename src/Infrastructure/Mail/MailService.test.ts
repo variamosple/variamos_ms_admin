@@ -108,6 +108,25 @@ describe("MailServiceImpl messages", () => {
     expect(html).not.toContain("<script>");
   });
 
+  it("tells the owner of a sign-in from a new browser, escaping each value", async () => {
+    const service = new MailServiceImpl(settings);
+    const send = vi.spyOn(service, "sendMail").mockResolvedValue(true);
+
+    await service.sendNewDeviceMail("ana@example.com", {
+      when: "2026-11-17 21:05 UTC",
+      browser: "Firefox on Linux",
+      ip: "<b>203.0.113.7</b>",
+    });
+
+    const [to, subject, html] = send.mock.calls[0] as [string, string, string];
+    expect(to).toBe("ana@example.com");
+    expect(subject).toBe("VariaMos - New sign-in to your account");
+    expect(html).toContain("2026-11-17 21:05 UTC");
+    expect(html).toContain("Firefox on Linux");
+    expect(html).toContain("&lt;b&gt;203.0.113.7&lt;/b&gt;");
+    expect(html).toContain("change your password");
+  });
+
   it("sends a service alert that names the key holding the address", async () => {
     const service = new MailServiceImpl(settings);
     const send = vi.spyOn(service, "sendMail").mockResolvedValue(true);
