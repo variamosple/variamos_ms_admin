@@ -31,4 +31,10 @@ USER node
 
 EXPOSE 4000
 
+# Health of the container, seen by Docker and by "docker compose up --wait"
+# (SPC-2026-11-18-001, lot A2). /health also checks the database
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
+  CMD ["sh", "-c", "wget -q -O /dev/null http://127.0.0.1:${PORT:-4000}/health"]
+
+
 CMD [ "npm", "start" ]

@@ -138,6 +138,17 @@ MIGRATIONS_TEST_DATABASE_URL=postgres://postgres:pg@localhost:55432/postgres npm
 
 ---
 
+## Running it with the rest of the platform
+
+The [development kit](https://github.com/variamosple/variamos_dev_kit) runs the whole platform locally with Docker, with a sanitized copy of the production database. Clone it next to this repository, then:
+
+```bash
+npm run kit       # build this repository and start the kit with it
+npm run kit:stop  # stop the kit (its database is kept)
+```
+
+The service answers on `http://localhost:8090/variamos_ms_admin/`, the administration UI on `http://localhost:8090/variamos_admin/`. The kit is looked for next to this repository, or in `KIT_DIR`. `./kit build off <service>` in the kit goes back to the published image; `./kit doctor` checks the machine.
+
 ## Code Quality & Testing
 
 We enforce strict quality control and clean architecture boundaries using several tooling scripts.
