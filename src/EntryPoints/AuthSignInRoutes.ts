@@ -1,4 +1,4 @@
-import { createJwt, type SessionUser } from "@variamosple/variamos-security";
+import type { SessionUser } from "@variamosple/variamos-security";
 import type { Request, RequestHandler, Response, Router } from "express";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import type { KnownAccount } from "#src/Domain/Activity/AccessEntry.js";
@@ -29,6 +29,7 @@ import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
 import { queryText } from "./queryText.js";
 import { readBody } from "./requestBody.js";
+import { createSessionJwt } from "./sessionToken.js";
 
 /** Why a sign-in failed, as the access journal records it. */
 const signInFailureReason = (
@@ -315,7 +316,7 @@ const signInAsGuest =
       };
 
       const redirect = ctx.redirectUrl(transactionId, req, res);
-      const token = await createJwt(
+      const token = await createSessionJwt(
         sessionUser,
         redirect?.hostname || ctx.web.cookie.domain,
       );

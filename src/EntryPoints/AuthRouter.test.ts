@@ -126,7 +126,8 @@ vi.mock("@variamosple/variamos-security", async () => {
     validateToken: vi.fn(),
     isSessionExpired: vi.fn(),
     sessionInfoToSessionUser: vi.fn(),
-    createJwt: vi.fn(),
+    // A signed token, as the real one: the session code measures it (EV-129)
+    createJwt: vi.fn().mockResolvedValue("signed-token"),
     hasPermissions: vi
       .fn()
       .mockImplementation(

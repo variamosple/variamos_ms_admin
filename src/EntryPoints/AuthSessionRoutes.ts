@@ -1,5 +1,4 @@
 import {
-  createJwt,
   getToken,
   isSessionExpired,
   type SessionUser,
@@ -18,6 +17,7 @@ import { AUTH_ROUTE, type AuthContext, sessionUserOf } from "./authContext.js";
 import { redirectBody } from "./authRequestBodies.js";
 import { isAllowedRedirect, withLocalDevToken } from "./authWeb.js";
 import { readBody } from "./requestBody.js";
+import { createSessionJwt } from "./sessionToken.js";
 
 /**
  * Body of GET /auth/session-info: an HTTP shape, not a domain entity. The
@@ -121,7 +121,7 @@ const sessionInfo =
       // variamos-security 0.0.2) cannot read: the refreshed token holds the
       // host alone again
       const host = audienceHostOf(user.aud);
-      const token = await createJwt(sessionUser, host);
+      const token = await createSessionJwt(sessionUser, host);
 
       const redirect = withLocalDevToken(
         ctx.redirectUrl("getSessionInfo", req, res),

@@ -1,4 +1,3 @@
-import { createJwt } from "@variamosple/variamos-security";
 import type { Request, RequestHandler, Response, Router } from "express";
 import { OAuth2Client } from "google-auth-library";
 import { describeError } from "#src/common/describeError.js";
@@ -21,6 +20,7 @@ import {
 import { googleCallbackBody } from "./authRequestBodies.js";
 import { MFA_PENDING_COOKIE, trustedDeviceToken } from "./authWeb.js";
 import { readBody } from "./requestBody.js";
+import { createSessionJwt } from "./sessionToken.js";
 
 /**
  * Whether the g_csrf_token cookie Google sets on our domain matches the one
@@ -195,7 +195,7 @@ const googleCallback =
       }
 
       const redirect = ctx.redirectUrl(transactionId, req, res, false);
-      const token = await createJwt(
+      const token = await createSessionJwt(
         sessionUser,
         redirect?.hostname || ctx.web.cookie.domain,
       );

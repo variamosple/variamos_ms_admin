@@ -27,7 +27,7 @@ export async function withRolesAndPermissions(user: User): Promise<User> {
 
   const roles = await VARIAMOS_ORM.query<RoleModel>(
     `
-      SELECT r.name
+      SELECT DISTINCT r.name
       FROM ${DB_SCHEMA}.role r
       INNER JOIN ${DB_SCHEMA}.user_role ur ON r.id = ur.role_id
       WHERE ur.user_id = :userId
@@ -40,7 +40,7 @@ export async function withRolesAndPermissions(user: User): Promise<User> {
 
   const permissions = await VARIAMOS_ORM.query<PermissionModel>(
     `
-      SELECT p.name
+      SELECT DISTINCT p.name
       FROM ${DB_SCHEMA}.user_role ur
       INNER JOIN ${DB_SCHEMA}.role_permission rp ON ur.role_id = rp.role_id
       INNER JOIN ${DB_SCHEMA}.permission p ON p.id = rp.permission_id
