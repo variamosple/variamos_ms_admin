@@ -71,9 +71,17 @@ export class User {
     this.permissions = permissions;
   }
 
-  /** The same account, with the roles and permissions it holds. */
+  /**
+   * The same account, with the roles and permissions it holds. A permission
+   * given by several roles is listed once: the list goes into the session
+   * cookie, which browsers drop past 4096 bytes (EV-129).
+   */
   public withAccess(roles: string[], permissions: string[]): User {
-    return new User({ ...this, roles, permissions });
+    return new User({
+      ...this,
+      roles: [...new Set(roles)],
+      permissions: [...new Set(permissions)],
+    });
   }
 
   public static builder(): UserBuilder {

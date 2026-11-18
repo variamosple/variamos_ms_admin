@@ -140,6 +140,29 @@ describe("User Entity & Builder - Unit Tests", () => {
     expect(user.roles).toBeUndefined();
   });
 
+  test("lists a permission given by several roles once (EV-129)", () => {
+    const user = User.builder()
+      .setId("u1")
+      .setUser("ana")
+      .setName("Ana")
+      .setEmail("ana@example.com")
+      .setIsEnabled(true)
+      .setIsDeleted(false)
+      .setCreatedAt(new Date())
+      .build();
+
+    const withAccess = user.withAccess(
+      ["Administrator", "Language developer", "Administrator"],
+      ["languages::query", "users::query", "languages::query"],
+    );
+
+    expect(withAccess.roles).toEqual(["Administrator", "Language developer"]);
+    expect(withAccess.permissions).toEqual([
+      "languages::query",
+      "users::query",
+    ]);
+  });
+
   test("keeps a two-letter country, and refuses another code (EV-47)", () => {
     const fields = {
       id: "u1",

@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { createJwt, type SessionUser } from "@variamosple/variamos-security";
+import type { SessionUser } from "@variamosple/variamos-security";
 import type { CookieOptions, Request, Response } from "express";
 import { isAllowedOrigin } from "#src/common/allowedOrigins.js";
 import { describeError } from "#src/common/describeError.js";
@@ -7,6 +7,7 @@ import { isLocalDevOrigin } from "#src/common/localDevOrigins.js";
 import logger from "#src/common/logger.js";
 import { MFA_SIGN_IN_TTL_MS } from "#src/Domain/Mfa/Service/PendingMfaSignIns.js";
 import { queryText } from "./queryText.js";
+import { createSessionJwt } from "./sessionToken.js";
 
 /** Holds the opaque token of a sign-in waiting for the second factor. */
 export const MFA_PENDING_COOKIE = "mfaPending";
@@ -167,7 +168,7 @@ export function createAuthWeb(web: AuthWebSettings) {
   ): Promise<string> => {
     const redirect = redirectUrl(transactionId, req, res);
 
-    const token = await createJwt(
+    const token = await createSessionJwt(
       sessionUser,
       redirect?.hostname || web.cookie.domain,
     );
