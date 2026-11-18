@@ -85,6 +85,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    # The *.integration.test.ts files run on a disposable PostgreSQL, the
+    # version of production; without it, their 105 tests were skipped
+    services:
+      postgres:
+        image: postgres:14.8
+        env:
+          POSTGRES_PASSWORD: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v7
@@ -104,7 +119,9 @@ jobs:
       run: |
         npm ci --ignore-scripts
 
-    - name: Run unit tests with the coverage thresholds
+    - name: Run the tests, database tests included, with the coverage thresholds
+      env:
+        MIGRATIONS_TEST_DATABASE_URL: postgres://postgres:ci@localhost:5432/postgres
       run: |
         npm run test:coverage
 
