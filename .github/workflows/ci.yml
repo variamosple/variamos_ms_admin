@@ -162,6 +162,11 @@ jobs:
         cache-from: type=gha,scope=backend-test
         cache-to: ${{ github.event_name == 'push' && 'type=gha,scope=backend-test,mode=max,ignore-error=true' || '' }}
 
+    # The check of the publish workflow, before the merge (lot Q1)
+    - name: Check the image (Trivy, environment files and keys)
+      run: |
+        bash scripts/scan-image.sh backend-test
+
     - name: Run Docker container smoke test
       run: |
         # Without its secrets, the image must refuse to start (EV-69)
