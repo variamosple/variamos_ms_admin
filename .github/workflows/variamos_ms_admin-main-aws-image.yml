@@ -36,13 +36,44 @@ jobs:
           username: ${{secrets.ACRUSERNAME_DOKCERHUB}}
           password: ${{secrets.ACRUSERPASSWORD_DOKCERHUB}}
 
-      - name: Build and push container image to registry
+      # The image is checked before it is published (SPC-2026-11-18-001, lot
+      # Q1): a secret, an environment file, a key or a critical flaw that has
+      # a fix stops the run here, and production keeps its image.
+      - name: Build the container image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
-          push: true
-          tags: ${{vars.ACR_DOKCERHUB}}/${{secrets.ACRUSERNAME_DOKCERHUB}}/variamos_ms_admin:main
+          load: true
+          tags: image-to-check
           file: ./Dockerfile
+
+      # Trivy runs from its image, pinned by digest, not from an action
+      - name: Scan the image with Trivy
+        env:
+          TRIVY_IMAGE: aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
+        run: |
+          trivy() {
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock:ro \
+              -v "$HOME/.cache/trivy:/root/.cache/trivy" "$TRIVY_IMAGE" \
+              image --no-progress "$@" image-to-check
+          }
+          # Shown, not blocking: the high flaws that have a fix
+          trivy --scanners vuln --severity HIGH --ignore-unfixed
+          trivy --scanners secret --exit-code 1
+          trivy --scanners vuln --severity CRITICAL --ignore-unfixed --exit-code 1
+
+      # Trivy has no rule for a password in a .env file
+      - name: Check the image holds no environment file or key
+        run: |
+          bash scripts/check-image-files.sh image-to-check
+
+      # The image pushed is the one checked, not a new build
+      - name: Push the container image to registry
+        env:
+          IMAGE: ${{vars.ACR_DOKCERHUB}}/${{secrets.ACRUSERNAME_DOKCERHUB}}/variamos_ms_admin:main
+        run: |
+          docker tag image-to-check "$IMAGE"
+          docker push "$IMAGE"
 
       - name: Record the deployment start
         run: echo "DEPLOY_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"

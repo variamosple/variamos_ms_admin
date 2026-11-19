@@ -70,7 +70,8 @@
     "loadtest",
     "percpu",
     "cpuset",
-    "cpus"
+    "cpus",
+    "aquasec"
   ],
   "ignorePaths": [
     "node_modules/**",
