@@ -78,7 +78,7 @@ jobs:
         path: ./
         # The image of the same release, not "latest": change it with the
         # SHA above when Dependabot updates the action
-        version: 3.99.7
+        version: 3.99.9
 
   # The unit tests, then SonarCloud on their coverage
   coverage:
@@ -136,7 +136,8 @@ jobs:
     # The organization's token is not given to Dependabot pull requests
     - name: Analyze with SonarCloud, coverage included
       if: github.event.pull_request.user.login != 'dependabot[bot]'
-      uses: SonarSource/sonarqube-scan-action@4d1dc0c91ee400dcf8a6dddf2f705ac36542e304 # v8.4.0
+      # trufflehog takes the pinned hash for a SonarCloud token: skip this line
+      uses: SonarSource/sonarqube-scan-action@59202af334b4ba7b5db01b701b8e79f8b3bef0f4 # v8.5.0 trufflehog:ignore
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
