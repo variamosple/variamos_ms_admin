@@ -1,5 +1,6 @@
-import type { Sequelize } from "sequelize";
+import { QueryTypes, type Sequelize } from "sequelize";
 import { SequelizeStorage, Umzug } from "umzug";
+import { DATABASE_ENVIRONMENT_SETTING } from "#src/common/automaticWrites.js";
 import logger from "#src/common/logger.js";
 import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import { baseline } from "./0001-baseline.js";
@@ -128,6 +129,20 @@ export async function waitForDatabase(
       });
     }
   }
+}
+
+// The environment the database says it is (variamos.environment), or null
+export async function readDatabaseEnvironment(
+  sequelize: Sequelize,
+): Promise<string | null> {
+  const rows = await sequelize.query<{ value: string | null }>(
+    "SELECT current_setting(:name, true) AS value",
+    {
+      replacements: { name: DATABASE_ENVIRONMENT_SETTING },
+      type: QueryTypes.SELECT,
+    },
+  );
+  return rows[0]?.value || null;
 }
 
 // Returns the names of the migrations applied by this run
