@@ -12,9 +12,18 @@ export const DATABASE_ENVIRONMENT_SETTING = "variamos.environment";
 export const ALLOW_REMOTE_WRITES_VARIABLE =
   "ALLOW_AUTOMATIC_WRITES_ON_REMOTE_DATABASE";
 
+// The machine that runs the container, as Docker and Podman name it: the
+// test compose files reach the database of the workstation this way
+const CONTAINER_HOST_NAMES = new Set([
+  "host.docker.internal",
+  "gateway.docker.internal",
+  "host.containers.internal",
+]);
+
 /**
  * A database on this machine or in the same Compose project: a loopback
- * address, localhost, or a service name without a dot (db, postgres).
+ * address, localhost, the host of the container, or a service name without
+ * a dot (db, postgres).
  * An address or a domain name is remote. A tunnel to a remote database
  * looks local: the setting of the database covers that case.
  */
@@ -23,7 +32,12 @@ export function isLocalDatabaseHost(host: string): boolean {
     .trim()
     .toLowerCase()
     .replace(/^\[(.*)\]$/, "$1");
-  if (name === "" || name === "localhost" || name.endsWith(".localhost")) {
+  if (
+    name === "" ||
+    name === "localhost" ||
+    name.endsWith(".localhost") ||
+    CONTAINER_HOST_NAMES.has(name)
+  ) {
     return true;
   }
   const family = isIP(name);

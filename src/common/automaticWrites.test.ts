@@ -17,6 +17,9 @@ describe("isLocalDatabaseHost", () => {
     "db",
     "postgres",
     "database",
+    "host.docker.internal",
+    "HOST.DOCKER.INTERNAL",
+    "host.containers.internal",
     "",
   ])(
     "takes %s for a database of this machine or of the Compose project",
@@ -32,6 +35,8 @@ describe("isLocalDatabaseHost", () => {
     "2001:db8::1",
     "db.example.org",
     "my-db.rds.amazonaws.com",
+    "ip-10-0-0-5.ec2.internal",
+    "db.docker.internal.example.org",
   ])("takes %s for a remote database", (host) => {
     expect(isLocalDatabaseHost(host)).toBe(false);
   });
