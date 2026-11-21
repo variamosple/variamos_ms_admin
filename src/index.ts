@@ -9,6 +9,11 @@ import {
   checkOriginList,
   isAllowedOrigin,
 } from "#src/common/allowedOrigins.js";
+import {
+  ALLOW_REMOTE_WRITES_VARIABLE,
+  type AutomaticWrites,
+  decideAutomaticWrites,
+} from "#src/common/automaticWrites.js";
 import EnvVars from "#src/common/EnvVars.js";
 import { checkLocalDevOrigins } from "#src/common/localDevOrigins.js";
 import { NodeEnvs } from "#src/common/misc.js";
@@ -43,6 +48,7 @@ import { createBaseRouter } from "./EntryPoints/index.js";
 import { checkSessionSigning } from "./EntryPoints/sessionSigningCheck.js";
 import { startJournalPurge } from "./Infrastructure/Activity/JournalPurge.js";
 import {
+  readDatabaseEnvironment,
   runMigrations,
   waitForDatabase,
 } from "./Infrastructure/database/Migrations/Migrator.js";
@@ -109,17 +115,28 @@ const SERVER_START_MSG = `Express server started on port: ${EnvVars.Port.toStrin
 
 // The schema changes only through versioned migrations (T-07): no request is
 // served on a schema that failed to migrate
+let automaticWrites: AutomaticWrites;
 try {
   await waitForDatabase(VARIAMOS_ORM);
-  const applied = await runMigrations(VARIAMOS_ORM, DB_SCHEMA);
-  logger.info(`[MIGRATION] ${applied.length} migration(s) applied`);
-  // Retention of the journals (T-24), on tables the migrations made
-  startJournalPurge([
-    ActivityJournalInstance,
-    AccessJournalInstance,
-    VisitRetentionInstance,
-    KnownDeviceInstance,
-  ]);
+  // Outside production, nothing is written without being asked to a remote
+  // database or to the production one reached through a tunnel (ADM-N32)
+  automaticWrites = decideAutomaticWrites({
+    nodeEnv: EnvVars.NodeEnv,
+    host: EnvVars.DB.HOST,
+    databaseEnvironment: await readDatabaseEnvironment(VARIAMOS_ORM),
+    allowRemote: process.env[ALLOW_REMOTE_WRITES_VARIABLE],
+  });
+  if (automaticWrites.allowed) {
+    const applied = await runMigrations(VARIAMOS_ORM, DB_SCHEMA);
+    logger.info(`[MIGRATION] ${applied.length} migration(s) applied`);
+    // Retention of the journals (T-24), on tables the migrations made
+    startJournalPurge([
+      ActivityJournalInstance,
+      AccessJournalInstance,
+      VisitRetentionInstance,
+      KnownDeviceInstance,
+    ]);
+  }
 } catch (e) {
   logger.err(
     `[MIGRATION] Failed, the server does not start: ${errorMessage(e)}`,
@@ -127,9 +144,22 @@ try {
   process.exit(1);
 }
 
+if (!automaticWrites.allowed) {
+  logger.warn(
+    `[DATABASE] ${automaticWrites.reason}: no migration, no encryption of the configurations and no background job. Set ${ALLOW_REMOTE_WRITES_VARIABLE}=true to allow them.`,
+  );
+} else if (automaticWrites.warning) {
+  logger.warn(`[DATABASE] ${automaticWrites.warning}`);
+}
+
 // Secret configurations still in clear are encrypted (T-13); on failure they
 // stay as they were, and the server still starts
-if (SecretConfigurationValueInstance.canEncrypt()) {
+// (on a database it may not write to, they are left to the services that may)
+if (!SecretConfigurationValueInstance.canEncrypt()) {
+  logger.warn(
+    "[CONFIG] No CONFIG_ENCRYPTION_KEY: secret configurations cannot be changed",
+  );
+} else if (automaticWrites.allowed) {
   try {
     const encrypted = await encryptPlainSecrets(
       VARIAMOS_ORM,
@@ -142,14 +172,11 @@ if (SecretConfigurationValueInstance.canEncrypt()) {
       `[CONFIG] Secret configurations left as they were: ${errorMessage(e)}`,
     );
   }
-} else {
-  logger.warn(
-    "[CONFIG] No CONFIG_ENCRYPTION_KEY: secret configurations cannot be changed",
-  );
 }
 
 const server = app.listen(EnvVars.Port, async () => {
   logger.info(SERVER_START_MSG);
+  if (!automaticWrites.allowed) return;
   await startBackgroundJobs({
     collector: HealthCheckCollectorInstance,
     configuration: productionConfigurationUseCase,
