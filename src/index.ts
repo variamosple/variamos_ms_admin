@@ -11,6 +11,7 @@ import {
 } from "#src/common/allowedOrigins.js";
 import EnvVars from "#src/common/EnvVars.js";
 import { checkLocalDevOrigins } from "#src/common/localDevOrigins.js";
+import { NodeEnvs } from "#src/common/misc.js";
 import { missingRequiredSecrets } from "#src/common/requiredSecrets.js";
 import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import {
@@ -39,6 +40,7 @@ import {
   CONTAINER_LOGS_PERMISSION,
 } from "./EntryPoints/ContainerLogsWebSocket.js";
 import { createBaseRouter } from "./EntryPoints/index.js";
+import { checkSessionSigning } from "./EntryPoints/sessionSigningCheck.js";
 import { startJournalPurge } from "./Infrastructure/Activity/JournalPurge.js";
 import {
   runMigrations,
@@ -77,6 +79,25 @@ if (localDev.errors.length > 0) {
     logger.err(`[CONFIG] ${error}, the server does not start`);
   }
   process.exit(1);
+}
+
+// The keys are loaded, then a session token is signed and verified, before
+// the migrations and before the server listens. The key store only logs a
+// missing, unreadable or mismatched key: the service used to start, answer
+// UP and pass the check after deployment while no one could sign in
+// (ADM-N01). In production it does not start; elsewhere it says why.
+try {
+  await initKeyStore();
+} catch (error: unknown) {
+  logger.err(`[SECURITY] Keys not loaded: ${errorMessage(error)}`);
+  process.exit(1);
+}
+const sessionSigning = await checkSessionSigning();
+if (!sessionSigning.ok) {
+  logger.err(`[SECURITY] Sessions cannot be opened: ${sessionSigning.reason}`);
+  if (EnvVars.NodeEnv === NodeEnvs.Production.valueOf()) {
+    process.exit(1);
+  }
 }
 
 // The relations of the bug models, before any query that includes them
@@ -128,12 +149,6 @@ if (SecretConfigurationValueInstance.canEncrypt()) {
 }
 
 const server = app.listen(EnvVars.Port, async () => {
-  // Without its keys the service cannot check a token: it stops, as the
-  // unhandled rejection did, but with the reason in its log
-  initKeyStore().catch((error: unknown) => {
-    logger.err(error);
-    process.exit(1);
-  });
   logger.info(SERVER_START_MSG);
   await startBackgroundJobs({
     collector: HealthCheckCollectorInstance,

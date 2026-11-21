@@ -58,7 +58,7 @@ import {
   COUNTRIES_V1_ROUTE,
   createCountriesRouter,
 } from "./CountriesV1Router.js";
-import { createHealthRouter, type DatabaseCheck } from "./HealthRouter.js";
+import { createHealthRouter, type HealthChecks } from "./HealthRouter.js";
 import {
   ACCESS_LOGS_V1_ROUTE,
   ACTIVITY_LOGS_V1_ROUTE,
@@ -164,7 +164,7 @@ export interface BaseRouterDependencies {
   accountLockout: AccountLockout;
   accessJournal: IAccessJournal;
   journalQuery: JournalQueryUseCase;
-  checkDatabase: DatabaseCheck;
+  health: HealthChecks;
   backups: BackupReports;
 }
 
@@ -231,7 +231,7 @@ export function createBaseRouter({
   accountLockout,
   accessJournal,
   journalQuery,
-  checkDatabase,
+  health,
   backups,
   settings,
 }: BaseRouterDependencies): Router {
@@ -315,7 +315,7 @@ export function createBaseRouter({
   baseRouter.use(ACCESS_LOGS_V1_ROUTE, createAccessLogsRouter(journalQuery));
   baseRouter.use(
     "/health",
-    createHealthRouter(checkDatabase, settings.packageVersion),
+    createHealthRouter(health, settings.packageVersion),
   );
 
   baseRouter.get("/version", versionOf(settings.version));
