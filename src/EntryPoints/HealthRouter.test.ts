@@ -2,9 +2,14 @@ import express from "express";
 import supertest from "supertest";
 import { describe, expect, it, vi } from "vitest";
 import { createHealthRouter, HEALTH_ROUTE } from "./HealthRouter.js";
+import type { SessionSigningResult } from "./sessionSigningCheck.js";
 
 // Stands for the database, without a live PostgreSQL instance
 const authenticate = vi.fn<() => Promise<void>>();
+// Stands for the signing keys; they work unless a test says otherwise
+const checkSessionSigning = vi.fn<() => Promise<SessionSigningResult>>(() =>
+  Promise.resolve({ ok: true }),
+);
 
 describe("HealthRouter - Black-Box Contract & Resilience Tests", () => {
   const buildApp = () => {
@@ -12,7 +17,10 @@ describe("HealthRouter - Black-Box Contract & Resilience Tests", () => {
     app.use(express.json());
     app.use(
       HEALTH_ROUTE,
-      createHealthRouter(authenticate, () => "1.2.3"),
+      createHealthRouter(
+        { database: authenticate, sessionSigning: checkSessionSigning },
+        () => "1.2.3",
+      ),
     );
     return app;
   };
@@ -27,6 +35,7 @@ describe("HealthRouter - Black-Box Contract & Resilience Tests", () => {
     expect(response.body.status).toBe("UP");
     expect(response.body.serviceName).toBe("variamos_ms_admin");
     expect(response.body.checks.database.status).toBe("UP");
+    expect(response.body.checks.sessionSigning.status).toBe("UP");
     expect(typeof response.body.checks.database.latencyMs).toBe("number");
     expect(response.body.checks.memory).toBeDefined();
     expect(response.body.checks.memory.totalMb).toBeGreaterThan(0);
@@ -43,6 +52,24 @@ describe("HealthRouter - Black-Box Contract & Resilience Tests", () => {
     expect(response.status).toBe(503);
     expect(response.body.status).toBe("DEGRADED");
     expect(response.body.checks.database.status).toBe("DOWN");
+  });
+
+  // ADM-N01: the database answers, but no session can be opened
+  it("returns HTTP 503 with DEGRADED status when no session token can be signed", async () => {
+    authenticate.mockResolvedValueOnce();
+    checkSessionSigning.mockResolvedValueOnce({
+      ok: false,
+      reason: "a session token cannot be signed (Error on jwt creation)",
+    });
+
+    const response = await supertest(buildApp()).get("/health");
+
+    expect(response.status).toBe(503);
+    expect(response.body.status).toBe("DEGRADED");
+    expect(response.body.checks.database.status).toBe("UP");
+    expect(response.body.checks.sessionSigning).toEqual({ status: "DOWN" });
+    // The reason stays in the log of the service: /health is public
+    expect(JSON.stringify(response.body)).not.toContain("jwt creation");
   });
 
   // The check after each deployment reads serviceName, status and

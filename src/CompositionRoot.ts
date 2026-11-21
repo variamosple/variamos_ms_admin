@@ -80,6 +80,7 @@ import { UserQueryUseCase } from "./Domain/User/UseCase/UserQueryUseCase.js";
 import { UserRoleUseCase } from "./Domain/User/UseCase/UserRoleUseCase.js";
 import { VisitUseCase } from "./Domain/Visit/UseCase/VisitUseCase.js";
 import type { BaseRouterDependencies } from "./EntryPoints/index.js";
+import { checkSessionSigning } from "./EntryPoints/sessionSigningCheck.js";
 import { GitHubIssuesServiceInstance } from "./Infrastructure/GitHub/GitHubIssuesService.js";
 import { GitHubTokenResolver } from "./Infrastructure/GitHub/GitHubTokenResolver.js";
 import { HealthCheckCollector } from "./Infrastructure/Health/HealthCheckCollector.js";
@@ -453,7 +454,7 @@ export const productionRouterDependencies: BaseRouterDependencies = {
   accountLockout: AccountLockoutInstance,
   accessJournal: WatchedAccessJournal,
   journalQuery: productionJournalQueryUseCase,
-  checkDatabase,
+  health: { database: checkDatabase, sessionSigning: checkSessionSigning },
   backups: BackupAlertsInstance,
   settings: webSettingsFromEnv(),
 };
