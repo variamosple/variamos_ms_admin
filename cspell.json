@@ -61,6 +61,8 @@
     "knip",
     "argjson",
     "genpkey",
+    "keygen",
+    "mktemp",
     "pkeyopt",
     "pubout",
     "datname",
