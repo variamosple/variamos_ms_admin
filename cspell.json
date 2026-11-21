@@ -61,6 +61,8 @@
     "knip",
     "argjson",
     "genpkey",
+    "keygen",
+    "mktemp",
     "pkeyopt",
     "pubout",
     "datname",
@@ -70,7 +72,8 @@
     "loadtest",
     "percpu",
     "cpuset",
-    "cpus"
+    "cpus",
+    "aquasec"
   ],
   "ignorePaths": [
     "node_modules/**",

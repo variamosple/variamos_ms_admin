@@ -132,9 +132,16 @@ The tables of this service (bugs, configurations, password reset tokens, microse
 To change the schema, add a migration and append it to `ADMIN_MIGRATIONS` in `Migrator.ts`. Never use `Model.sync()`. The migration tests need a disposable PostgreSQL:
 
 ```shell
-docker run -d --rm -p 55432:5432 -e POSTGRES_PASSWORD=pg postgres:14-alpine
+# With the development kit next to this repository (./kit test-db)
+../variamos_dev_kit/kit test-db
+MIGRATIONS_TEST_DATABASE_URL=$(../variamos_dev_kit/kit test-db url) npm test
+
+# Or with any disposable PostgreSQL
+docker run -d --rm -p 55432:5432 -e POSTGRES_PASSWORD=pg postgres:14.8
 MIGRATIONS_TEST_DATABASE_URL=postgres://postgres:pg@localhost:55432/postgres npm test
 ```
+
+The CI runs them on a PostgreSQL service, in the `coverage` job.
 
 ---
 
