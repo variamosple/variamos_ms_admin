@@ -36,13 +36,30 @@ jobs:
           username: ${{secrets.ACRUSERNAME_DOKCERHUB}}
           password: ${{secrets.ACRUSERPASSWORD_DOKCERHUB}}
 
-      - name: Build and push container image to registry
+      # The image is checked before it is published (SPC-2026-11-18-001, lot
+      # Q1): a secret, an environment file, a key or a critical flaw that has
+      # a fix stops the run here, and production keeps its image.
+      - name: Build the container image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
-          push: true
-          tags: ${{vars.ACR_DOKCERHUB}}/${{secrets.ACRUSERNAME_DOKCERHUB}}/variamos_ms_admin:main
+          load: true
+          tags: image-to-check
           file: ./Dockerfile
+
+      # Trivy (secrets, critical flaws that have a fix), then no environment
+      # file and no key: the same check as in the pull requests
+      - name: Check the image
+        run: |
+          bash scripts/scan-image.sh image-to-check
+
+      # The image pushed is the one checked, not a new build
+      - name: Push the container image to registry
+        env:
+          IMAGE: ${{vars.ACR_DOKCERHUB}}/${{secrets.ACRUSERNAME_DOKCERHUB}}/variamos_ms_admin:main
+        run: |
+          docker tag image-to-check "$IMAGE"
+          docker push "$IMAGE"
 
       - name: Record the deployment start
         run: echo "DEPLOY_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
