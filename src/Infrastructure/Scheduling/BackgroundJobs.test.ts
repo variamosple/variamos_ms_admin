@@ -14,6 +14,7 @@ import {
   SCHEDULED_CHANGES_EVERY_MS,
   startBackgroundJobs,
 } from "./BackgroundJobs.js";
+import { BackgroundTaskRegistry } from "./BackgroundTaskRegistry.js";
 
 vi.mock("#src/common/logger.js");
 
@@ -38,6 +39,7 @@ function jobsReading(configured: Promise<ResponseModel<Configuration>>) {
     scheduledChanges: { applyDue: vi.fn(async () => 0) },
     resourceSampler: { start: vi.fn() },
     backupAlerts: null as { check(): Promise<void> } | null,
+    tasks: new BackgroundTaskRegistry().create,
   };
   jobs.bugLifecycle.purgeExpiredRejectedBugs.mockResolvedValue();
   return jobs;

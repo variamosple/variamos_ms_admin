@@ -19,6 +19,7 @@ import { checkLocalDevOrigins } from "#src/common/localDevOrigins.js";
 import { NodeEnvs } from "#src/common/misc.js";
 import { missingRequiredSecrets } from "#src/common/requiredSecrets.js";
 import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
+import { BackgroundTasks, BackupAlertsInstance } from "./CompositionAlerts.js";
 import {
   AccessJournalInstance,
   ActivityJournalInstance,
@@ -28,7 +29,6 @@ import {
   VisitRetentionInstance,
 } from "./CompositionRepositories.js";
 import {
-  BackupAlertsInstance,
   BugSyncTask,
   HealthCheckCollectorInstance,
   productionBugLifecycleUseCase,
@@ -130,12 +130,15 @@ try {
     const applied = await runMigrations(VARIAMOS_ORM, DB_SCHEMA);
     logger.info(`[MIGRATION] ${applied.length} migration(s) applied`);
     // Retention of the journals (T-24), on tables the migrations made
-    startJournalPurge([
-      ActivityJournalInstance,
-      AccessJournalInstance,
-      VisitRetentionInstance,
-      KnownDeviceInstance,
-    ]);
+    void startJournalPurge(
+      [
+        ActivityJournalInstance,
+        AccessJournalInstance,
+        VisitRetentionInstance,
+        KnownDeviceInstance,
+      ],
+      BackgroundTasks.create,
+    );
   }
 } catch (e) {
   logger.err(
@@ -186,6 +189,7 @@ const server = app.listen(EnvVars.Port, async () => {
     scheduledChanges: productionScheduledConfigurationChangeUseCase,
     resourceSampler: ContainerResourceSamplerInstance,
     backupAlerts: BackupAlertsInstance,
+    tasks: BackgroundTasks.create,
   });
 });
 

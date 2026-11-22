@@ -15,7 +15,8 @@ import {
   healthCheckIntervalMsOf,
 } from "#src/Domain/MicroService/Entity/HealthCheckInterval.js";
 import type { HealthCheckCollector } from "../Health/HealthCheckCollector.js";
-import { RepeatingTask } from "./RepeatingTask.js";
+import type { TaskFactory } from "./BackgroundTaskRegistry.js";
+import type { RepeatingTask } from "./RepeatingTask.js";
 
 const BUG_PURGE_EVERY_MS = 24 * 60 * 60 * 1000;
 
@@ -36,6 +37,8 @@ export interface BackgroundJobs {
   resourceSampler: { start(): void };
   /** Checks the nightly database backup; null without its status file. */
   backupAlerts: { check(): Promise<void> } | null;
+  /** Makes the tasks below, followed by the monitoring page (ADM-N34). */
+  tasks: TaskFactory;
 }
 
 /** Applies a change of the health check interval at once (T-18 lot 4b). */
@@ -85,22 +88,24 @@ export async function startBackgroundJobs(jobs: BackgroundJobs): Promise<void> {
     await applyConfiguredInterval(jobs);
     jobs.collector.start();
     jobs.resourceSampler.start();
-    await jobs.bugLifecycle.purgeExpiredRejectedBugs();
   } catch (e) {
     logger.err(`Failed to start background tasks: ${errorMessage(e)}`);
   }
 
-  jobs.bugSyncTask.setIntervalMs(await jobs.bugSchedule.getSyncIntervalMs());
-  jobs.bugSyncTask.start();
-
-  new RepeatingTask(
+  // Run at once, so that the monitoring page shows its first run
+  const bugPurge = jobs.tasks(
     "Periodic expired bugs purge",
     () => jobs.bugLifecycle.purgeExpiredRejectedBugs(),
     BUG_PURGE_EVERY_MS,
-  ).start();
+  );
+  await bugPurge.runNow();
+  bugPurge.start();
+
+  jobs.bugSyncTask.setIntervalMs(await jobs.bugSchedule.getSyncIntervalMs());
+  jobs.bugSyncTask.start();
 
   // Changes due while the service was stopped are applied at once
-  const scheduledChanges = new RepeatingTask(
+  const scheduledChanges = jobs.tasks(
     "Scheduled configuration changes",
     () => jobs.scheduledChanges.applyDue(),
     SCHEDULED_CHANGES_EVERY_MS,
@@ -113,7 +118,7 @@ export async function startBackgroundJobs(jobs: BackgroundJobs): Promise<void> {
     logger.info("Backup check off: no BACKUP_STATUS_FILE");
     return;
   }
-  const backupCheck = new RepeatingTask(
+  const backupCheck = jobs.tasks(
     "Backup status check",
     () => backupAlerts.check(),
     BACKUP_CHECK_EVERY_MS,

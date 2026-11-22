@@ -77,6 +77,7 @@ const GUARDED: Record<string, string> = {
   "PUT /v1/permissions/:permissionId": "permissions::update",
   "GET /v1/micro-services": "micro-services::query",
   "GET /v1/backups/status": "micro-services::query",
+  "GET /v1/background-tasks": "micro-services::query",
   "POST /v1/micro-services/check": "micro-services::query",
   "POST /v1/micro-services/:name/check": "micro-services::query",
   "GET /v1/micro-services/:name/history": "micro-services::query",
@@ -203,6 +204,7 @@ function buildRouter(accessGuard: AccessGuard) {
       journalQuery: mock(),
       health: { database: mock(), sessionSigning: mock() },
       backups: mock(),
+      backgroundTasks: mock(),
       settings: webSettingsFromEnv(),
     });
   } finally {
