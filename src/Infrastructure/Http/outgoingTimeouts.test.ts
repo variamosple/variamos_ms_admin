@@ -111,7 +111,7 @@ describe("outgoing calls to a server that does not answer (ADM-N33)", () => {
 
     const elapsed = await elapsedMs(async () => {
       const response = await repository.getIpCountryCode(
-        new RequestModel("t", "203.0.113.7"),
+        new RequestModel("t", "8.8.8.8"),
       );
       errorCode = response.errorCode;
     });

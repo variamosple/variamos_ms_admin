@@ -6,12 +6,12 @@ import { IpCountryCache } from "./IpCountryCache.js";
 
 vi.mock("#src/common/logger.js");
 
-/** A geolocation service that counts its calls; /503 paths fail. */
+/** A geolocation service that counts its calls; 1.1.1.1 gets a 503. */
 async function startService() {
   const calls: string[] = [];
   const server = http.createServer((req, res) => {
     calls.push(req.url ?? "");
-    if (req.url?.startsWith("/198.51.100.")) {
+    if (req.url === "/1.1.1.1") {
       res.writeHead(503).end();
       return;
     }
@@ -48,13 +48,13 @@ describe("country of an address (ADM-N26)", () => {
   it("asks the service once per address", async () => {
     const repository = repositoryOf();
 
-    const first = await countryOf(repository, "203.0.113.7");
-    const second = await countryOf(repository, "::ffff:203.0.113.7");
-    await countryOf(repository, "203.0.113.8");
+    const first = await countryOf(repository, "8.8.8.8");
+    const second = await countryOf(repository, "::ffff:8.8.8.8");
+    await countryOf(repository, "8.8.4.4");
 
     expect(first.data).toBe("CO");
     expect(second.data).toBe("CO");
-    expect(service.calls).toEqual(["/203.0.113.7", "/203.0.113.8"]);
+    expect(service.calls).toEqual(["/8.8.8.8", "/8.8.4.4"]);
   });
 
   it("sends nothing for a private address", async () => {
@@ -68,12 +68,12 @@ describe("country of an address (ADM-N26)", () => {
   it("keeps a failure, so that an outage is not asked at each visit", async () => {
     const repository = repositoryOf();
 
-    const first = await countryOf(repository, "198.51.100.2");
-    const second = await countryOf(repository, "198.51.100.2");
+    const first = await countryOf(repository, "1.1.1.1");
+    const second = await countryOf(repository, "1.1.1.1");
 
     expect(first.errorCode).toBeDefined();
     expect(first.data).toBeUndefined();
     expect(second.errorCode).toBeDefined();
-    expect(service.calls).toEqual(["/198.51.100.2"]);
+    expect(service.calls).toEqual(["/1.1.1.1"]);
   });
 });

@@ -1,7 +1,7 @@
 import { publicAddressOf } from "./publicAddress.js";
 
 describe("publicAddressOf (ADM-N26)", () => {
-  it.each(["203.0.113.7", "8.8.8.8", "2001:db8::1"])(
+  it.each(["8.8.8.8", "1.1.1.1", "2606:4700:4700::1111"])(
     "keeps the public address %s",
     (address) => {
       expect(publicAddressOf(address)).toBe(address);
@@ -9,7 +9,7 @@ describe("publicAddressOf (ADM-N26)", () => {
   );
 
   it("drops the IPv6 prefix of an IPv4 address", () => {
-    expect(publicAddressOf("::ffff:203.0.113.7")).toBe("203.0.113.7");
+    expect(publicAddressOf("::ffff:8.8.8.8")).toBe("8.8.8.8");
   });
 
   it.each([
@@ -28,11 +28,19 @@ describe("publicAddressOf (ADM-N26)", () => {
     expect(publicAddressOf(address)).toBeNull();
   });
 
+  it.each(["203.0.113.7", "2001:db8::1", "224.0.0.1", "255.255.255.255"])(
+    "sends nothing for the reserved or multicast address %s",
+    (address) => {
+      expect(publicAddressOf(address)).toBeNull();
+    },
+  );
+
   it.each([
     "",
     "client-address",
+    "134744072",
     "203.0.113.7, 198.51.100.2",
-    "../203.0.113.7",
+    "../8.8.8.8",
   ])("sends nothing for %j, which is not one address", (value) => {
     expect(publicAddressOf(value)).toBeNull();
   });
