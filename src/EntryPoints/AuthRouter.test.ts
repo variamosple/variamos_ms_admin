@@ -1526,6 +1526,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .setId("user-123")
         .setName("John Doe")
         .setEmail("john@example.com")
+        .setCountryCode("CO")
         .build();
       const expectedResponse = new ResponseModel(
         "loginWithGoogle",
@@ -1545,6 +1546,38 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
       expect(response.status).toBe(302);
       expect(response.headers.location).toBe("http://localhost:3000");
+    });
+
+    it("sends an account without a country through the login page, then home (EV-90)", async () => {
+      const withoutCountry = User.builder()
+        .setId("user-123")
+        .setName("John Doe")
+        .setEmail("john@example.com")
+        .build();
+      vi.mocked(createJwt).mockResolvedValue("google-jwt-token");
+      (UserAuthUseCase.prototype.signInWithGoogle as Mock).mockResolvedValue(
+        new ResponseModel("loginWithGoogle").withResponse(withoutCountry),
+      );
+
+      const response = await supertest(app)
+        .post("/auth/google/callback")
+        .set("Cookie", [googleCsrfCookie])
+        .send({
+          credential: "mock-google-id-token",
+          g_csrf_token: GOOGLE_CSRF,
+        });
+
+      expect(response.status).toBe(302);
+      // Signed in already: the session cookie is set before the detour
+      expect(
+        parseCookies(response).some((c) =>
+          c.startsWith("authToken=google-jwt-token"),
+        ),
+      ).toBe(true);
+      // No page to go to in the address: the login page goes to its home
+      expect(response.headers.location).toBe(
+        `${web.loginRedirectUri}?signed-in=google`,
+      );
     });
 
     it("should redirect to login with error query param if findOrCreateUser fails", async () => {
@@ -1808,6 +1841,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         .setId("user-123")
         .setName("John Doe")
         .setEmail("john@example.com")
+        .setCountryCode("CO")
         .build();
       const expectedResponse = new ResponseModel(
         "loginWithGoogle",

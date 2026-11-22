@@ -18,7 +18,11 @@ import {
   sessionUserOf,
 } from "./authContext.js";
 import { googleCallbackBody } from "./authRequestBodies.js";
-import { MFA_PENDING_COOKIE, trustedDeviceToken } from "./authWeb.js";
+import {
+  type AuthWebSettings,
+  MFA_PENDING_COOKIE,
+  trustedDeviceToken,
+} from "./authWeb.js";
 import { readBody } from "./requestBody.js";
 import { createSessionJwt } from "./sessionToken.js";
 
@@ -128,6 +132,20 @@ const askGoogleMfaCode = async (
   );
 };
 
+/**
+ * Where a Google sign-in goes: home, or first the login page for an account
+ * without a country. That page offers the country of the browser, as after a
+ * password, then goes to its home page (EV-90). Once the country is saved,
+ * straight home. The address carries no page to go to: a link could then
+ * send a visitor anywhere.
+ */
+const afterGoogleSignIn = (web: AuthWebSettings, account: User): string => {
+  if (account.countryCode || !web.loginRedirectUri) {
+    return `${web.homeRedirectUri}`;
+  }
+  return `${web.loginRedirectUri}?signed-in=google`;
+};
+
 const googleCallback =
   (ctx: AuthContext): RequestHandler =>
   async (req, res) => {
@@ -202,7 +220,7 @@ const googleCallback =
 
       res.cookie("authToken", token, ctx.cookieOptions());
 
-      res.redirect(302, `${ctx.web.homeRedirectUri}`);
+      res.redirect(302, afterGoogleSignIn(ctx.web, response.data));
     } catch (err) {
       logger.err(describeError(err));
       failGoogleSignIn(ctx, req, res);
