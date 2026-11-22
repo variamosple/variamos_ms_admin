@@ -59,4 +59,32 @@ describe("createServer error handler", () => {
       message: "The request could not be read.",
     });
   });
+
+  it.each([
+    ["GET", "/no-such-route"],
+    ["POST", "/v1/no-such-route"],
+    ["DELETE", "/echo/123"],
+  ])(
+    "answers an unknown route %s %s with a JSON 404 (ADM-N40)",
+    async (method, path) => {
+      const res =
+        await request(app)[method.toLowerCase() as "get" | "post" | "delete"](
+          path,
+        );
+
+      expect(res.status).toBe(404);
+      expect(res.headers["content-type"]).toMatch(/^application\/json/);
+      expect(res.body).toEqual({
+        errorCode: DomainErrorCodes.ENTITY_NOT_FOUND,
+        message: "This route does not exist.",
+      });
+    },
+  );
+
+  it("still answers the known routes", async () => {
+    const res = await request(app).post("/echo").send({ ok: true });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+  });
 });
