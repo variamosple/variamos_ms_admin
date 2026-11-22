@@ -7,6 +7,11 @@ import {
   NotificationClientInstance,
 } from "./CompositionAdapters.js";
 import {
+  BackgroundTasks,
+  BackupAlertsInstance,
+  ServiceAlertsInstance,
+} from "./CompositionAlerts.js";
+import {
   AccountPasswordServiceInstance,
   BugRepositoriesInstance,
   ConfigEventPublisherInstance,
@@ -26,7 +31,6 @@ import {
 } from "./CompositionRepositories.js";
 import { AccessHierarchyRepositoryImpl } from "./DataProviders/AccessControl/AccessHierarchyRepository.js";
 import { JournalReaderRepositoryImpl } from "./DataProviders/Activity/JournalReaderRepository.js";
-import { FileBackupStatusReader } from "./DataProviders/Backup/FileBackupStatusReader.js";
 import { ScheduledConfigurationChangeRepositoryImpl } from "./DataProviders/Configuration/ScheduledConfigurationChangeRepository.js";
 import { TrustedDeviceRepositoryImpl } from "./DataProviders/Mfa/TrustedDeviceRepository.js";
 import { UserMfaRepositoryImpl } from "./DataProviders/Mfa/UserMfaRepository.js";
@@ -35,7 +39,6 @@ import { AccountCountryRepositoryImpl } from "./DataProviders/User/AccountCountr
 import { UserPreferencesRepositoryImpl } from "./DataProviders/User/UserPreferencesRepository.js";
 import { AccessHierarchyUseCase } from "./Domain/AccessControl/AccessHierarchyUseCase.js";
 import { JournalQueryUseCase } from "./Domain/Activity/JournalQueryUseCase.js";
-import { BackupAlerts } from "./Domain/Backup/UseCase/BackupAlerts.js";
 import { bugSyncIntervalMsOf } from "./Domain/Bug/Entity/BugSchedule.js";
 import {
   BugScheduleService,
@@ -57,10 +60,8 @@ import { MfaResetUseCase } from "./Domain/Mfa/UseCase/MfaResetUseCase.js";
 import { MfaSignInUseCase } from "./Domain/Mfa/UseCase/MfaSignInUseCase.js";
 import { TrustedDeviceUseCase } from "./Domain/Mfa/UseCase/TrustedDeviceUseCase.js";
 import { UserMfaUseCase } from "./Domain/Mfa/UseCase/UserMfaUseCase.js";
-import { ServiceAlertPolicyService } from "./Domain/MicroService/Service/ServiceAlertPolicyService.js";
 import { MicroServiceManagementUseCase } from "./Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
 import { MicroServiceQueryUseCase } from "./Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
-import { ServiceAlerts } from "./Domain/MicroService/UseCase/ServiceAlerts.js";
 import { NotificationDispatchUseCase } from "./Domain/Notification/UseCase/NotificationDispatchUseCase.js";
 import { PermissionUseCase } from "./Domain/Permission/UseCase/PermissionUseCase.js";
 import { RoleManagementUseCase } from "./Domain/Role/UseCase/RoleManagementUseCase.js";
@@ -88,12 +89,10 @@ import { JetLogger } from "./Infrastructure/Logging/JetLogger.js";
 import { BugAssignmentNotifier } from "./Infrastructure/Notification/BugAssignmentNotifier.js";
 import { NotificationAccessTokenIssuer } from "./Infrastructure/Notification/NotificationAccessTokenIssuer.js";
 import { ScheduledChangeNotifier } from "./Infrastructure/Notification/ScheduledChangeNotifier.js";
-import { ServiceAlertNotifier } from "./Infrastructure/Notification/ServiceAlertNotifier.js";
 import {
   followBugSyncInterval,
   followHealthCheckInterval,
 } from "./Infrastructure/Scheduling/BackgroundJobs.js";
-import { RepeatingTask } from "./Infrastructure/Scheduling/RepeatingTask.js";
 import {
   AesGcmSecretCipher,
   parseEncryptionKey,
@@ -368,31 +367,14 @@ MicroServiceRepositoriesInstance.control.setHealthCollector(
 ConfigEventPublisherInstance.addListener(
   followHealthCheckInterval(HealthCheckCollectorInstance),
 );
-// A mail when a service stops answering, then when it answers again; the
-// addresses and the number of failed checks follow the configuration screen
-const ServiceAlertsInstance = new ServiceAlerts(
-  new ServiceAlertPolicyService(ConfigurationRepositoryInstance, JetLogger),
-  new ServiceAlertNotifier(MailServiceInstance, JetLogger),
-  JetLogger,
-);
+// A mail when a service stops answering, then when it answers again
 HealthCheckCollectorInstance.addCheckListener((check) =>
   ServiceAlertsInstance.onHealthCheck(check),
 );
 
-// A mail when the nightly database backup goes wrong, to the same addresses;
-// off without the status file written by the server
-export const BackupAlertsInstance = EnvVars.BACKUP.STATUS_FILE
-  ? new BackupAlerts(
-      new FileBackupStatusReader(EnvVars.BACKUP.STATUS_FILE, JetLogger),
-      new ServiceAlertPolicyService(ConfigurationRepositoryInstance, JetLogger),
-      new ServiceAlertNotifier(MailServiceInstance, JetLogger),
-      JetLogger,
-    )
-  : null;
-
 // Bugs synchronization with GitHub, started by the background jobs at the
 // configured interval; a change on the configuration screen moves it at once
-export const BugSyncTask = new RepeatingTask(
+export const BugSyncTask = BackgroundTasks.create(
   "Periodic bugs synchronization",
   () => productionBugSyncUseCase.syncBugs(new RequestModel("periodicSyncBugs")),
   bugSyncIntervalMsOf(undefined),
@@ -456,5 +438,6 @@ export const productionRouterDependencies: BaseRouterDependencies = {
   journalQuery: productionJournalQueryUseCase,
   health: { database: checkDatabase, sessionSigning: checkSessionSigning },
   backups: BackupAlertsInstance,
+  backgroundTasks: BackgroundTasks,
   settings: webSettingsFromEnv(),
 };

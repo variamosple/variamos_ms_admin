@@ -1,6 +1,9 @@
 import { mock } from "vitest-mock-extended";
 import type { IJournalPurge } from "#src/Domain/Activity/IJournalPurge.js";
+import { BackgroundTaskRegistry } from "../Scheduling/BackgroundTaskRegistry.js";
 import { purgeJournals, startJournalPurge } from "./JournalPurge.js";
+
+vi.mock("#src/common/logger.js");
 
 const journalOf = (name: string) => {
   const journal = mock<IJournalPurge>();
@@ -9,28 +12,44 @@ const journalOf = (name: string) => {
 };
 
 describe("purge of the journals (T-24)", () => {
-  it("purges every journal, even after a failure", async () => {
+  it("purges every journal, then fails naming the one not purged", async () => {
     const activity = journalOf("activity");
     const access = journalOf("access");
     activity.purgeExpired.mockRejectedValue(new Error("down"));
     access.purgeExpired.mockResolvedValue(3);
 
-    await expect(purgeJournals([activity, access])).resolves.toBeUndefined();
+    await expect(purgeJournals([activity, access])).rejects.toThrow(
+      "Journals not purged: activity",
+    );
     expect(access.purgeExpired).toHaveBeenCalledOnce();
   });
 
-  it("purges at start-up, then at each interval", async () => {
+  it("succeeds when every journal is purged", async () => {
+    const access = journalOf("access");
+    access.purgeExpired.mockResolvedValue(0);
+
+    await expect(purgeJournals([access])).resolves.toBeUndefined();
+  });
+
+  it("purges at start-up, then at each interval, as a followed task", async () => {
     vi.useFakeTimers();
+    const registry = new BackgroundTaskRegistry();
     try {
       const access = journalOf("access");
       access.purgeExpired.mockResolvedValue(0);
 
-      const timer = startJournalPurge([access], 1000);
+      await startJournalPurge([access], registry.create, 1000);
       expect(access.purgeExpired).toHaveBeenCalledTimes(1);
       await vi.advanceTimersByTimeAsync(2000);
       expect(access.purgeExpired).toHaveBeenCalledTimes(3);
-      clearInterval(timer);
+      expect(registry.list()).toEqual([
+        expect.objectContaining({
+          name: "Journals purge",
+          consecutiveFailures: 0,
+        }),
+      ]);
     } finally {
+      vi.clearAllTimers();
       vi.useRealTimers();
     }
   });

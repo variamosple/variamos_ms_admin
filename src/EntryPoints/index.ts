@@ -1,4 +1,5 @@
 // User Flow Use Cases
+
 import { isAuthenticated } from "@variamosple/variamos-security";
 import { type RequestHandler, Router } from "express";
 import type { IAccessJournal } from "#src/Domain/Activity/IAccessJournal.js";
@@ -28,6 +29,7 @@ import type { PermissionUseCase } from "#src/Domain/Permission/UseCase/Permissio
 import type { RoleManagementUseCase } from "#src/Domain/Role/UseCase/RoleManagementUseCase.js";
 import type { RolePermissionUseCase } from "#src/Domain/Role/UseCase/RolePermissionUseCase.js";
 import type { RoleQueryUseCase } from "#src/Domain/Role/UseCase/RoleQueryUseCase.js";
+import type { IBackgroundTaskList } from "#src/Domain/Scheduling/Entity/BackgroundTaskStatus.js";
 import type { AccountLockout } from "#src/Domain/User/Service/AccountLockoutService.js";
 import type { AccountCountryUseCase } from "#src/Domain/User/UseCase/AccountCountryUseCase.js";
 import type { UserAuthUseCase } from "#src/Domain/User/UseCase/UserAuthUseCase.js";
@@ -43,6 +45,10 @@ import {
 } from "./AdminNotificationsRouter.js";
 import { AUTH_ROUTE, createAuthRouter } from "./AuthRouter.js";
 import { recordRefusals } from "./accessJournal.js";
+import {
+  BACKGROUND_TASKS_V1_ROUTE,
+  createBackgroundTasksRouter,
+} from "./BackgroundTasksV1Router.js";
 import {
   BACKUPS_V1_ROUTE,
   type BackupReports,
@@ -166,7 +172,31 @@ export interface BaseRouterDependencies {
   journalQuery: JournalQueryUseCase;
   health: HealthChecks;
   backups: BackupReports;
+  backgroundTasks: IBackgroundTaskList;
 }
+
+// The monitoring page: the services, the backups and the background tasks
+const useMonitoringRoutes = (
+  router: Router,
+  {
+    microServices,
+    backups,
+    backgroundTasks,
+  }: Pick<
+    BaseRouterDependencies,
+    "microServices" | "backups" | "backgroundTasks"
+  >,
+) => {
+  router.use(
+    MICRO_SERVICES_V1_ROUTE,
+    createMicroServicesRouter(microServices.query, microServices.management),
+  );
+  router.use(BACKUPS_V1_ROUTE, createBackupsRouter(backups));
+  router.use(
+    BACKGROUND_TASKS_V1_ROUTE,
+    createBackgroundTasksRouter(backgroundTasks),
+  );
+};
 
 // The accounts, with the roles of each account under them
 const createAccountsRouter = (
@@ -233,6 +263,7 @@ export function createBaseRouter({
   journalQuery,
   health,
   backups,
+  backgroundTasks,
   settings,
 }: BaseRouterDependencies): Router {
   const baseRouter = Router();
@@ -250,10 +281,6 @@ export function createBaseRouter({
   const usersV1Router = createAccountsRouter(usersUseCases, accessGuard);
   const rolesV1Router = createRolesTreeRouter(rolesUseCases, accessGuard);
   const permissionsV1Router = createPermissionsRouter(permissionsUseCase);
-  const microServicesV1Router = createMicroServicesRouter(
-    microServiceUseCases.query,
-    microServiceUseCases.management,
-  );
   const visitsV1Router = createVisitsRouter(visitsUseCase);
   const metricsV1Router = createMetricsRouter(metricsUseCase);
   const countriesV1Router = createCountriesRouter(countriesUseCase);
@@ -300,9 +327,12 @@ export function createBaseRouter({
   baseRouter.use(USERS_V1_ROUTE, usersV1Router);
   baseRouter.use(ROLES_V1_ROUTE, rolesV1Router);
   baseRouter.use(PERMISSIONS_V1_ROUTE, permissionsV1Router);
-  baseRouter.use(MICRO_SERVICES_V1_ROUTE, microServicesV1Router);
+  useMonitoringRoutes(baseRouter, {
+    microServices: microServiceUseCases,
+    backups,
+    backgroundTasks,
+  });
   baseRouter.use(VISITS_V1_ROUTE, visitsV1Router);
-  baseRouter.use(BACKUPS_V1_ROUTE, createBackupsRouter(backups));
   baseRouter.use(METRICS_V1_ROUTE, metricsV1Router);
   baseRouter.use(COUNTRIES_V1_ROUTE, countriesV1Router);
   baseRouter.use(BUG_V1_ROUTE, bugV1Router);
