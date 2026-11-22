@@ -1,4 +1,4 @@
-import axios from "axios";
+import type { AxiosInstance } from "axios";
 import logger from "#src/common/logger.js";
 import type {
   GitHubIssue,
@@ -9,6 +9,7 @@ import {
   httpFailure,
   httpStatus,
 } from "#src/Infrastructure/Http/httpFailure.js";
+import { createGitHubHttp } from "./githubHttp.js";
 
 // 10,000 issues: a bound against a Link header that never ends
 export const MAX_ISSUE_PAGES = 100;
@@ -33,6 +34,13 @@ export function nextPageOf(link: unknown): string | null {
 }
 
 export class GitHubIssuesService implements IIssueTrackerService {
+  public constructor(
+    private readonly http: Pick<
+      AxiosInstance,
+      "get" | "post" | "patch" | "delete"
+    > = createGitHubHttp(),
+  ) {}
+
   private getHeaders(token: string) {
     return {
       "Content-Type": "application/json",
@@ -49,7 +57,7 @@ export class GitHubIssuesService implements IIssueTrackerService {
     const url = `https://api.github.com/repos/${repo}/issues`;
 
     try {
-      const response = await axios.post<{ number: number }>(
+      const response = await this.http.post<{ number: number }>(
         url,
         {
           title,
@@ -76,7 +84,7 @@ export class GitHubIssuesService implements IIssueTrackerService {
     const url = `https://api.github.com/repos/${repo}/issues/${issueNumber}`;
 
     try {
-      await axios.patch(
+      await this.http.patch(
         url,
         // A bug is closed once fixed: "not planned" is not used, a rejected
         // bug never reaches GitHub
@@ -99,7 +107,7 @@ export class GitHubIssuesService implements IIssueTrackerService {
     const url = `https://api.github.com/repos/${repo}/issues/${issueNumber}`;
 
     try {
-      await axios.patch(
+      await this.http.patch(
         url,
         { state: "open" },
         { headers: this.getHeaders(token) },
@@ -121,7 +129,11 @@ export class GitHubIssuesService implements IIssueTrackerService {
     const url = `https://api.github.com/repos/${repo}/issues/${issueNumber}/labels`;
 
     try {
-      await axios.post(url, { labels }, { headers: this.getHeaders(token) });
+      await this.http.post(
+        url,
+        { labels },
+        { headers: this.getHeaders(token) },
+      );
       return true;
     } catch (error) {
       logger.err(`GitHub error [addLabels] on ${repo}:`);
@@ -139,7 +151,7 @@ export class GitHubIssuesService implements IIssueTrackerService {
     const url = `https://api.github.com/repos/${repo}/issues/${issueNumber}/labels/${encodeURIComponent(label)}`;
 
     try {
-      await axios.delete(url, { headers: this.getHeaders(token) });
+      await this.http.delete(url, { headers: this.getHeaders(token) });
       return true;
     } catch (error) {
       // 404: the label was not on the issue, which is the expected end state
@@ -171,7 +183,7 @@ export class GitHubIssuesService implements IIssueTrackerService {
           );
           return null;
         }
-        const response = await axios.get<GitHubIssue[]>(url, {
+        const response = await this.http.get<GitHubIssue[]>(url, {
           headers: this.getHeaders(token),
         });
         issues.push(...response.data);

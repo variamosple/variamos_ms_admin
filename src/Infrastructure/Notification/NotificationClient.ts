@@ -10,18 +10,29 @@ import { httpFailure } from "#src/Infrastructure/Http/httpFailure.js";
 export interface NotificationClientSettings {
   serviceUrl: string;
   internalToken: string;
+  /** Time limit of a dispatch; NOTIFICATIONS_TIMEOUT_MS by default. */
+  timeoutMs?: number;
 }
+
+/**
+ * A notification service that does not answer gives up after 5 s (ADM-N33),
+ * rather than holding the request that sends the notification.
+ */
+export const NOTIFICATIONS_TIMEOUT_MS = 5000;
 
 export class NotificationClient implements INotificationDispatcher {
   private readonly baseUrl: string;
   private readonly internalToken: string;
+  private readonly timeoutMs: number;
 
   public constructor({
     serviceUrl,
     internalToken,
+    timeoutMs = NOTIFICATIONS_TIMEOUT_MS,
   }: NotificationClientSettings) {
     this.baseUrl = serviceUrl;
     this.internalToken = internalToken;
+    this.timeoutMs = timeoutMs;
   }
 
   public async dispatchNotification(
@@ -33,6 +44,7 @@ export class NotificationClient implements INotificationDispatcher {
           "Content-Type": "application/json",
           "x-internal-token": this.internalToken,
         },
+        timeout: this.timeoutMs,
       });
     } catch (error: unknown) {
       logger.err("Failed to dispatch notification via NotificationClient:");

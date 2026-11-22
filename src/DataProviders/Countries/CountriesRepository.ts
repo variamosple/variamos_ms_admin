@@ -9,10 +9,31 @@ import { BaseRepository } from "../BaseRepository.js";
 import { UserModel } from "../User/User.js";
 import { CountryModel } from "./Country.js";
 
+/**
+ * The country of an address is only a default offered at sign-in: a
+ * geolocation service that does not answer within 2 s is skipped (ADM-N33).
+ */
+export const IP_LOOKUP_TIMEOUT_MS = 2000;
+
+/** Where the country of an address is asked, and how long to wait. */
+export interface IpLookupSettings {
+  baseUrl: string;
+  timeoutMs: number;
+}
+
 export class CountriesRepositoryImpl
   extends BaseRepository
   implements ICountriesRepository
 {
+  public constructor(
+    private readonly ipLookup: IpLookupSettings = {
+      baseUrl: "https://api.ipquery.io",
+      timeoutMs: IP_LOOKUP_TIMEOUT_MS,
+    },
+  ) {
+    super();
+  }
+
   public async getCountries(
     request: RequestModel<void>,
   ): Promise<ResponseModel<Country[]>> {
@@ -65,7 +86,9 @@ export class CountriesRepositoryImpl
     const response = new ResponseModel<string>(request.transactionId);
     logger.info("IP country code request");
 
-    await fetch(`https://api.ipquery.io/${request.data}`)
+    await fetch(`${this.ipLookup.baseUrl}/${request.data}`, {
+      signal: AbortSignal.timeout(this.ipLookup.timeoutMs),
+    })
       .then((result): Promise<unknown> => result.json())
       .then((data) => {
         // An answer of another service: only a text is kept
