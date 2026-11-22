@@ -92,6 +92,16 @@ export function createServer(baseRouter: Router) {
   // Add APIs, must be after middleware
   app.use("/", baseRouter);
 
+  // An address no route answers gets a JSON error like the others, not the
+  // HTML page of Express (ADM-N40). Not logged: scanners ask for many such
+  // addresses. The address is not echoed back.
+  app.use((_req: Request, res: Response) => {
+    const { status, body } = errorResponse(
+      new RouteError(HttpStatusCodes.NOT_FOUND, "This route does not exist."),
+    );
+    res.status(status).json(body);
+  });
+
   // Add error handler: only a DomainError or a RouteError shows its message
   app.use((err: Error, _: Request, res: Response, _next: NextFunction) => {
     if (EnvVars.NodeEnv !== NodeEnvs.Test.valueOf()) {
