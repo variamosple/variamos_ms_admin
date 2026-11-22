@@ -300,6 +300,7 @@ export function createBaseRouter({
   const notificationAccessV1Router = createNotificationAccessRouter(
     notifications.accessTokenIssuer,
     isAuthenticated,
+    usersUseCases.query,
   );
 
   // First, so that it sees the refusals of every router and limit (T-24)
