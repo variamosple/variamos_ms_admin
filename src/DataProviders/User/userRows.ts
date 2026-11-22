@@ -1,20 +1,27 @@
 import { QueryTypes } from "sequelize";
+import { CountryCode } from "#src/Domain/Countries/Entity/CountryCode.js";
 import { User } from "#src/Domain/User/Entity/User.js";
 import VARIAMOS_ORM, { DB_SCHEMA } from "#src/Infrastructure/VariamosORM.js";
 import type { PermissionModel } from "../Permission/Permission.js";
 import type { RoleModel } from "../Role/Role.js";
 import type { UserModel } from "./User.js";
 
-/** The user and the state of its account, as stored. */
+/** The user, the state of its account and its country, as stored. */
 export function accountOf(dbUser: UserModel): User {
-  return User.builder()
-    .setId(dbUser.id)
-    .setUser(dbUser.user)
-    .setName(dbUser.name)
-    .setEmail(dbUser.email)
-    .setIsEnabled(dbUser.isEnabled === true)
-    .setIsDeleted(dbUser.isDeleted === true)
-    .build();
+  return (
+    User.builder()
+      .setId(dbUser.id)
+      .setUser(dbUser.user)
+      .setName(dbUser.name)
+      .setEmail(dbUser.email)
+      .setIsEnabled(dbUser.isEnabled === true)
+      .setIsDeleted(dbUser.isDeleted === true)
+      // A stored code that is not one never blocks the sign-in
+      .setCountryCode(
+        CountryCode.isValid(dbUser.countryCode) ? dbUser.countryCode : null,
+      )
+      .build()
+  );
 }
 
 /** The account with the roles it holds and the permissions they give. */
