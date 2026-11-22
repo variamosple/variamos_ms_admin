@@ -30,6 +30,11 @@ export class BackgroundTaskRegistry implements IBackgroundTaskList {
     return task;
   };
 
+  /** Stops every task, when the service shuts down (ADM-N21). */
+  public stopAll(): void {
+    for (const task of this.tasks) task.stop();
+  }
+
   public list(): BackgroundTaskStatus[] {
     return this.tasks.map((task) => task.status());
   }

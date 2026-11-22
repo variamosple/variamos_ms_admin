@@ -52,6 +52,10 @@ import {
   runMigrations,
   waitForDatabase,
 } from "./Infrastructure/database/Migrations/Migrator.js";
+import {
+  closeWebSockets,
+  onShutdownSignals,
+} from "./Infrastructure/Lifecycle/GracefulShutdown.js";
 import { startBackgroundJobs } from "./Infrastructure/Scheduling/BackgroundJobs.js";
 import VARIAMOS_ORM, { DB_SCHEMA } from "./Infrastructure/VariamosORM.js";
 import { createServer } from "./server.js";
@@ -193,10 +197,26 @@ const server = app.listen(EnvVars.Port, async () => {
   });
 });
 
-attachContainerLogsWebSocket(server, {
+const containerLogsSockets = attachContainerLogsWebSocket(server, {
   isAllowedOrigin,
   checkAccess: (token) =>
     validateRolesAndPermissions(token, [CONTAINER_LOGS_PERMISSION]),
   watchLogs: (request) =>
     productionMicroServiceQueryUseCase.watchMicroServiceLogs(request),
 });
+
+// docker stop: the requests under way finish, then the database closes,
+// instead of the process dying in the middle of them (ADM-N21)
+onShutdownSignals(
+  {
+    server,
+    closeSockets: () => closeWebSockets(containerLogsSockets),
+    stopJobs: () => {
+      BackgroundTasks.stopAll();
+      HealthCheckCollectorInstance.stop();
+      ContainerResourceSamplerInstance.stop();
+    },
+    closeDatabase: () => VARIAMOS_ORM.close(),
+  },
+  { exit: (code) => process.exit(code) },
+);

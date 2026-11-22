@@ -37,4 +37,7 @@ HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
   CMD ["sh", "-c", "wget -q -O /dev/null http://127.0.0.1:${PORT:-4000}/health"]
 
 
-CMD [ "npm", "start" ]
+# node itself, not npm: as process 1 it gets the SIGTERM of docker stop and
+# shuts down cleanly (ADM-N21). The same command as the "start" script of
+# package.json, which a test keeps equal
+CMD ["node", "--env-file-if-exists=env/production.env", "./dist/index.js", "--env=production"]
