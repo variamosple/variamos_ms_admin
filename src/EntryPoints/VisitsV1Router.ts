@@ -9,7 +9,7 @@ import type { VisitUseCase } from "#src/Domain/Visit/UseCase/VisitUseCase.js";
 import { visitBody } from "./adminRequestBodies.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
-import { queryText } from "./queryText.js";
+import { visitLimiter } from "./RateLimits.js";
 import { checkedBody, validBody } from "./requestBody.js";
 
 export const VISITS_V1_ROUTE = "/v1/visits";
@@ -20,13 +20,15 @@ export function createVisitsRouter(visitUseCase: VisitUseCase): Router {
   visitsV1Router.post(
     "/",
     isAuthenticated,
+    visitLimiter(),
     validBody(visitBody, "createVisit"),
     async (req, res) => {
       const transactionId = "createVisit";
       const user = req.user;
       const { pageId } = checkedBody(visitBody, req);
-      const ipAddress: string | undefined =
-        queryText(req.headers["x-forwarded-for"]) || req.ip;
+      // The address nginx saw (trust proxy in server.ts), never the raw
+      // X-Forwarded-For header, which the client writes (ADM-N26)
+      const ipAddress = req.ip;
 
       try {
         if (!pageId || !user?.id) {

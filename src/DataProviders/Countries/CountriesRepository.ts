@@ -8,6 +8,8 @@ import type { ICountriesRepository } from "#src/Domain/Countries/Repository/ICou
 import { BaseRepository } from "../BaseRepository.js";
 import { UserModel } from "../User/User.js";
 import { CountryModel } from "./Country.js";
+import { IpCountryCache, type IpCountryLookup } from "./IpCountryCache.js";
+import { publicAddressOf } from "./publicAddress.js";
 
 /**
  * The country of an address is only a default offered at sign-in: a
@@ -30,6 +32,7 @@ export class CountriesRepositoryImpl
       baseUrl: "https://api.ipquery.io",
       timeoutMs: IP_LOOKUP_TIMEOUT_MS,
     },
+    private readonly ipCountries = new IpCountryCache(),
   ) {
     super();
   }
@@ -82,31 +85,49 @@ export class CountriesRepositoryImpl
     return response;
   }
 
+  /**
+   * The country of a public address, asked once a day per address (ADM-N26).
+   * A private address is never sent: it has no country.
+   */
   public async getIpCountryCode(request: RequestModel<string>) {
     const response = new ResponseModel<string>(request.transactionId);
-    logger.info("IP country code request");
+    const address = request.data ? publicAddressOf(request.data) : null;
+    if (!address) return response;
 
-    await fetch(`${this.ipLookup.baseUrl}/${request.data}`, {
-      signal: AbortSignal.timeout(this.ipLookup.timeoutMs),
-    })
-      .then((result): Promise<unknown> => result.json())
-      .then((data) => {
-        // An answer of another service: only a text is kept
-        const code: unknown = fieldOf(
-          fieldOf(data, "location"),
-          "country_code",
-        );
-        response.data = typeof code === "string" ? code : undefined;
-      })
-      .catch((error) => {
-        logger.err("Error in getIpCountryCode:");
-        logger.err(error);
-        response.withError(
-          DomainErrorCodes.SYSTEM_ERROR,
-          "Internal server error",
-        );
-      });
-
+    const lookup =
+      this.ipCountries.get(address) ?? (await this.lookUpCountry(address));
+    if (lookup.failed) {
+      response.withError(
+        DomainErrorCodes.SYSTEM_ERROR,
+        "Internal server error",
+      );
+    } else {
+      response.data = lookup.countryCode;
+    }
     return response;
+  }
+
+  private async lookUpCountry(address: string): Promise<IpCountryLookup> {
+    logger.info("IP country code request");
+    let lookup: IpCountryLookup;
+    try {
+      const result = await fetch(`${this.ipLookup.baseUrl}/${address}`, {
+        signal: AbortSignal.timeout(this.ipLookup.timeoutMs),
+      });
+      if (!result.ok) throw new Error(`HTTP ${result.status}`);
+      const data: unknown = await result.json();
+      // An answer of another service: only a text is kept
+      const code: unknown = fieldOf(fieldOf(data, "location"), "country_code");
+      lookup = {
+        failed: false,
+        countryCode: typeof code === "string" ? code : undefined,
+      };
+    } catch (error) {
+      logger.err("Error in getIpCountryCode:");
+      logger.err(error);
+      lookup = { failed: true };
+    }
+    this.ipCountries.set(address, lookup);
+    return lookup;
   }
 }
