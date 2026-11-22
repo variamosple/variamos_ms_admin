@@ -37,6 +37,8 @@ export const RATE_LIMITS = {
   bugReportPerAddress: { windowMs: HOUR_MS, limit: 20 },
   mfaFailuresPerAccount: { windowMs: 15 * MINUTE_MS, limit: 5 },
   signInMfaPerAddress: { windowMs: 15 * MINUTE_MS, limit: 50 },
+  // A visit per page shown: more than one a second is not a person (ADM-N38)
+  visitsPerAccount: { windowMs: MINUTE_MS, limit: 60 },
 } as const;
 
 const addressKey = (req: Request) => ipKeyGenerator(req.ip ?? "");
@@ -47,6 +49,12 @@ const bodyEmail = (req: Request): string | null => {
   return typeof email === "string" && email.trim() !== ""
     ? email.trim().toLowerCase()
     : null;
+};
+
+/** The signed-in account, or the address before the session is known. */
+const accountKey = (req: Request) => {
+  const id = req.user?.id;
+  return id ? `user:${String(id)}` : `address:${addressKey(req)}`;
 };
 
 /** The e-mail of the body, so that one account is limited from any address. */
@@ -163,10 +171,17 @@ async function recordLock(
 export function mfaFailureLimiter(): RequestHandler {
   return limiter("mfa", RATE_LIMITS.mfaFailuresPerAccount, {
     skipSuccessfulRequests: true,
-    keyGenerator: (req: Request) => {
-      const id = req.user?.id;
-      return id ? `user:${String(id)}` : `address:${addressKey(req)}`;
-    },
+    keyGenerator: accountKey,
+  });
+}
+
+/**
+ * The visits of one signed-in account (ADM-N38): a visit can ask a
+ * geolocation service. Place it after the session check.
+ */
+export function visitLimiter(): RequestHandler {
+  return limiter("createVisit", RATE_LIMITS.visitsPerAccount, {
+    keyGenerator: accountKey,
   });
 }
 
