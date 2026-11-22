@@ -1,9 +1,10 @@
 import crypto from "node:crypto";
-import axios from "axios";
+import type { AxiosInstance } from "axios";
 import logger from "#src/common/logger.js";
 import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig.js";
 import type { IGitHubTokenProvider } from "#src/Domain/Bug/Service/IGitHubTokenProvider.js";
 import { httpFailureMessage } from "#src/Infrastructure/Http/httpFailure.js";
+import { createGitHubHttp } from "./githubHttp.js";
 
 export class GitHubTokenResolver implements IGitHubTokenProvider {
   public readonly tokenCache = new Map<
@@ -11,7 +12,13 @@ export class GitHubTokenResolver implements IGitHubTokenProvider {
     { token: string; expiresAt: number }
   >();
 
-  public constructor(private readonly githubConfig: IBugTrackerConfig) {}
+  public constructor(
+    private readonly githubConfig: IBugTrackerConfig,
+    private readonly http: Pick<
+      AxiosInstance,
+      "get" | "post"
+    > = createGitHubHttp(),
+  ) {}
 
   public async resolveGitHubToken(repo: string): Promise<string> {
     const appId = this.githubConfig.getGitHubAppId?.()?.trim();
@@ -27,17 +34,20 @@ export class GitHubTokenResolver implements IGitHubTokenProvider {
         const jwt = this.generateAppJwt(appId, privateKey);
 
         const installUrl = `https://api.github.com/repos/${repo}/installation`;
-        const installResponse = await axios.get<{ id: number }>(installUrl, {
-          headers: {
-            Authorization: `Bearer ${jwt}`,
-            Accept: "application/vnd.github+json",
-            "User-Agent": "VariaMos-MS-Admin",
+        const installResponse = await this.http.get<{ id: number }>(
+          installUrl,
+          {
+            headers: {
+              Authorization: `Bearer ${jwt}`,
+              Accept: "application/vnd.github+json",
+              "User-Agent": "VariaMos-MS-Admin",
+            },
           },
-        });
+        );
         const installationId = installResponse.data.id;
 
         const tokenUrl = `https://api.github.com/app/installations/${installationId}/access_tokens`;
-        const tokenResponse = await axios.post<{
+        const tokenResponse = await this.http.post<{
           token: string;
           expires_at: string;
         }>(

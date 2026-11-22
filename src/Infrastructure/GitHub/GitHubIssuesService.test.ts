@@ -9,7 +9,8 @@ import {
 vi.mock("axios");
 
 describe("GitHubIssuesService", () => {
-  const service = new GitHubIssuesService();
+  // The mocked axios module stands for the GitHub client
+  const service = new GitHubIssuesService(axios);
   const issueUrl = "https://api.github.com/repos/owner/repo/issues/7";
 
   beforeEach(() => {

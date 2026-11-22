@@ -34,7 +34,7 @@ describe("GitHubTokenResolver - Unit Tests", () => {
     vi.clearAllMocks();
     dateSpy = vi.spyOn(Date, "now").mockReturnValue(mockNow);
     mockConfig = mock<IBugTrackerConfig>();
-    resolver = new GitHubTokenResolver(mockConfig);
+    resolver = new GitHubTokenResolver(mockConfig, axios);
 
     mockSign = {
       update: vi.fn(),

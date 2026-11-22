@@ -34,6 +34,7 @@ describe("NotificationClient", () => {
           "Content-Type": "application/json",
           "x-internal-token": "internal-token",
         },
+        timeout: 5000,
       },
     );
   });

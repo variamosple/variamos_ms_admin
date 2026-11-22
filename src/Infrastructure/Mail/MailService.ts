@@ -67,6 +67,17 @@ ${content}            <hr style="border: 0; border-top: 1px solid #e9ecef; margi
     `;
 }
 
+/**
+ * The limits of a mail server that does not answer (ADM-N33). The defaults
+ * of nodemailer waited 2 minutes for the connection and 10 minutes for an
+ * answer, holding the request that sends the mail.
+ */
+export const MAIL_TIMEOUTS = {
+  connectionMs: 10_000,
+  greetingMs: 10_000,
+  socketMs: 20_000,
+};
+
 /** How the mails leave (EV-05), read by the composition root. */
 export interface MailSettings {
   host: string;
@@ -76,12 +87,15 @@ export interface MailSettings {
   from: string;
   /** Outside production, a mail without SMTP credentials is only logged. */
   production: boolean;
+  /** MAIL_TIMEOUTS by default. */
+  timeouts?: typeof MAIL_TIMEOUTS;
 }
 
 export class MailServiceImpl implements IMailService {
   private readonly transporter;
 
   public constructor(private readonly settings: MailSettings) {
+    const timeouts = settings.timeouts ?? MAIL_TIMEOUTS;
     this.transporter = nodemailer.createTransport({
       host: settings.host,
       port: settings.port,
@@ -90,6 +104,9 @@ export class MailServiceImpl implements IMailService {
       // rather than sent the credentials and the reset links (EV-75 lot 3)
       requireTLS: true,
       tls: { minVersion: "TLSv1.2" },
+      connectionTimeout: timeouts.connectionMs,
+      greetingTimeout: timeouts.greetingMs,
+      socketTimeout: timeouts.socketMs,
       auth:
         settings.user && settings.password
           ? { user: settings.user, pass: settings.password }
