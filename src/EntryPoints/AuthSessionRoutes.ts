@@ -16,6 +16,7 @@ import { DomainErrorCodes } from "#src/Domain/Core/Error/DomainErrorCodes.js";
 import { AUTH_ROUTE, type AuthContext, sessionUserOf } from "./authContext.js";
 import { redirectBody } from "./authRequestBodies.js";
 import { isAllowedRedirect, withLocalDevToken } from "./authWeb.js";
+import { canRenewSession } from "./renewableSession.js";
 import { readBody } from "./requestBody.js";
 import { createSessionJwt } from "./sessionToken.js";
 
@@ -106,7 +107,7 @@ const sessionInfo =
       }
 
       // An expired token is refreshed until the cookie's own age
-      if (!user?.iat || Date.now() > user.iat * 1000 + ctx.web.cookie.maxAge) {
+      if (!user?.iat || !canRenewSession(user.iat, ctx.web.cookie.maxAge)) {
         sessionExpired(res, response);
         return;
       }

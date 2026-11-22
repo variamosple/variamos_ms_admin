@@ -96,6 +96,7 @@ import {
 import { applyRateLimits } from "./RateLimits.js";
 import { createRolePermissionsRouter } from "./RolePermissionsV1Router.js";
 import { createRolesRouter, ROLES_V1_ROUTE } from "./RolesV1Router.js";
+import { renewableSession } from "./renewableSession.js";
 import type { AccessGuard } from "./requireAccess.js";
 import {
   createScheduledConfigurationChangeRouter,
@@ -299,7 +300,10 @@ export function createBaseRouter({
   );
   const notificationAccessV1Router = createNotificationAccessRouter(
     notifications.accessTokenIssuer,
-    isAuthenticated,
+    // A session about to be refreshed by session-info still gets a token:
+    // the socket asks one when it connects again (ADM-N19)
+    renewableSession(settings.auth.cookie.maxAge),
+    usersUseCases.query,
   );
 
   // First, so that it sees the refusals of every router and limit (T-24)
