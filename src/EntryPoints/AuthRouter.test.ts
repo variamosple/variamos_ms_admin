@@ -296,9 +296,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         exp: 9999999999,
         iat: Math.floor(Date.now() / 1000),
       } as SessionInfo;
-      const validationResponse = new SecurityResponseModel<SessionInfo>(
-        "getSessionInfo",
-      ).withResponse(mockUserPayload);
+      const validationResponse = new SecurityResponseModel<SessionInfo>({
+        transactionId: "getSessionInfo",
+      }).withResponse(mockUserPayload);
       const sessionUser = {
         id: "user-123",
         name: "John Doe",
@@ -319,9 +319,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return error code if validationResponse has error", async () => {
-      const validationResponse = new SecurityResponseModel<SessionInfo>(
-        "getSessionInfo",
-      ).withError(HttpStatusCodes.UNAUTHORIZED, "Invalid Token");
+      const validationResponse = new SecurityResponseModel<SessionInfo>({
+        transactionId: "getSessionInfo",
+      }).withError(HttpStatusCodes.UNAUTHORIZED, "Invalid Token");
       vi.mocked(getToken).mockReturnValue("bad-token");
       vi.mocked(validateToken).mockResolvedValue(validationResponse);
 
@@ -338,9 +338,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         exp: 1000,
         iat: 1000,
       } as SessionInfo;
-      const validationResponse = new SecurityResponseModel<SessionInfo>(
-        "getSessionInfo",
-      ).withResponse(mockUserPayload);
+      const validationResponse = new SecurityResponseModel<SessionInfo>({
+        transactionId: "getSessionInfo",
+      }).withResponse(mockUserPayload);
 
       vi.mocked(getToken).mockReturnValue(mockToken);
       vi.mocked(validateToken).mockResolvedValue(validationResponse);
@@ -356,9 +356,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
 
     it("should return 401 if user is missing iat during expired check", async () => {
       const mockUserPayload = { sub: "user-123", exp: 1000 } as SessionInfo;
-      const validationResponse = new SecurityResponseModel<SessionInfo>(
-        "getSessionInfo",
-      ).withResponse(mockUserPayload);
+      const validationResponse = new SecurityResponseModel<SessionInfo>({
+        transactionId: "getSessionInfo",
+      }).withResponse(mockUserPayload);
 
       vi.mocked(getToken).mockReturnValue("expired-token-no-iat");
       vi.mocked(validateToken).mockResolvedValue(validationResponse);
@@ -394,9 +394,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         exp: 9999999999,
         iat: Math.floor(Date.now() / 1000),
       } as SessionInfo;
-      const validationResponse = new SecurityResponseModel<SessionInfo>(
-        "getSessionInfo",
-      ).withResponse(mockUserPayload);
+      const validationResponse = new SecurityResponseModel<SessionInfo>({
+        transactionId: "getSessionInfo",
+      }).withResponse(mockUserPayload);
       const sessionUser = {
         id: "user-123",
         name: "John Doe",
@@ -443,9 +443,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         exp: 9999999999,
         iat: Math.floor(Date.now() / 1000),
       } as SessionInfo;
-      const validationResponse = new SecurityResponseModel<SessionInfo>(
-        "getSessionInfo",
-      ).withResponse(mockUserPayload);
+      const validationResponse = new SecurityResponseModel<SessionInfo>({
+        transactionId: "getSessionInfo",
+      }).withResponse(mockUserPayload);
       const sessionUser = {
         id: "user-123",
         name: "John Doe",
@@ -476,9 +476,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         exp: 9999999999,
         iat: Math.floor(Date.now() / 1000),
       } as SessionInfo;
-      const validationResponse = new SecurityResponseModel<SessionInfo>(
-        "getSessionInfo",
-      ).withResponse(mockUserPayload);
+      const validationResponse = new SecurityResponseModel<SessionInfo>({
+        transactionId: "getSessionInfo",
+      }).withResponse(mockUserPayload);
       const sessionUser = {
         id: "user-123",
         name: "John Doe",
@@ -509,9 +509,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         exp: 9999999999,
         iat: Math.floor(Date.now() / 1000),
       } as SessionInfo;
-      const validationResponse = new SecurityResponseModel<SessionInfo>(
-        "getSessionInfo",
-      ).withResponse(mockUserPayload);
+      const validationResponse = new SecurityResponseModel<SessionInfo>({
+        transactionId: "getSessionInfo",
+      }).withResponse(mockUserPayload);
 
       const mockDomainUser = User.builder()
         .setId("user-123")
@@ -547,9 +547,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         exp: 9999999999,
         iat: Math.floor(Date.now() / 1000),
       } as SessionInfo;
-      const validationResponse = new SecurityResponseModel<SessionInfo>(
-        "getSessionInfo",
-      ).withResponse(mockUserPayload);
+      const validationResponse = new SecurityResponseModel<SessionInfo>({
+        transactionId: "getSessionInfo",
+      }).withResponse(mockUserPayload);
       const sessionUser = {
         id: "user-123",
         name: "John Doe",
@@ -578,9 +578,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         exp: 1000,
         iat: Math.floor(Date.now() / 1000),
       } as SessionInfo;
-      const validationResponse = new SecurityResponseModel<SessionInfo>(
-        "getSessionInfo",
-      ).withResponse(mockUserPayload);
+      const validationResponse = new SecurityResponseModel<SessionInfo>({
+        transactionId: "getSessionInfo",
+      }).withResponse(mockUserPayload);
       const sessionUser = {
         id: "user-123",
         name: "John Doe",
@@ -630,9 +630,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         iat: Math.floor(Date.now() / 1000),
         roles: ["guest"],
       } as SessionInfo;
-      const validationResponse = new SecurityResponseModel<SessionInfo>(
-        "getSessionInfo",
-      ).withResponse(mockUserPayload);
+      const validationResponse = new SecurityResponseModel<SessionInfo>({
+        transactionId: "getSessionInfo",
+      }).withResponse(mockUserPayload);
       const sessionUser = {
         id: "user-123",
         name: "Guest User",
@@ -666,9 +666,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         iat: Math.floor(Date.now() / 1000),
         roles: ["guest"],
       } as SessionInfo;
-      const validationResponse = new SecurityResponseModel<SessionInfo>(
-        "getSessionInfo",
-      ).withResponse(mockUserPayload);
+      const validationResponse = new SecurityResponseModel<SessionInfo>({
+        transactionId: "getSessionInfo",
+      }).withResponse(mockUserPayload);
       const sessionUser = {
         id: "user-123",
         name: "Guest User",
@@ -701,9 +701,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         iat: Math.floor(Date.now() / 1000),
         roles: ["admin"],
       } as SessionInfo;
-      const validationResponse = new SecurityResponseModel<SessionInfo>(
-        "getSessionInfo",
-      ).withResponse(mockUserPayload);
+      const validationResponse = new SecurityResponseModel<SessionInfo>({
+        transactionId: "getSessionInfo",
+      }).withResponse(mockUserPayload);
       const sessionUser = {
         id: "user-123",
         name: "Admin User",
@@ -744,9 +744,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         iat: Math.floor(Date.now() / 1000),
         roles: ["admin"],
       } as SessionInfo;
-      const validationResponse = new SecurityResponseModel<SessionInfo>(
-        "getSessionInfo",
-      ).withResponse(mockUserPayload);
+      const validationResponse = new SecurityResponseModel<SessionInfo>({
+        transactionId: "getSessionInfo",
+      }).withResponse(mockUserPayload);
       const sessionUser = {
         id: "user-123",
         name: "Admin User",
@@ -791,7 +791,7 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       });
     });
 
-    describe("audience of a token issued between #183 and its revert", () => {
+    describe("audience of the token being refreshed", () => {
       it("reads the host of either audience, never the platform", () => {
         expect(
           audienceHostOf(["variamos-platform", "allowed-origin.com"]),
@@ -810,9 +810,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         try {
           vi.mocked(getToken).mockReturnValue("expired-token");
           vi.mocked(validateToken).mockResolvedValue(
-            new SecurityResponseModel<SessionInfo>(
-              "getSessionInfo",
-            ).withResponse({
+            new SecurityResponseModel<SessionInfo>({
+              transactionId: "getSessionInfo",
+            }).withResponse({
               sub: "user-123",
               iss: "variamos_ms_admin",
               aud,
@@ -842,7 +842,8 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         }
       };
 
-      it("refreshes it with the host alone, which vms_projects can read", async () => {
+      // createJwt sets the issuer and ["variamos-platform", host] again
+      it("refreshes a token of the platform for its host", async () => {
         const response = await refreshAs([
           "variamos-platform",
           "allowed-origin.com",
@@ -1299,9 +1300,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
       } as SessionInfo;
       vi.mocked(getToken).mockReturnValue("current-token");
       vi.mocked(validateToken).mockResolvedValue(
-        new SecurityResponseModel<SessionInfo>("getSessionInfo").withResponse(
-          payload,
-        ),
+        new SecurityResponseModel<SessionInfo>({
+          transactionId: "getSessionInfo",
+        }).withResponse(payload),
       );
       vi.mocked(sessionInfoToSessionUser).mockReturnValue({
         id: "user-123",
@@ -2246,9 +2247,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         exp: 9999999999,
         iat: Math.floor(Date.now() / 1000),
       } as SessionInfo;
-      const validationResponse = new SecurityResponseModel<SessionInfo>(
-        "getSessionInfo",
-      ).withResponse(mockUserPayload);
+      const validationResponse = new SecurityResponseModel<SessionInfo>({
+        transactionId: "getSessionInfo",
+      }).withResponse(mockUserPayload);
       const sessionUser = {
         id: "user-123",
         name: "John Doe",
@@ -2276,9 +2277,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         exp: 9999999999,
         iat: Math.floor(Date.now() / 1000),
       } as SessionInfo;
-      const validationResponse = new SecurityResponseModel<SessionInfo>(
-        "getSessionInfo",
-      ).withResponse(mockUserPayload);
+      const validationResponse = new SecurityResponseModel<SessionInfo>({
+        transactionId: "getSessionInfo",
+      }).withResponse(mockUserPayload);
       const sessionUser = {
         id: "user-123",
         name: "John Doe",
@@ -2335,9 +2336,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
     });
 
     it("should return early when validationResponse has errorCode (Line 130)", async () => {
-      const validationResponse = new SecurityResponseModel<SessionInfo>(
-        "getSessionInfo",
-      ).withError(HttpStatusCodes.UNAUTHORIZED, "Invalid Token");
+      const validationResponse = new SecurityResponseModel<SessionInfo>({
+        transactionId: "getSessionInfo",
+      }).withError(HttpStatusCodes.UNAUTHORIZED, "Invalid Token");
       vi.mocked(getToken).mockReturnValue("bad-token");
       vi.mocked(validateToken).mockResolvedValue(validationResponse);
 
@@ -2360,9 +2361,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         iat: userIat,
       } as SessionInfo;
 
-      const validationResponse = new SecurityResponseModel<SessionInfo>(
-        "getSessionInfo",
-      ).withResponse(mockUserPayload);
+      const validationResponse = new SecurityResponseModel<SessionInfo>({
+        transactionId: "getSessionInfo",
+      }).withResponse(mockUserPayload);
 
       vi.mocked(getToken).mockReturnValue(mockToken);
       vi.mocked(validateToken).mockResolvedValue(validationResponse);
@@ -2384,9 +2385,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         exp: 9999999999,
         iat: Math.floor(Date.now() / 1000),
       } as SessionInfo;
-      const validationResponse = new SecurityResponseModel<SessionInfo>(
-        "getSessionInfo",
-      ).withResponse(mockUserPayload);
+      const validationResponse = new SecurityResponseModel<SessionInfo>({
+        transactionId: "getSessionInfo",
+      }).withResponse(mockUserPayload);
 
       const mockDomainUser = User.builder()
         .setId("user-123")
@@ -2436,9 +2437,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         iat: Math.floor(Date.now() / 1000),
         roles: ["admin"],
       } as SessionInfo;
-      const validationResponseA = new SecurityResponseModel<SessionInfo>(
-        "getSessionInfo",
-      ).withResponse(mockUserPayloadA);
+      const validationResponseA = new SecurityResponseModel<SessionInfo>({
+        transactionId: "getSessionInfo",
+      }).withResponse(mockUserPayloadA);
       const sessionUser = {
         id: "user-123",
         name: "Admin User",
@@ -2473,9 +2474,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         iat: Math.floor(Date.now() / 1000),
         roles: ["admin"],
       } as SessionInfo;
-      const validationResponseB = new SecurityResponseModel<SessionInfo>(
-        "getSessionInfo",
-      ).withResponse(mockUserPayloadB);
+      const validationResponseB = new SecurityResponseModel<SessionInfo>({
+        transactionId: "getSessionInfo",
+      }).withResponse(mockUserPayloadB);
 
       vi.mocked(validateToken).mockResolvedValue(validationResponseB);
 
@@ -3075,9 +3076,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         iat: Math.floor(Date.now() / 1000),
         roles: ["admin"],
       } as SessionInfo;
-      const validationResponse = new SecurityResponseModel<SessionInfo>(
-        "getSessionInfo",
-      ).withResponse(mockUserPayload);
+      const validationResponse = new SecurityResponseModel<SessionInfo>({
+        transactionId: "getSessionInfo",
+      }).withResponse(mockUserPayload);
       const sessionUser = {
         id: "user-123",
         name: "Admin User",
@@ -3222,9 +3223,9 @@ describe("AuthRouter Integration Tests - Fixed OAuth Mocks", () => {
         iat: Math.floor(Date.now() / 1000),
         roles: ["GUEST", "other-role"],
       } as SessionInfo;
-      const validationResponse = new SecurityResponseModel<SessionInfo>(
-        "getSessionInfo",
-      ).withResponse(mockUserPayload);
+      const validationResponse = new SecurityResponseModel<SessionInfo>({
+        transactionId: "getSessionInfo",
+      }).withResponse(mockUserPayload);
 
       const mockDomainUser = User.builder()
         .setId("guest-123")

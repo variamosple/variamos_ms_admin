@@ -38,7 +38,7 @@
     }
   },
   "dependencies": {
-    "@variamosple/variamos-security": "0.0.16",
+    "@variamosple/variamos-security": "0.1.0",
     "axios": "^1.21.1",
     "bcrypt": "^6.0.0",
     "cookie": "^2.0.2",

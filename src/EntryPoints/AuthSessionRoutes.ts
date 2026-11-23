@@ -33,9 +33,9 @@ interface SessionInfoResponse {
 }
 
 /**
- * The host a session token was issued for. Its audience is that host, or,
- * for a token issued between #183 and its revert, the list
- * ["variamos-platform", host].
+ * The host a session token was issued for. Its audience is the list
+ * ["variamos-platform", host] (variamos-security 0.0.17 and later), or that
+ * host alone for a token issued before.
  */
 export const audienceHostOf = (aud: unknown): string | undefined => {
   const entries = Array.isArray(aud) ? aud : [aud];
@@ -117,10 +117,9 @@ const sessionInfo =
         sessionExpired(res, response);
         return;
       }
-      // A token issued between #183 and its revert holds the audience
-      // ["variamos-platform", host], which vms_projects (Python
-      // variamos-security 0.0.2) cannot read: the refreshed token holds the
-      // host alone again
+      // The refreshed token is for the same host: createJwt sets the issuer
+      // and the audience ["variamos-platform", host] again, which
+      // vms_projects reads since the Python variamos-security 0.0.3
       const host = audienceHostOf(user.aud);
       const token = await createSessionJwt(sessionUser, host);
 
