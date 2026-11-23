@@ -436,7 +436,11 @@ export const productionRouterDependencies: BaseRouterDependencies = {
   accountLockout: AccountLockoutInstance,
   accessJournal: WatchedAccessJournal,
   journalQuery: productionJournalQueryUseCase,
-  health: { database: checkDatabase, sessionSigning: checkSessionSigning },
+  health: {
+    database: checkDatabase,
+    sessionSigning: checkSessionSigning,
+    mail: () => MailServiceInstance.deliveryStatus(),
+  },
   backups: BackupAlertsInstance,
   backgroundTasks: BackgroundTasks,
   settings: webSettingsFromEnv(),

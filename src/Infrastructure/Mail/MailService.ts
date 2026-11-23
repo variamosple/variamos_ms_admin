@@ -2,11 +2,17 @@
 import nodemailer from "nodemailer";
 import logger from "#src/common/logger.js";
 import { maskEmail } from "#src/common/maskEmail.js";
-import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import type {
   IMailService,
   NewDeviceSignIn,
 } from "#src/Domain/Mail/IMailService.js";
+import {
+  type MAIL_RETRY,
+  type MailDeliveryStatus,
+  MailRetryQueue,
+  type OutgoingMail,
+} from "./MailRetryQueue.js";
+import { mailText } from "./mailText.js";
 
 /** "1 hour", "2 hours" or "30 minutes", for the reset e-mail. */
 export function describeDuration(ms: number): string {
@@ -89,12 +95,20 @@ export interface MailSettings {
   production: boolean;
   /** MAIL_TIMEOUTS by default. */
   timeouts?: typeof MAIL_TIMEOUTS;
+  /** MAIL_RETRY by default. */
+  retry?: typeof MAIL_RETRY;
 }
 
 export class MailServiceImpl implements IMailService {
   private readonly transporter;
 
+  private readonly retries: MailRetryQueue;
+
   public constructor(private readonly settings: MailSettings) {
+    this.retries = new MailRetryQueue(
+      (mail) => this.deliver(mail),
+      settings.retry,
+    );
     const timeouts = settings.timeouts ?? MAIL_TIMEOUTS;
     this.transporter = nodemailer.createTransport({
       host: settings.host,
@@ -115,43 +129,54 @@ export class MailServiceImpl implements IMailService {
   }
 
   /**
-   * Sends an email in text or HTML format
+   * Sends an email in HTML with its plain-text version. A failure is tried
+   * again later (MailRetryQueue): false means "not sent yet", not "lost".
    */
   public async sendMail(
     to: string,
     subject: string,
     html: string,
   ): Promise<boolean> {
-    try {
-      // If in development/testing mode and no SMTP credentials are provided, simulate the email sending
-      if (
-        !this.settings.production &&
-        (!this.settings.user || !this.settings.password)
-      ) {
-        // The content is never logged: it may hold a password reset link
-        logger.info(
-          `[MAIL DEV ONLY] Simulated email to ${maskEmail(to)}, subject: ${subject}`,
-        );
-        return true;
-      }
-
-      const info = await this.transporter.sendMail({
-        from: this.settings.from,
-        to,
-        subject,
-        html,
-      });
-
+    // If in development/testing mode and no SMTP credentials are provided, simulate the email sending
+    if (
+      !this.settings.production &&
+      (!this.settings.user || !this.settings.password)
+    ) {
+      // The content is never logged: it may hold a password reset link
       logger.info(
-        `[MAIL] Email sent successfully to ${maskEmail(to)}. MessageId: ${info.messageId}`,
+        `[MAIL DEV ONLY] Simulated email to ${maskEmail(to)}, subject: ${subject}`,
       );
       return true;
+    }
+
+    const mail = { to, subject, html, text: mailText(html) };
+    try {
+      await this.deliver(mail);
+      return true;
     } catch (error) {
-      logger.err(
-        `[MAIL ERROR] Failed to send email to ${maskEmail(to)}: ${errorMessage(error)}`,
-      );
+      this.retries.failed(mail, error);
       return false;
     }
+  }
+
+  /** The mails waiting for another attempt and those given up (/health). */
+  public deliveryStatus(): MailDeliveryStatus {
+    return this.retries.status();
+  }
+
+  /** At shutdown: the timers of the waiting mails stop. */
+  public stopRetries(): void {
+    this.retries.stop();
+  }
+
+  private async deliver(mail: OutgoingMail): Promise<void> {
+    const info = await this.transporter.sendMail({
+      from: this.settings.from,
+      ...mail,
+    });
+    logger.info(
+      `[MAIL] Email sent successfully to ${maskEmail(mail.to)}. MessageId: ${info.messageId}`,
+    );
   }
 
   /**

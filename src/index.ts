@@ -19,6 +19,7 @@ import { checkLocalDevOrigins } from "#src/common/localDevOrigins.js";
 import { NodeEnvs } from "#src/common/misc.js";
 import { missingRequiredSecrets } from "#src/common/requiredSecrets.js";
 import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
+import { MailServiceInstance } from "./CompositionAdapters.js";
 import { BackgroundTasks, BackupAlertsInstance } from "./CompositionAlerts.js";
 import {
   AccessJournalInstance,
@@ -215,6 +216,7 @@ onShutdownSignals(
       BackgroundTasks.stopAll();
       HealthCheckCollectorInstance.stop();
       ContainerResourceSamplerInstance.stop();
+      MailServiceInstance.stopRetries();
     },
     closeDatabase: () => VARIAMOS_ORM.close(),
   },
