@@ -1,5 +1,9 @@
 import { open, stat } from "node:fs/promises";
 import path from "node:path";
+import {
+  hasPermissions,
+  isAuthenticated,
+} from "@variamosple/variamos-security";
 import { type Request, type Response, Router } from "express";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { detectAllowedFileType } from "#src/Domain/Core/File/AllowedFileType.js";
@@ -84,8 +88,19 @@ function serveUpload(uploadsDir: string) {
   };
 }
 
+/**
+ * The attachments of the bug reports, for those who read the reports
+ * (ADM-N54): a file may show a user's screen, and its address used to be
+ * written in public GitHub issues. Same session and permission as the bug
+ * list; the interface sends the session cookie, being on the same origin.
+ */
 export function createUploadsRouter(uploadsDir: string): Router {
   const router = Router();
-  router.get("/:name", serveUpload(uploadsDir));
+  router.get(
+    "/:name",
+    isAuthenticated,
+    hasPermissions(["bugs::query"]),
+    serveUpload(uploadsDir),
+  );
   return router;
 }

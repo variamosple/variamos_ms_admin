@@ -222,7 +222,6 @@ const bugTrackerConfig = {
   getGitHubManagedRepos: () => EnvVars.GITHUB.MANAGED_REPOS,
   getGitHubAppId: () => EnvVars.GITHUB.APP_ID,
   getGitHubPrivateKey: () => EnvVars.GITHUB.PRIVATE_KEY,
-  getApiBaseUrl: () => EnvVars.ApiBaseUrl,
 };
 
 // GitHub Token Resolver

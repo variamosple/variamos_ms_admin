@@ -68,7 +68,6 @@ export const applyEdits = (
 export const approvedIssueOf = (
   bug: Bug,
   comment: string | undefined,
-  apiBaseUrl: string,
 ): IssueContent => {
   let body = bug.description || "No description provided.";
   body += bug.createdById
@@ -81,24 +80,25 @@ export const approvedIssueOf = (
   if (bug.component) {
     body += `\n*Component: ${BUG_COMPONENT_LABELS[bug.component]}*`;
   }
-  body += attachmentsSectionOf(bug, apiBaseUrl);
+  const kept = (bug.attachments ?? []).filter(
+    (attachment) => attachment.filePath && attachment.filePath !== "/purged",
+  ).length;
+  body += attachmentsNoteOf(kept);
   const labels = ["bug"];
   if (bug.category) labels.push(bug.category.toLowerCase());
   if (bug.priority) labels.push(bug.priority.toLowerCase());
   return { title: bug.title, body, labels };
 };
 
-// The links to the stored attachments; a purged file is left out
-const attachmentsSectionOf = (bug: Bug, apiBaseUrl: string): string => {
-  const attachments = bug.attachments ?? [];
-  if (attachments.length === 0) return "";
-  let section = "\n\n### Attachments\n";
-  for (const attachment of attachments) {
-    if (attachment.filePath && attachment.filePath !== "/purged") {
-      section += `- [Attachment](${apiBaseUrl}${attachment.filePath}) (Type: ${attachment.fileType || "unknown"})\n`;
-    }
-  }
-  return section;
+/**
+ * The attachments of a public issue: counted, never linked (ADM-N54). They
+ * may show a user's screen, and the repositories are public: they are read
+ * in VariaMos, by the administrators of the bug reports.
+ */
+export const attachmentsNoteOf = (count: number): string => {
+  if (count === 0) return "";
+  const what = count === 1 ? "1 attachment is" : `${count} attachments are`;
+  return `\n\n### Attachments\n${what} kept in VariaMos with this bug report, for its administrators.`;
 };
 
 /** The audit note of an approval, with the administrator's comment. */

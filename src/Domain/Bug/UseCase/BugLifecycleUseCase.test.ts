@@ -663,7 +663,7 @@ describe("BugLifecycleUseCase", () => {
       expect(noteCall.data?.body).toContain('* Priority: "medium" -> "high"');
     });
 
-    it("should format attachments list when pushing to GitHub and use fallback values", async () => {
+    it("counts the attachments in the issue without linking them (ADM-N54)", async () => {
       const bug = createMockBug("bug-123", "Title", "pending");
       bug.priority = "high";
       bug.category = "Model";
@@ -686,7 +686,6 @@ describe("BugLifecycleUseCase", () => {
       mockBugRepository.updateStatus.mockResolvedValue(
         new ResponseModel<Bug>("tx-1").withResponse(bug),
       );
-      mockGithubConfig.getApiBaseUrl = vi.fn().mockReturnValue(undefined); // Fallback to http://localhost:4000
 
       const req = new RequestModel("tx-1", {
         id: "bug-123",
@@ -700,58 +699,21 @@ describe("BugLifecycleUseCase", () => {
         "VariaMos/VariaMosAdmin",
         {
           title: "Title",
-          body: expect.stringContaining("http://localhost:4000/file1.jpg"),
+          body: expect.stringContaining("### Attachments"),
           labels: expect.arrayContaining(["bug", "model", "high"]),
         },
         "token",
       );
 
       const calledBody = mockIssueTracker.createIssue.mock.calls[0]?.[1].body;
+      // The purged file is not counted; no address of a stored file
       expect(calledBody).toContain(
-        "- [Attachment](http://localhost:4000/file1.jpg) (Type: image/jpeg)",
+        "2 attachments are kept in VariaMos with this bug report, for its administrators.",
       );
-      expect(calledBody).toContain(
-        "- [Attachment](http://localhost:4000/file2.png) (Type: unknown)",
-      );
+      expect(calledBody).not.toContain("file1.jpg");
+      expect(calledBody).not.toContain("/uploads");
       expect(calledBody).not.toContain("/purged");
       expect(calledBody).toContain("*Approved by an administrator*");
-    });
-
-    it("should format attachments list with custom config API base url when pushing to GitHub", async () => {
-      const bug = createMockBug("bug-123", "Title", "pending");
-      bug.attachments = [
-        {
-          id: 1,
-          filePath: "/file1.jpg",
-          fileType: "image/jpeg",
-          bugId: "bug-123",
-        },
-      ];
-
-      mockBugRepository.findById.mockResolvedValue(
-        new ResponseModel<Bug>("tx-1").withResponse(bug),
-      );
-      mockTokenResolver.resolveGitHubToken.mockResolvedValue("token");
-      mockIssueTracker.createIssue.mockResolvedValue(102);
-      mockBugRepository.updateStatus.mockResolvedValue(
-        new ResponseModel<Bug>("tx-1").withResponse(bug),
-      );
-      mockGithubConfig.getApiBaseUrl = vi
-        .fn()
-        .mockReturnValue("https://myapi.com");
-
-      const req = new RequestModel("tx-1", {
-        id: "bug-123",
-        status: "open",
-        adminId: "admin-123",
-      });
-
-      await useCase.updateStatus(req);
-
-      const calledBody = mockIssueTracker.createIssue.mock.calls[0]?.[1].body;
-      expect(calledBody).toContain(
-        "- [Attachment](https://myapi.com/file1.jpg) (Type: image/jpeg)",
-      );
     });
 
     it("should not format attachments section if attachments array is empty", async () => {
