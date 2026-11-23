@@ -13,6 +13,7 @@ import {
   notificationDispatchBody,
 } from "./adminRequestBodies.js";
 import { sendError } from "./errorResponse.js";
+import { accountLimiter } from "./RateLimits.js";
 import { checkedBody, validBody } from "./requestBody.js";
 
 const TRANSACTION_ID = "dispatchNotification";
@@ -30,6 +31,7 @@ export function createAdminNotificationsRouter(
   router.post(
     "/recipients/count",
     hasPermissions(["admin::notifications::dispatch"]),
+    accountLimiter(COUNT_TRANSACTION_ID, "recipientCountPerAccount"),
     validBody(notificationAudienceBody, COUNT_TRANSACTION_ID),
     async (req: Request, res) => {
       try {
@@ -55,6 +57,7 @@ export function createAdminNotificationsRouter(
   router.post(
     "/dispatch",
     hasPermissions(["admin::notifications::dispatch"]),
+    accountLimiter(TRANSACTION_ID, "notificationDispatchPerAccount"),
     validBody(notificationDispatchBody, TRANSACTION_ID),
     async (req: Request, res) => {
       try {

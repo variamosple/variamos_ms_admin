@@ -12,6 +12,7 @@ import {
   createNotificationAccessRouter,
   NOTIFICATION_ACCESS_V1_ROUTE,
 } from "./NotificationAccessRouter.js";
+import { RATE_LIMITS } from "./RateLimits.js";
 
 describe("GET /v1/notifications/access-token", () => {
   const issuer = mock<INotificationAccessTokenIssuer>();
@@ -149,6 +150,33 @@ describe("GET /v1/notifications/access-token", () => {
 
       expect(sessionUsers.sessionUser).not.toHaveBeenCalled();
       expect(issuer.issue).toHaveBeenCalledWith("guest-1");
+    });
+  });
+
+  it("refuses the tokens of an account past its limit (ADM-N38)", async () => {
+    issuer.issue.mockResolvedValue({
+      token: "signed.jwt.token",
+      expiresAt: new Date("2026-10-16T12:15:00Z"),
+    });
+    const app = appWithUser({ id: "user-42" });
+    const { limit } = RATE_LIMITS.notificationTokenPerAccount;
+    for (let i = 0; i < limit; i++) {
+      await request(app).get("/v1/notifications/access-token").expect(200);
+    }
+
+    const refused = await request(app)
+      .get("/v1/notifications/access-token")
+      .expect(429);
+
+    expect(refused.body.errorCode).toBe("TOO_MANY_REQUESTS");
+    expect(refused.headers["retry-after"]).toBeDefined();
+    expect(issuer.issue).toHaveBeenCalledTimes(limit);
+  });
+
+  it("allows a token every five seconds, over five minutes", () => {
+    expect(RATE_LIMITS.notificationTokenPerAccount).toEqual({
+      windowMs: 5 * 60 * 1000,
+      limit: 60,
     });
   });
 });

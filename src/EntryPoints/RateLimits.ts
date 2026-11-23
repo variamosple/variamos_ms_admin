@@ -39,7 +39,22 @@ export const RATE_LIMITS = {
   signInMfaPerAddress: { windowMs: 15 * MINUTE_MS, limit: 50 },
   // A visit per page shown: more than one a second is not a person (ADM-N38)
   visitsPerAccount: { windowMs: MINUTE_MS, limit: 60 },
+  // A token per page shown and a renewal every 14 minutes per open page
+  notificationTokenPerAccount: { windowMs: 5 * MINUTE_MS, limit: 60 },
+  recoveryLinkPerAccount: { windowMs: HOUR_MS, limit: 20 },
+  // A dispatch can reach every account
+  notificationDispatchPerAccount: { windowMs: HOUR_MS, limit: 10 },
+  // Asked before each dispatch is confirmed
+  recipientCountPerAccount: { windowMs: HOUR_MS, limit: 120 },
 } as const;
+
+/** The limits counted per signed-in account (ADM-N38). */
+export type AccountRateLimit =
+  | "visitsPerAccount"
+  | "notificationTokenPerAccount"
+  | "recoveryLinkPerAccount"
+  | "notificationDispatchPerAccount"
+  | "recipientCountPerAccount";
 
 const addressKey = (req: Request) => ipKeyGenerator(req.ip ?? "");
 
@@ -176,13 +191,22 @@ export function mfaFailureLimiter(): RequestHandler {
 }
 
 /**
- * The visits of one signed-in account (ADM-N38): a visit can ask a
- * geolocation service. Place it after the session check.
+ * The requests of one signed-in account to a route that writes, sends or
+ * calls a third party (ADM-N38). Place it after the session check; each
+ * call gives its own count.
  */
-export function visitLimiter(): RequestHandler {
-  return limiter("createVisit", RATE_LIMITS.visitsPerAccount, {
+export function accountLimiter(
+  transactionId: string,
+  name: AccountRateLimit,
+): RequestHandler {
+  return limiter(transactionId, RATE_LIMITS[name], {
     keyGenerator: accountKey,
   });
+}
+
+/** The visits of one signed-in account: a visit can ask a geolocation service. */
+export function visitLimiter(): RequestHandler {
+  return accountLimiter("createVisit", "visitsPerAccount");
 }
 
 /** Adds the limits in front of the routers; call before mounting them. */
