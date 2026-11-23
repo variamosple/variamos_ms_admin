@@ -1,8 +1,10 @@
+import { literal, Op } from "sequelize";
 import logger from "#src/common/logger.js";
 import { Bug } from "#src/Domain/Bug/Entity/Bug.js";
 import type { BugComponentValue } from "#src/Domain/Bug/Entity/BugComponent.js";
 import type { BugPriorityValue } from "#src/Domain/Bug/Entity/BugPriority.js";
 import type {
+  BugDuplicateQuery,
   BugStatusUpdate,
   IBugRepository,
 } from "#src/Domain/Bug/Repository/IBugRepository.js";
@@ -331,6 +333,41 @@ export class BugRepositoryImpl implements IBugRepository {
 
         response.data = bugFromRow(freshBug).build();
       });
+    } catch (error) {
+      logger.err(error);
+      response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
+    }
+    return response;
+  }
+
+  public async findRecentDuplicate(
+    request: RequestModel<BugDuplicateQuery>,
+  ): Promise<ResponseModel<Bug>> {
+    const response = new ResponseModel<Bug>(request.transactionId);
+    const query = request.data;
+    if (!query) return response;
+    try {
+      const row = await BugModel.findOne({
+        where: {
+          title: query.title,
+          description: query.description,
+          category: query.category,
+          reporterEmail: query.reporterEmail,
+          // A guest's report has no account
+          createdById: query.createdById ?? { [Op.is]: literal("NULL") },
+          createdAt: { [Op.gte]: query.since },
+        },
+        include: [
+          { model: BugAttachmentModel, as: "attachments" },
+          {
+            model: UserModel,
+            as: "createdBy",
+            attributes: ["name", "email"],
+          },
+        ],
+        order: [["createdAt", "DESC"]],
+      });
+      if (row) response.data = bugFromRow(row).build();
     } catch (error) {
       logger.err(error);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
