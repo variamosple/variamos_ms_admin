@@ -11,6 +11,13 @@ const checkSessionSigning = vi.fn<() => Promise<SessionSigningResult>>(() =>
   Promise.resolve({ ok: true }),
 );
 
+// No mail waits nor was given up, unless a test says otherwise (ADM-N35)
+const mailDelivery = vi.fn(() => ({
+  pending: 0,
+  abandoned: 0,
+  lastAbandonedAt: null as string | null,
+}));
+
 describe("HealthRouter - Black-Box Contract & Resilience Tests", () => {
   const buildApp = () => {
     const app = express();
@@ -18,7 +25,11 @@ describe("HealthRouter - Black-Box Contract & Resilience Tests", () => {
     app.use(
       HEALTH_ROUTE,
       createHealthRouter(
-        { database: authenticate, sessionSigning: checkSessionSigning },
+        {
+          database: authenticate,
+          sessionSigning: checkSessionSigning,
+          mail: mailDelivery,
+        },
         () => "1.2.3",
       ),
     );
@@ -100,4 +111,24 @@ describe("HealthRouter - Black-Box Contract & Resilience Tests", () => {
       expect(response.body.uptimeSeconds).toBeGreaterThanOrEqual(0);
     },
   );
+
+  // ADM-N35: shown to the monitoring, never a reason to refuse a deployment
+  it("shows the mails given up and stays UP", async () => {
+    authenticate.mockResolvedValueOnce();
+    mailDelivery.mockReturnValueOnce({
+      pending: 2,
+      abandoned: 3,
+      lastAbandonedAt: "2026-11-23T10:00:00.000Z",
+    });
+
+    const response = await supertest(buildApp()).get("/health");
+
+    expect(response.status).toBe(200);
+    expect(response.body.status).toBe("UP");
+    expect(response.body.checks.mail).toEqual({
+      pending: 2,
+      abandoned: 3,
+      lastAbandonedAt: "2026-11-23T10:00:00.000Z",
+    });
+  });
 });

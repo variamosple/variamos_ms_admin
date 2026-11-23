@@ -7,10 +7,19 @@ export const HEALTH_ROUTE = "/health";
 /** Resolves when the database answers; the router bounds it to 1.5 s. */
 type DatabaseCheck = () => Promise<void>;
 
+/** The mails waiting for another attempt and those given up (ADM-N35). */
+interface MailDelivery {
+  pending: number;
+  abandoned: number;
+  lastAbandonedAt: string | null;
+}
+
 /** What GET /health checks besides the process itself. */
 export interface HealthChecks {
   database: DatabaseCheck;
   sessionSigning: SessionSigningCheck;
+  /** Shown, never part of the status: a mail server down is no deployment failure. */
+  mail: () => MailDelivery;
 }
 
 /**
@@ -59,6 +68,7 @@ export function createHealthRouter(
       sessionSigning: {
         status: signingStatus,
       },
+      mail: checks.mail(),
       memory: {
         usedMb: Math.round(usedMemory / (1024 * 1024)),
         totalMb: Math.round(totalMemory / (1024 * 1024)),
