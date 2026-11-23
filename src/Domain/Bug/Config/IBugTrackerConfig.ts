@@ -3,5 +3,4 @@ export interface IBugTrackerConfig {
   getGitHubManagedRepos(): string[];
   getGitHubAppId?(): string;
   getGitHubPrivateKey?(): string;
-  getApiBaseUrl?(): string;
 }

@@ -48,11 +48,9 @@ export class BugIssueSync {
     }
     const gitHubToken = await this.tokenResolver.resolveGitHubToken(repo);
     if (!gitHubToken) return "GitHub integration token is not configured.";
-    const apiBaseUrl =
-      this.githubConfig.getApiBaseUrl?.() || "http://localhost:4000";
     const issueNum = await this.issueTrackerService.createIssue(
       repo,
-      approvedIssueOf(bug, comment, apiBaseUrl),
+      approvedIssueOf(bug, comment),
       gitHubToken,
     );
     if (!issueNum) {

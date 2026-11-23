@@ -112,9 +112,6 @@ describe("BugSubmissionUseCase", () => {
     );
     mockTokenResolver.resolveGitHubToken.mockResolvedValue("github-token-abc");
     mockIssueTracker.createIssue.mockResolvedValue(42);
-    mockGithubConfig.getApiBaseUrl = vi
-      .fn()
-      .mockReturnValue("http://localhost:4000");
 
     const bug = Bug.builder()
       .setId("bug-456")
@@ -528,7 +525,7 @@ describe("BugSubmissionUseCase", () => {
     expect(logger.info).not.toHaveBeenCalled();
   });
 
-  it("should handle bug creation with file attachments", async () => {
+  it("mentions the attachment in the issue without its address (ADM-N54)", async () => {
     const adminUser = openUser()
       .setId("admin-123")
       .setEmail("admin@test.com")
@@ -541,9 +538,6 @@ describe("BugSubmissionUseCase", () => {
     );
     mockTokenResolver.resolveGitHubToken.mockResolvedValue("token");
     mockIssueTracker.createIssue.mockResolvedValue(100);
-    mockGithubConfig.getApiBaseUrl = vi
-      .fn()
-      .mockReturnValue("http://localhost:4000");
 
     const bug = Bug.builder().setId("bug-file").build();
     mockBugRepository.createBug.mockResolvedValue(
@@ -567,58 +561,14 @@ describe("BugSubmissionUseCase", () => {
       {
         title: "Bug Title",
         body: expect.stringContaining(
-          "[Attachment](http://localhost:4000/uploads/generated.png) (Type: image/png)",
+          "1 attachment is kept in VariaMos with this bug report, for its administrators.",
         ),
         labels: expect.any(Array),
       },
       "token",
     );
-  });
-
-  it("should handle bug creation with file attachments when getApiBaseUrl is not configured, defaulting to localhost:4000", async () => {
-    const adminUser = openUser()
-      .setId("admin-123")
-      .setEmail("admin@test.com")
-      .setUser("admin")
-      .setName("Admin User")
-      .build();
-
-    mockUserRepository.findSessionUser.mockResolvedValue(
-      new ResponseModel<User>("tx-1").withResponse(adminUser),
-    );
-    mockTokenResolver.resolveGitHubToken.mockResolvedValue("token");
-    mockIssueTracker.createIssue.mockResolvedValue(100);
-    // getApiBaseUrl returns undefined or is not present
-    mockGithubConfig.getApiBaseUrl = undefined;
-
-    const bug = Bug.builder().setId("bug-file-default").build();
-    mockBugRepository.createBug.mockResolvedValue(
-      new ResponseModel<Bug>("tx-1").withResponse(bug),
-    );
-
-    const req = new RequestModel("tx-1", {
-      title: "Bug Title",
-      description: "Desc",
-      category: "Editor",
-      createdById: "admin-123",
-      githubRepo: "VariaMos/VariaMosAdmin",
-      file: { content: PNG_BYTES, originalName: "test.png" },
-      priority: "medium" as const,
-    });
-    const res = await useCase.createBug(req);
-
-    expect(res.data).toBe(bug);
-    expect(mockIssueTracker.createIssue).toHaveBeenCalledWith(
-      "VariaMos/VariaMosAdmin",
-      {
-        title: "Bug Title",
-        body: expect.stringContaining(
-          "[Attachment](http://localhost:4000/uploads/generated.png) (Type: image/png)",
-        ),
-        labels: expect.any(Array),
-      },
-      "token",
-    );
+    const body = mockIssueTracker.createIssue.mock.calls[0]?.[1].body;
+    expect(body).not.toContain("/uploads/");
   });
 
   it("should handle local submission by an admin user when githubRepo is not provided", async () => {
@@ -671,9 +621,6 @@ describe("BugSubmissionUseCase", () => {
     );
     mockTokenResolver.resolveGitHubToken.mockResolvedValue("token");
     mockIssueTracker.createIssue.mockResolvedValue(101);
-    mockGithubConfig.getApiBaseUrl = vi
-      .fn()
-      .mockReturnValue("http://localhost:4000");
 
     const bug = Bug.builder().setId("bug-no-priority").build();
     mockBugRepository.createBug.mockResolvedValue(

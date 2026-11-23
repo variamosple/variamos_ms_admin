@@ -32,6 +32,7 @@ import { refuseClosedAccount } from "#src/Domain/User/Entity/AccountAccess.js";
 import { Email } from "#src/Domain/User/Entity/Email.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 import { ALLOWED_CATEGORIES } from "./BugQueryUseCase.js";
+import { attachmentsNoteOf } from "./bugApproval.js";
 
 /** A report sent again within this time is the same report (ADM-N39). */
 export const DUPLICATE_WINDOW_MS = 60_000;
@@ -84,7 +85,7 @@ interface PublishedIssue {
 const issueBodyOf = (
   data: BugSubmissionData,
   component: BugComponentValue | undefined,
-  attachment: { url: string; type: string } | undefined,
+  hasAttachment: boolean,
 ) => {
   let issueBody = data.description || "No description provided.";
   issueBody += "\n\n---\n*Reported directly by Admin*";
@@ -95,9 +96,7 @@ const issueBodyOf = (
   if (component) {
     issueBody += `\n*Component: ${BUG_COMPONENT_LABELS[component]}*`;
   }
-  if (attachment) {
-    issueBody += `\n\n### Attachments\n- [Attachment](${attachment.url}) (Type: ${attachment.type})`;
-  }
+  issueBody += attachmentsNoteOf(hasAttachment ? 1 : 0);
   return issueBody;
 };
 
@@ -373,10 +372,6 @@ export class BugSubmissionUseCase {
       this.logger.warn(`Bug submission refused: no GitHub token for ${repo}.`);
       return "GitHub integration token is not configured.";
     }
-    const attachment = resolvedFile && {
-      url: `${this.githubConfig.getApiBaseUrl?.() || "http://localhost:4000"}${resolvedFile.filePath}`,
-      type: resolvedFile.fileType,
-    };
     const labels = ["bug", data.category.toLowerCase()];
     if (data.priority) {
       labels.push(data.priority.toLowerCase());
@@ -385,7 +380,7 @@ export class BugSubmissionUseCase {
       repo,
       {
         title: data.title,
-        body: issueBodyOf(data, component, attachment),
+        body: issueBodyOf(data, component, resolvedFile !== undefined),
         labels,
       },
       gitHubToken,
