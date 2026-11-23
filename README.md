@@ -7,7 +7,7 @@
 
 ### Prerequisites
 
-- Node.js version 24 or greater
+- Node.js 26 (`.nvmrc`, `.mise.toml`)
 - PostgreSQL database
 
 ### Configuration

@@ -1,6 +1,6 @@
 import express from "express";
 import supertest from "supertest";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import HttpStatusCodes from "#src/common/HttpStatusCodes.js";
 import { NotificationRecipientDirectory } from "#src/DataProviders/Notification/NotificationRecipientDirectory.js";
 import { RoleModel } from "#src/DataProviders/Role/Role.js";
@@ -8,6 +8,7 @@ import { UserModel } from "#src/DataProviders/User/User.js";
 import type { INotificationDispatcher } from "#src/Domain/Notification/INotificationDispatcher.js";
 import { NotificationDispatchUseCase } from "#src/Domain/Notification/UseCase/NotificationDispatchUseCase.js";
 import { createAdminNotificationsRouter } from "./AdminNotificationsRouter.js";
+import { RATE_LIMITS } from "./RateLimits.js";
 
 const activityJournal = { record: vi.fn().mockResolvedValue(undefined) };
 
@@ -46,13 +47,16 @@ const NotificationClientInstance = {
 describe("AdminNotificationsRouter Integration Tests", () => {
   let app: express.Application;
 
-  beforeAll(() => {
+  // A new router for each test, so that each starts below the limits
+  beforeEach(() => {
+    vi.clearAllMocks();
     app = express();
     app.use(express.json());
-    // Simulate req.user for express
+    // Simulate req.user for express; x-test-user signs in another account
     app.use((req, _res, next) => {
+      const id = req.headers["x-test-user"];
       req.user = {
-        id: "admin-user-id",
+        id: typeof id === "string" ? id : "admin-user-id",
         name: "Admin",
         user: "admin",
         email: "admin@example.com",
@@ -70,10 +74,6 @@ describe("AdminNotificationsRouter Integration Tests", () => {
         ),
       ),
     );
-  });
-
-  beforeEach(() => {
-    vi.clearAllMocks();
   });
 
   describe("POST /v1/admin/notifications/dispatch", () => {
@@ -477,6 +477,61 @@ describe("AdminNotificationsRouter Integration Tests", () => {
 
       expect(response.status).toBe(HttpStatusCodes.INTERNAL_SERVER_ERROR);
       expect(JSON.stringify(response.body)).not.toContain("db down");
+    });
+
+    it("refuses the counts of an account past its limit (ADM-N38)", async () => {
+      const { limit } = RATE_LIMITS.recipientCountPerAccount;
+      // An audience without recipients: refused, but counted all the same
+      for (let i = 0; i < limit; i++) {
+        expect((await count({ audience: "users", userIds: [] })).status).toBe(
+          HttpStatusCodes.BAD_REQUEST,
+        );
+      }
+
+      const refused = await count({ audience: "broadcast" });
+
+      expect(refused.status).toBe(HttpStatusCodes.TOO_MANY_REQUESTS);
+      expect(refused.body).toMatchObject({
+        transactionId: "countNotificationRecipients",
+        errorCode: "TOO_MANY_REQUESTS",
+      });
+      expect(UserModel.findAll).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("limit of the dispatches (ADM-N38)", () => {
+    const dispatch = (user: string) =>
+      supertest(app)
+        .post("/v1/admin/notifications/dispatch")
+        .set("x-test-user", user)
+        .send({ audience: "broadcast", title: "Maintenance", body: "Tonight" });
+
+    it("allows 10 dispatches an hour per account", () => {
+      expect(RATE_LIMITS.notificationDispatchPerAccount).toEqual({
+        windowMs: 60 * 60 * 1000,
+        limit: 10,
+      });
+    });
+
+    it("refuses the dispatches of an account past its limit, not those of another", async () => {
+      vi.mocked(UserModel.findAll).mockResolvedValue([
+        { id: "user-1" },
+      ] as UserModel[]);
+      NotificationClientInstance.dispatchNotification.mockResolvedValue();
+      const { limit } = RATE_LIMITS.notificationDispatchPerAccount;
+      for (let i = 0; i < limit; i++) {
+        expect((await dispatch("busy-admin")).status).toBe(HttpStatusCodes.OK);
+      }
+
+      const refused = await dispatch("busy-admin");
+      const other = await dispatch("calm-admin");
+
+      expect(refused.status).toBe(HttpStatusCodes.TOO_MANY_REQUESTS);
+      expect(refused.headers["retry-after"]).toBeDefined();
+      expect(other.status).toBe(HttpStatusCodes.OK);
+      expect(
+        NotificationClientInstance.dispatchNotification,
+      ).toHaveBeenCalledTimes(limit + 1);
     });
   });
 });

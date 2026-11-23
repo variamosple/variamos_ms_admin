@@ -14,6 +14,7 @@ import type {
 } from "#src/Domain/Notification/INotificationAccessTokenIssuer.js";
 import type { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
 import { sendError } from "./errorResponse.js";
+import { accountLimiter } from "./RateLimits.js";
 
 export const NOTIFICATION_ACCESS_V1_ROUTE = "/v1/notifications";
 
@@ -42,6 +43,10 @@ export function createNotificationAccessRouter(
   router.get(
     "/access-token",
     authMiddleware,
+    accountLimiter(
+      "issueNotificationAccessToken",
+      "notificationTokenPerAccount",
+    ),
     async (req: Request, res: Response) => {
       const transactionId = "issueNotificationAccessToken";
       res.setHeader("Cache-Control", "no-store");

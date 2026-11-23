@@ -9,6 +9,7 @@ import { actorOf, signedInUser } from "./actor.js";
 import { mapDomainErrorToHttpStatus } from "./errorMapper.js";
 import { sendError } from "./errorResponse.js";
 import { queryText } from "./queryText.js";
+import { accountLimiter } from "./RateLimits.js";
 import { type AccessGuard, requireAccess, toUserId } from "./requireAccess.js";
 import { USER_ROLES_V1_ROUTE } from "./UserRolesV1Router.js";
 
@@ -197,6 +198,7 @@ export function createUsersRouter(
       const userId = toUserId(req.params.userId);
       return userId ? { kind: "recovery-link", userId } : null;
     }),
+    accountLimiter("generateRecoveryLink", "recoveryLinkPerAccount"),
     generateRecoveryLink(userPasswordUseCase),
   );
 

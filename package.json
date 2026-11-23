@@ -23,7 +23,7 @@
     "stryker:entrypoints": "stryker run stryker.entrypoints.config.json",
     "prepare": "husky",
     "check-arch": "dependency-cruiser --config .dependency-cruiser.cjs src/",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit --incremental --tsBuildInfoFile node_modules/.cache/tsc/typecheck.tsbuildinfo",
     "find-deadcode": "knip --tsConfig tsconfig.prod.json",
     "spell": "cspell --no-progress --dot --gitignore \"**/*.{ts,js,cjs,mjs,json,jsonc,md,yml,yaml,sh}\" \"**/Dockerfile*\"",
     "check-updates": "taze"

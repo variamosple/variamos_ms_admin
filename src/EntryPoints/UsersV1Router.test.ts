@@ -14,6 +14,7 @@ import { User } from "#src/Domain/User/Entity/User.js";
 import { UserManagementUseCase } from "#src/Domain/User/UseCase/UserManagementUseCase.js";
 import { UserPasswordUseCase } from "#src/Domain/User/UseCase/UserPasswordUseCase.js";
 import { UserQueryUseCase } from "#src/Domain/User/UseCase/UserQueryUseCase.js";
+import { RATE_LIMITS } from "./RateLimits.js";
 import type { AccessGuard } from "./requireAccess.js";
 import { createUsersRouter } from "./UsersV1Router.js";
 
@@ -336,6 +337,31 @@ describe("UsersV1Router Integration Tests - Extended Coverage", () => {
       expect(UserPasswordUseCase.prototype.generateLink).toHaveBeenCalledWith(
         expect.objectContaining({ transactionId: "generateRecoveryLink" }),
       );
+    });
+
+    it("refuses the links of an operator past its limit (ADM-N38)", async () => {
+      (UserPasswordUseCase.prototype.generateLink as Mock).mockResolvedValue(
+        new ResponseModel("generateRecoveryLink").withResponse({
+          recoveryUrl: "http://localhost:3000/#/reset-password?token=t",
+        }),
+      );
+      const { limit } = RATE_LIMITS.recoveryLinkPerAccount;
+      // The links of the tests above count too: one operator, one router
+      const statuses: number[] = [];
+      for (let i = 0; i <= limit; i++) {
+        statuses.push(
+          (await supertest(app).post("/v1/users/123/recovery-link")).status,
+        );
+      }
+
+      expect(statuses.at(-1)).toBe(HttpStatusCodes.TOO_MANY_REQUESTS);
+      expect(UserPasswordUseCase.prototype.generateLink).toHaveBeenCalledTimes(
+        statuses.filter((status) => status === HttpStatusCodes.OK).length,
+      );
+      expect(RATE_LIMITS.recoveryLinkPerAccount).toEqual({
+        windowMs: 60 * 60 * 1000,
+        limit: 20,
+      });
     });
   });
 
