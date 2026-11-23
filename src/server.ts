@@ -17,7 +17,6 @@ import express, {
   type Router,
 } from "express";
 import helmet from "helmet";
-import morgan from "morgan";
 import { isAllowedOrigin } from "#src/common/allowedOrigins.js";
 import { RouteError } from "#src/common/classes.js";
 import { describeError } from "#src/common/describeError.js";
@@ -29,6 +28,7 @@ import {
   errorResponse,
   hideInternalErrorMessages,
 } from "#src/EntryPoints/errorResponse.js";
+import { requestLog } from "#src/EntryPoints/requestLog.js";
 import { createUploadsRouter } from "#src/EntryPoints/UploadsRouter.js";
 
 export function createServer(baseRouter: Router) {
@@ -42,6 +42,12 @@ export function createServer(baseRouter: Router) {
   app.set("trust proxy", "loopback, linklocal, uniquelocal");
 
   // **** Setup **** //
+
+  // One line per answer, in development and production alike, mounted first
+  // so that a refusal by CORS is written too (ADM-N41)
+  if (EnvVars.NodeEnv !== NodeEnvs.Test.valueOf()) {
+    app.use(requestLog(logger));
+  }
 
   // A server error never sends its own message to the client (T-16)
   app.use(hideInternalErrorMessages);
@@ -75,11 +81,6 @@ export function createServer(baseRouter: Router) {
   };
 
   app.use(cors(corsOptions));
-
-  // Show routes called in console during development
-  if (EnvVars.NodeEnv === NodeEnvs.Dev.valueOf()) {
-    app.use(morgan("dev"));
-  }
 
   // Security headers in every environment, so that development and the
   // tests run with what production sends (EV-75 lot 4)
