@@ -33,6 +33,10 @@ describe("BugSubmissionUseCase", () => {
 
   beforeEach(() => {
     mockBugRepository = mock<IBugRepository>();
+    // No report like it was just sent (ADM-N39)
+    mockBugRepository.findRecentDuplicate.mockResolvedValue(
+      new ResponseModel<Bug>("tx"),
+    );
     mockUserRepository = mock<IUserRepository>();
     mockIssueTracker = mock<IIssueTrackerService>();
     mockGithubConfig = mock<IBugTrackerConfig>();

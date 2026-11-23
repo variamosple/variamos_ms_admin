@@ -10,7 +10,10 @@ import {
   isBugComponent,
 } from "#src/Domain/Bug/Entity/BugComponent.js";
 import type { BugPriorityValue } from "#src/Domain/Bug/Entity/BugPriority.js";
-import type { IBugRepository } from "#src/Domain/Bug/Repository/IBugRepository.js";
+import type {
+  BugDuplicateQuery,
+  IBugRepository,
+} from "#src/Domain/Bug/Repository/IBugRepository.js";
 import type { IGitHubTokenProvider } from "#src/Domain/Bug/Service/IGitHubTokenProvider.js";
 import { RequestModel } from "#src/Domain/Core/Entity/RequestModel.js";
 import { ResponseModel } from "#src/Domain/Core/Entity/ResponseModel.js";
@@ -29,6 +32,9 @@ import { refuseClosedAccount } from "#src/Domain/User/Entity/AccountAccess.js";
 import { Email } from "#src/Domain/User/Entity/Email.js";
 import type { IUserRepository } from "#src/Domain/User/IUserRepository.js";
 import { ALLOWED_CATEGORIES } from "./BugQueryUseCase.js";
+
+/** A report sent again within this time is the same report (ADM-N39). */
+export const DUPLICATE_WINDOW_MS = 60_000;
 
 interface BugSubmissionData {
   title: string;
@@ -151,6 +157,20 @@ export class BugSubmissionUseCase {
     const reporter = await this.reporterOf(request.transactionId, data);
     if (!reporter.email) return refuse("Reporter email could not be resolved.");
 
+    const duplicate = await this.recentDuplicateOf(request.transactionId, {
+      ...data,
+      reporterEmail: reporter.email,
+      createdById: reporter.createdById,
+    });
+    if (duplicate) {
+      this.logger.info(
+        `Bug ${duplicate.id} sent again within ${DUPLICATE_WINDOW_MS / 1000} s: not created twice.`,
+      );
+      return new ResponseModel<Bug>(request.transactionId).withResponse(
+        duplicate,
+      );
+    }
+
     // The file is written only once the request is valid, and removed again
     // if the bug cannot be recorded.
     let resolvedFile: StoredFile | undefined;
@@ -207,6 +227,29 @@ export class BugSubmissionUseCase {
       return "An email address is required for guest bug submissions.";
     }
     return null;
+  }
+
+  /**
+   * The same report from the same reporter, sent shortly before: a form sent
+   * again after a timeout gets the first report back, and no second report,
+   * attachment or GitHub issue is created (ADM-N39). A failed lookup does
+   * not stop the report.
+   */
+  private async recentDuplicateOf(
+    transactionId: string | undefined,
+    report: Omit<BugDuplicateQuery, "since">,
+  ): Promise<Bug | undefined> {
+    const found = await this.bugRepository.findRecentDuplicate(
+      new RequestModel(transactionId, {
+        title: report.title,
+        description: report.description,
+        category: report.category,
+        reporterEmail: report.reporterEmail,
+        createdById: report.createdById,
+        since: new Date(Date.now() - DUPLICATE_WINDOW_MS),
+      }),
+    );
+    return (!found.errorCode && found.data) || undefined;
   }
 
   /**

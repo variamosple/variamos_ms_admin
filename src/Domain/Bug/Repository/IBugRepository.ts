@@ -20,6 +20,18 @@ export interface BugStatusUpdate {
   githubRepo?: string;
 }
 
+/** What makes a report the same as one just sent (ADM-N39). */
+export interface BugDuplicateQuery {
+  title: string;
+  description: string;
+  category: string;
+  reporterEmail: string;
+  /** The account of the reporter; none for a guest. */
+  createdById?: string;
+  /** Only the reports created at this time or after. */
+  since: Date;
+}
+
 /** Writes bugs: creation, synchronization, status changes and their log. */
 export interface IBugRepository {
   saveOrUpdateBug(
@@ -64,5 +76,9 @@ export interface IBugRepository {
   ): Promise<ResponseModel<Bug>>;
   updateStatus(
     request: RequestModel<BugStatusUpdate>,
+  ): Promise<ResponseModel<Bug>>;
+  /** The latest such report, or no data. */
+  findRecentDuplicate(
+    request: RequestModel<BugDuplicateQuery>,
   ): Promise<ResponseModel<Bug>>;
 }
