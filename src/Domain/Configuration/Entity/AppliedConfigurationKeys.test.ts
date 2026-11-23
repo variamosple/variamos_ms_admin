@@ -47,7 +47,7 @@ describe("isConfigurationApplied", () => {
  */
 describe("refusalOfConfigurationValue", () => {
   it.each([
-    ["monitoring.health_check_interval_seconds", 5, 86400],
+    ["monitoring.health_check_interval_seconds", 5, 30],
     ["security.password.min_length", 8, 64],
     ["security.password.reset_expiry", 1, 3600000],
     ["security.lockout.max_attempts", 3, 100],

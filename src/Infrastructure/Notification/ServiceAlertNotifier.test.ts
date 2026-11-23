@@ -43,11 +43,13 @@ describe("ServiceAlertNotifier", () => {
       .mockResolvedValueOnce(false)
       .mockResolvedValueOnce(true);
 
-    await notifier.notify(
+    const sent = await notifier.notify(
       ["a@example.com", "b@example.com", "c@example.com"],
       ALERT,
     );
 
+    // ADM-N49: the alerts of the tasks know whether a mail went out
+    expect(sent).toBe(1);
     expect(mail.sendServiceAlertMail).toHaveBeenCalledTimes(3);
     expect(logger.err).toHaveBeenCalledTimes(1);
     expect(logger.warn).toHaveBeenCalledWith(

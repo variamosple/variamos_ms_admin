@@ -34,12 +34,30 @@ export function backgroundTaskAlertOf(
   };
 }
 
+const HOUR_MS = 60 * 60 * 1000;
+
+/**
+ * The failures in a row before an alert (ADM-N50): the configured number,
+ * but never more than the runs of an hour, so that a task run once a day
+ * alerts at its first failure instead of after three days.
+ */
+export function failuresBeforeAlertOf(
+  configured: number,
+  intervalMs: number,
+): number {
+  const runsInAnHour = Math.floor(HOUR_MS / Math.max(intervalMs, 1));
+  return Math.max(1, Math.min(configured, runsInAnHour));
+}
+
 /**
  * Sends a mail when a background task fails as many times in a row as the
- * monitoring.alerts.failures_before_alert key says, then when it succeeds
- * again (ADM-N34). The same failure is not sent twice. Without a recipient,
- * the failures are still followed, so that an address set later is not sent
- * an old failure.
+ * monitoring.alerts.failures_before_alert key says, an hour of runs at most,
+ * then when it succeeds again (ADM-N34). The same failure is not sent twice.
+ *
+ * A task is marked as reported only once a mail went out (ADM-N49): when
+ * every mail fails, a mail server down for instance, the alert goes again
+ * after the next run. Without a recipient, the failures are still followed,
+ * so that an address set later is not sent an old failure.
  */
 export class BackgroundTaskAlerts {
   /** The tasks reported as failing, by name. */
@@ -56,21 +74,28 @@ export class BackgroundTaskAlerts {
     const wasFailing = this.failing.has(status.name);
     if (status.consecutiveFailures === 0) {
       if (!wasFailing) return;
-      this.failing.delete(status.name);
-      await this.send(backgroundTaskAlertOf(status));
+      if (await this.send(backgroundTaskAlertOf(status))) {
+        this.failing.delete(status.name);
+      }
       return;
     }
     if (wasFailing) return;
     const policy = await this.policyProvider.getPolicy();
-    if (status.consecutiveFailures < policy.failuresBeforeAlert) return;
-    this.failing.add(status.name);
-    await this.send(backgroundTaskAlertOf(status), policy.recipients);
+    const threshold = failuresBeforeAlertOf(
+      policy.failuresBeforeAlert,
+      status.intervalMs,
+    );
+    if (status.consecutiveFailures < threshold) return;
+    if (await this.send(backgroundTaskAlertOf(status), policy.recipients)) {
+      this.failing.add(status.name);
+    }
   }
 
+  /** True once the alert is dealt with: sent, or no address to send it to. */
   private async send(
     alert: ServiceAlert,
     known?: readonly string[],
-  ): Promise<void> {
+  ): Promise<boolean> {
     this.logger.warn(`Background task alert: ${alert.title}`);
     const recipients =
       known ?? (await this.policyProvider.getPolicy()).recipients;
@@ -78,8 +103,13 @@ export class BackgroundTaskAlerts {
       this.logger.info(
         `Background task alert not sent, no address in ${SERVICE_ALERT_KEYS.recipients}: ${alert.title}`,
       );
-      return;
+      return true;
     }
-    await this.notifier.notify(recipients, alert);
+    const sent = await this.notifier.notify(recipients, alert);
+    if (sent > 0) return true;
+    this.logger.warn(
+      `Background task alert to send again after the next run: ${alert.title}`,
+    );
+    return false;
   }
 }

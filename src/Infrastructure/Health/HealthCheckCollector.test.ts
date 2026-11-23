@@ -120,7 +120,6 @@ describe("HealthCheckCollector.triggerHealthChecks", () => {
     const collector = new HealthCheckCollector(
       repository(),
       noArchive,
-      30000,
       concurrency,
     );
     vi.spyOn(collector, "checkService").mockImplementation(fakeCheck);
@@ -154,12 +153,7 @@ describe("HealthCheckCollector.triggerHealthChecks", () => {
 
   it("keeps the other results when one check throws", async () => {
     vi.spyOn(logger, "err").mockImplementation(() => {});
-    const collector = new HealthCheckCollector(
-      repository(),
-      noArchive,
-      30000,
-      4,
-    );
+    const collector = new HealthCheckCollector(repository(), noArchive, 4);
     vi.spyOn(collector, "checkService").mockImplementation(async (service) => {
       if (service.name === "service_3") throw new Error("database down");
       return fakeCheck(service);
@@ -372,7 +366,6 @@ describe("HealthCheckCollector.runDailyAggregationAndPurge", () => {
     const collector = new HealthCheckCollector(
       {} as IMicroServiceRepository,
       { aggregateDays, purgeChecksBefore },
-      30000,
       4,
     );
 
@@ -390,6 +383,39 @@ describe("HealthCheckCollector.runDailyAggregationAndPurge", () => {
       new Date("2026-09-25T09:30:00.000Z"),
     );
     expect(outcome).toEqual({ aggregatedDays: 58, purgedLogs: 2880 });
+  });
+});
+
+// ADM-N51: the collector runs as background tasks, which count its failures
+describe("HealthCheckCollector failures", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("lets a failed aggregation through", async () => {
+    const collector = new HealthCheckCollector({} as IMicroServiceRepository, {
+      aggregateDays: vi.fn().mockRejectedValue(new Error("db down")),
+      purgeChecksBefore: vi.fn(),
+    });
+
+    await expect(collector.runDailyAggregationAndPurge()).rejects.toThrow(
+      "db down",
+    );
+  });
+
+  it("fails a cycle whose services cannot be listed, but not a check asked by hand", async () => {
+    vi.spyOn(logger, "err").mockImplementation(() => undefined);
+    const repo = {
+      discoverServiceDefinitions: vi
+        .fn()
+        .mockRejectedValue(new Error("docker down")),
+    } as unknown as IMicroServiceRepository;
+    const collector = new HealthCheckCollector(repo, noArchive);
+
+    await expect(collector.collectAll()).rejects.toThrow("docker down");
+    await expect(collector.triggerHealthChecks()).resolves.toEqual([]);
+    // The failed cycle does not block the next one
+    await expect(collector.collectAll()).rejects.toThrow("docker down");
   });
 });
 

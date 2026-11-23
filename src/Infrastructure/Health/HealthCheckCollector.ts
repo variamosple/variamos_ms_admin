@@ -112,13 +112,14 @@ export type HealthCheckListener = (
   check: MicroServiceHealthInfo,
 ) => Promise<void>;
 
+/**
+ * Checks the health of the services and keeps their history. Its runs are
+ * background tasks of the registry (ADM-N51): the checks at the interval of
+ * the configuration screen, the aggregation of the history once a day.
+ */
 export class HealthCheckCollector {
   private readonly checkListeners: HealthCheckListener[] = [];
-  private intervalTimer: NodeJS.Timeout | null = null;
-  private retentionTimer: NodeJS.Timeout | null = null;
   private isCollecting = false;
-
-  private pollIntervalMs: number;
 
   public constructor(
     private readonly microServiceRepository: Pick<
@@ -126,77 +127,12 @@ export class HealthCheckCollector {
       "discoverServiceDefinitions" | "recordHealthCheck"
     >,
     private readonly healthLogs: IHealthLogArchive,
-    initialPollIntervalMs = 30000,
     private readonly concurrency: number = HEALTH_CHECK_CONCURRENCY,
-  ) {
-    this.pollIntervalMs = initialPollIntervalMs;
-  }
+  ) {}
 
   /** Called after each recorded check; a listener that fails is logged. */
   public addCheckListener(listener: HealthCheckListener): void {
     this.checkListeners.push(listener);
-  }
-
-  public getIntervalMs(): number {
-    return this.pollIntervalMs;
-  }
-
-  public setIntervalMs(newIntervalMs: number): void {
-    if (newIntervalMs < 5000) {
-      logger.warn(
-        `HealthCheckCollector interval ${newIntervalMs}ms too small, fallback to 5000ms`,
-      );
-    }
-    this.pollIntervalMs = Math.max(newIntervalMs, 5000);
-    logger.info(
-      `HealthCheckCollector interval updated to ${this.pollIntervalMs}ms`,
-    );
-    if (this.intervalTimer) {
-      clearInterval(this.intervalTimer);
-      this.intervalTimer = setInterval(
-        () => this.collectAll(),
-        this.pollIntervalMs,
-      );
-    }
-  }
-
-  public start(): void {
-    if (this.intervalTimer) return;
-    logger.info(
-      `Starting HealthCheckCollector (interval: ${this.pollIntervalMs}ms)...`,
-    );
-    // triggerHealthChecks catches its own errors
-    void this.collectAll();
-    this.intervalTimer = setInterval(
-      () => this.collectAll(),
-      this.pollIntervalMs,
-    );
-
-    // Run daily aggregation & purge once every 24 hours
-    this.runDailyAggregationAndPurge().catch((err) =>
-      logger.err(
-        `Daily health check aggregation failed on startup: ${errorMessage(err)}`,
-      ),
-    );
-    this.retentionTimer = setInterval(() => {
-      this.runDailyAggregationAndPurge().catch((err) =>
-        logger.err(
-          `Daily health check aggregation failed: ${errorMessage(err)}`,
-        ),
-      );
-    }, DAY_MS);
-  }
-
-  public stop(): void {
-    if (this.intervalTimer) {
-      clearInterval(this.intervalTimer);
-      this.intervalTimer = null;
-    }
-    if (this.retentionTimer) {
-      clearInterval(this.retentionTimer);
-      this.retentionTimer = null;
-    }
-    logger.info("HealthCheckCollector stopped.");
   }
 
   /**
@@ -205,7 +141,8 @@ export class HealthCheckCollector {
    *    microservice_daily_stats for each complete day (UTC) not saved yet.
    * 2. Purges raw health logs older than `retentionDays` days.
    * Only days that start after the purge limit are aggregated: earlier
-   * purges may have removed part of an older day.
+   * purges may have removed part of an older day. A failure is thrown, so
+   * that the background task counts it.
    */
   public async runDailyAggregationAndPurge(
     retentionDays = 30,
@@ -218,46 +155,52 @@ export class HealthCheckCollector {
       "Running daily microservice health logs aggregation and purge...",
     );
 
-    let aggregatedDays = 0;
-    let purgedLogs = 0;
+    const cutoffDate = new Date(now.getTime() - retentionDays * DAY_MS);
+    const firstCompleteDay = new Date(
+      Date.UTC(
+        cutoffDate.getUTCFullYear(),
+        cutoffDate.getUTCMonth(),
+        cutoffDate.getUTCDate() + 1,
+      ),
+    );
+    const today = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
 
-    try {
-      const cutoffDate = new Date(now.getTime() - retentionDays * DAY_MS);
-      const firstCompleteDay = new Date(
-        Date.UTC(
-          cutoffDate.getUTCFullYear(),
-          cutoffDate.getUTCMonth(),
-          cutoffDate.getUTCDate() + 1,
-        ),
-      );
-      const today = new Date(
-        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-      );
+    const aggregatedDays = await this.healthLogs.aggregateDays(
+      firstCompleteDay,
+      today,
+    );
+    const purgedLogs = await this.healthLogs.purgeChecksBefore(cutoffDate);
 
-      aggregatedDays = await this.healthLogs.aggregateDays(
-        firstCompleteDay,
-        today,
-      );
-
-      purgedLogs = await this.healthLogs.purgeChecksBefore(cutoffDate);
-
-      logger.info(
-        `Daily health aggregation complete: ${aggregatedDays} daily stats saved, ${purgedLogs} raw logs purged (> ${retentionDays} days).`,
-      );
-    } catch (err) {
-      logger.err(
-        `Failed to run daily health check aggregation and purge: ${errorMessage(err)}`,
-      );
-    }
-
+    logger.info(
+      `Daily health aggregation complete: ${aggregatedDays} daily stats saved, ${purgedLogs} raw logs purged (> ${retentionDays} days).`,
+    );
     return { aggregatedDays, purgedLogs };
   }
 
+  /**
+   * One check of every service, run by the background task. A failure of
+   * the whole cycle (the services cannot be listed) is thrown, so that the
+   * task counts it; a service that does not answer is a check, not a failure.
+   */
   public async collectAll(): Promise<void> {
-    await this.triggerHealthChecks();
+    await this.collect();
   }
 
+  /** A check asked from the monitoring page; never throws. */
   public async triggerHealthChecks(
+    serviceName?: string,
+  ): Promise<MicroServiceHealthInfo[]> {
+    try {
+      return await this.collect(serviceName);
+    } catch (err) {
+      logger.err(`Error during health check collection: ${errorMessage(err)}`);
+      return [];
+    }
+  }
+
+  private async collect(
     serviceName?: string,
   ): Promise<MicroServiceHealthInfo[]> {
     if (this.isCollecting) return [];
@@ -292,8 +235,6 @@ export class HealthCheckCollector {
           );
         }
       }
-    } catch (err) {
-      logger.err(`Error during health check collection: ${errorMessage(err)}`);
     } finally {
       this.isCollecting = false;
     }

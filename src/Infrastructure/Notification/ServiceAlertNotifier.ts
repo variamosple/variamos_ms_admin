@@ -18,7 +18,7 @@ export class ServiceAlertNotifier implements IServiceAlertNotifier {
   public async notify(
     recipients: readonly string[],
     alert: ServiceAlert,
-  ): Promise<void> {
+  ): Promise<number> {
     const outcomes = await Promise.allSettled(
       recipients.map((to) =>
         this.mailService.sendServiceAlertMail(to, alert.title, alert.body),
@@ -33,5 +33,6 @@ export class ServiceAlertNotifier implements IServiceAlertNotifier {
     const message = `Service alert "${alert.title}" sent to ${sent} of ${recipients.length} address(es)`;
     if (sent === recipients.length) this.logger.info(message);
     else this.logger.warn(message);
+    return sent;
   }
 }

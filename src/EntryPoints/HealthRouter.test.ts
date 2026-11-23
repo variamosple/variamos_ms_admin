@@ -18,6 +18,9 @@ const mailDelivery = vi.fn(() => ({
   lastAbandonedAt: null as string | null,
 }));
 
+// Three tasks, one failing, unless a test says otherwise (ADM-N51)
+const backgroundTasks = vi.fn(() => ({ count: 3, failing: 1, stuck: 0 }));
+
 describe("HealthRouter - Black-Box Contract & Resilience Tests", () => {
   const buildApp = () => {
     const app = express();
@@ -29,6 +32,7 @@ describe("HealthRouter - Black-Box Contract & Resilience Tests", () => {
           database: authenticate,
           sessionSigning: checkSessionSigning,
           mail: mailDelivery,
+          backgroundTasks,
         },
         () => "1.2.3",
       ),
@@ -50,6 +54,22 @@ describe("HealthRouter - Black-Box Contract & Resilience Tests", () => {
     expect(typeof response.body.checks.database.latencyMs).toBe("number");
     expect(response.body.checks.memory).toBeDefined();
     expect(response.body.checks.memory.totalMb).toBeGreaterThan(0);
+  });
+
+  // ADM-N51: a watcher outside the service sees the tasks, in numbers only
+  it("shows the background tasks in numbers, without changing the status", async () => {
+    authenticate.mockResolvedValueOnce();
+    backgroundTasks.mockReturnValueOnce({ count: 8, failing: 2, stuck: 1 });
+
+    const response = await supertest(buildApp()).get("/health");
+
+    expect(response.status).toBe(200);
+    expect(response.body.status).toBe("UP");
+    expect(response.body.checks.backgroundTasks).toEqual({
+      count: 8,
+      failing: 2,
+      stuck: 1,
+    });
   });
 
   it("should return HTTP 503 with DEGRADED status when database authentication fails", async () => {

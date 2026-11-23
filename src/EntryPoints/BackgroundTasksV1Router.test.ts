@@ -28,7 +28,9 @@ describe("background tasks router (ADM-N34)", () => {
     const sync: BackgroundTaskStatus = {
       name: "Periodic bugs synchronization",
       intervalMs: 900_000,
-      running: false,
+      running: true,
+      runningSince: new Date("2026-11-22T09:15:00Z"),
+      stuck: true,
       lastRunAt: new Date("2026-11-22T09:00:00Z"),
       lastSuccessAt: null,
       lastFailureAt: new Date("2026-11-22T09:00:02Z"),
@@ -45,7 +47,9 @@ describe("background tasks router (ADM-N34)", () => {
       {
         name: "Periodic bugs synchronization",
         intervalMs: 900_000,
-        running: false,
+        running: true,
+        runningSince: "2026-11-22T09:15:00.000Z",
+        stuck: true,
         lastRunAt: "2026-11-22T09:00:00.000Z",
         lastSuccessAt: null,
         lastFailureAt: "2026-11-22T09:00:02.000Z",

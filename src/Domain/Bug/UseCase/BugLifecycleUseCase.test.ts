@@ -320,8 +320,54 @@ describe("BugLifecycleUseCase", () => {
   });
 
   describe("purgeExpiredRejectedBugs", () => {
+    beforeEach(() => {
+      mockBugRepository.updateStatus.mockResolvedValue(
+        new ResponseModel<Bug>("tx-id"),
+      );
+    });
+
     afterEach(() => {
       retentionDays = 7;
+    });
+
+    // ADM-N52: a pass that meets an error fails, so that its task alerts
+    it("purges the other bugs when one fails, then fails the pass", async () => {
+      mockBugRepository.findExpiredRejectedBugs.mockResolvedValue(
+        new ResponseModel<Bug[]>("tx-id").withResponse([
+          createMockBug("bug-1", "First", "rejected"),
+          createMockBug("bug-2", "Second", "rejected"),
+        ]),
+      );
+      mockBugRepository.updateStatus
+        .mockResolvedValueOnce(
+          new ResponseModel<Bug>("tx-id").withError(
+            DomainErrorCodes.SYSTEM_ERROR,
+            "db down",
+          ),
+        )
+        .mockResolvedValueOnce(new ResponseModel<Bug>("tx-id"));
+
+      await expect(useCase.purgeExpiredRejectedBugs()).rejects.toThrow(
+        "1 of 2 expired rejected bugs not purged",
+      );
+
+      expect(mockBugRepository.updateStatus).toHaveBeenCalledTimes(2);
+      expect(mockBugRepository.createLog).toHaveBeenCalledOnce();
+      expect(logger.err).toHaveBeenCalledWith("Bug bug-1 not purged: db down");
+    });
+
+    it("fails when the expired bugs cannot be read", async () => {
+      mockBugRepository.findExpiredRejectedBugs.mockResolvedValue(
+        new ResponseModel<Bug[]>("tx-id").withError(
+          DomainErrorCodes.SYSTEM_ERROR,
+          "Internal server error",
+        ),
+      );
+
+      await expect(useCase.purgeExpiredRejectedBugs()).rejects.toThrow(
+        "Expired rejected bugs not read: Internal server error",
+      );
+      expect(mockBugRepository.updateStatus).not.toHaveBeenCalled();
     });
 
     it("purges the rejected bugs older than the configured retention", async () => {
@@ -1578,17 +1624,13 @@ describe("BugLifecycleUseCase", () => {
   });
 
   describe("purgeExpiredRejectedBugs errors", () => {
-    it("should log error if purge throws an exception", async () => {
+    it("lets an exception through, for its background task to count", async () => {
       mockBugRepository.findExpiredRejectedBugs.mockImplementation(() => {
         throw new Error("Purge Failed");
       });
 
-      await useCase.purgeExpiredRejectedBugs();
-
-      expect(logger.err).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "Failed to purge expired rejected bugs: Purge Failed",
-        ),
+      await expect(useCase.purgeExpiredRejectedBugs()).rejects.toThrow(
+        "Purge Failed",
       );
     });
   });

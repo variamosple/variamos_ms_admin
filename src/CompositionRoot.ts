@@ -60,6 +60,7 @@ import { MfaResetUseCase } from "./Domain/Mfa/UseCase/MfaResetUseCase.js";
 import { MfaSignInUseCase } from "./Domain/Mfa/UseCase/MfaSignInUseCase.js";
 import { TrustedDeviceUseCase } from "./Domain/Mfa/UseCase/TrustedDeviceUseCase.js";
 import { UserMfaUseCase } from "./Domain/Mfa/UseCase/UserMfaUseCase.js";
+import { boundedHealthCheckIntervalMs } from "./Domain/MicroService/Entity/HealthCheckInterval.js";
 import { MicroServiceManagementUseCase } from "./Domain/MicroService/UseCase/MicroServiceManagementUseCase.js";
 import { MicroServiceQueryUseCase } from "./Domain/MicroService/UseCase/MicroServiceQueryUseCase.js";
 import { NotificationDispatchUseCase } from "./Domain/Notification/UseCase/NotificationDispatchUseCase.js";
@@ -67,6 +68,7 @@ import { PermissionUseCase } from "./Domain/Permission/UseCase/PermissionUseCase
 import { RoleManagementUseCase } from "./Domain/Role/UseCase/RoleManagementUseCase.js";
 import { RolePermissionUseCase } from "./Domain/Role/UseCase/RolePermissionUseCase.js";
 import { RoleQueryUseCase } from "./Domain/Role/UseCase/RoleQueryUseCase.js";
+import { summaryOf } from "./Domain/Scheduling/Entity/BackgroundTaskStatus.js";
 import {
   AccountLockout,
   AccountLockoutPolicyService,
@@ -92,6 +94,7 @@ import { ScheduledChangeNotifier } from "./Infrastructure/Notification/Scheduled
 import {
   followBugSyncInterval,
   followHealthCheckInterval,
+  HEALTH_CHECKS_TIMEOUT_MS,
 } from "./Infrastructure/Scheduling/BackgroundJobs.js";
 import {
   AesGcmSecretCipher,
@@ -353,18 +356,23 @@ const productionUpload = multer({
   limits: { fileSize: MAX_ATTACHMENT_SIZE_BYTES, files: 1 },
 });
 
-// Health checks of the services, started by the background jobs; the interval
-// follows the configuration screen
+// Health checks of the services, a background task started by the jobs
+// (ADM-N51); the interval follows the configuration screen, within 5 to 30 s
 export const HealthCheckCollectorInstance = new HealthCheckCollector(
   MicroServiceRepositoriesInstance.services,
   HealthLogStatisticsInstance,
-  EnvVars.MONITORING.HEALTH_CHECK_INTERVAL_MS,
 );
 MicroServiceRepositoriesInstance.control.setHealthCollector(
   HealthCheckCollectorInstance,
 );
+export const HealthCheckTask = BackgroundTasks.create(
+  "Service health checks",
+  () => HealthCheckCollectorInstance.collectAll(),
+  boundedHealthCheckIntervalMs(EnvVars.MONITORING.HEALTH_CHECK_INTERVAL_MS),
+  { timeoutMs: HEALTH_CHECKS_TIMEOUT_MS, logRuns: false },
+);
 ConfigEventPublisherInstance.addListener(
-  followHealthCheckInterval(HealthCheckCollectorInstance),
+  followHealthCheckInterval(HealthCheckTask),
 );
 // A mail when a service stops answering, then when it answers again
 HealthCheckCollectorInstance.addCheckListener((check) =>
@@ -439,6 +447,7 @@ export const productionRouterDependencies: BaseRouterDependencies = {
     database: checkDatabase,
     sessionSigning: checkSessionSigning,
     mail: () => MailServiceInstance.deliveryStatus(),
+    backgroundTasks: () => summaryOf(BackgroundTasks.list()),
   },
   backups: BackupAlertsInstance,
   backgroundTasks: BackgroundTasks,

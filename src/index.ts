@@ -32,6 +32,7 @@ import {
 import {
   BugSyncTask,
   HealthCheckCollectorInstance,
+  HealthCheckTask,
   productionBugLifecycleUseCase,
   productionBugSchedule,
   productionConfigurationUseCase,
@@ -186,11 +187,12 @@ const server = app.listen(EnvVars.Port, async () => {
   logger.info(SERVER_START_MSG);
   if (!automaticWrites.allowed) return;
   await startBackgroundJobs({
-    collector: HealthCheckCollectorInstance,
     configuration: productionConfigurationUseCase,
     bugLifecycle: productionBugLifecycleUseCase,
     bugSchedule: productionBugSchedule,
     bugSyncTask: BugSyncTask,
+    healthCheckTask: HealthCheckTask,
+    healthLogs: HealthCheckCollectorInstance,
     scheduledChanges: productionScheduledConfigurationChangeUseCase,
     resourceSampler: ContainerResourceSamplerInstance,
     backupAlerts: BackupAlertsInstance,
@@ -214,8 +216,6 @@ onShutdownSignals(
     closeSockets: () => closeWebSockets(containerLogsSockets),
     stopJobs: () => {
       BackgroundTasks.stopAll();
-      HealthCheckCollectorInstance.stop();
-      ContainerResourceSamplerInstance.stop();
       MailServiceInstance.stopRetries();
     },
     closeDatabase: () => VARIAMOS_ORM.close(),
