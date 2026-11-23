@@ -321,48 +321,66 @@ export class BugLifecycleUseCase {
     return change({ id: data.id, adminId: data.adminId });
   }
 
+  /**
+   * Purges the rejected bugs kept longer than the configured retention. A
+   * bug that cannot be purged stops none of the others, and the pass fails
+   * at its end, so that the background task counts it (ADM-N52).
+   */
   public async purgeExpiredRejectedBugs(): Promise<void> {
-    try {
-      const thresholdDate = new Date();
-      thresholdDate.setDate(
-        thresholdDate.getDate() -
-          (await this.schedule.getRejectedRetentionDays()),
+    const thresholdDate = new Date();
+    thresholdDate.setDate(
+      thresholdDate.getDate() -
+        (await this.schedule.getRejectedRetentionDays()),
+    );
+
+    const transactionId = "purgeExpiredBugs";
+    const expiredResponse =
+      await this.repositories.queries.findExpiredRejectedBugs(
+        new RequestModel(transactionId, thresholdDate),
       );
-
-      const transactionId = "purgeExpiredBugs";
-      const expiredResponse =
-        await this.repositories.queries.findExpiredRejectedBugs(
-          new RequestModel(transactionId, thresholdDate),
-        );
-
-      const expiredBugs = expiredResponse.data || [];
-      if (expiredBugs.length === 0) return;
-      this.logger.info(
-        `Found ${expiredBugs.length} expired rejected bugs to purge.`,
-      );
-
-      for (const bug of expiredBugs) {
-        await this.purge(bug, transactionId);
-      }
-      this.logger.info("Expired rejected bugs purging complete.");
-    } catch (error) {
-      this.logger.err(
-        `Failed to purge expired rejected bugs: ${errorMessage(error)}`,
+    if (expiredResponse.errorCode) {
+      throw new Error(
+        `Expired rejected bugs not read: ${expiredResponse.message ?? expiredResponse.errorCode}`,
       );
     }
+
+    const expiredBugs = expiredResponse.data || [];
+    if (expiredBugs.length === 0) return;
+    this.logger.info(
+      `Found ${expiredBugs.length} expired rejected bugs to purge.`,
+    );
+
+    let failed = 0;
+    for (const bug of expiredBugs) {
+      try {
+        await this.purge(bug, transactionId);
+      } catch (error) {
+        failed += 1;
+        this.logger.err(`Bug ${bug.id} not purged: ${errorMessage(error)}`);
+      }
+    }
+    if (failed > 0) {
+      throw new Error(
+        `${failed} of ${expiredBugs.length} expired rejected bugs not purged`,
+      );
+    }
+    this.logger.info("Expired rejected bugs purging complete.");
   }
 
   // The bug is marked purged, its stored files deleted, and the purge logged
   private async purge(bug: Bug, transactionId: string): Promise<void> {
     const hasAttachments = await this.purgeAttachments(bug, transactionId);
 
-    await this.repositories.bugs.updateStatus(
+    const updated = await this.repositories.bugs.updateStatus(
       new RequestModel(transactionId, {
         id: bug.id,
         status: "purged",
         adminId: "",
       }),
     );
+    if (updated.errorCode) {
+      throw new Error(updated.message ?? `error ${updated.errorCode}`);
+    }
 
     await this.repositories.bugs.createLog(
       new RequestModel(transactionId, {

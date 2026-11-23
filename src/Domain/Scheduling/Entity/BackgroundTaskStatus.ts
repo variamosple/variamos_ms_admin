@@ -9,10 +9,31 @@ export interface BackgroundTaskStatus {
   name: string;
   intervalMs: number;
   running: boolean;
+  /** When the run under way started; null between two runs (ADM-N47). */
+  runningSince: Date | null;
+  /** The run under way went past its time limit and still holds the task. */
+  stuck: boolean;
   lastRunAt: Date | null;
   lastSuccessAt: Date | null;
   lastFailureAt: Date | null;
   consecutiveFailures: number;
+}
+
+/** What /health says of the tasks: numbers only, the route is public. */
+export interface BackgroundTaskSummary {
+  count: number;
+  failing: number;
+  stuck: number;
+}
+
+export function summaryOf(
+  tasks: readonly BackgroundTaskStatus[],
+): BackgroundTaskSummary {
+  return {
+    count: tasks.length,
+    failing: tasks.filter((task) => task.consecutiveFailures > 0).length,
+    stuck: tasks.filter((task) => task.stuck).length,
+  };
 }
 
 /** The tasks of the service, for the monitoring page. */

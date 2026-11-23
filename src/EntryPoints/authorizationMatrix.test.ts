@@ -202,7 +202,12 @@ function buildRouter(accessGuard: AccessGuard) {
       }),
       accessJournal: mock(),
       journalQuery: mock(),
-      health: { database: mock(), sessionSigning: mock(), mail: mock() },
+      health: {
+        database: mock(),
+        sessionSigning: mock(),
+        mail: mock(),
+        backgroundTasks: mock(),
+      },
       backups: mock(),
       backgroundTasks: mock(),
       settings: webSettingsFromEnv(),

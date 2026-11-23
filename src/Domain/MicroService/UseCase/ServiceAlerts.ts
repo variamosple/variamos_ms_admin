@@ -13,7 +13,8 @@ export interface ServiceAlert {
 }
 
 export interface IServiceAlertNotifier {
-  notify(recipients: readonly string[], alert: ServiceAlert): Promise<void>;
+  /** Sends the alert to each address; the number of mails sent (ADM-N49). */
+  notify(recipients: readonly string[], alert: ServiceAlert): Promise<number>;
 }
 
 const MINUTE_MS = 60 * 1000;

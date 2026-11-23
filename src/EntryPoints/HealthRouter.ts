@@ -1,5 +1,6 @@
 import os from "node:os";
 import { Router } from "express";
+import type { BackgroundTaskSummary } from "#src/Domain/Scheduling/Entity/BackgroundTaskStatus.js";
 import type { SessionSigningCheck } from "./sessionSigningCheck.js";
 
 export const HEALTH_ROUTE = "/health";
@@ -20,6 +21,11 @@ export interface HealthChecks {
   sessionSigning: SessionSigningCheck;
   /** Shown, never part of the status: a mail server down is no deployment failure. */
   mail: () => MailDelivery;
+  /**
+   * The background tasks, in numbers only (ADM-N51): shown for a watcher
+   * outside the service, never part of the status, like the mails.
+   */
+  backgroundTasks: () => BackgroundTaskSummary;
 }
 
 /**
@@ -69,6 +75,7 @@ export function createHealthRouter(
         status: signingStatus,
       },
       mail: checks.mail(),
+      backgroundTasks: checks.backgroundTasks(),
       memory: {
         usedMb: Math.round(usedMemory / (1024 * 1024)),
         totalMb: Math.round(totalMemory / (1024 * 1024)),

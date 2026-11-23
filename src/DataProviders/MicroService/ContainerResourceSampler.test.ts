@@ -97,39 +97,16 @@ describe("ContainerResourceSampler", () => {
     expect(sampler.resourcesOf("a")).toBeUndefined();
   });
 
-  it("keeps going when Docker does not answer", async () => {
-    const warn = vi.spyOn(logger, "warn").mockImplementation(() => undefined);
+  // ADM-N51: the background task counts the failure, and alerts
+  it("fails when Docker does not list the containers", async () => {
     const { docker, listContainers } = fakeDocker([], {});
     listContainers.mockRejectedValue(new Error("connect ECONNREFUSED"));
+    const sampler = new ContainerResourceSampler(docker);
 
-    await expect(
-      new ContainerResourceSampler(docker).sample(),
-    ).resolves.toBeUndefined();
-    expect(warn).toHaveBeenCalledWith(
-      "Container resources not sampled: connect ECONNREFUSED",
-    );
-  });
+    await expect(sampler.sample()).rejects.toThrow("connect ECONNREFUSED");
 
-  it("samples at once, then at its interval, until stopped", async () => {
-    vi.useFakeTimers();
-    try {
-      const { docker, listContainers } = fakeDocker([], {});
-      listContainers.mockResolvedValue([]);
-      const sampler = new ContainerResourceSampler(docker, 30_000);
-
-      sampler.start();
-      sampler.start();
-      await vi.advanceTimersByTimeAsync(0);
-      expect(listContainers).toHaveBeenCalledTimes(1);
-
-      await vi.advanceTimersByTimeAsync(30_000);
-      expect(listContainers).toHaveBeenCalledTimes(2);
-
-      sampler.stop();
-      await vi.advanceTimersByTimeAsync(60_000);
-      expect(listContainers).toHaveBeenCalledTimes(2);
-    } finally {
-      vi.useRealTimers();
-    }
+    // The next sampling is not blocked by the failed one
+    listContainers.mockResolvedValue([]);
+    await expect(sampler.sample()).resolves.toBeUndefined();
   });
 });

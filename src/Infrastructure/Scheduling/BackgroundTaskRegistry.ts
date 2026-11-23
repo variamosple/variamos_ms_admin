@@ -2,13 +2,21 @@ import type {
   BackgroundTaskStatus,
   IBackgroundTaskList,
 } from "#src/Domain/Scheduling/Entity/BackgroundTaskStatus.js";
-import { RepeatingTask, type RunObserver } from "./RepeatingTask.js";
+import {
+  RepeatingTask,
+  type RepeatingTaskOptions,
+  type RunObserver,
+} from "./RepeatingTask.js";
+
+/** What a task may set for itself; the observer is the registry's. */
+type TaskOptions = Pick<RepeatingTaskOptions, "timeoutMs" | "logRuns">;
 
 /** Makes a task followed by the registry. */
 export type TaskFactory = (
   name: string,
   run: () => Promise<unknown>,
   intervalMs: number,
+  options?: TaskOptions,
 ) => RepeatingTask;
 
 /**
@@ -22,8 +30,9 @@ export class BackgroundTaskRegistry implements IBackgroundTaskList {
 
   public constructor(private readonly observer?: RunObserver) {}
 
-  public readonly create: TaskFactory = (name, run, intervalMs) => {
+  public readonly create: TaskFactory = (name, run, intervalMs, options) => {
     const task = new RepeatingTask(name, run, intervalMs, {
+      ...options,
       observer: this.observer,
     });
     this.tasks.push(task);

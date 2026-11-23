@@ -7,9 +7,6 @@ import {
   resourcesBetween,
 } from "./containerResources.js";
 
-/** Every 30 s, the interval of the health checks by default. */
-const RESOURCE_SAMPLING_EVERY_MS = 30_000;
-
 export interface IContainerResources {
   resourcesOf(containerId: string): ContainerResources | undefined;
 }
@@ -24,16 +21,15 @@ interface Sampled {
  * one Docker stats call each ("one-shot": no wait for a second reading), and
  * keeps the last values in memory (EV-86 lot 2). The CPU is computed between
  * two samples, so it is an average over the last 30 s. The socket proxy
- * already lets these GET calls through (CONTAINERS=1).
+ * already lets these GET calls through (CONTAINERS=1). The samplings are a
+ * background task of the registry (ADM-N51).
  */
 export class ContainerResourceSampler implements IContainerResources {
   private readonly sampled = new Map<string, Sampled>();
-  private timer: NodeJS.Timeout | undefined;
   private isSampling = false;
 
   public constructor(
     private readonly docker: Pick<Docker, "listContainers" | "getContainer">,
-    private readonly everyMs = RESOURCE_SAMPLING_EVERY_MS,
     private readonly now: () => Date = () => new Date(),
   ) {}
 
@@ -41,18 +37,11 @@ export class ContainerResourceSampler implements IContainerResources {
     return this.sampled.get(containerId)?.resources;
   }
 
-  public start(): void {
-    if (this.timer) return;
-    void this.sample();
-    this.timer = setInterval(() => void this.sample(), this.everyMs);
-  }
-
-  public stop(): void {
-    clearInterval(this.timer);
-    this.timer = undefined;
-  }
-
-  /** One sampling of every running monitored container; never throws. */
+  /**
+   * One sampling of every running monitored container. Throws when Docker
+   * does not list them, so that the task counts the failure; a container
+   * that cannot be read, stopped in between for instance, is only logged.
+   */
   public async sample(): Promise<void> {
     if (this.isSampling) return;
     this.isSampling = true;
@@ -80,8 +69,6 @@ export class ContainerResourceSampler implements IContainerResources {
           `Container resources: ${failed.length} of ${ids.length} not read: ${errorMessage(failed[0].reason)}`,
         );
       }
-    } catch (error) {
-      logger.warn(`Container resources not sampled: ${errorMessage(error)}`);
     } finally {
       this.isSampling = false;
     }

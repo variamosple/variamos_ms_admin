@@ -225,15 +225,51 @@ describe("BugSyncUseCase", () => {
       .mockResolvedValueOnce("token2");
 
     mockIssueTracker.getIssues.mockResolvedValue([]);
+    mockBugRepository.queryBugs.mockResolvedValue(
+      new ResponseModel<Bug[]>("tx-1").withResponse([]),
+    );
 
     const req = new RequestModel<void>("tx-1");
-    await useCase.syncBugs(req);
+    const res = await useCase.syncBugs(req);
 
     expect(mockTokenResolver.resolveGitHubToken).toHaveBeenCalledTimes(2);
     expect(mockIssueTracker.getIssues).toHaveBeenCalledTimes(1); // called only for Repo2
     expect(logger.warn).toHaveBeenCalledWith(
       "GitHub token could not be resolved for repo: Repo1. Skipping.",
     );
+    // ADM-N52: Repo2 is saved, and the pass fails for its task to alert
+    expect(res.errorCode).toBe(DomainErrorCodes.SYSTEM_ERROR);
+    expect(res.message).toBe("GitHub synchronization incomplete for Repo1");
+  });
+
+  it("fails the pass when an issue cannot be saved, past the other issues", async () => {
+    mockGithubConfig.getGitHubToken.mockReturnValue("pat-token");
+    mockGithubConfig.getGitHubManagedRepos.mockReturnValue(["Repo1"]);
+    mockTokenResolver.resolveGitHubToken.mockResolvedValue("token");
+    mockIssueTracker.getIssues.mockResolvedValue([
+      { number: 1, title: "One", state: "open", created_at: "2026-07-13" },
+      { number: 2, title: "Two", state: "open", created_at: "2026-07-13" },
+    ]);
+    mockBugRepository.queryBugs.mockResolvedValue(
+      new ResponseModel<Bug[]>("tx-1").withResponse([]),
+    );
+    mockBugRepository.saveOrUpdateBug
+      .mockResolvedValueOnce(
+        new ResponseModel<{ created: boolean; updated: boolean }>(
+          "tx-1",
+        ).withError(DomainErrorCodes.SYSTEM_ERROR, "db down"),
+      )
+      .mockResolvedValueOnce(
+        new ResponseModel<{ created: boolean; updated: boolean }>(
+          "tx-1",
+        ).withResponse({ created: true, updated: false }),
+      );
+
+    const res = await useCase.syncBugs(new RequestModel<void>("tx-1"));
+
+    expect(mockBugRepository.saveOrUpdateBug).toHaveBeenCalledTimes(2);
+    expect(logger.warn).toHaveBeenCalledWith("1 issue(s) of Repo1 not saved");
+    expect(res.message).toBe("GitHub synchronization incomplete for Repo1");
   });
 
   it("should skip issues that are pull requests", async () => {
@@ -556,9 +592,10 @@ describe("BugSyncUseCase", () => {
       ),
     );
 
-    await useCase.syncBugs(new RequestModel<void>("tx-1"));
+    const res = await useCase.syncBugs(new RequestModel<void>("tx-1"));
 
     expect(mockBugRepository.saveOrUpdateBug).not.toHaveBeenCalled();
+    expect(res.message).toBe("GitHub synchronization incomplete for Repo1");
   });
 
   it("should map issue state to open or closed status correctly", async () => {

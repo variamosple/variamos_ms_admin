@@ -65,8 +65,31 @@ describe("BugRepositoryImpl status changes", () => {
 
     await repository.rejectBug(new RequestModel("tx", input));
 
+    // An empty id would break the foreign key on the user (ADM-N52)
     expect(createLog).toHaveBeenCalledWith(
-      expect.objectContaining({ operatorId: "" }),
+      expect.objectContaining({ operatorId: undefined }),
+      { transaction },
+    );
+  });
+
+  // The purge of the expired rejected bugs has no operator: its log line
+  // with an empty id broke the foreign key, so no bug was ever purged
+  it("logs a purge without an operator", async () => {
+    vi.spyOn(BugModel, "findByPk").mockResolvedValue(
+      bugWith("rejected") as never,
+    );
+
+    const res = await repository.updateStatus(
+      new RequestModel("purgeExpiredBugs", {
+        id: "b1",
+        status: "purged",
+        adminId: "",
+      }),
+    );
+
+    expect(res.errorCode).toBeUndefined();
+    expect(createLog).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "purged", operatorId: undefined }),
       { transaction },
     );
   });

@@ -187,7 +187,8 @@ export class BugRepositoryImpl implements IBugRepository {
             action,
             comment: logComment,
             bugId: dbBug.id ?? "",
-            operatorId: resolvedOperatorId || "",
+            // No known operator is NULL: an empty id breaks the foreign key
+            operatorId: resolvedOperatorId,
           },
           { transaction: t },
         );
@@ -408,7 +409,8 @@ export class BugRepositoryImpl implements IBugRepository {
             action: status,
             comment,
             bugId: dbBug.id ?? "",
-            operatorId: resolvedOperatorId || "",
+            // No known operator is NULL: an empty id breaks the foreign key
+            operatorId: resolvedOperatorId,
           },
           { transaction: t },
         );

@@ -18,14 +18,23 @@ import type {
 import type { ILogger } from "#src/Domain/Core/Service/ILogger.js";
 import { ALLOWED_CATEGORIES } from "./BugQueryUseCase.js";
 
-/** Bugs created and updated by the synchronization of one repository. */
+/**
+ * Bugs created and updated by the synchronization of one repository, and
+ * whether all of it was saved: a repository skipped, or an issue that could
+ * not be saved, makes the pass incomplete (ADM-N52).
+ */
 interface SyncCounts {
   created: number;
   updated: number;
+  complete: boolean;
 }
 
 // A repository skipped saves nothing
-const NOTHING_SAVED: Readonly<SyncCounts> = { created: 0, updated: 0 };
+const SKIPPED: Readonly<SyncCounts> = {
+  created: 0,
+  updated: 0,
+  complete: false,
+};
 
 // The first group a label falls in gives the priority; "critical" is a
 // priority of its own since EV-84 lot 5: read back as "high", it would be
@@ -159,15 +168,24 @@ export class BugSyncUseCase {
 
       let totalCreated = 0;
       let totalUpdated = 0;
+      const incomplete: string[] = [];
       for (const repo of repos) {
         const counts = await this.synchronizeRepo(repo, request.transactionId);
         totalCreated += counts.created;
         totalUpdated += counts.updated;
+        if (!counts.complete) incomplete.push(repo);
       }
 
       this.logger.info(
         `Synchronization finished: Created ${totalCreated} and Updated ${totalUpdated} bugs.`,
       );
+      // The other repositories are saved; the pass fails, so that the
+      // background task counts it and alerts (ADM-N52)
+      if (incomplete.length > 0) {
+        const message = `GitHub synchronization incomplete for ${incomplete.join(", ")}`;
+        this.logger.warn(message);
+        return response.withError(DomainErrorCodes.SYSTEM_ERROR, message);
+      }
     } catch (error) {
       this.logger.err(error);
       response.withError(DomainErrorCodes.SYSTEM_ERROR, INTERNAL_ERROR_MESSAGE);
@@ -193,10 +211,10 @@ export class BugSyncUseCase {
       this.logger.warn(
         `GitHub token could not be resolved for repo: ${repo}. Skipping.`,
       );
-      return NOTHING_SAVED;
+      return SKIPPED;
     }
     const issues = await this.issueTrackerService.getIssues(repo, token);
-    if (!issues) return NOTHING_SAVED;
+    if (!issues) return SKIPPED;
 
     // Without the local statuses, a synchronization would bring In
     // Progress or Resolved back to open or closed: the repository waits
@@ -205,21 +223,26 @@ export class BugSyncUseCase {
       this.logger.warn(
         `Local bugs of ${repo} could not be read. Skipping its synchronization.`,
       );
-      return NOTHING_SAVED;
+      return SKIPPED;
     }
 
     let created = 0;
     let updated = 0;
+    let notSaved = 0;
     for (const issue of issues) {
       if (issue.pull_request) continue;
       const bug = bugOfIssue(issue, repo, localStatuses.get(issue.number));
       const saveResponse = await this.repositories.bugs.saveOrUpdateBug(
         new RequestModel(transactionId, bug),
       );
+      if (saveResponse.errorCode) notSaved++;
       if (saveResponse.data?.created) created++;
       if (saveResponse.data?.updated) updated++;
     }
-    return { created, updated };
+    if (notSaved > 0) {
+      this.logger.warn(`${notSaved} issue(s) of ${repo} not saved`);
+    }
+    return { created, updated, complete: notSaved === 0 };
   }
 
   private async localStatusesOf(
