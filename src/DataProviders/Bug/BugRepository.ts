@@ -19,41 +19,47 @@ import { BugAttachmentModel } from "./BugAttachment.js";
 import { BugLogModel } from "./BugLog.js";
 import { bugFromRow, resolveOperatorId } from "./bugRows.js";
 
+// GitHub leaves out a missing value (undefined) that the database reads back
+// as NULL: both mean "none". Compared with !==, every unassigned issue was
+// saved again at each pass (9 526 updates of 31 bugs in 5.6 days, 2026-11-25)
+const sameValue = (saved: unknown, fromGitHub: unknown): boolean =>
+  (saved ?? null) === (fromGitHub ?? null);
+
+/** The fields of a saved bug that GitHub owns. */
+type GitHubOwnedField =
+  | "title"
+  | "description"
+  | "status"
+  | "priority"
+  | "githubCreator"
+  | "githubHtmlUrl"
+  | "githubAssignee";
+
 /**
  * Copies what GitHub owns onto the saved bug (title, text, status, priority,
  * author, link, assignee, creation date); true when one of them changed.
  */
 function copyGitHubFields(dbBug: BugModel, bug: Bug): boolean {
   let changed = false;
-  if (dbBug.title !== bug.title) {
-    dbBug.title = bug.title;
+  const copy = <K extends GitHubOwnedField>(key: K, value: BugModel[K]) => {
+    if (sameValue(dbBug[key], value)) return;
+    dbBug[key] = value;
     changed = true;
-  }
-  if (dbBug.description !== bug.description) {
-    dbBug.description = bug.description;
-    changed = true;
-  }
-  if (dbBug.status !== bug.status) {
-    dbBug.status = bug.status;
-    changed = true;
-  }
-  if (dbBug.priority !== bug.priority) {
-    dbBug.priority = bug.priority;
-    changed = true;
-  }
-  if (dbBug.githubCreator !== bug.githubCreator) {
-    dbBug.githubCreator = bug.githubCreator;
-    changed = true;
-  }
-  if (dbBug.githubHtmlUrl !== bug.githubHtmlUrl) {
-    dbBug.githubHtmlUrl = bug.githubHtmlUrl;
-    changed = true;
-  }
-  if (dbBug.githubAssignee !== bug.githubAssignee) {
-    dbBug.githubAssignee = bug.githubAssignee;
-    changed = true;
-  }
-  if (dbBug.githubCreatedAt?.toISOString() !== bug.createdAt?.toISOString()) {
+  };
+  copy("title", bug.title);
+  copy("description", bug.description);
+  copy("status", bug.status);
+  copy("priority", bug.priority);
+  copy("githubCreator", bug.githubCreator);
+  copy("githubHtmlUrl", bug.githubHtmlUrl);
+  // Sequelize leaves out an undefined value: a removed assignee is NULL
+  copy("githubAssignee", bug.githubAssignee ?? null);
+  if (
+    !sameValue(
+      dbBug.githubCreatedAt?.toISOString(),
+      bug.createdAt?.toISOString(),
+    )
+  ) {
     dbBug.githubCreatedAt = bug.createdAt;
     changed = true;
   }
