@@ -31,7 +31,8 @@ export interface BugAttributes {
   gitIssueNumber?: number;
   githubCreator?: string;
   githubHtmlUrl?: string;
-  githubAssignee?: string;
+  // NULL once the issue has no assignee: an undefined value is not written
+  githubAssignee?: string | null;
   githubCreatedAt?: Date;
   createdAt?: Date;
   updatedAt?: Date;
@@ -51,7 +52,7 @@ export class BugModel extends Model<BugAttributes> implements BugAttributes {
   public gitIssueNumber?: number;
   public githubCreator?: string;
   public githubHtmlUrl?: string;
-  public githubAssignee?: string;
+  public githubAssignee?: string | null;
   public githubCreatedAt?: Date;
   public createdAt?: Date;
   public updatedAt?: Date;
