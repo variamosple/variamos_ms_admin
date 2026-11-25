@@ -412,9 +412,13 @@ describe("authorization of every route (T-17 lot 2)", () => {
     });
 
     it("once expired", async () => {
-      vi.stubEnv("VARIAMOS_JWT_EXP_IN_SECONDS", "-60");
-      const expired = await tokenFor(PERMISSIONS);
-      vi.stubEnv("VARIAMOS_JWT_EXP_IN_SECONDS", "600");
+      // Signed an hour ago for 600 seconds: variamos-security 0.1.1 takes a
+      // negative lifetime as the 900 seconds default, so the clock goes back
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(Date.now() - 3_600_000);
+      const expired = await tokenFor(PERMISSIONS).finally(() =>
+        vi.useRealTimers(),
+      );
 
       expect((await send(app, route, expired)).status).toBe(401);
     });
