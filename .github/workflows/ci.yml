@@ -78,7 +78,7 @@ jobs:
         path: ./
         # The image of the same release, not "latest": change it with the
         # SHA above when Dependabot updates the action
-        version: 3.99.9
+        version: 3.100.1
 
   # The unit tests, then SonarCloud on their coverage
   coverage:
