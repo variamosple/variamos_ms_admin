@@ -181,6 +181,7 @@ jobs:
         code=0; timeout 60 docker run --rm \
           -e DB_HOST=db -e DB_USER=ci -e DB_PASSWORD=ci -e DB_DATABASE=ci \
           -e NOTIFICATION_INTERNAL_TOKEN=ci -e VARIAMOS_PRIVATE_KEY_PATH=missing.key \
+          -e SMTP_USER=ci -e SMTP_PASSWORD=ci \
           -e CORS_ALLOWED_ORIGINS=https://ci.example \
           backend-test || code=$?
         if [ "$code" -ne 1 ]; then
@@ -196,6 +197,7 @@ jobs:
           -v "$key_dir/ci.key:/keys/ci.key:ro" \
           -e DB_HOST=db -e DB_USER=ci -e DB_PASSWORD=ci -e DB_DATABASE=ci \
           -e NOTIFICATION_INTERNAL_TOKEN=ci -e VARIAMOS_PRIVATE_KEY_PATH=/keys/ci.key \
+          -e SMTP_USER=ci -e SMTP_PASSWORD=ci \
           -e CORS_ALLOWED_ORIGINS=https://ci.example \
           backend-test
         sleep 5

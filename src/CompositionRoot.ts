@@ -1,6 +1,5 @@
 import multer from "multer";
 import EnvVars from "#src/common/EnvVars.js";
-import logger from "#src/common/logger.js";
 import { MAX_ATTACHMENT_SIZE_BYTES } from "#src/Domain/Core/File/AllowedFileType.js";
 import {
   MailServiceInstance,
@@ -170,14 +169,10 @@ const productionUserManagementUseCase = new UserManagementUseCase(
 );
 
 // Two-factor authentication (SPC-2026-10-17-001); off without a valid key
+// (a malformed key is reported, or stops production: checkSecrets)
 const mfaEncryptionKey = parseEncryptionKey(
   EnvVars.Auth.APP.MFA_ENCRYPTION_KEY,
 );
-if (!mfaEncryptionKey && EnvVars.Auth.APP.MFA_ENCRYPTION_KEY.trim()) {
-  logger.warn(
-    "[MFA] MFA_ENCRYPTION_KEY is not 32 bytes in base64: two-factor enrollment is unavailable",
-  );
-}
 const userMfaRepository = new UserMfaRepositoryImpl(VARIAMOS_ORM, DB_SCHEMA);
 const mfaSecretCipher = new AesGcmSecretCipher(mfaEncryptionKey);
 const productionUserMfaUseCase = new UserMfaUseCase({

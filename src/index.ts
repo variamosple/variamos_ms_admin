@@ -17,7 +17,7 @@ import {
 import EnvVars from "#src/common/EnvVars.js";
 import { checkLocalDevOrigins } from "#src/common/localDevOrigins.js";
 import { NodeEnvs } from "#src/common/misc.js";
-import { missingRequiredSecrets } from "#src/common/requiredSecrets.js";
+import { checkSecrets } from "#src/common/requiredSecrets.js";
 import { errorMessage } from "#src/Domain/Core/Error/errorMessage.js";
 import { MailServiceInstance } from "./CompositionAdapters.js";
 import { BackgroundTasks, BackupAlertsInstance } from "./CompositionAlerts.js";
@@ -62,13 +62,15 @@ import { startBackgroundJobs } from "./Infrastructure/Scheduling/BackgroundJobs.
 import VARIAMOS_ORM, { DB_SCHEMA } from "./Infrastructure/VariamosORM.js";
 import { createServer } from "./server.js";
 
-// Without these secrets the server would run on empty or known values, or on
-// test credentials: in production, it does not start (EV-69)
-const missingSecrets = missingRequiredSecrets(process.env, EnvVars.NodeEnv);
-if (missingSecrets.length > 0) {
-  logger.err(
-    `[CONFIG] Missing in production, the server does not start: ${missingSecrets.join(", ")}`,
-  );
+// A missing, half set or malformed secret: in production, the server does
+// not start, instead of running on empty or known values, on test
+// credentials, or without a feature it seems to have (EV-45, EV-69)
+const secrets = checkSecrets(process.env, EnvVars.NodeEnv);
+for (const warning of secrets.warnings) logger.warn(`[CONFIG] ${warning}`);
+if (secrets.errors.length > 0) {
+  for (const error of secrets.errors) {
+    logger.err(`[CONFIG] ${error}, the server does not start`);
+  }
   process.exit(1);
 }
 
