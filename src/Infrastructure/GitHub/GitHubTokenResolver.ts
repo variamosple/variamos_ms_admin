@@ -5,6 +5,7 @@ import type { IBugTrackerConfig } from "#src/Domain/Bug/Config/IBugTrackerConfig
 import type { IGitHubTokenProvider } from "#src/Domain/Bug/Service/IGitHubTokenProvider.js";
 import { httpFailureMessage } from "#src/Infrastructure/Http/httpFailure.js";
 import { createGitHubHttp } from "./githubHttp.js";
+import { formatGitHubPrivateKey } from "./githubPrivateKey.js";
 
 export class GitHubTokenResolver implements IGitHubTokenProvider {
   public readonly tokenCache = new Map<
@@ -91,8 +92,10 @@ export class GitHubTokenResolver implements IGitHubTokenProvider {
 
     const sign = crypto.createSign("RSA-SHA256");
     sign.update(`${header}.${payload}`);
-    const formattedKey = privateKey.replace(/\\n/g, "\n");
-    const signature = sign.sign(formattedKey, "base64url");
+    const signature = sign.sign(
+      formatGitHubPrivateKey(privateKey),
+      "base64url",
+    );
 
     return `${header}.${payload}.${signature}`;
   }

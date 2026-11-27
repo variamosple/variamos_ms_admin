@@ -1,6 +1,5 @@
 import Docker from "dockerode";
 import EnvVars from "#src/common/EnvVars.js";
-import logger from "#src/common/logger.js";
 import {
   MailServiceInstance,
   NotificationClientInstance,
@@ -57,15 +56,11 @@ import { BcryptPasswordHasher } from "./Infrastructure/Security/BcryptPasswordHa
 import VARIAMOS_ORM, { DB_SCHEMA } from "./Infrastructure/VariamosORM.js";
 
 // Secret configurations are encrypted at rest (T-13, EV-78 lot 2); without
-// a valid key they cannot be changed
+// a valid key they cannot be changed (a malformed key is reported, or stops
+// production, before the server starts: checkSecrets)
 const configEncryptionKey = parseEncryptionKey(
   EnvVars.Auth.APP.CONFIG_ENCRYPTION_KEY,
 );
-if (!configEncryptionKey && EnvVars.Auth.APP.CONFIG_ENCRYPTION_KEY.trim()) {
-  logger.warn(
-    "[CONFIG] CONFIG_ENCRYPTION_KEY is not 32 bytes in base64: secret configurations cannot be changed",
-  );
-}
 export const SecretConfigurationValueInstance = new SecretConfigurationValue(
   new AesGcmSecretCipher(configEncryptionKey),
 );
