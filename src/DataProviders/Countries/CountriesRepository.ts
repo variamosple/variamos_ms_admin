@@ -15,7 +15,7 @@ import { publicAddressOf } from "./publicAddress.js";
  * The country of an address is only a default offered at sign-in: a
  * geolocation service that does not answer within 2 s is skipped (ADM-N33).
  */
-export const IP_LOOKUP_TIMEOUT_MS = 2000;
+const IP_LOOKUP_TIMEOUT_MS = 2000;
 
 /** Where the country of an address is asked, and how long to wait. */
 export interface IpLookupSettings {

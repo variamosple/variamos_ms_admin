@@ -17,7 +17,7 @@ const segmentsOf = (path: string): string[] => path.split("/").filter(Boolean);
  * keeps only the prefix of the router that answered, if any: scanners ask
  * for many such addresses.
  */
-export function routeOf(req: Request): string {
+function routeOf(req: Request): string {
   const declared: unknown = req.route?.path;
   if (typeof declared === "string") {
     const path = segmentsOf(pathOf(req));

@@ -18,7 +18,7 @@ export interface NotificationClientSettings {
  * A notification service that does not answer gives up after 5 s (ADM-N33),
  * rather than holding the request that sends the notification.
  */
-export const NOTIFICATIONS_TIMEOUT_MS = 5000;
+const NOTIFICATIONS_TIMEOUT_MS = 5000;
 
 export class NotificationClient implements INotificationDispatcher {
   private readonly baseUrl: string;
