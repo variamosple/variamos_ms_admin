@@ -165,6 +165,29 @@ describe("ConfigurationRouter Integration Tests", () => {
       );
     });
 
+    // The contract with the shared header of variamos-components: it opens
+    // the bug form for an option that ends with "#report-bug" (EV-40). A
+    // different string would send the admin to a page that does not exist.
+    it.each([
+      ["PLE", "/", false],
+      ["Languages", "/variamos_languages/", false],
+      ["the admin", "/variamos_admin/", false],
+      ["the admin in development", "/variamos_admin/", true],
+    ])("serves the bug report option to %s", async (_from, basePath, dev) => {
+      development = dev;
+
+      const response = await supertest(app).get("/v1/configurations/menu");
+
+      const { options } = (response.body as MenuApiResponse).data;
+      const reportOptions = options.filter(
+        (opt) =>
+          opt.accessibleFrom === basePath && opt.title === "Report a problem",
+      );
+      expect(reportOptions).toHaveLength(1);
+      expect(reportOptions[0]?.location).toBe("#report-bug");
+      expect(reportOptions[0]?.target).toBe("sameWindow");
+    });
+
     it("points My account to the local admin in development", async () => {
       development = true;
 

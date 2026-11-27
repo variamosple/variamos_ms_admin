@@ -174,6 +174,14 @@ const ADMIN_ENTRY_PERMISSIONS = [
   ...new Set(ADMIN_PAGES.flatMap((page) => page.allowedPermissions ?? [])),
 ];
 
+/**
+ * Not a page: the shared header of @variamosple/variamos-components (0.1.0
+ * and later) opens the bug form above the current page when an option ends
+ * with it (EV-40). The 0.0.x versions have no form: in PLE and Languages the
+ * entry leads nowhere until they move to a later version.
+ */
+const REPORT_BUG_LOCATION = "#report-bug";
+
 const MENU: Menu = {
   items: [
     {
@@ -222,7 +230,7 @@ const MENU: Menu = {
     },
     {
       title: "Report a problem",
-      location: "#report-bug",
+      location: REPORT_BUG_LOCATION,
       accessibleFrom: "/variamos_languages/",
       target: "sameWindow",
       allowedPermissions: [],
@@ -236,7 +244,7 @@ const MENU: Menu = {
     },
     {
       title: "Report a problem",
-      location: "#report-bug",
+      location: REPORT_BUG_LOCATION,
       accessibleFrom: "/",
       target: "sameWindow",
       allowedPermissions: [],
@@ -250,7 +258,7 @@ const MENU: Menu = {
     },
     {
       title: "Report a problem",
-      location: "#report-bug",
+      location: REPORT_BUG_LOCATION,
       accessibleFrom: "/variamos_admin/",
       target: "sameWindow",
       allowedPermissions: ["languages::create", "product-lines::create"],
