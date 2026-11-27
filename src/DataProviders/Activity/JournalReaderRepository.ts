@@ -94,7 +94,7 @@ export class JournalReaderRepositoryImpl implements IJournalReader {
     return {
       total: page.total,
       rows: page.rows.map((row) => ({
-        id: String(row.id),
+        id: row.id,
         occurredAt: row.occurred_at,
         actorId: row.actor_id,
         actor: accountOf(row.actor_id, row),
@@ -154,7 +154,7 @@ export class JournalReaderRepositoryImpl implements IJournalReader {
     return {
       total: page.total,
       rows: page.rows.map((row) => ({
-        id: String(row.id),
+        id: row.id,
         occurredAt: row.occurred_at,
         userId: row.user_id,
         user: accountOf(row.user_id, row),
