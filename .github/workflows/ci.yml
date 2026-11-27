@@ -73,7 +73,7 @@ jobs:
         npm run build
 
     - name: Run TruffleHog Secret Scan
-      uses: trufflesecurity/trufflehog@3bd2b5887eb0efb8fa18bfd1d296032924e4ffdc # v3.99.9
+      uses: trufflesecurity/trufflehog@4ef51f69ca6347aaa76a5e64a87eac9c0c909f71 # v3.100.1
       with:
         path: ./
         # The image of the same release, not "latest": change it with the
