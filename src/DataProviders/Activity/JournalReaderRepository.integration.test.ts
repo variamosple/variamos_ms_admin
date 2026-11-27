@@ -120,6 +120,12 @@ describe.skipIf(!url)("Reading the journals on PostgreSQL (T-24)", () => {
     });
     // An account that no longer exists keeps its id
     expect(page.rows[0]).toMatchObject({ actorId: GONE, actor: null });
+    // A bigserial comes back from node-postgres as a string, as the row type says
+    expect(page.rows.map((row) => typeof row.id)).toEqual([
+      "string",
+      "string",
+      "string",
+    ]);
   });
 
   it("filters the activity by account, action, entity and outcome", async () => {
@@ -168,6 +174,7 @@ describe.skipIf(!url)("Reading the journals on PostgreSQL (T-24)", () => {
     const byName = await reader.queryAccess(access({ user: "ana" }));
 
     expect(all.total).toBe(3);
+    expect(all.rows.every((row) => typeof row.id === "string")).toBe(true);
     expect(all.rows[1]).toMatchObject({
       event: "access.refused",
       userId: null,
