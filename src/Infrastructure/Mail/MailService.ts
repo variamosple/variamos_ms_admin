@@ -78,7 +78,7 @@ ${content}            <hr style="border: 0; border-top: 1px solid #e9ecef; margi
  * of nodemailer waited 2 minutes for the connection and 10 minutes for an
  * answer, holding the request that sends the mail.
  */
-export const MAIL_TIMEOUTS = {
+const MAIL_TIMEOUTS = {
   connectionMs: 10_000,
   greetingMs: 10_000,
   socketMs: 20_000,

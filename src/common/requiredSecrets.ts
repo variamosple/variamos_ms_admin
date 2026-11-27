@@ -31,7 +31,7 @@ export const REQUIRED_IN_PRODUCTION = [
  * at least one, production needs the GitHub App. GITHUB_TOKEN stays an
  * optional fallback for the day the App fails.
  */
-export const GITHUB_APP = ["GITHUB_APP_ID", "GITHUB_PRIVATE_KEY"] as const;
+const GITHUB_APP = ["GITHUB_APP_ID", "GITHUB_PRIVATE_KEY"] as const;
 
 interface SecretGroup {
   readonly names: readonly string[];
@@ -43,7 +43,7 @@ interface SecretGroup {
  * Variables that work only together: both or neither. A later pair, such as
  * the account the migrations use, is one more line here.
  */
-export const SET_TOGETHER: readonly SecretGroup[] = [
+const SET_TOGETHER: readonly SecretGroup[] = [
   {
     names: GITHUB_APP,
     withoutThem: "issues reach GitHub only through GITHUB_TOKEN, if it is set",
